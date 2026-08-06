@@ -20,6 +20,12 @@ Microphone and camera support is proposed but not implemented. Their future
 default is physically unpowered, with controls that do not depend solely on a
 compromiseable UI process.
 
+Personal agenda and birthday-wish support is also proposed, not implemented.
+Its additional trust boundary is a signed, logged-in-user Mac companion that
+owns Apple/Google authorization, full recipient routes, local transcription,
+and Messages automation. See the
+[personal-agenda architecture](../architecture/personal-agenda-and-birthday-wishes.md).
+
 ## Assets and boundaries
 
 ```mermaid
@@ -33,9 +39,14 @@ flowchart LR
     SUP -->|"bounded capture authorization"| BROKER["Proposed media-session broker"]
     MEDIA --> BROKER
     UI -->|"semantic interaction request"| BROKER
-    BROKER -->|"transcript / gesture, not raw device ownership"| UI
+    BROKER -->|"purpose-bounded semantic result"| UI
     UI -->|"untrusted HTTPS responses"| LEX["Lexinet"]
     DEVICE -->|"TUN boundary"| TAIL["Tailnet"]
+    UI -->|"typed agenda + draft control"| CLIENT["Proposed personal-context client\nrequest signer"]
+    BROKER -->|"approved wish artifact only"| CLIENT
+    CLIENT -->|"single-use signed requests"| TAIL
+    TAIL --> MAC["Proposed signed Mac companion"]
+    MAC --> PERSONAL["Calendar / Contacts / Messages"]
     PROVISIONER["Trusted operator"] -->|"one-time auth material"| DEVICE
 ```
 
@@ -45,8 +56,13 @@ flowchart LR
 | Lexinet credential | Commit, CLI/process-list, URL, or log exposure | Provisioned file, redaction, HTTPS, narrow service permission | No hardware-backed secret storage assumed |
 | Lexinet learning state | Unauthorized mutation/replay | Application auth, idempotency keys, server validation | Exact control waits for real API contract |
 | System power interfaces | UI compromise causing suspend loops | Privileged supervisor is sole writer; rate limits and state guards | Root compromise bypasses this boundary |
+| Presentation readiness | Stale, replayed, cross-release, or forged page-flip acknowledgement exposes an old/bright frame | Planned protocol v2 binds appliance release, unpredictable supervisor session and connection challenge, sequence, snapshot digest, mode, render generation, and exact Unix peer UID; one latest acknowledgement is consumed once and failures stay dark | A compromised authorized `panel_ui` can lie about its own frame; target commit correlation and process isolation bound but cannot eliminate this limitation |
 | Household presence inference | Excessive logs, UI compromise, or remote disclosure | Store only current/transition diagnostics locally; exact unique touch grant; both project PIR names stay root-only | Device identity is not cryptographic, physical/root compromise bypasses it, and any new presence-provider name must extend the tested deny list |
-| Raw audio, images, and unrestricted transcripts | Silent collection, accidental logging, or tailnet exfiltration | Planned: media rails default off; bounded broker sessions; no raw-media persistence/transmission by default; explicit feature and retention decision required | No media broker or rail control is implemented; root/physical compromise bypasses software policy |
+| Calendar titles, locations, birthdays, and names | Screen disclosure, excessive synchronization, or storage theft | Planned: content-free capability discovery before consent; local opt-in and grants; selected calendars/provisioned contacts only; daytime display; bounded Today projection/cache; private-event policy; visible freshness | macOS grants remain broad and a compromised companion or logged-in user can read beyond the adapter's logical boundary; intended room occupants can see a lit panel |
+| Provider OAuth tokens and full contact/message routes | Theft from the physically accessible panel | Planned: Mac Keychain and companion-only routing; panel receives opaque people and masked destinations | Compromise of the logged-in Mac user bypasses this boundary |
+| Raw audio, images, and unrestricted transcripts | Silent collection, accidental logging, or tailnet exfiltration | Planned: media rails default off; purpose-bound broker sessions; command audio is never transmitted; a voice wish command only opens the composer; `bounded_learning_observation` navigation may append idempotent non-mastery `presented`/`revealed` facts, while ratings are visibly acknowledged and append-only correctable by touch Undo; touch begins wish capture; hardware indicator/mute | No media broker or rail control is implemented; compromised UI can simulate allowed capture while its lease is active, and root/physical compromise bypasses policy |
+| Spoken-command vocabulary and recognizer output | Near-homophones, phrase containment, context leakage, artifact/policy mismatch, or acoustic substitution triggers the wrong semantic action | Planned: one reviewed language-tagged catalog; pronunciation provenance; deterministic pair analysis; hard effect-class admission excluding capture start/submission/power/illumination; content-addressed active command sets and backend projections; schema-validated canonical recognition-policy artifacts bound to backend/model identities and verified by the broker; the complete identity chain in each voice intent; abstention; visible acknowledgement; touch fallback and append-only rating correction; single-use held-out selection plus untouched confirmation evidence before enabling a real engine | Static phonetic distance is not a probability or a safety proof; actual microphones, speakers, noise, accents, and recognizer builds remain unproven until on-device evidence exists |
+| Birthday-wish body/audio and Messages authority | False activation, wrong recipient, replay, duplicate submission, or hidden retention | Planned: allowlisted current-birthday route, touch before capture and submit, single-use signed request, atomic dispatch barrier, daily attempt bound, local STT, playback-gated audio, 30-minute Mac content ceiling, deterministic terminal deletion, and 30-day non-content attempt-metadata ceiling | Messages semantics are unproven; compromised `panel_ui` can fabricate touch-level allowed requests, and root can use the device key |
 | Microphone/camera activation state | Compromised UI falsifies software indicator or mute | Planned: physical mic mute removes bias/clock/power; camera indicator is tied to its rail; mechanical shutter preferred | Prototype USB devices may not expose a separately switchable rail; controls remain unproven |
 | Always-on controller availability and authority | Wake storm drains battery, stale Linux state controls output, or controller fault prevents boot | Planned: bounded sequenced protocol, independent safety ceilings, watchdog, boot backoff, reset reconciliation, authenticated A/B update | No controller, protocol, bootloader, or secure update path is implemented |
 | eMMC durability | Corruption or wear | No implemented control yet; read-only root and a bounded writable data partition are planned evidence gates | Current writable-root prototype remains exposed to abrupt-power-loss corruption and wear |
@@ -62,12 +78,25 @@ flowchart LR
 - Camera and microphone power indicators are coupled to hardware rails rather
   than controlled only by application software.
 - Include a mechanical camera shutter where enclosure geometry permits.
-- Keep only the minimum volatile ring buffer needed for voice activity or an
-  approved wake word; discard non-trigger audio.
+- Keep only the minimum volatile ring buffer needed for voice activity or a
+  separately approved future low-power wake-word capability; discard non-trigger
+  audio. `Lexi` is only an invocation prefix while Linux is already listening.
 - Persist transcripts or gesture events only when the product feature needs
   them, and never log raw audio/video.
 - Do not send raw media to the tailnet without an explicit consent, service,
   authorization, and retention decision.
+- Treat command recognition and birthday-wish recording as distinct capture
+  purposes. Command-listening audio never leaves the broker. A wish artifact
+  begins only after the composer is visible and the user affirmatively touches
+  Record, has fixed duration/size/destination bounds, and is erased after
+  acknowledged upload or cancellation. Mac-side content is separately capped
+  at 30 minutes and deleted earlier on cancellation, terminal failure, handoff
+  outcome (including `delivery_unknown`), expiry, or crash recovery.
+- During `wish_recording`, do not lease the general command-recognition
+  projection.
+  A purpose-internal, content-addressed stop-only projection may consume the
+  same stream solely to halt capture; it cannot activate another intent or
+  submit the artifact.
 
 See [proposed power-domain architecture](../architecture/power-domain-architecture.md)
 for the rail-level enforcement model.
@@ -96,7 +125,8 @@ prototype.
 ## Tailnet policy intention
 
 - Give the panel a dedicated tag, not a reusable human identity.
-- Permit only DNS/time dependencies and the exact Lexinet host/port needed.
+- Permit only DNS/time dependencies and the exact Lexinet and approved Mac
+  companion hosts/ports needed.
 - Use a short-lived, ephemeral, or one-time provisioning key as supported by the deployment; never commit it.
 - Prefer normal kernel TUN mode. Userspace proxy mode is an experiment only if `/dev/net/tun` cannot be supported.
 - Revoke the Tailscale node and Lexinet credential after loss or re-imaging.
@@ -104,22 +134,28 @@ prototype.
 | Principal | Permitted egress | Explicitly absent by default |
 |---|---|---|
 | Vocabulary/Lexinet client | Exact Lexinet identity, host, port, and API scope | Arbitrary tailnet peers, raw media destinations |
+| Personal-context client (proposed) | Exact Mac companion identity, root-provisioned device signer, and separate agenda-read, wish-prepare, transcribe, and submit operations | Provider credentials, arbitrary contacts, calendar writes, recipient handles, stale send queue, arbitrary URLs |
 | Time/network service | Configured DNS and time endpoints | Lexinet mutation and media access |
 | Update agent (future) | Pinned update metadata/artifact origin | General web browsing or Lexinet credentials |
 | Model provisioning (future) | Offline signed bundle or separately approved pinned origin | Runtime arbitrary model download |
 | Remote STT (disabled) | None | Raw-audio network access; enabling requires a separate decision, capture indication, allowlist, size bound, and retention contract |
 
-Tailscale supplies private transport, not application authorization. The UI
-must not receive a general-purpose tailnet socket capability merely because it
-needs one Lexinet client.
+Tailscale supplies private transport, not complete application authorization.
+The companion must reject forged Serve headers and require a provisioned panel
+signature over a single-use server challenge and canonical request. The UI and
+broker use a narrow typed local client rather than a general-purpose companion
+socket or the private signing key. This blocks ordinary same-user Mac processes
+from borrowing the companion's TCC grants, but it does not prove touch: a
+compromised authorized UI can still request the allowlisted operations exposed
+to it.
 
 ## Power-state data exposure
 
 | State | Sensitive material still exposed | Required posture |
 |---|---|---|
-| Active / dark idle | Credentials, UI state, and any active media buffer in RAM and storage | Least-privilege processes, bounded buffers, no raw-media logs |
+| Active / dark idle | Credentials, UI state, bounded agenda cache, and any active media buffer in RAM and storage | Least-privilege processes, minimum personal-data projection, bounded buffers, no raw-media logs |
 | Suspend-to-RAM | The same RAM material is retained even though networking/media rails are off | Wipe media buffers before suspend; disable swap/core dumps for credential/media processes |
-| Application-domain-off | RAM residency ends, but Wi-Fi, Tailscale, Lexinet, cached cards, and queued reviews remain on storage | Narrow revocable credentials; test node revocation; do not describe power-off as erasure |
+| Application-domain-off | RAM residency ends, but Wi-Fi, Tailscale, Lexinet, cached cards, bounded agenda snapshot, and queued reviews remain on storage | Narrow revocable credentials; hard agenda expiry; test node revocation; do not describe power-off as erasure |
 
 The prototype accepts physical theft as device compromise. A later requirement
 to resist opportunistic storage theft implies verified boot plus encrypted
@@ -149,7 +185,12 @@ make iteration convenient.
 
 ## Diagnostics policy
 
-Structured logs include UTC timestamp, level, service, message, trace ID, error code, and non-secret hardware state. They exclude auth headers, credential files, URLs containing user info, full vocabulary payloads, Wi-Fi configuration, and raw shell history. Diagnostic collection scripts list every included path and redact before archive creation.
+Structured logs include UTC timestamp, level, service, message, trace ID, error
+code, and non-secret hardware state. They exclude auth headers, credential
+files, URLs containing user info, full vocabulary payloads, names, recipient
+handles, calendar titles/locations, message bodies, content hashes, transcripts,
+audio, Wi-Fi configuration, and raw shell history. Diagnostic collection
+scripts list every included path and redact before archive creation.
 
 ## Explicitly out of scope
 
@@ -157,4 +198,6 @@ Structured logs include UTC timestamp, level, service, message, trace ID, error 
 - Secure boot, encrypted root filesystem, remote attestation, or a hardware secure element in the first prototype.
 - Protecting public application binaries or non-sensitive display configuration.
 
-These are honest prototype boundaries, not permanent prohibitions. Revisit them if the panel stores sensitive household data or becomes remotely managed at scale.
+These are honest prototype boundaries, not permanent prohibitions. The
+personal-agenda work must revisit storage protection before it persists more
+than the minimized bounded snapshot or enables reboot-surviving drafts.

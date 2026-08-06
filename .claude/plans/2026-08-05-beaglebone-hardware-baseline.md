@@ -151,7 +151,11 @@ or sleep mode safe from legacy source alone.
   - Compare the measured results with the common gates in
     `docs/research/compute-platform-assessment.md` without selecting a new board
     from vendor specifications alone.
-  - Output: `docs/decisions/0004-beaglebone-hardware-baseline.md`.
+  - ~~Output: `docs/decisions/0004-beaglebone-hardware-baseline.md`.~~
+  - Output: a BeagleBone hardware-baseline ADR whose four-digit prefix is chosen
+    by scanning `docs/decisions/` on the current target branch when the record
+    is created. Immediately before merge, re-scan the destination branch and
+    renumber the file and references if that prefix now collides.
   - Verify: every accepted claim links to captured evidence; remaining
     assumptions name a falsifiable next experiment; eMMC remains restorable and
     all legacy Git worktrees remain clean.
@@ -165,6 +169,12 @@ or sleep mode safe from legacy source alone.
   reproducible on a named current kernel/image.
 - GPIO0 motion wake meets the agreed repeat count with diagnosable failures.
 - Power and interaction latency are measured at documented boundaries.
-- ADR 0004 can justify continuing on Black and define candidate-board gates
-  without relying on legacy code or marketing specifications.
+- The hardware-baseline ADR can justify continuing on Black and define
+  candidate-board gates without relying on legacy code or marketing
+  specifications.
 - `make verify` passes with all committed documentation and reusable tooling.
+
+**Amended 2026-08-05:** Removed the fixed ADR 0004 filename because the Mac
+companion feasibility plan may finish while the board is unavailable. Pending
+plans select a free number from the current target branch at ADR creation and
+repeat the collision check immediately before merge.

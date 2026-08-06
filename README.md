@@ -6,6 +6,8 @@ A clean-room embedded appliance project for a motion-aware BeagleBone display:
 - enter the deepest **measured and reliable** low-power state when the room appears unoccupied;
 - show a dim red surface after local sunset and before sunrise;
 - show an interactive Lexinet-backed vocabulary experience during daytime;
+- show a privacy-bounded personal agenda and prepare birthday wishes through a
+  companion on the user's Mac;
 - build a small, reproducible Buildroot image suitable for 4 GB eMMC;
 - eventually package the board, cape, sensor, and power hardware in a printable enclosure.
 
@@ -22,9 +24,30 @@ This is an executable scaffold, not a hardware-complete product.
 | Presence/wake | Custom input-driver experiment plus stock `gpio-keys` comparison | PIR electrical behavior, cape pin conflicts, DeepSleep0 wake proof |
 | Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, clock-readiness, and local IPC adapters | Actual nodes, brightness, clock recovery, and suspend behavior on the target |
 | Vocabulary panel | Host-tested flash-card flow, provisional HTTPS Lexinet client, and strict-compiled LVGL DRM/fbdev renderer | Integrated graphical controller executable, actual Lexinet contract, cape nodes, and calibrated touch |
+| Personal agenda | Proposed provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan | Neutral shared UI shell; EventKit/Contacts, Google, Tailnet, local STT, and Messages measurements; all implementation |
 | System image | Pinned Buildroot external tree, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | Full release image build, cape driver/device tree, and measured package/resource budget |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
 | Enclosure | Requirements and measurement checklist | Physical dimensions, thermals, connectors, and CAD |
+
+## Development roadmap
+
+The
+[end-to-end development roadmap](.claude/plans/2026-08-05-end-to-end-development-roadmap.md)
+is the program-ordering authority. It shows which work can proceed immediately
+on host machines, where the Lexinet and Mac-companion lanes can run in parallel,
+and the evidence gates that begin when the BeagleBone returns. The detailed
+[Lexinet integration](.claude/plans/2026-08-05-lexinet-study-integration.md),
+[personal-agenda feasibility](.claude/plans/2026-08-05-personal-agenda-feasibility.md),
+and
+[BeagleBone hardware baseline](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md)
+plans remain authoritative inside their work streams.
+
+The immediate sequence is to review the shared product contracts, build the
+neutral host UI/protocol spine, implement Lexinet study and offline behavior,
+run Mac feasibility in parallel, and produce a disabled-by-default Buildroot
+release candidate. GPIO, display, suspend/wake, microphone, battery, and final
+platform claims remain measured hardware gates rather than blockers to that
+software head start.
 
 No document or test result in this repository claims the saved legacy pin map is electrically safe or that suspend wake works on the actual assembly.
 
@@ -44,15 +67,16 @@ QCS6490 only after its sleep claim is made reproducible. See the
 and [current investigation decision](docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md).
 
 Two software gates intentionally remain before a product-like lit-screen test:
-the LVGL renderer/flash-card/session/HTTP pieces still need one graphical
-controller process, and protocol v1 still needs a sequence-bound
+the LVGL renderer/flash-card/session/HTTP pieces still need one neutral
+`panel_ui` controller process, and protocol v1 still needs a sequence-bound
 rendered/page-flipped acknowledgement before the supervisor may raise a
 nonzero backlight. Until those exist, services stay disabled by default and the
 no-white-flash requirement is not claimed as proven.
 
 ## Architecture
 
-The system deliberately keeps hardware authority out of the UI:
+The implemented scaffold deliberately keeps hardware authority out of its
+currently vocabulary-specific UI:
 
 ```mermaid
 flowchart LR
@@ -61,7 +85,7 @@ flowchart LR
     CLOCK["clock + solar calculation"] --> SUPERVISOR
     SUPERVISOR --> BACKLIGHT["backlight"]
     SUPERVISOR --> SUSPEND["Linux suspend"]
-    SUPERVISOR -->|"versioned local mode event"| UI["vocabulary panel"]
+    SUPERVISOR -->|"versioned local mode event"| UI["vocabulary panel\ncurrent scaffold"]
     UI -->|"authenticated HTTPS over tailnet"| LEXINET["Lexinet server"]
     BUILDROOT["Buildroot image"] --> PRESENCE
     BUILDROOT --> SUPERVISOR
@@ -70,9 +94,29 @@ flowchart LR
     TAILSCALE --> LEXINET
 ```
 
+The proposed application convergence replaces that future UI owner with one
+neutral shell; it does not add agenda or vocabulary decisions to the supervisor:
+
+```mermaid
+flowchart LR
+    SUP["panel supervisor\nlifecycle + power only"] -->|"day_active / night_red / suspended"| SHELL["panel_ui\nsole display/touch owner"]
+    CATALOG["spoken-command catalog\nactive sets + backend projections"] --> BROKER["media broker\nsole microphone owner"]
+    BROKER -->|"artifact-bound namespaced intent"| SHELL
+    SHELL --> VOCAB["Lexinet study feature"]
+    SHELL --> AGENDA["personal agenda feature"]
+    VOCAB --> LEXINET["Lexinet over tailnet"]
+    AGENDA --> CLIENT["signed personal-context client"]
+    BROKER -->|"touch-initiated wish artifact"| CLIENT
+    CLIENT --> MAC["signed Mac companion\nover tailnet"]
+```
+
 See [system architecture](docs/architecture/system-architecture.md),
+[application capability ownership](docs/architecture/application-capability-ownership.md),
 [proposed power-domain architecture](docs/architecture/power-domain-architecture.md),
 [process interconnectivity](docs/architecture/process-interconnectivity.md),
+[proposed Lexinet study integration](docs/architecture/lexinet-study-integration.md),
+[proposed spoken-command distinctiveness](docs/architecture/spoken-command-distinctiveness.md),
+[proposed personal agenda and birthday wishes](docs/architecture/personal-agenda-and-birthday-wishes.md),
 [panel policy](docs/behavior/panel-policy.md), and
 [flash-card UX](docs/behavior/flash-card-ux.md).
 
@@ -126,7 +170,13 @@ The complete executable sequence is the
 - LVGL direct DRM versus its fbdev fallback; Qt 6 Widgets remains the measured fallback if LVGL fails a target gate.
 - DeepSleep0 versus a shallower always-networked mode on Black; a future product
   may add an always-on MCU and full application-domain power-off.
-- Lexinet API/authentication/review contract.
+- Approval and implementation of the proposed Lexinet study/API/authentication
+  contract and its [cross-repository plan](.claude/plans/2026-08-05-lexinet-study-integration.md).
+- Approval and measurement of the proposed personal-agenda/Mac-companion
+  boundary and its
+  [feasibility plan](.claude/plans/2026-08-05-personal-agenda-feasibility.md);
+  especially Messages automation, local transcription, recipient confirmation,
+  and the neutral shared UI shell.
 - Local STT/gesture scope, microphone/camera hardware privacy controls,
   production update/rollback, and enclosure geometry.
 

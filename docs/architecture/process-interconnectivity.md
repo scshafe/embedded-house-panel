@@ -1,6 +1,12 @@
 # Process Interconnectivity
 
-## Runtime topology
+**Status:** the first three diagrams document the implemented but disabled
+scaffold. They do not describe the proposed production owner or claim that a
+Lexinet study API exists. The planned on-panel and Lexinet successor slice is
+shown separately; agenda-to-Mac provider and message flows remain in the
+personal-agenda architecture.
+
+## Current scaffold runtime topology
 
 ```mermaid
 flowchart LR
@@ -13,9 +19,12 @@ flowchart LR
     UI -->|"DRM/framebuffer + evdev"| DISPLAY["display/touch"]
 ```
 
-Only the supervisor receives permissions for backlight and suspend. The UI can connect to the supervisor socket and display/input devices, but it cannot change system power directly.
+Only the supervisor receives permissions for backlight and suspend. In this
+legacy scaffold, the vocabulary process can connect to the supervisor socket
+and display/input devices, but it cannot change system power directly. The
+planned neutral `panel_ui` replaces that device owner before production.
 
-## Present during daytime
+## Current scaffold daytime sequence
 
 ```mermaid
 sequenceDiagram
@@ -34,6 +43,9 @@ sequenceDiagram
     L-->>U: validated response envelope
     U-->>U: word screen
 ```
+
+The `next-card` exchange above is fixture/provisional behavior, not an existing
+Lexinet endpoint or the planned `study.v1` session contract.
 
 ## Absence and resume
 
@@ -70,6 +82,36 @@ process. A future sequence-bound render-ready acknowledgement may delay
 nonzero brightness without granting the UI power authority. See
 [panel mode protocol](../interfaces/panel-mode-protocol.md).
 
+## Proposed production panel/Lexinet convergence slice
+
+```mermaid
+flowchart LR
+    PIR["PIR / attributed input"] --> SUP["panel_supervisor\npower + lifecycle authority"]
+    SUP -->|"mode.v2 snapshot / commit deadline"| SHELL["panel_ui\nsole display + touch owner"]
+    SHELL --> STUDY["vocabulary reducer\ncache + outbox"]
+    SHELL --> AGENDA["agenda reducer"]
+    CATALOG["spoken-command catalog"] --> SET["ActiveCommandSet"]
+    SET --> PROJ["content-addressed backend projection"]
+    POLICY["validated recognition-policy artifact"] --> BROKER
+    MIC["microphone"] --> BROKER["media broker\nraw capture owner"]
+    PROJ --> BROKER
+    BROKER -->|"artifact-bound semantic intent"| SHELL
+    SHELL --> DISPLAY["DRM/fbdev + touch"]
+    STUDY -->|"HTTPS study.v1"| TAIL["tailscaled / kernel TUN"]
+    TAIL --> LEX["Lexinet study service"]
+```
+
+This local-runtime and Lexinet slice is proposed and remains disabled pending
+the Step 1 decisions, protocol-v2 work, server-owned `study.v1` contract, shared
+shell, catalog pipeline, and cross-repository tests. It intentionally stops at
+the agenda reducer; the signed personal-context client, recording-artifact
+transfer, Tailnet route, and Mac companion are documented in
+[Personal Agenda and Birthday Wishes](personal-agenda-and-birthday-wishes.md).
+
 ## Lexinet boundary
 
-Tailscale supplies routing and node identity. Lexinet must still validate whatever application credential or tailnet identity policy it chooses. API data is untrusted until schema validation succeeds. See [provisional Lexinet contract](../interfaces/lexinet-contract.md) and [threat model](../security/threat-model.md).
+Tailscale supplies routing and node identity. Lexinet must still apply narrow
+study authorization. API data is untrusted until the server-owned schema and
+panel validation both succeed. See the [Lexinet consumer transition
+contract](../interfaces/lexinet-contract.md) and [threat
+model](../security/threat-model.md).

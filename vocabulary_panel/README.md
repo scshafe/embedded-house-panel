@@ -1,6 +1,7 @@
 # Vocabulary Panel
 
-Owns the unprivileged Lexinet-backed flash-card experience and display rendering.
+Owns the unprivileged Lexinet-backed study feature and its subordinate render
+surface. The planned neutral `panel_ui` remains the sole display/touch owner.
 
 ## Public promises
 
@@ -9,7 +10,14 @@ Owns the unprivileged Lexinet-backed flash-card experience and display rendering
 - A renderer consumes `FlashCardSnapshot`; it does not own learning state or power policy.
 - Loading, empty, offline/degraded, and error states are programmatically distinct.
 
-The current terminal executable uses `FixtureLexinetClient` so the interaction can be exercised without the network. `HttpLexinetClient` is a guarded, optional adapter for the **provisional** contract in `docs/interfaces/lexinet-contract.md`; the Buildroot package compiles it with certificate-verified TLS, but no target service may send real requests until the Lexinet repository/API has been inspected.
+The current terminal executable uses `FixtureLexinetClient` so the interaction
+can be exercised without the network. `HttpLexinetClient` is a guarded,
+optional adapter for the historical scaffold contract in
+`docs/interfaces/lexinet-contract.md`. The Lexinet source audit confirmed that
+no study API exists yet; the proposed `study.v1` session/event contract remains
+pending human review. The Buildroot package compiles the adapter with
+certificate-verified TLS, but no target service may send real requests until
+that server-owned contract and its cross-repository tests replace the scaffold.
 
 All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
 

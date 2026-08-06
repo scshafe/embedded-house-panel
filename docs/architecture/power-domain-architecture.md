@@ -66,7 +66,13 @@ host tests:
 - `PowerController`: exact named transition request plus accepted/rejected
   result; no silent substitution.
 - `Backlight`: validated logical brightness to exact applied hardware result.
-- `SpeechRecognizer`: bounded audio utterance to transcript or typed failure.
+- `CommandRecognizer`: bounded audio utterance plus one content-addressed active
+  command set/backend projection to a semantic intent with artifact identity,
+  abstention, or typed failure. Command transcripts and engine scores remain
+  broker-local.
+- `TranscriptionProvider`: an explicitly consented birthday-wish artifact to a
+  bounded transcript or typed failure. It never consumes the command-listening
+  ring buffer.
 - `GestureRecognizer`: bounded frame/landmark stream to gesture/confidence or
   typed failure.
 - `MediaSessionBroker`: sole owner of raw ALSA/V4L2 device nodes; accepts a

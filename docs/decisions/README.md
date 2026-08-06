@@ -1,0 +1,32 @@
+<!-- @canonical architecture-decision-record-registry -->
+
+# Architecture Decision Records
+
+Architecture decision records use `NNNN-kebab-case.md` filenames and
+`# ADR NNNN: Title` headings. A record's status is explicit; proposed records
+still occupy their filename and are never treated as a free number.
+
+## Current records
+
+| ADR | Status | Decision |
+|---|---|---|
+| [0001](0001-separate-policy-from-presentation.md) | Accepted for the scaffold | Separate power policy from presentation |
+| [0002](0002-buildroot-baseline.md) | Proposed; hardware-gated | Prefer Buildroot after Debian hardware bring-up |
+| [0003](0003-characterize-beaglebone-before-selecting-product-platform.md) | Accepted for the current investigation | Characterize BeagleBone before selecting the product platform |
+
+No later number is reserved by a plan.
+
+## Collision-safe allocation
+
+1. When the decision record is actually created, scan every ADR filename on the
+   current target branch and select the next unused four-digit prefix.
+2. Add the file, heading, status, date, and any durable references using that
+   prefix. Plans use `NNNN` placeholders until this moment.
+3. Immediately before merging, re-scan the destination branch. If another
+   record now occupies the prefix, renumber the new file, heading, and every
+   reference before merge.
+4. Run `make verify-docs` after allocation or renumbering.
+
+This repository's numbering convention does not automatically apply to the
+separate Lexinet repository. Lexinet records use whatever authority that
+repository establishes.

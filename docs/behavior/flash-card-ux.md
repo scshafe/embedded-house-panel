@@ -1,14 +1,23 @@
 # Lexinet Flash-Card UX
 
-## UX goals
+**Status:** implemented scaffold behavior. The pending `LEXI-001` through
+`LEXI-007` review in the
+[Lexinet study architecture](../architecture/lexinet-study-integration.md)
+proposes a two-sided card with explicit flip/next/back semantics. If approved,
+that decision supersedes this progression before production controller work;
+the project must not implement both interaction models.
+
+## Current scaffold UX goals
 
 - Work at a likely 480×272 resolution with large touch targets.
-- Preserve the useful legacy progression: word → definition → example → next.
+- Document the implemented legacy progression: word → definition → example
+  → rating → next. It is evidence for the rewrite, not the proposed version 1
+  product contract.
 - Never flash a white surface while entering or leaving after-hours mode.
 - Make loading, offline, empty, and failed states visibly different.
 - Keep Lexinet authoritative; never imply that an unsubmitted review was saved.
 
-## Primary interaction
+## Current scaffold interaction
 
 ```mermaid
 stateDiagram-v2
@@ -30,7 +39,7 @@ stateDiagram-v2
     Empty --> Loading: refresh
 ```
 
-## Supervisor-driven mode flow
+## Current scaffold supervisor-driven flow
 
 ```mermaid
 flowchart LR
@@ -43,7 +52,7 @@ flowchart LR
     BLANK -->|"resume + recomputed night"| NIGHT
 ```
 
-## Wireframes
+## Current scaffold wireframes
 
 ```text
 ┌────────────────────────────────────────┐
@@ -53,7 +62,7 @@ flowchart LR
 │                                        │
 │         Tap anywhere to reveal         │
 │                                        │
-│  ◀ previous                 next ▶      │
+│                             next ▶      │
 └────────────────────────────────────────┘
 
 ┌────────────────────────────────────────┐
@@ -74,7 +83,11 @@ flowchart LR
 └────────────────────────────────────────┘
 ```
 
-At 480 pixels wide, four rating buttons may be too narrow for reliable touch. The first hardware prototype should compare four buttons against a two-step “missed / knew it” layout; that decision belongs to measured touch accuracy rather than desktop preference.
+This scaffold's four rating buttons may be too narrow for reliable touch at 480
+pixels. The proposed `LEXI-005` contract makes ratings available through
+equivalent touch and voice actions after the back is revealed. On-target
+measurement still decides the touch geometry and whether a real voice engine
+qualifies for production.
 
 ## Error and offline screens
 

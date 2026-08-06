@@ -14,15 +14,23 @@ TRACE_ID=$(bhp_new_trace_id)
 
 required_documents="
 README.md
+.claude/plans/2026-08-05-end-to-end-development-roadmap.md
 .claude/plans/2026-08-05-beaglebone-hardware-baseline.md
+.claude/plans/2026-08-05-lexinet-study-integration.md
+.claude/plans/2026-08-05-personal-agenda-feasibility.md
 docs/architecture/system-architecture.md
+docs/architecture/application-capability-ownership.md
 docs/architecture/power-domain-architecture.md
 docs/architecture/process-interconnectivity.md
+docs/architecture/lexinet-study-integration.md
+docs/architecture/personal-agenda-and-birthday-wishes.md
+docs/architecture/spoken-command-distinctiveness.md
 docs/behavior/panel-policy.md
 docs/behavior/flash-card-ux.md
 docs/interfaces/lexinet-contract.md
 docs/interfaces/panel-mode-protocol.md
 docs/legacy/recovery-summary.md
+docs/decisions/README.md
 docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
@@ -34,6 +42,7 @@ docs/research/compute-platform-assessment.md
 docs/security/threat-model.md
 docs/hardware/enclosure-plan.md
 hardware_tests/README.md
+vocabulary_panel/README.md
 "
 
 for relative_path in $required_documents; do
@@ -48,6 +57,361 @@ command -v rg >/dev/null 2>&1 || {
   exit 1
 }
 
+require_fixed_count() {
+  relative_path=$1
+  required_text=$2
+  expected_count=$3
+  error_code=$4
+  actual_count=$(rg --fixed-strings --only-matching -- "$required_text" \
+    "$PROJECT_ROOT/$relative_path" | awk 'END { print NR + 0 }')
+  if [ "$actual_count" -ne "$expected_count" ]; then
+    bhp_fail "$error_code" \
+      "$relative_path expected $expected_count occurrence(s) of $required_text; found $actual_count" \
+      "$TRACE_ID"
+    exit 1
+  fi
+}
+
+require_proposed_decision() {
+  relative_path=$1
+  decision_id=$2
+  require_fixed_count "$relative_path" "$decision_id" 1 \
+    VERIFY_DOCS.DECISION_ID_COUNT_INVALID
+  awk -v decision_id="$decision_id" '
+    index($0, "| `" decision_id "` |") == 1 && $0 ~ /\| Proposed[^|]*\|/ {
+      matching_rows += 1
+    }
+    END { exit(matching_rows == 1 ? 0 : 1) }
+  ' "$PROJECT_ROOT/$relative_path" || {
+    bhp_fail VERIFY_DOCS.DECISION_STATUS_INVALID \
+      "$decision_id must occur once as a Proposed table row in $relative_path" \
+      "$TRACE_ID"
+    exit 1
+  }
+}
+
+lexinet_control_pattern() {
+  control_name=$1
+  printf '(^|[^[:alnum:]_])%s[[:space:]]*(:)?[-=+?]' "$control_name"
+}
+
+require_single_tracked_lexinet_control() {
+  control_name=$1
+  expected_assignment=$2
+  error_code=$3
+  control_pattern=$(lexinet_control_pattern "$control_name")
+  tracked_matches=$(git -C "$PROJECT_ROOT" grep -n -E \
+    "$control_pattern" -- config scripts || true)
+  tracked_match_count=$(printf '%s\n' "$tracked_matches" \
+    | awk 'NF { count += 1 } END { print count + 0 }')
+  if [ "$tracked_match_count" -ne 1 ]; then
+    bhp_fail "$error_code" \
+      "$control_name must have exactly one tracked assignment and no checked-in fallback; found $tracked_match_count" \
+      "$TRACE_ID"
+    exit 1
+  fi
+
+  matched_path=${tracked_matches%%:*}
+  matched_remainder=${tracked_matches#*:}
+  matched_line=${matched_remainder%%:*}
+  matched_content=${matched_remainder#*:}
+  case "$matched_line" in
+    ''|*[!0-9]*)
+      bhp_fail "$error_code" "$control_name match has no valid line number" \
+        "$TRACE_ID"
+      exit 1
+      ;;
+  esac
+  if [ "$matched_path" != config/build-and-deploy.env.example ] || \
+    [ "$matched_content" != "$expected_assignment" ]; then
+    bhp_fail "$error_code" \
+      "$control_name is allowed only as its literal build-and-deploy example assignment" \
+      "$TRACE_ID"
+    exit 1
+  fi
+}
+
+require_control_pattern_count() {
+  control_pattern=$1
+  fixture_text=$2
+  expected_count=$3
+  fixture_name=$4
+  actual_count=$(printf '%s\n' "$fixture_text" \
+    | rg --only-matching "$control_pattern" | awk 'END { print NR + 0 }')
+  if [ "$actual_count" -ne "$expected_count" ]; then
+    bhp_fail VERIFY_DOCS.LEXINET_CONTROL_PATTERN_SELF_TEST_FAILED \
+      "$fixture_name expected $expected_count prohibited control form(s); found $actual_count" \
+      "$TRACE_ID"
+    exit 1
+  fi
+}
+
+lexinet_control_prefix=BHP_LEXINET_
+lexinet_source_variable=${lexinet_control_prefix}SOURCE_DIR
+lexinet_revision_variable=${lexinet_control_prefix}BASE_REVISION
+lexinet_source_assignment=$lexinet_source_variable=/absolute/path/to/lexinet
+lexinet_base_revision=3e15ef60e1970757e756d74622846edba166757c
+lexinet_revision_assignment=$lexinet_revision_variable=$lexinet_base_revision
+lexinet_source_control_pattern=$(lexinet_control_pattern \
+  "$lexinet_source_variable")
+lexinet_revision_control_pattern=$(lexinet_control_pattern \
+  "$lexinet_revision_variable")
+
+# In-memory negative fixtures keep the policy matcher honest without creating
+# files or embedding a prohibited effective assignment in this script.
+quoted_source_fixture=$(printf "export '%s=/forbidden/quoted-source'" \
+  "$lexinet_source_variable")
+default_assignment_fixture=$(printf "\${%s:=/forbidden/default-source}" \
+  "$lexinet_source_variable")
+default_fallback_fixture=$(printf "\${%s:-/forbidden/fallback-source}" \
+  "$lexinet_source_variable")
+noncolon_fallback_fixture=$(printf "\${%s-/forbidden/noncolon-fallback}" \
+  "$lexinet_source_variable")
+revision_override_fixture=$(printf '"%s=%s"' "$lexinet_revision_variable" \
+  0000000000000000000000000000000000000000)
+revision_noncolon_fallback_fixture=$(printf "\${%s-0000000000000000000000000000000000000000}" \
+  "$lexinet_revision_variable")
+duplicate_source_fixture=$(printf '%s\n%s' "$lexinet_source_assignment" \
+  "$quoted_source_fixture")
+require_control_pattern_count "$lexinet_source_control_pattern" \
+  "$quoted_source_fixture" 1 quoted_assignment
+require_control_pattern_count "$lexinet_source_control_pattern" \
+  "$default_assignment_fixture" 1 parameter_default_assignment
+require_control_pattern_count "$lexinet_source_control_pattern" \
+  "$default_fallback_fixture" 1 parameter_default_fallback
+require_control_pattern_count "$lexinet_source_control_pattern" \
+  "$noncolon_fallback_fixture" 1 parameter_noncolon_fallback
+require_control_pattern_count "$lexinet_source_control_pattern" \
+  "$duplicate_source_fixture" 2 duplicate_assignment
+require_control_pattern_count "$lexinet_revision_control_pattern" \
+  "$revision_override_fixture" 1 revision_override
+require_control_pattern_count "$lexinet_revision_control_pattern" \
+  "$revision_noncolon_fallback_fixture" 1 revision_noncolon_fallback
+
+require_single_tracked_lexinet_control "$lexinet_source_variable" \
+  "$lexinet_source_assignment" VERIFY_DOCS.LEXINET_SOURCE_CONTROL_INVALID
+require_single_tracked_lexinet_control "$lexinet_revision_variable" \
+  "$lexinet_revision_assignment" VERIFY_DOCS.LEXINET_REVISION_CONTROL_INVALID
+
+require_fixed_count docs/architecture/application-capability-ownership.md \
+  '<!-- @canonical application-capability-ownership -->' 1 \
+  VERIFY_DOCS.OWNERSHIP_CANONICAL_MARKER_INVALID
+require_fixed_count docs/architecture/application-capability-ownership.md \
+  '**Status:** proposed for roadmap Step 1 human review' 1 \
+  VERIFY_DOCS.OWNERSHIP_REVIEW_STATUS_INVALID
+require_fixed_count docs/architecture/application-capability-ownership.md \
+  '## Registry' 1 VERIFY_DOCS.OWNERSHIP_REGISTRY_MISSING
+
+for decision_id in \
+  LEXI-001 LEXI-002 LEXI-003 LEXI-004 LEXI-005 LEXI-006 LEXI-007; do
+  require_proposed_decision docs/architecture/lexinet-study-integration.md \
+    "$decision_id"
+done
+require_fixed_count docs/architecture/lexinet-study-integration.md \
+  '## Version 1 product decisions pending human review' 1 \
+  VERIFY_DOCS.LEXINET_DECISION_REVIEW_MISSING
+
+require_fixed_count docs/architecture/spoken-command-distinctiveness.md \
+  '<!-- @canonical spoken-command-distinctiveness -->' 1 \
+  VERIFY_DOCS.SPOKEN_COMMAND_CANONICAL_MARKER_INVALID
+require_fixed_count docs/architecture/spoken-command-distinctiveness.md \
+  '## Shared decision pending human review' 1 \
+  VERIFY_DOCS.SPOKEN_COMMAND_DECISION_REVIEW_MISSING
+require_proposed_decision docs/architecture/spoken-command-distinctiveness.md \
+  VOICE-001
+for command_design_phrase in \
+  'phonetic distinctiveness' \
+  'command confusability' \
+  'send birthday wish' \
+  'finish recording' \
+  'ActiveCommandSet' \
+  'active_command_set_digest' \
+  'backend_artifact_digest' \
+  'recognition_policy_digest' \
+  'recognition-policy.schema.json' \
+  'canonical JSON' \
+  'spoken_form_id' \
+  'bounded_learning_observation' \
+  'capture_start' \
+  'speakers are disjoint'; do
+  rg --ignore-case --fixed-strings -- "$command_design_phrase" \
+    "$PROJECT_ROOT/docs/architecture/spoken-command-distinctiveness.md" >/dev/null || {
+    bhp_fail VERIFY_DOCS.SPOKEN_COMMAND_DESIGN_INCOMPLETE \
+      "$command_design_phrase" "$TRACE_ID"
+    exit 1
+  }
+done
+
+for policy_contract in \
+  docs/architecture/spoken-command-distinctiveness.md \
+  docs/architecture/application-capability-ownership.md \
+  docs/architecture/lexinet-study-integration.md \
+  docs/security/threat-model.md \
+  .claude/plans/2026-08-05-lexinet-study-integration.md \
+  .claude/plans/2026-08-05-end-to-end-development-roadmap.md; do
+  rg --ignore-case --fixed-strings -- 'recognition-policy artifact' \
+    "$PROJECT_ROOT/$policy_contract" >/dev/null || {
+    bhp_fail VERIFY_DOCS.RECOGNITION_POLICY_CONTRACT_INCOMPLETE \
+      "$policy_contract" "$TRACE_ID"
+    exit 1
+  }
+done
+
+for effect_contract in \
+  docs/architecture/spoken-command-distinctiveness.md \
+  docs/architecture/lexinet-study-integration.md \
+  docs/security/threat-model.md \
+  .claude/plans/2026-08-05-lexinet-study-integration.md \
+  .claude/plans/2026-08-05-end-to-end-development-roadmap.md; do
+  rg --fixed-strings -- 'bounded_learning_observation' \
+    "$PROJECT_ROOT/$effect_contract" >/dev/null || {
+    bhp_fail VERIFY_DOCS.VOICE_EFFECT_CONTRACT_INCOMPLETE \
+      "$effect_contract" "$TRACE_ID"
+    exit 1
+  }
+done
+
+require_voice_evidence_phrase() {
+  evidence_contract=$1
+  evidence_phrase=$2
+  rg --ignore-case --fixed-strings -- "$evidence_phrase" \
+    "$PROJECT_ROOT/$evidence_contract" >/dev/null || {
+    bhp_fail VERIFY_DOCS.VOICE_EVIDENCE_CONTRACT_INCOMPLETE \
+      "$evidence_contract is missing $evidence_phrase" "$TRACE_ID"
+    exit 1
+  }
+}
+
+require_voice_evidence_phrase \
+  docs/architecture/spoken-command-distinctiveness.md \
+  'single-use selection and untouched confirmation'
+require_voice_evidence_phrase \
+  docs/architecture/lexinet-study-integration.md \
+  'after a single-use comparison manifest'
+require_voice_evidence_phrase \
+  docs/architecture/lexinet-study-integration.md \
+  'artifact/policy passes an untouched final-confirmation manifest'
+require_voice_evidence_phrase docs/security/threat-model.md \
+  'single-use held-out selection plus untouched confirmation evidence'
+require_voice_evidence_phrase \
+  .claude/plans/2026-08-05-lexinet-study-integration.md \
+  'single-use comparison/selection'
+require_voice_evidence_phrase \
+  .claude/plans/2026-08-05-lexinet-study-integration.md \
+  'untouched final-confirmation manifests'
+require_voice_evidence_phrase \
+  .claude/plans/2026-08-05-end-to-end-development-roadmap.md \
+  'single-use selection, and untouched confirmation splits'
+
+for lexinet_rating_phrase in \
+  'variety_first_v1' \
+  'rating_voided' \
+  'equivalent touch and voice intents' \
+  'per-profile ingestion ordinal' \
+  'one durable Undo lease' \
+  'study.rating.undo' \
+  'client_stream_id' \
+  'study_event_receipts' \
+  'boundary_repeat_due_to_priority' \
+  'predecessor flush receipt' \
+  'STUDY_CYCLE_NOT_EXHAUSTED' \
+  'waiting_for_corpus' \
+  'server-authoritative exhaustion' \
+  'completed predecessors'; do
+  rg --ignore-case --fixed-strings -- "$lexinet_rating_phrase" \
+    "$PROJECT_ROOT/docs/architecture/lexinet-study-integration.md" >/dev/null || {
+    bhp_fail VERIFY_DOCS.LEXINET_RATING_SCHEDULER_DESIGN_INCOMPLETE \
+      "$lexinet_rating_phrase" "$TRACE_ID"
+    exit 1
+  }
+done
+
+for agenda_intent_id in agenda.prepare_wish agenda.stop_wish_recording; do
+  for agenda_contract in \
+    docs/architecture/spoken-command-distinctiveness.md \
+    docs/architecture/personal-agenda-and-birthday-wishes.md; do
+    rg --fixed-strings -- "$agenda_intent_id" \
+      "$PROJECT_ROOT/$agenda_contract" >/dev/null || {
+      bhp_fail VERIFY_DOCS.AGENDA_INTENT_ID_MISSING \
+        "$agenda_contract is missing $agenda_intent_id" "$TRACE_ID"
+      exit 1
+    }
+  done
+done
+
+if rg --fixed-strings -- 'birthday_wish.prepare' "$PROJECT_ROOT/docs" \
+  "$PROJECT_ROOT/.claude/plans" >/dev/null; then
+  bhp_fail VERIFY_DOCS.STALE_AGENDA_INTENT_ID \
+    'birthday_wish.prepare must use the canonical agenda.prepare_wish ID' \
+    "$TRACE_ID"
+  exit 1
+fi
+
+for obsolete_voice_contract in \
+  'same three-command corpus' \
+  "grammar matching for \`Lexi (flip|next|back)\`"; do
+  if rg --fixed-strings -- "$obsolete_voice_contract" "$PROJECT_ROOT/docs" \
+    "$PROJECT_ROOT/.claude/plans" >/dev/null; then
+    bhp_fail VERIFY_DOCS.OBSOLETE_VOICE_CONTRACT_ACTIVE \
+      "$obsolete_voice_contract" "$TRACE_ID"
+    exit 1
+  fi
+done
+
+for stale_study_contract in \
+  'undo_rating' \
+  'derived-through event sequence' \
+  'input-event high-water ordinal' \
+  'per-profile event high-water ordinal' \
+  'per-profile event ordinal'; do
+  if rg --fixed-strings -- "$stale_study_contract" "$PROJECT_ROOT/docs" \
+    "$PROJECT_ROOT/.claude/plans" >/dev/null; then
+    bhp_fail VERIFY_DOCS.STALE_STUDY_CONTRACT_ACTIVE \
+      "$stale_study_contract" "$TRACE_ID"
+    exit 1
+  fi
+done
+
+rg --fixed-strings -- 'subordinate render' \
+  "$PROJECT_ROOT/vocabulary_panel/README.md" >/dev/null || {
+  bhp_fail VERIFY_DOCS.VOCABULARY_OWNER_STALE \
+    'vocabulary_panel must remain a subordinate render surface' "$TRACE_ID"
+  exit 1
+}
+
+for decision_id in \
+  AGENDA-001 AGENDA-002 AGENDA-003 AGENDA-004 AGENDA-005 \
+  AGENDA-006 AGENDA-007 AGENDA-008 AGENDA-009 AGENDA-010; do
+  require_proposed_decision \
+    docs/architecture/personal-agenda-and-birthday-wishes.md "$decision_id"
+done
+require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
+  '## Version 1 product decisions pending human review' 1 \
+  VERIFY_DOCS.AGENDA_DECISION_REVIEW_MISSING
+require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
+  '### Safety stop points included in this review' 1 \
+  VERIFY_DOCS.AGENDA_SAFETY_REVIEW_MISSING
+require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
+  'No live Messages test is authorized' 1 \
+  VERIFY_DOCS.AGENDA_LIVE_TEST_STOP_MISSING
+require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
+  'Approving the touch-authority safety boundary accepts' 1 \
+  VERIFY_DOCS.AGENDA_UI_COMPROMISE_DECISION_MISSING
+require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
+  '30-minute hard ceiling' 1 \
+  VERIFY_DOCS.AGENDA_RETENTION_DECISION_MISSING
+
+for protocol_binding in \
+  appliance_release_id supervisor_session_id connection_challenge snapshot_id \
+  render_generation; do
+  protocol_binding_row=$(printf "| \`%s\` |" "$protocol_binding")
+  require_fixed_count docs/interfaces/panel-mode-protocol.md \
+    "$protocol_binding_row" 1 VERIFY_DOCS.PROTOCOL_V2_BINDING_INVALID
+done
+require_fixed_count docs/interfaces/panel-mode-protocol.md \
+  'atomic appliance-release cutover' 1 \
+  VERIFY_DOCS.PROTOCOL_V2_MIGRATION_DECISION_MISSING
+
 mermaid_count=$(rg --glob '*.md' --count-matches '^```mermaid$' "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/docs" \
   | awk -F: '{ total += $NF } END { print total + 0 }')
 if [ "$mermaid_count" -lt 8 ]; then
@@ -60,6 +424,9 @@ for required_phrase in \
   "PROVISIONAL" \
   "LVGL" \
   "gpio-keys" \
+  "delivery_unknown" \
+  "Mac companion" \
+  "BHP_LEXINET_SOURCE_DIR" \
   "3D"; do
   rg --ignore-case --fixed-strings --glob '*.md' "$required_phrase" "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/docs" >/dev/null || {
     bhp_fail VERIFY_DOCS.INTENT_MISSING "$required_phrase" "$TRACE_ID"

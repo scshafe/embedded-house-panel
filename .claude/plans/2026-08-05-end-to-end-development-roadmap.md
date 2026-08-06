@@ -1,0 +1,562 @@
+# Plan: Deliver the House Panel End to End
+
+<!-- @canonical end-to-end-development-roadmap -->
+
+**Goal:** turn the current host-tested scaffold into a secure, recoverable,
+motion-aware household appliance with a safe display lifecycle, a
+Tailnet-backed Lexinet experience, a privacy-bounded personal agenda and
+birthday-wish flow, measured power behavior, and a printable enclosure.
+
+**Current execution horizon:** finish all credible board-independent software
+and integration evidence, then stop before physical claims until the
+BeagleBone, cape, PIR, microphone, and power hardware are available.
+
+**Role of this plan:** this is the program-ordering authority. It records the
+joins, gates, and milestone evidence across the existing detailed plans. It
+does not replace their implementation instructions. When a step below invokes
+a linked plan, that plan remains authoritative for files, tests, safety rules,
+and completion criteria.
+
+**Out of scope:** assuming that the BeagleBone Black is the final product
+platform; selecting GPIO pins, display nodes, brightness values, suspend
+states, microphone hardware, recognition engines, batteries, or enclosure
+dimensions without measurements; treating a Tailnet as application
+authorization; enabling real-recipient messaging during a software build.
+
+## Starting point
+
+- The [initial appliance scaffold](2026-08-05-initial-appliance-scaffold.md) is
+  complete. It provides host-tested supervisor policy, presence experiments, a
+  provisional vocabulary slice, Buildroot integration, and safe build/deploy
+  tooling.
+- The [Debian Tailnet runbook](2026-08-05-document-debian-tailnet-bringup.md) is
+  documented, but it has not been executed on the target.
+- The [Lexinet integration plan](2026-08-05-lexinet-study-integration.md) owns
+  study semantics, the first shared `panel_ui`, the first shared media broker,
+  the resilient vocabulary data plane, and their Buildroot packaging.
+- The
+  [personal-agenda feasibility plan](2026-08-05-personal-agenda-feasibility.md)
+  owns the Mac/provider/Messages/Tailnet experiments and stops at an ADR before
+  production implementation.
+- The
+  [BeagleBone hardware baseline plan](2026-08-05-beaglebone-hardware-baseline.md)
+  owns physical identity, eMMC preservation, display, touch, PIR, suspend/wake,
+  and power evidence.
+- `BHP_LEXINET_SOURCE_DIR` is the sole host-side input for the populated Lexinet
+  checkout. The audit found a clean source checkout at revision `3e15ef6`; the
+  originally supplied directory was empty. Cross-repository tooling must not
+  infer either workstation path.
+- The current macOS host can run compiler-direct panel tests and Swift, but it
+  has only Command Line Tools. The signed Mac companion experiment requires a
+  full Xcode installation. A complete Buildroot release image requires the
+  supported Linux x86_64 build environment; neither limitation requires the
+  BeagleBone itself.
+
+## Non-negotiable architecture
+
+- `panel_supervisor` alone owns presence, solar policy, backlight, and suspend.
+- One neutral, unprivileged `panel_ui` process owns LVGL, display, and touch.
+  Vocabulary and agenda are sibling feature reducers/surfaces, never competing
+  display processes.
+- One purpose-scoped media broker alone owns the microphone. Command audio
+  stays broker-local. Birthday-wish recording is a separate, visible,
+  explicitly confirmed purpose.
+- One versioned, language-tagged spoken-command catalog owns phrases,
+  pronunciation provenance, contexts, effect classes, confusability analysis,
+  canonical active command sets, and content-addressed backend projections
+  across every application.
+- Lexinet remains authoritative for vocabulary content, selection, and durable
+  study state. Panel caches and outboxes are bounded and visibly degraded.
+- A narrow `personal_context_client` owns the panel's companion credential and
+  typed transport. Provider credentials, recipient handles, and Messages
+  automation stay on the Mac.
+- Tailnet reachability and node identity reduce exposure; application-layer
+  authorization, signed single-use requests, replay protection, and
+  least-privilege capabilities remain mandatory.
+- Hardware observations are evidence for one named assembly and software cell.
+  They are never silently promoted into defaults for another board, cape,
+  kernel, sensor, microphone, or power chain.
+
+## Dependency map
+
+```mermaid
+flowchart TD
+    DONE["Completed scaffold + documented Tailnet path"] --> CONTRACTS["S0: review product decisions + freeze shared contracts"]
+
+    CONTRACTS --> SPINE["S1: neutral panel shell + lifecycle protocol v2"]
+    CONTRACTS --> LEX["S2: Lexinet study service + resilient panel data plane"]
+    CONTRACTS --> MAC["S3: Mac companion feasibility"]
+
+    SPINE --> VOCAB["Vocabulary surface in panel_ui"]
+    LEX --> VOCAB
+    VOCAB --> MEDIA["Shared fake-only media broker"]
+    MAC --> MACADR["Companion ADR"]
+    MACADR --> AGENDA_PLAN["Reviewed agenda production plan"]
+
+    MEDIA --> HOST["S4: host fault matrices + Buildroot release evidence"]
+    AGENDA_PLAN --> AGENDA["Agenda production slice on host"]
+    AGENDA --> HOST
+
+    DONE -. board returns .-> H0["H0: identify assembly + preserve eMMC"]
+    H0 --> H1["H1: display, touch, and illumination"]
+    H1 --> H2["H2: PIR electrical + awake input path"]
+    H2 --> H3["H3: attributed suspend/wake matrix"]
+    H3 --> TARGET_PLAN["Reviewed target-integration plan"]
+    HOST --> TARGET_PLAN
+    TARGET_PLAN --> TARGET["H4: integrated on-target appliance"]
+    TARGET --> VOICE["H5a: microphone + recognizer decision"]
+    TARGET -. optional .-> VISION["H5b: local gesture feasibility"]
+    VOICE --> POWER["H6: product-battery measurements + platform decision"]
+    VISION -. candidate input .-> POWER
+    POWER --> PRODUCT["H7: production image, recovery, enclosure, acceptance"]
+```
+
+After S0, the platform/Lexinet lane and the Mac feasibility lane may proceed in
+parallel. The neutral shell foundation may start while Lexinet server work is
+underway, but the Lexinet plan's Step 7 is not complete until the Step 6 data
+plane and vocabulary surface are integrated. Hardware work never blocks pure
+domain work, fixtures, protocol tests, fault injection, packaging, or build
+automation.
+
+## Work partition
+
+| Work | Start now without the board? | Other prerequisite | Physical evidence still required |
+|---|---|---|---|
+| Shared contracts and protocol v2 | Yes | Product-decision review | Page-flip/scanout acknowledgement |
+| Neutral `panel_ui` and reducers | Yes | Stable lifecycle and intent contracts | DRM/fbdev choice, touch calibration, fonts/colors |
+| Lexinet study service and client | Yes | PostgreSQL, explicit Lexinet path, test Tailnet identity for live auth | Target recovery and resource behavior |
+| Offline cache/outbox and fault tests | Yes | Contract fixtures | Abrupt-power-loss behavior on final storage |
+| Calendar/contact domain and Mac probe | Mostly | Full Xcode, signing identity, local permissions | None for provider feasibility; target UX later |
+| Messages feasibility | Mostly | Explicit approval immediately before bounded self/test sends | Real delivery remains manually reconciled |
+| Voice intent lifecycle | Yes, with fakes/corpus harness | Stable intent and media-lease contracts | Actual microphone, room, engine, latency, power |
+| Optional gesture intent/harness | Yes, after gesture and privacy scope is defined | Consented fixtures and a camera-neutral intent contract | Actual camera, room, model, false actions, latency, power |
+| Buildroot packages and image build | Yes | Supported Linux x86_64 host for full image | Boot, drivers, cape compatibility, runtime budget |
+| Deployment and recovery automation | Yes, dry-run/fake target | Explicit configuration | Actual boot/install/rollback rehearsal |
+| PIR, suspend/wake, display, battery | No | Named physical assembly and instruments | Entire work item |
+| Enclosure CAD | Preparation only | Measured stack, connectors, airflow, controls | Fit, thermal, radio, assembly, and print trials |
+
+In practical terms, almost all application/domain code, server work, local
+protocols, security boundaries, fake hardware adapters, integration harnesses,
+service packaging, and release automation can be completed before the board
+returns. The unavoidable gaps are device backends and claims about physical
+behavior.
+
+## Steps
+
+- [x] **Step 0: Establish the recoverable scaffold**
+  - Use the completed scaffold and Tailnet-documentation plans as the baseline;
+    do not reconstruct the legacy repositories inside this project.
+  - Preserve the current rule that production services and unmeasured hardware
+    configuration remain disabled.
+  - Verify: both linked completed plans have every checklist item checked and
+    `make verify` was recorded as passing at their completion boundary.
+
+- [ ] **Step 1: Freeze product decisions and shared contract ownership**
+  - ~~Review the five Lexinet semantics in its architecture document.~~ Review
+    the seven Lexinet semantics, the shared spoken-command-catalog decision, and
+    the ten personal-agenda/safety decisions in their architecture documents.
+    Record each as accepted, changed, or deliberately deferred, including the
+    proposed `finish recording` replacement for the confusable requested stop
+    phrase.
+  - Resolve the Lexinet checkout path in configuration; never hard-code an
+    incidental sibling layout into cross-repository tests.
+  - Record that the Lexinet plan supplies the first neutral shell, shared HTTP
+    runtime, shared media broker, and Buildroot migration. The later agenda
+    production plan must extend those capabilities instead of creating peers.
+  - Allocate an ADR number by scanning `docs/decisions/` on the current target
+    branch when the record is created. Immediately before merge, re-scan the
+    destination branch and renumber the file and references if a concurrent ADR
+    now collides. Pending plans do not reserve numeric filenames.
+  - Decide whether lifecycle protocol v2 replaces v1 atomically or has a
+    bounded compatibility window. Mixed-version brightness behavior is not
+    allowed.
+  - Output: reviewed product-decision sections, reconciled plan dependencies,
+    an explicit Lexinet source-path input, and a recorded protocol migration
+    choice.
+  - Verify: human review confirms the product decisions and safety stop points;
+    `make verify-docs` and `make verify` pass with no credentials or personal
+    identifiers in the repository.
+
+- [ ] **Step 2: Establish the neutral host platform spine**
+  - Execute the platform-spine portion of Lexinet Step 7: introduce
+    `panel_ui` as sole display/touch owner, a headless renderer, a pure shell
+    controller, namespaced interaction intents, and sibling surface contracts.
+    Vocabulary-specific data binding may remain pending until Step 3 below.
+  - Upgrade the local lifecycle protocol to v2. Every request and presentation
+    acknowledgement binds the appliance release, unpredictable supervisor
+    session, per-connection challenge, monotonic event sequence, complete
+    snapshot identity, requested display mode, and render generation. Only the
+    exact latest `committed` tuple from the configured Unix peer may precede a
+    requested nonzero brightness.
+  - Treat stale, duplicate, mismatched, failed, disconnected, or timed-out
+    acknowledgements as failure: brightness stays zero. UI failure may prevent
+    illumination but must never prevent blanking or suspend.
+  - Keep lifecycle modes feature-neutral: `day_active`, `night_red`,
+    `suspended`, and `diagnostic`. Feature routing remains in `panel_ui`, not
+    `PanelPolicy`.
+  - Reuse one canonical set of supervisor clock, presence, solar, backlight,
+    suspend, channel, and renderer fakes. Exercise the production codec over a
+    real temporary Unix socket or `socketpair`; do not fake serialization.
+  - Output: protocol v2 contract, duplex supervisor channel, neutral shell,
+    headless renderer, reusable test support, and deterministic lifecycle
+    scenarios.
+  - Verify: host tests prove zero-before-render and exact-ack-before-nonzero
+    ordering across startup, day/night changes, suspend/resume, supervisor
+    restart, stale acknowledgements, UI crash, and timeout;
+    `scripts/verification/verify_host_cpp.sh all` and `make verify` pass. This
+    is software evidence and does not claim a physically dark display.
+
+- [ ] **Step 3: Build the Lexinet study service and resilient panel data plane**
+  - ~~Execute a rating-inert `shuffle_bag_v1` selector as the production
+    scheduler.~~ Execute Lexinet plan Steps 1–6 in their recorded order:
+    `study.v1` contract, append-only learning evidence and rebuildable
+    projections, active `variety_first_v1` behind the scheduler seam, a
+    production-isolated shadow runner for a later pinned FSRS experiment,
+    server-authoritative cycle terminalization and idempotent successor linking,
+    API/CLI, least-privilege HTTPS Tailnet access, and the cancellable panel
+    client with a bounded correction-capable outbox.
+  - Move process-wide HTTP initialization into one shared runtime before adding
+    another network client. Keep vocabulary cache/outbox persistence semantics
+    domain-specific; do not make a generic store that erases delivery rules.
+  - Use deterministic seed/clock inputs, a disposable database, Lexinet-owned
+    golden examples, a local fake HTTP server, fault-injected filesystem
+    commits, and explicit cancellation barriers.
+  - Render cached data before network recovery, expose honest degraded states,
+    and never evict an unacknowledged study event.
+  - Output: use the outputs in Lexinet Steps 1–6.
+  - Verify: every exact verification clause in Lexinet Steps 1–6 passes. The
+    join gate additionally requires the live
+    cross-repository contract test to accept an explicit Lexinet source path
+    and `make verify` to pass in this repository.
+
+- [ ] **Step 4: Complete the vocabulary surface and fake-only media broker**
+  - Finish Lexinet Step 7 by adapting the vocabulary reducer and LVGL renderer
+    beneath `panel_ui`; preserve two-sided cards, bounded face-preserving
+    history, one local intent order, and equivalent touch/semantic-command
+    navigation and rating paths with touch Undo.
+  - Execute Lexinet Step 8 after the panel intent contract is stable. Introduce
+    one purpose-scoped media broker and enable only `command_recognition` with
+    deterministic fake capture/recognizer paths. Add the canonical command
+    catalog/schema, pronunciation provenance, confusability/candidate-analysis
+    tool, hard effect-admission matrix including
+    `bounded_learning_observation`,
+    canonical active command sets, content-addressed backend projections, and
+    a schema-validated, content-addressed recognition-policy artifact bound to
+    its backend and recognizer identity. Reserve, but do not yet enable,
+    `wish_recording`.
+  - Ensure absence, night mode, surface change, mute, consumer disconnect,
+    suspend preparation, or fault closes capture, wipes volatile buffers, and
+    acknowledges quiescence by a deadline. Voice failure never blocks touch or
+    power policy.
+  - Output: use the outputs in Lexinet Steps 7–8.
+  - Verify: every exact verification clause in Lexinet Steps 7–8 passes. The
+    combined host matrix covers touch/voice conflicts, replay, mode changes,
+    UI/broker crashes, network stalls, and resume with pending events;
+    `make verify` passes. Do not select a real recognizer or claim microphone
+    rail-off.
+
+- [ ] **Step 5: Run personal-agenda and birthday-wish feasibility in parallel**
+  - Execute the personal-agenda feasibility plan. Step 1 joins the program
+    contract review; Step 2 requires full Xcode and a stable signing identity;
+    Steps 3–6 may proceed independently after the fixture harness.
+  - Keep `DraftOnlyTransport` as the default. Stop for explicit user approval
+    immediately before the first bounded live Messages submission, and use
+    only an approved self/test route.
+  - Treat an automation handoff as `delivery_unknown`, not delivery. Persist a
+    single-use dispatch boundary before invocation and never automatically
+    retry an ambiguous result.
+  - Require complete local playback before audio submission can be offered. A
+    panel without measured playback remains text-only even if recording and
+    transcription work.
+  - Complete the plan's ADR using the collision-safe allocation and pre-merge
+    recheck from Step 1, then stop production agenda work until a follow-up plan
+    is reviewed.
+  - Output: use every output in the feasibility plan.
+  - Verify: every verification clause in the feasibility plan passes; no friend
+    is contacted and no personal payload, recipient, credential, audio, or
+    transcript enters Git, logs, diagnostics, arguments, or URLs.
+
+- [ ] **Step 6: Write and review the post-ADR agenda production plan**
+  - Create the follow-up plan required by the agenda feasibility ADR. Do not
+    preselect provider, transcription, Messages, or background assumptions in
+    this master roadmap.
+  - Translate the measured ADR outcome into atomic implementation steps,
+    explicit fixture and live-adapter boundaries, failure semantics, file
+    ownership, verification commands, and stop points before external effects.
+  - Require the plan to extend the existing neutral shell, HTTP runtime, media
+    broker, intent namespace, and Buildroot ownership instead of creating
+    competing capabilities.
+  - Output: a separate production plan, or an explicit read-only/draft-only
+    direction if the ADR rejects a transport.
+  - Verify: human review confirms that the plan follows the ADR, retains the
+    touch-confirmation/no-retry/privacy boundaries, and has a `Verify:` line for
+    every atomic step. Stop here; do not combine approval with implementation.
+
+- [ ] **Step 7: Implement the reviewed agenda production slice on the host**
+  - Execute only the reviewed follow-up plan from Step 6.
+  - Extend the existing neutral `panel_ui`, HTTP runtime, media broker, intent
+    namespace, and Buildroot ownership. Add a provider-neutral agenda reducer,
+    minimized expiring snapshot/cache, a narrow signed
+    `personal_context_client`, birthday composer, visible recording state,
+    touch confirmation, meeting list, and fixture companion.
+  - Keep provider adapters, recipient resolution, local STT, and Messages
+    transport on the Mac. The panel receives opaque, minimized data and cannot
+    select arbitrary recipients or invoke arbitrary automation.
+  - Enable `wish_recording` only under the reviewed purpose-specific lease and
+    consent flow. Command recognition may open the composer; it cannot begin or
+    submit an exportable recording. During capture, no general command grammar
+    is active; the same stream may feed only a purpose-internal stop set
+    containing `agenda.stop_wish_recording`, which may halt capture but cannot
+    route another intent or submit.
+  - Output: the host-tested panel/Mac implementation permitted by the reviewed
+    plan, or the selected read-only/draft-only endpoint.
+  - Verify: use the follow-up plan's tests; additionally prove expiry,
+    permission revocation, offline behavior, route revision changes, replay,
+    concurrent confirmation, cancellation/deletion, and UI/media-broker
+    isolation. `make verify` passes before packaging.
+
+- [ ] **Step 8: Produce the host-integrated release candidate**
+  - Execute Lexinet Step 9 and the approved agenda packaging work. Migrate the
+    vocabulary-specific service toward neutral `bhp-panel-ui`; assign distinct
+    service users, groups, sockets, state paths, restart limits, and device
+    permissions.
+  - Keep only the supervisor able to write backlight/suspend, only `panel_ui`
+    able to open the classified display/touch devices, and only the broker able
+    to open the classified microphone. Until hardware discovery, target device
+    values remain unset and services remain disabled.
+  - Run full host system simulations using fake presence, clock, display,
+    capture, Lexinet, companion, storage, and Tailnet boundaries. Cover cold
+    boot, untrusted clock, sunrise/sunset rollover, absence during work,
+    suspend preparation, crash/restart, offline queues, stale data, corrupted
+    state, disk full, TLS failure, and credential/capability denial.
+  - Build the fresh pinned Buildroot candidate on supported Linux x86_64 and
+    record artifact hashes and size/resource budgets. A successful image build
+    is build evidence, not boot or hardware evidence.
+  - Verify: `make verify` passes on the development host;
+    `make verify-release-candidate` passes on the supported Linux build host;
+    all cross-repository contract and fault matrices pass; deployment remains
+    dry-run by default; no unmeasured hardware value or secret is embedded.
+
+- [ ] **Step 9: Publish the host-readiness checkpoint**
+  - Record versions, contract hashes, completed plans, release artifact hashes,
+    unresolved decisions, and the exact physical observations still required.
+  - Prepare, but do not fabricate results for, rescue media, inventory forms,
+    electrical test sheets, suspend/wake correlation tooling, optical markers,
+    power schemas, and deployment rollback procedures.
+  - Keep all production target services disabled. No host result may be labeled
+    as cape, GPIO, touch, suspend, wake, microphone, battery, or thermal proof.
+  - Verify: a clean checkout can reproduce host tests and release artifacts;
+    the hardware evidence ledger has no inferred pass; another agent can begin
+    hardware Step 1 without reconstructing context.
+
+- [ ] **Step 10: Preserve and characterize the owned BeagleBone assembly independently**
+  - This is an independent lane. It may begin as soon as the board returns and
+    does not wait for Steps 1–9. Target mutation waits for the preservation and
+    experiment gates in the hardware plan; integrated qualification waits for
+    the host-readiness join.
+  - Execute the BeagleBone hardware baseline plan in order. On first access,
+    inventory the unpowered hardware, prepare verified non-flasher rescue media,
+    boot from microSD with eMMC unmounted/read-only, and image/hash eMMC before
+    inspecting or installing anything.
+  - Establish display/touch/backlight facts, then PIR electrical safety and the
+    normal awake `libgpiod` path. Run stock `gpio-keys` before the custom module
+    for the same pin, sensor, kernel, state, starting level, and edge.
+  - Count only trials with correlated physical stimulus, confirmed state entry,
+    wake-source/IRQ attribution, Linux input event, and negative control.
+    Aborted, wrong-source, timed-out, and unobserved attempts never count as
+    successes.
+  - Execute the Debian Tailnet runbook only after the preservation and
+    pre-install baseline gates allow package installation.
+  - Output: use every artifact in the hardware plan and publish its ADR using
+    the collision-safe allocation and pre-merge recheck from Step 1.
+  - Verify: every repeat count, soak requirement, evidence rule, and
+    verification clause in the hardware plan passes.
+
+- [ ] **Step 11: Write and review the target-integration plan**
+  - After both the host-readiness checkpoint and hardware-baseline ADR exist,
+    create a target-integration plan rather than guessing node names in advance.
+  - Translate the measured display, touch, backlight, PIR, suspend, network,
+    storage, and power facts into explicit configuration, rollback steps,
+    observation points, reliability populations, and verification commands.
+  - Preserve the host artifact hashes and hardware evidence cell in every target
+    result so software and physical observations cannot be mixed across builds.
+  - Output: a separate target-integration plan with atomic deploy, rollback,
+    functional, fault, optical, network, and soak steps.
+  - Verify: human review confirms that every hardware value is evidence-backed,
+    the recovery path is usable, and each step has a `Verify:` line. Stop here;
+    do not combine approval with target mutation or execution.
+
+- [ ] **Step 12: Integrate and qualify the complete appliance on target**
+  - Execute only the reviewed target-integration plan from Step 11 and configure
+    only its measured display, touch, backlight, PIR, suspend, and network paths.
+  - Prove the chain from physical PIR stimulus through attributed wake,
+    recomputed presence/time/solar truth, correct frame commit, optical output,
+    asynchronous Wi-Fi/Tailnet recovery, and Lexinet/companion availability.
+  - Verify no stale or bright frame appears on boot, mode change, crash,
+    suspend, or resume. Local cached/night output must not wait for the network.
+  - Exercise the full day/night/presence state table, clock correction,
+    Tailnet loss/recovery, server/Mac unavailability, corrupt local state,
+    abrupt restart, and safe service degradation.
+  - Verify: the on-target plan passes its optical, input, lifecycle, network,
+    and reliability matrix on the exact named assembly and software image;
+    every observation shares a correlation ID from stimulus through visible
+    frame and power trace.
+
+- [ ] **Step 13: Qualify local speech and optional gesture recognition**
+  - Execute Lexinet Step 10 only after target UI and lifecycle behavior are
+    stable. Classify the exact microphone/interface and keep access exclusive
+    to the broker.
+  - Compare the constrained recognizer candidates against the same complete
+    active command catalog, canonical active sets, appropriate backend
+    projections/policies, nearest-neighbor phrase pairs, frozen development,
+    single-use selection, and untouched confirmation splits, speakers,
+    distances, orientations, room noise,
+    negative-audio duration, lifecycle transitions, and resource/power
+    measurements. Preserve touch as the always-available fallback.
+  - Select an engine only through an ADR backed by per-command accuracy,
+    a directional command-confusion matrix, wrong-command substitutions, false
+    accepts and applied false actions as separate metrics with denominators and
+    intervals, visible-action latency, quiesce, suspend/resume, image-size,
+    memory, CPU, thermal, and power data. Requalify after any phrase,
+    pronunciation, engine/model, microphone, active-set, projection, or
+    recognition-policy change, using a fresh unseen manifest after any
+    result-informed adaptation. “Touch only on this board” is an acceptable outcome.
+  - If gesture control remains desirable, create a separate, bounded
+    feasibility plan: define a small semantic gesture vocabulary, consented
+    corpus, camera-active indication, retention rules, and false-action budget;
+    use local-only inference and route accepted gestures through the same
+    namespaced intent path. Camera input does not wake Linux and is disabled if
+    privacy, accuracy, thermal, or power evidence is unacceptable.
+  - Verify: use the exact speech corpus counts and acceptance gates in Lexinet
+    Step 10; no real speech engine enters the production image before its ADR.
+    Any gesture engine separately passes its reviewed per-gesture accuracy,
+    negative-room false-action, latency, lifecycle, privacy, resource, thermal,
+    and power gates on the named camera/platform before enablement.
+
+- [ ] **Step 14: Select the product compute and power architecture**
+  - Use the measured BeagleBone baseline as a comparison point, not a sunk-cost
+    mandate. Define required occupied duty cycle, charge interval, wake latency,
+    always-listening policy, display behavior, STT/vision workload, and battery
+    safety before scoring platforms.
+  - Compare staying on Black, adding an always-on controller/PMIC power domain,
+    or changing the application board. Repeat the common hardware matrix on any
+    candidate; vendor specifications do not substitute for the selected image,
+    peripherals, and battery-chain measurements.
+  - Measure both `board_input` and `product_battery` boundaries, including
+    converter/charger loss, low-state-of-charge sag, simultaneous
+    display/Wi-Fi/media load, shutdown reserve, boot lockout, handover, and
+    recovery. Never compare unnamed boundaries.
+  - Freeze the final board, always-on controller if any, radios, storage,
+    microphone, speaker/playback path, power source, charger, and update/recovery
+    design in an ADR.
+  - Verify: the selected product configuration passes the common bake-off and
+    reliability gates in the compute-platform assessment; runtime calculations
+    reproduce from content-hashed traces and include transition energy.
+
+- [ ] **Step 15: Productize, enclose, and accept the household appliance**
+  - Harden the image for abrupt power loss, bounded writes, rollback/recovery,
+    signed and reproducible releases, secret provisioning/rotation, clock
+    recovery, service health, and redacted diagnostics.
+  - Measure the final stacked assembly, cable bends, connectors, sensor field
+    of view, microphone opening, speaker if selected, antenna keep-outs,
+    controls, service access, airflow, and surface temperatures before CAD.
+  - Build a serviceable printed enclosure, verify fit and radio/thermal/sensor
+    behavior, document the bill of materials and assembly, and retain source
+    CAD plus printable exports.
+  - Run the final acceptance matrix across cold boot, long idle, repeated
+    motion, sunrise/sunset, network/server/Mac outages, suspend/wake soak,
+    charging/discharging, low battery, update/rollback, Lexinet study, agenda,
+    birthday wish, mute/privacy, and recovery from faults.
+  - Verify: a clean source checkout produces signed, content-identified
+    artifacts; the assembled device passes the final reliability, power,
+    privacy, recovery, usability, and enclosure criteria; operations documents
+    allow safe reprovisioning without exposing secrets or personal content.
+
+## Evidence gates
+
+| Gate | Opens | Smallest honest pass |
+|---|---|---|
+| S0 — contracts | Independent host lanes | Reviewed vocabulary/agenda semantics, unique ADR allocation, explicit shared owners |
+| S1 — shell | Feature UI integration | Headless lifecycle and exact v2 acknowledgement tests; no physical-display claim |
+| S2 — Lexinet | Complete host vocabulary flow | Server-owned contract, deterministic selection, resilient bounded panel data plane, least-privilege tests |
+| S3 — companion decision | Agenda production planning | Signed fixture probe, provider/transport/STT/Tailnet evidence, reviewed ADR |
+| S3a — agenda plan | Agenda implementation | Follow-up production plan reviewed separately from its execution |
+| S4 — host release | Hardware characterization inputs | Host fault matrices plus fresh pinned image artifacts, with services disabled |
+| H0 — identity/preservation | Target mutation | Exact assembly identity and restorable eMMC evidence |
+| H1 — display/touch | Lit UI experiments | Named scanout/touch path and synchronized no-bright-flash evidence |
+| H2 — PIR | Suspend experiments | Safe voltage/pin plus repeatable awake-state events |
+| H3 — suspend/wake | Suspend enablement | Passing attributed implementation × BSP × state × level × edge cells and soak |
+| H4 — target system | Product-like demo | Correlated motion-to-correct-frame flow and network-independent local output |
+| H5 — local perception | Voice default and optional gesture decision | Named microphone/engine, and camera/model if pursued, pass separate privacy, accuracy, false-action, latency, lifecycle, and resource gates |
+| H6 — product power | Platform freeze | Reproducible battery-boundary traces and platform bake-off |
+| H7 — acceptance | Household deployment | Recoverable release, final soak, safe power, complete enclosure and runbooks |
+
+Protocol success, compilation, a release image, one resume, an ALSA device, or
+a photograph alone cannot satisfy a physical gate. Missing observation points
+produce `unobserved`, never inferred success.
+
+## Host-readiness definition
+
+The software head start is complete when:
+
+- product semantics and every cross-process contract are versioned and tested;
+- one headless `panel_ui` can render every lifecycle and fixture feature state;
+- supervisor tests enforce blank-before-transition and exact
+  render-ack-before-illumination ordering;
+- Lexinet supplies deterministic rating-aware coverage cycles, replayable
+  learning evidence, scheduler provenance, and idempotent reconciliation;
+- panel data remains useful, bounded, and honest through network failure;
+- the agenda feasibility ADR exists and its permitted production slice is
+  host-tested against a fake companion;
+- touch paths work independently of voice; the shared catalog produces reviewed
+  pronunciation/confusability reports, canonical active command sets, and
+  deterministic backend projections; and
+  the fake broker proves lifecycle shutdown, replay rejection, and buffer
+  erasure;
+- system simulations cover time, storage, process, Tailnet, server, and
+  companion faults;
+- cross-build and deployment tooling can produce content-identified artifacts
+  without secrets or implicit target paths; and
+- every device-specific setting remains unset and every target service remains
+  disabled pending hardware evidence.
+
+## End-to-end done criteria
+
+- Motion reliably wakes the exact selected platform from its deepest accepted
+  state and absence returns it to the measured low-power policy.
+- The screen stays physically off while absent, presents measured dim red after
+  hours, and presents the correct daytime surface without exposing stale or
+  bright frames.
+- Lexinet works through the Tailnet with varied, resumable study sessions,
+  bounded offline behavior, equivalent touch/voice navigation and ratings, a
+  touch correction path, and replaceable schedulers over replayable evidence.
+- Birthdays and today's meetings use minimized provider-neutral data. Birthday
+  wishes require visible recording and touch confirmation, use only provisioned
+  recipients, and never retry an ambiguous Messages handoff.
+- Microphone capture is purpose-scoped, visibly active, promptly quiesced, and
+  optional; loss of voice never breaks touch or power behavior.
+- Power, wake latency, network recovery, thermals, battery behavior, and
+  reliability are measured at named boundaries on the final assembly.
+- Releases are reproducible, recoverable, safely provisioned, and diagnosable
+  without leaking secrets or personal content.
+- The final electronics fit a serviceable printed enclosure with verified
+  sensor, radio, audio, connector, and thermal behavior.
+
+## Immediate next action
+
+Begin Step 1. It is the only join required before the neutral platform,
+Lexinet, and Mac feasibility lanes can proceed independently. If implementation
+starts before the board returns, prefer the platform/Lexinet lane first because
+it removes the current single-client/synchronous/UI-owner limitations and gives
+the agenda feature a stable shell to extend.
+
+**Amended 2026-08-06:** the user expanded the Step 1 Lexinet review to include
+touch and voice ratings, modular rating-aware next-card selection, replayable
+scheduler evidence, and a shared way to keep future voice commands phonetically
+distinct. Steps 1, 3, 4, and 13 now carry the additional decision, scheduler,
+catalog/tooling, active-set/backend-projection, correction, and
+measured-confusion gates;
+no previously unchecked step was marked complete. Independent review sharpened
+the join with canonical server event order, bounded Undo ownership, hard
+voice-effect admission, artifact-bound recognizer output, and held-out acoustic
+qualification rather than changing the selected architecture.
