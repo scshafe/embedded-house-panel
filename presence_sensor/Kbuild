@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# canonical: beagle_house_pir_input_driver -- the custom PIR kernel module.
+obj-m += beagle_house_pir_input_driver.o
+beagle_house_pir_input_driver-y := experiments/custom_pir_input_driver/beagle_house_pir_input_driver.o

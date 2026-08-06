@@ -1,0 +1,18 @@
+config BR2_PACKAGE_BHP_PANEL_SUPERVISOR
+	bool "bhp-panel-supervisor"
+	depends on BR2_INSTALL_LIBSTDCPP
+	depends on BR2_TOOLCHAIN_GCC_AT_LEAST_9 # C++17 std::from_chars
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	help
+	  Build the deterministic BeagleBone House Panel policy
+	  engine and the Linux panel_supervisord runtime.
+
+	  The runtime provides explicit evdev, backlight, local IPC,
+	  solar-time, and suspend adapters. These adapters are not yet
+	  verified on the target assembly, so the accompanying SysV
+	  service is disabled until an operator provisions and enables
+	  complete target configuration.
+
+comment "bhp-panel-supervisor needs C++, gcc >= 9, threads"
+	depends on !BR2_INSTALL_LIBSTDCPP || \
+		!BR2_TOOLCHAIN_GCC_AT_LEAST_9 || !BR2_TOOLCHAIN_HAS_THREADS

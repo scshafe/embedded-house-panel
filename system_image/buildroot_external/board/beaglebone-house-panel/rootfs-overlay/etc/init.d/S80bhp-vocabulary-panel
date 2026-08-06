@@ -1,0 +1,109 @@
+#!/bin/sh
+
+BHP_INIT_LIBRARY=/etc/beaglebone-house-panel/init-service-library.sh
+DAEMON=bhp-vocabulary-panel
+BHP_VOCABULARY_PANEL_ENVIRONMENT_FILE=/etc/beaglebone-house-panel/vocabulary-panel.env
+BHP_VOCABULARY_PANEL_SERVICE=beaglebone_house_panel.vocabulary_panel
+BHP_VOCABULARY_PANEL_DAEMON=/usr/bin/$DAEMON
+PIDFILE=/var/run/$DAEMON.pid
+BHP_VOCABULARY_PANEL_STATE_DIRECTORY=/var/lib/beaglebone-house-panel
+
+if [ ! -r "$BHP_INIT_LIBRARY" ]; then
+	printf '%s\n' 'BHP_VOCABULARY_PANEL.INIT_LIBRARY_MISSING' >&2
+	exit 1
+fi
+# shellcheck disable=SC1090,SC1091
+. "$BHP_INIT_LIBRARY"
+
+bhp_vocabulary_panel_load_configuration()
+{
+	BHP_VOCABULARY_PANEL_ENABLED=0
+	if ! bhp_init_load_environment "$BHP_VOCABULARY_PANEL_ENVIRONMENT_FILE"; then
+		bhp_init_log_error "$BHP_VOCABULARY_PANEL_SERVICE" \
+			BHP_VOCABULARY_PANEL.CONFIGURATION_READ_FAILED \
+			'Failed to read the root-managed vocabulary panel environment'
+		return 1
+	fi
+	if ! bhp_init_boolean_is_valid "$BHP_VOCABULARY_PANEL_ENABLED"; then
+		bhp_init_log_error "$BHP_VOCABULARY_PANEL_SERVICE" \
+			BHP_VOCABULARY_PANEL.ENABLEMENT_INVALID \
+			'BHP_VOCABULARY_PANEL_ENABLED must be exactly 0 or 1'
+		return 1
+	fi
+}
+
+bhp_vocabulary_panel_start()
+{
+	bhp_vocabulary_panel_load_configuration || return 1
+	if [ "$BHP_VOCABULARY_PANEL_ENABLED" = 0 ]; then
+		bhp_init_log info "$BHP_VOCABULARY_PANEL_SERVICE" vocabulary_panel_disabled_by_configuration
+		return 0
+	fi
+	if [ ! -x "$BHP_VOCABULARY_PANEL_DAEMON" ]; then
+		bhp_init_log_error "$BHP_VOCABULARY_PANEL_SERVICE" \
+			BHP_VOCABULARY_PANEL.PRODUCTION_DAEMON_MISSING \
+			'Graphical controller and verified Lexinet adapter are unfinished; required daemon is absent'
+		return 1
+	fi
+
+	if ! bhp_init_prepare_panel_runtime_directory; then
+		bhp_init_log_error "$BHP_VOCABULARY_PANEL_SERVICE" \
+			BHP_VOCABULARY_PANEL.RUNTIME_DIRECTORY_FAILED \
+			'Failed to prepare supervisor-owned IPC directory for vocabulary-panel access'
+		return 1
+	fi
+	mkdir -p "$BHP_VOCABULARY_PANEL_STATE_DIRECTORY" || return 1
+	chown vocabulary-panel:vocabulary-panel "$BHP_VOCABULARY_PANEL_STATE_DIRECTORY" || return 1
+	chmod 0700 "$BHP_VOCABULARY_PANEL_STATE_DIRECTORY" || return 1
+	umask 077
+	if ! start-stop-daemon -S -b -m -p "$PIDFILE" \
+			-x "$BHP_VOCABULARY_PANEL_DAEMON" \
+			-c vocabulary-panel:vocabulary-panel; then
+		bhp_init_log_error "$BHP_VOCABULARY_PANEL_SERVICE" \
+			BHP_VOCABULARY_PANEL.START_FAILED \
+			'Failed to start the production vocabulary panel'
+		return 1
+	fi
+	bhp_init_log info "$BHP_VOCABULARY_PANEL_SERVICE" vocabulary_panel_started
+}
+
+bhp_vocabulary_panel_stop()
+{
+	if ! bhp_init_pidfile_process_is_running "$PIDFILE"; then
+		bhp_init_log info "$BHP_VOCABULARY_PANEL_SERVICE" vocabulary_panel_not_running
+		return 0
+	fi
+	if ! start-stop-daemon -K -p "$PIDFILE" \
+			-x "$BHP_VOCABULARY_PANEL_DAEMON"; then
+		bhp_init_log_error "$BHP_VOCABULARY_PANEL_SERVICE" \
+			BHP_VOCABULARY_PANEL.STOP_FAILED \
+			'Failed to stop the production vocabulary panel'
+		return 1
+	fi
+	if ! bhp_init_wait_for_pidfile_exit "$PIDFILE" 5; then
+		bhp_init_log_error "$BHP_VOCABULARY_PANEL_SERVICE" \
+			BHP_VOCABULARY_PANEL.STOP_TIMEOUT \
+			'Vocabulary panel did not exit within five seconds after TERM'
+		return 1
+	fi
+	rm -f "$PIDFILE"
+	bhp_init_log info "$BHP_VOCABULARY_PANEL_SERVICE" vocabulary_panel_stopped
+}
+
+bhp_vocabulary_panel_status()
+{
+	if bhp_init_pidfile_process_is_running "$PIDFILE"; then
+		bhp_init_log info "$BHP_VOCABULARY_PANEL_SERVICE" vocabulary_panel_running
+		return 0
+	fi
+	bhp_init_log info "$BHP_VOCABULARY_PANEL_SERVICE" vocabulary_panel_not_running
+	return 3
+}
+
+case "${1:-}" in
+	start) bhp_vocabulary_panel_start ;;
+	stop) bhp_vocabulary_panel_stop ;;
+	restart) bhp_vocabulary_panel_stop && bhp_vocabulary_panel_start ;;
+	status) bhp_vocabulary_panel_status ;;
+	*) printf '%s\n' "Usage: $0 {start|stop|restart|status}" >&2; exit 1 ;;
+esac

@@ -1,0 +1,4 @@
+NON-PRODUCTION BEAGLEBONE HOUSE PANEL BRING-UP IMAGE
+
+Root public-key SSH is enabled for board characterization and recovery.
+Do not deploy this profile as the appliance image.

@@ -1,0 +1,31 @@
+#!/bin/sh
+
+DAEMON="tailscaled"
+EXEC="/usr/sbin/$DAEMON"
+PIDFILE="/var/run/$DAEMON.pid"
+STATE_DIRECTORY="/var/lib/tailscale"
+SOCKET_DIRECTORY="/run/tailscale"
+
+start()
+{
+	test -x "$EXEC" || return 0
+	umask 077
+	mkdir -p "$STATE_DIRECTORY" "$SOCKET_DIRECTORY"
+	printf '%s\n' "Starting tailscaled"
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$EXEC" -- \
+		--state="$STATE_DIRECTORY/tailscaled.state" \
+		--socket="$SOCKET_DIRECTORY/tailscaled.sock"
+}
+
+stop()
+{
+	printf '%s\n' "Stopping tailscaled"
+	start-stop-daemon -K -p "$PIDFILE" -x "$EXEC" || true
+}
+
+case "${1:-}" in
+	start) start ;;
+	stop) stop ;;
+	restart) stop; start ;;
+	*) printf '%s\n' "Usage: $0 {start|stop|restart}" >&2; exit 1 ;;
+esac

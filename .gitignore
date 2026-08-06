@@ -1,0 +1,34 @@
+# Build products
+/.build/
+/build/
+/output/
+compile_commands.json
+
+# Buildroot downloads and generated trees
+/system_image/buildroot/
+/system_image/downloads/
+/system_image/output/
+
+# On-target and hardware results
+/hardware_tests/results/
+*.img
+*.img.xz
+*.dtbo
+*.ko
+
+# Credentials and per-device state
+.env
+*.secret
+*.token
+*.credential
+*.credentials
+tailscaled.state
+/config/device.env
+
+# Per-session agent state
+.claude/*.local.md
+
+# Editor and operating-system artifacts
+.DS_Store
+*.swp
+*.swo

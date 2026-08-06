@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/gpio-keys.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+
+/*
+ * EXPERIMENTAL AND UNVERIFIED ON HARDWARE.
+ *
+ * This separately named baseline uses the in-tree gpio-keys driver on the same
+ * candidate BeagleBone Black P9.21 / GPIO0_3 input as the custom experiment.
+ * Confirm 3.3 V electrical levels and sensor polarity. Never load both
+ * experiment overlays because both claim GPIO0_3.
+ */
+
+/ {
+	compatible = "ti,am335x-bone-black";
+
+	fragment@0 {
+		target = <&am33xx_pinmux>;
+
+		__overlay__ {
+			beagle_house_gpio_keys_default_pins: beagle-house-gpio-keys-default-pins {
+				pinctrl-single,pins = <
+					AM33XX_PADCONF(AM335X_PIN_SPI0_D0,
+							 PIN_INPUT_PULLDOWN,
+							 MUX_MODE7)
+				>;
+			};
+
+			beagle_house_gpio_keys_sleep_pins: beagle-house-gpio-keys-sleep-pins {
+				pinctrl-single,pins = <
+					AM33XX_PADCONF(AM335X_PIN_SPI0_D0,
+							 PIN_INPUT_PULLDOWN,
+							 MUX_MODE7)
+				>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path = "/";
+
+		__overlay__ {
+			gpio-keys-presence-baseline {
+				compatible = "gpio-keys";
+				label = "Beagle House gpio-keys wake baseline";
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&beagle_house_gpio_keys_default_pins>;
+				pinctrl-1 = <&beagle_house_gpio_keys_sleep_pins>;
+
+				pir-presence-switch {
+					label = "Beagle House PIR baseline switch";
+					linux,input-type = <EV_SW>;
+					linux,code = <SW_FRONT_PROXIMITY>;
+					gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+					debounce-interval = <5>;
+					wakeup-source;
+					wakeup-event-action = <EV_ACT_ANY>;
+				};
+			};
+		};
+	};
+};

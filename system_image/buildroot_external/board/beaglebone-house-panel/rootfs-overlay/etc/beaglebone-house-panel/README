@@ -1,0 +1,16 @@
+Runtime configuration is provisioned per device and is not embedded in the image.
+
+Expected future files:
+  presence-sensor.env    root:root             0600
+  panel-supervisor.env   root:root             0600
+  vocabulary-panel.env  root:vocabulary-panel 0640
+  touch-input.name       root:root             0644, exactly one observed line
+  touch-input.phys       root:root             0644, exactly one observed line
+
+Every input event starts root:root 0600. mdev grants root:bhp-touch 0660 only
+when both touch identity files exactly match the kernel name and phys values.
+Known PIR identities, malformed files, and devices without unique phys remain
+root-only. Never add vocabulary-panel to the generic input group.
+
+Tailscale state and Lexinet credentials belong under /var/lib/beaglebone-house-panel
+or /var/lib/tailscale with mode 0600 and must never enter diagnostics or images.

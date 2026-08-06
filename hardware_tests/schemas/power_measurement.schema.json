@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beaglebone-house-panel.local/schemas/power_measurement.schema.json",
+  "title": "BeagleBone house panel power measurement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "measurement_id",
+    "measured_at_utc",
+    "git_commit",
+    "board_revision",
+    "cape_revision",
+    "software_state",
+    "supply_boundary",
+    "supply_voltage_volts",
+    "current_milliamps",
+    "instrument",
+    "sample_duration_seconds"
+  ],
+  "properties": {
+    "measurement_id": {"type": "string", "minLength": 1},
+    "measured_at_utc": {"type": "string", "format": "date-time"},
+    "git_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "board_revision": {"type": "string", "minLength": 1},
+    "cape_revision": {"type": "string", "minLength": 1},
+    "pir_revision": {"type": "string"},
+    "kernel_release": {"type": "string"},
+    "software_state": {
+      "type": "string",
+      "enum": ["active_day", "active_night", "backlight_zero", "idle", "freeze", "mem"]
+    },
+    "supply_boundary": {"type": "string", "minLength": 1},
+    "supply_voltage_volts": {"type": "number", "exclusiveMinimum": 0},
+    "current_milliamps": {"type": "number", "minimum": 0},
+    "power_milliwatts": {"type": "number", "minimum": 0},
+    "instrument": {"type": "string", "minLength": 1},
+    "sample_duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "notes": {"type": "string"}
+  }
+}

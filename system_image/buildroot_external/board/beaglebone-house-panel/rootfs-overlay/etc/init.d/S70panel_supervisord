@@ -1,0 +1,128 @@
+#!/bin/sh
+
+BHP_INIT_LIBRARY=/etc/beaglebone-house-panel/init-service-library.sh
+DAEMON=panel_supervisord
+BHP_PANEL_SUPERVISOR_ENVIRONMENT_FILE=/etc/beaglebone-house-panel/panel-supervisor.env
+BHP_PANEL_SUPERVISOR_SERVICE=beaglebone_house_panel.panel_supervisor
+BHP_PANEL_SUPERVISOR_DAEMON=/usr/sbin/$DAEMON
+PIDFILE=/var/run/$DAEMON.pid
+
+if [ ! -r "$BHP_INIT_LIBRARY" ]; then
+	printf '%s\n' 'BHP_PANEL_SUPERVISOR.INIT_LIBRARY_MISSING' >&2
+	exit 1
+fi
+# shellcheck disable=SC1090,SC1091
+. "$BHP_INIT_LIBRARY"
+
+bhp_panel_supervisor_load_configuration()
+{
+	BHP_PANEL_SUPERVISOR_ENABLED=0
+	if ! bhp_init_load_environment "$BHP_PANEL_SUPERVISOR_ENVIRONMENT_FILE"; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.CONFIGURATION_READ_FAILED \
+			'Failed to read the root-managed panel supervisor environment'
+		return 1
+	fi
+	if ! bhp_init_boolean_is_valid "$BHP_PANEL_SUPERVISOR_ENABLED"; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.ENABLEMENT_INVALID \
+			'BHP_PANEL_SUPERVISOR_ENABLED must be exactly 0 or 1'
+		return 1
+	fi
+}
+
+bhp_panel_supervisor_start()
+{
+	bhp_panel_supervisor_load_configuration || return 1
+	if [ "$BHP_PANEL_SUPERVISOR_ENABLED" = 0 ]; then
+		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_disabled_by_configuration
+		return 0
+	fi
+	if [ "${BHP_PANEL_SUPERVISOR_MODE_SOCKET:-}" != \
+		/run/beaglebone-house-panel/panel-mode.sock ]; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.MODE_SOCKET_PATH_INVALID \
+			'Mode socket must use the supervisor-owned panel runtime directory'
+		return 1
+	fi
+	if [ ! -x "$BHP_PANEL_SUPERVISOR_DAEMON" ]; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.PRODUCTION_DAEMON_MISSING \
+			'Configured panel_supervisord executable is absent'
+		return 1
+	fi
+
+	if ! bhp_init_prepare_panel_runtime_directory; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.RUNTIME_DIRECTORY_FAILED \
+			'Failed to prepare root-owned IPC directory for vocabulary-panel group access'
+		return 1
+	fi
+	umask 027
+	if ! start-stop-daemon -S -b -m -p "$PIDFILE" \
+			-x "$BHP_PANEL_SUPERVISOR_DAEMON"; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.START_FAILED \
+			'Failed to start the production panel supervisor'
+		return 1
+	fi
+	sleep 1
+	if ! bhp_init_pidfile_process_is_running "$PIDFILE"; then
+		rm -f "$PIDFILE"
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.STARTUP_EXITED \
+			'panel_supervisord exited during startup validation'
+		return 1
+	fi
+	if [ ! -S "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ] ||
+		! chown root:vocabulary-panel "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ||
+		! chmod 0660 "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.MODE_SOCKET_PERMISSION_FAILED \
+			'Failed to establish root-owned group-only UI mode socket access'
+		bhp_panel_supervisor_stop || return 1
+		return 1
+	fi
+	bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_started
+}
+
+bhp_panel_supervisor_stop()
+{
+	if ! bhp_init_pidfile_process_is_running "$PIDFILE"; then
+		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_not_running
+		return 0
+	fi
+	if ! start-stop-daemon -K -p "$PIDFILE" \
+			-x "$BHP_PANEL_SUPERVISOR_DAEMON"; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.STOP_FAILED \
+			'Failed to stop the production panel supervisor'
+		return 1
+	fi
+	if ! bhp_init_wait_for_pidfile_exit "$PIDFILE" 5; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.STOP_TIMEOUT \
+			'panel_supervisord did not exit within five seconds after TERM'
+		return 1
+	fi
+	rm -f "$PIDFILE"
+	bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_stopped
+}
+
+bhp_panel_supervisor_status()
+{
+	if bhp_init_pidfile_process_is_running "$PIDFILE"; then
+		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_running
+		return 0
+	fi
+	bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_not_running
+	return 3
+}
+
+case "${1:-}" in
+	start) bhp_panel_supervisor_start ;;
+	stop) bhp_panel_supervisor_stop ;;
+	restart) bhp_panel_supervisor_stop && bhp_panel_supervisor_start ;;
+	status) bhp_panel_supervisor_status ;;
+	*) printf '%s\n' "Usage: $0 {start|stop|restart|status}" >&2; exit 1 ;;
+esac

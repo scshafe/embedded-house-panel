@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/beagle,house-pir.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Beagle House GPIO PIR presence sensor experiment
+
+maintainers:
+  - Beagle House Panel maintainers <maintainers@example.invalid>
+
+description: |
+  Experimental binding for a digital PIR output connected to one GPIO. The
+  Linux input device reports EV_SW/SW_FRONT_PROXIMITY using the logical GPIO
+  value. This binding does not imply that the selected GPIO is capable of
+  waking a particular board from its deepest system sleep state.
+
+properties:
+  compatible:
+    const: beagle,house-pir
+
+  presence-gpios:
+    maxItems: 1
+    description: |
+      Digital presence output. GPIO_ACTIVE_HIGH means the asserted electrical
+      level represents presence; use GPIO_ACTIVE_LOW only when required by the
+      actual sensor or intervening circuitry.
+
+  label:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Descriptive Linux input device name.
+
+  wakeup-source: true
+
+required:
+  - compatible
+  - presence-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    presence-sensor {
+        compatible = "beagle,house-pir";
+        presence-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+        label = "Beagle House PIR custom experiment";
+        wakeup-source;
+    };
+...

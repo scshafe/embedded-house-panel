@@ -1,0 +1,54 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "host-debug",
+      "displayName": "Host debug and tests",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.build/host-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BHP_BUILD_TESTS": "ON",
+        "BHP_BUILD_HTTP_LEXINET_CLIENT": "OFF",
+        "BHP_BUILD_LVGL_RENDERER": "OFF"
+      }
+    },
+    {
+      "name": "buildroot-armv7-release",
+      "displayName": "Buildroot ARMv7 release",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.build/buildroot-armv7-release",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/buildroot-armv7.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BHP_BUILD_TESTS": "OFF",
+        "BHP_BUILD_HTTP_LEXINET_CLIENT": "ON",
+        "BHP_BUILD_LVGL_RENDERER": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "host-debug",
+      "configurePreset": "host-debug"
+    },
+    {
+      "name": "buildroot-armv7-release",
+      "configurePreset": "buildroot-armv7-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "host-debug",
+      "configurePreset": "host-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

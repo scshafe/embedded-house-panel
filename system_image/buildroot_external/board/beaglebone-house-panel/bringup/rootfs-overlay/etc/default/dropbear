@@ -1,0 +1,4 @@
+# NON-PRODUCTION: public-key authentication only. Root remains password-locked
+# by BR2_TARGET_ENABLE_ROOT_LOGIN=n; -s independently disables all SSH password
+# authentication. Root public-key access is intentional for board provisioning.
+DROPBEAR_ARGS="-s"

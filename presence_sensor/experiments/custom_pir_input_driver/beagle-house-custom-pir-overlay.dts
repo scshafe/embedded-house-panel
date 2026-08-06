@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+
+/*
+ * EXPERIMENTAL AND UNVERIFIED ON HARDWARE.
+ *
+ * This candidate routes BeagleBone Black P9.21 / GPIO0_3 to the custom PIR
+ * driver. Confirm board revision, cape conflicts, 3.3 V electrical levels,
+ * sensor polarity, and target pin ownership before applying it. Never apply it
+ * together with the stock gpio-keys baseline overlay: both claim GPIO0_3.
+ */
+
+/ {
+	compatible = "ti,am335x-bone-black";
+
+	fragment@0 {
+		target = <&am33xx_pinmux>;
+
+		__overlay__ {
+			beagle_house_custom_pir_default_pins: beagle-house-custom-pir-default-pins {
+				pinctrl-single,pins = <
+					AM33XX_PADCONF(AM335X_PIN_SPI0_D0,
+							 PIN_INPUT_PULLDOWN,
+							 MUX_MODE7)
+				>;
+			};
+
+			beagle_house_custom_pir_sleep_pins: beagle-house-custom-pir-sleep-pins {
+				pinctrl-single,pins = <
+					AM33XX_PADCONF(AM335X_PIN_SPI0_D0,
+							 PIN_INPUT_PULLDOWN,
+							 MUX_MODE7)
+				>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path = "/";
+
+		__overlay__ {
+			presence-sensor-custom-pir {
+				compatible = "beagle,house-pir";
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&beagle_house_custom_pir_default_pins>;
+				pinctrl-1 = <&beagle_house_custom_pir_sleep_pins>;
+				presence-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+				label = "Beagle House PIR custom experiment";
+				wakeup-source;
+				status = "okay";
+			};
+		};
+	};
+};

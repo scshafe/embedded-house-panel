@@ -1,0 +1,141 @@
+#!/bin/sh
+# Grants the vocabulary UI access only to one provisioned evdev identity.
+# mdev creates every event node root-only before invoking this helper.
+
+set -eu
+BHP_TOUCH_CARRIAGE_RETURN=$(printf '\r')
+
+case "${BHP_MDEV_TEST_MODE:-0}" in
+	0)
+		configuration_root=/etc/beaglebone-house-panel
+		sys_class_input=/sys/class/input
+		device_root=/dev
+		touch_group=bhp-touch
+		reset_group=root
+		require_root_configuration=1
+		;;
+	1)
+		: "${BHP_MDEV_TEST_CONFIGURATION_ROOT:?test configuration root is required}"
+		: "${BHP_MDEV_TEST_SYS_CLASS_INPUT:?test sysfs root is required}"
+		: "${BHP_MDEV_TEST_DEVICE_ROOT:?test device root is required}"
+		: "${BHP_MDEV_TEST_TOUCH_GROUP:?test group is required}"
+		configuration_root=$BHP_MDEV_TEST_CONFIGURATION_ROOT
+		sys_class_input=$BHP_MDEV_TEST_SYS_CLASS_INPUT
+		device_root=$BHP_MDEV_TEST_DEVICE_ROOT
+		touch_group=$BHP_MDEV_TEST_TOUCH_GROUP
+		reset_group=$BHP_MDEV_TEST_TOUCH_GROUP
+		require_root_configuration=0
+		;;
+	*) exit 0 ;;
+esac
+
+device_name=${MDEV:-}
+case "$device_name" in
+	input/event*) ;;
+	*) exit 0 ;;
+esac
+event_name=${device_name#input/}
+event_number=${event_name#event}
+case "$event_number" in
+	''|*[!0-9]*) exit 0 ;;
+esac
+
+# Revoke every prior event grant before re-evaluating global uniqueness. An add
+# of a duplicate identity therefore removes access from an earlier matching
+# node instead of leaving a stale grant behind.
+for candidate_node in "$device_root"/input/event*; do
+	[ -e "$candidate_node" ] || continue
+	candidate_node_name=${candidate_node##*/}
+	candidate_node_number=${candidate_node_name#event}
+	case "$candidate_node_number" in
+		''|*[!0-9]*) continue ;;
+	esac
+	if [ "${BHP_MDEV_TEST_MODE:-0}" = 1 ]; then
+		[ -f "$candidate_node" ] || continue
+	else
+		[ -c "$candidate_node" ] || continue
+	fi
+	chmod 0600 "$candidate_node" || exit 0
+	chgrp "$reset_group" "$candidate_node" || exit 0
+done
+
+expected_name_file=$configuration_root/touch-input.name
+expected_phys_file=$configuration_root/touch-input.phys
+for identity_file in "$expected_name_file" "$expected_phys_file"; do
+	[ -f "$identity_file" ] || exit 0
+	[ ! -L "$identity_file" ] || exit 0
+	if [ "$require_root_configuration" -eq 1 ]; then
+		# BusyBox's default image omits stat(1), so use the stable leading
+		# owner/permission fields from numeric long-format ls output.
+		# shellcheck disable=SC2046
+		set -- $(LC_ALL=C ls -ldn "$identity_file")
+		[ "${3:-}" = 0 ] || exit 0
+		case "${1:-}" in
+			?????w????|????????w?) exit 0 ;;
+		esac
+	fi
+done
+
+bhp_read_exact_identity_line()
+{
+	BHP_TOUCH_IDENTITY_FILE=$1
+	BHP_TOUCH_IDENTITY_VALUE=$(sed -n '1p' "$BHP_TOUCH_IDENTITY_FILE")
+	[ -n "$BHP_TOUCH_IDENTITY_VALUE" ] || return 1
+	[ "$(awk 'END { print NR }' "$BHP_TOUCH_IDENTITY_FILE")" -eq 1 ] || return 1
+	case "$BHP_TOUCH_IDENTITY_VALUE" in
+		*"$BHP_TOUCH_CARRIAGE_RETURN"*) return 1 ;;
+	esac
+}
+
+bhp_read_exact_identity_line "$expected_name_file" || exit 0
+expected_name=$BHP_TOUCH_IDENTITY_VALUE
+bhp_read_exact_identity_line "$expected_phys_file" || exit 0
+expected_phys=$BHP_TOUCH_IDENTITY_VALUE
+
+# These identities are never touch devices, even if an operator accidentally
+# copies the wrong inventory values into the touch configuration.
+case "$expected_name" in
+	'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline')
+		exit 0
+		;;
+esac
+
+matching_identity_count=0
+matching_event=
+for candidate_device in "$sys_class_input"/event*/device; do
+	[ -d "$candidate_device" ] || continue
+	candidate_event=${candidate_device%/device}
+	candidate_event=${candidate_event##*/}
+	candidate_event_number=${candidate_event#event}
+	case "$candidate_event_number" in
+		''|*[!0-9]*) continue ;;
+	esac
+	candidate_name_file=$candidate_device/name
+	candidate_phys_file=$candidate_device/phys
+	[ -f "$candidate_name_file" ] || continue
+	[ -f "$candidate_phys_file" ] || continue
+	bhp_read_exact_identity_line "$candidate_name_file" || continue
+	candidate_name=$BHP_TOUCH_IDENTITY_VALUE
+	bhp_read_exact_identity_line "$candidate_phys_file" || continue
+	candidate_phys=$BHP_TOUCH_IDENTITY_VALUE
+	case "$candidate_name" in
+		'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline')
+			continue
+			;;
+	esac
+	if [ "$candidate_name" = "$expected_name" ] &&
+	   [ "$candidate_phys" = "$expected_phys" ]; then
+		matching_identity_count=$((matching_identity_count + 1))
+		matching_event=$candidate_event
+	fi
+done
+[ "$matching_identity_count" -eq 1 ] || exit 0
+
+device_node=$device_root/input/$matching_event
+if [ "${BHP_MDEV_TEST_MODE:-0}" = 1 ]; then
+	[ -f "$device_node" ] || exit 0
+else
+	[ -c "$device_node" ] || exit 0
+fi
+chgrp "$touch_group" "$device_node" || exit 0
+chmod 0660 "$device_node" || exit 0

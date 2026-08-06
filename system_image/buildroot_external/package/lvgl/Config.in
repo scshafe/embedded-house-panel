@@ -1,0 +1,16 @@
+config BR2_PACKAGE_LVGL
+	bool "lvgl"
+	depends on BR2_TOOLCHAIN_HAS_THREADS # libdrm
+	select BR2_PACKAGE_LIBDRM
+	help
+	  LVGL 9.5.0 configured for the BeagleBone house panel with the
+	  software renderer, DRM dumb buffers, fbdev, and explicit evdev
+	  input.
+
+	  GPU/EGL/GBM, window-system, automatic input discovery,
+	  examples, and demos are intentionally disabled.
+
+	  https://lvgl.io/
+
+comment "lvgl needs a toolchain with threads"
+	depends on !BR2_TOOLCHAIN_HAS_THREADS

@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(beaglebone_house_panel VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(BHP_BUILD_TESTS "Build host-testable domain tests" ON)
+option(BHP_BUILD_PANEL_SUPERVISOR "Build the panel supervisor domain" ON)
+option(BHP_BUILD_VOCABULARY_PANEL "Build the vocabulary panel domain" ON)
+option(BHP_BUILD_HTTP_LEXINET_CLIENT "Build libcurl/nlohmann Lexinet adapter" OFF)
+option(BHP_BUILD_LVGL_RENDERER "Build the pinned LVGL target renderer" OFF)
+
+if(BHP_BUILD_TESTS)
+  include(CTest)
+  enable_testing()
+endif()
+
+add_subdirectory(shared/structured_logging)
+if(BHP_BUILD_PANEL_SUPERVISOR)
+  add_subdirectory(panel_supervisor)
+endif()
+if(BHP_BUILD_VOCABULARY_PANEL)
+  add_subdirectory(vocabulary_panel)
+endif()
