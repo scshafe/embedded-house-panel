@@ -2,6 +2,15 @@
 
 Research snapshot: 2026-08-05. Implementation target: upstream Linux v6.12.
 
+## Scope boundary
+
+This document owns the AM335x/BeagleBone Black suspend experiment. A successful
+DeepSleep0 result does not select Black as the final cordless platform, and a
+failed result does not invalidate the application architecture. Future
+application-domain power-off and alternative-board work is documented in the
+[compute platform assessment](compute-platform-assessment.md) and
+[proposed power-domain architecture](../architecture/power-domain-architecture.md).
+
 ## Conclusion
 
 Use the in-tree `gpio-keys` strategy as the first wake experiment and the custom
@@ -113,7 +122,7 @@ shallower mode as a recovery/control case when advancing:
 | Awake, backlight zero | CPU and services run; display illumination is commanded off | Tailnet remains available | Normal input event | Establish the electrical baseline and prove “brightness 0” really extinguishes the cape |
 | `freeze` | Tasks freeze; platform remains comparatively shallow | Unavailable during freeze, must recover after resume | Normal Linux wakeup source | Measure current and wake reliability before deeper suspend |
 | `mem` / target DeepSleep0 | AM335x platform firmware coordinates the deep state | Unavailable; Tailscale must reconnect after resume | GPIO0 + IRQ hierarchy + WKUP-M3 | Require repeated GPIO-attributed wake and measured current/latency |
-| Power-off/load removal | Potentially lower than SoC suspend | Unavailable; cold boot required | External always-on controller or power circuitry | Out of current scope: the PIR cannot cold-boot an unpowered board without additional hardware |
+| Power-off/load removal | Potentially lower than SoC suspend | Unavailable; cold boot required | External always-on controller or power circuitry | Out of the Black wake experiment; retained as a proposed product architecture |
 
 Also measure active idle with CPU frequency/idle policy enabled, but do not
 confuse runtime idle tuning with a verified system suspend state. The supervisor

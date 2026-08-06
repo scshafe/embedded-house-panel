@@ -4,6 +4,11 @@
 
 The house panel turns physical presence, local solar time, and recoverable external vocabulary data into one deterministic display/power state. Every hardware or network dependency sits behind a boundary that can be replaced by a host fake or another on-target implementation.
 
+This document describes the implemented BeagleBone/AM335x scaffold. It does
+not claim the Black is the final product platform. The cross-platform,
+always-on-controller design is separately labeled as proposed in
+[power-domain architecture](power-domain-architecture.md).
+
 ## System context
 
 ```mermaid
@@ -90,6 +95,11 @@ flowchart TB
 
 Search for `@canonical` to find each authoritative implementation and `@extension-point` to add a hardware or display backend.
 
+If a tiered controller is proven, `Suspend` becomes one backend operation
+inside the broader proposed `PowerController` contract. That promotion must
+preserve exact requested-state reporting and `panel_supervisor` as the sole
+policy owner; it must not add a second power-policy implementation.
+
 ## “What if” checks
 
 | Change | Expected extension |
@@ -99,6 +109,7 @@ Search for `@canonical` to find each authoritative implementation and `@extensio
 | Network must remain available while absent | Configure a non-suspending power action; presence and UI semantics remain unchanged |
 | A local read-only vocabulary cache is added | New boundary implementation with explicit degraded metadata; Lexinet stays authoritative |
 | Sunrise policy becomes civil twilight plus offsets | Replace/configure `SolarCalculator`; kernel and UI remain unchanged |
+| The application processor changes | Replace device-tree, power, display, media, and inference adapters; policy and flash-card domain remain unchanged |
 
 ## Evidence gate
 

@@ -14,18 +14,22 @@ TRACE_ID=$(bhp_new_trace_id)
 
 required_documents="
 README.md
+.claude/plans/2026-08-05-beaglebone-hardware-baseline.md
 docs/architecture/system-architecture.md
+docs/architecture/power-domain-architecture.md
 docs/architecture/process-interconnectivity.md
 docs/behavior/panel-policy.md
 docs/behavior/flash-card-ux.md
 docs/interfaces/lexinet-contract.md
 docs/interfaces/panel-mode-protocol.md
 docs/legacy/recovery-summary.md
+docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
 docs/research/gui-strategies.md
 docs/research/sleep-wake-strategies.md
+docs/research/compute-platform-assessment.md
 docs/security/threat-model.md
 docs/hardware/enclosure-plan.md
 hardware_tests/README.md
