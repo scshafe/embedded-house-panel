@@ -27,6 +27,7 @@ docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
+docs/operations/debian-tailnet-bringup.md
 docs/research/gui-strategies.md
 docs/research/sleep-wake-strategies.md
 docs/research/compute-platform-assessment.md

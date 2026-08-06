@@ -6,6 +6,12 @@ root-owned service configuration, load test modules, inspect overlays/sysfs,
 and run the hardware procedures. The production defconfig remains SSH-free and
 cannot consume the bring-up key input.
 
+This Buildroot recovery route is separate from the first Tailscale
+compatibility experiment. Use the
+[Debian Tailnet bring-up runbook](debian-tailnet-bringup.md) on the preserved,
+official-Debian microSD baseline; do not copy its apt commands or live node
+state into a Buildroot image.
+
 ## Security boundary
 
 - Root's password stays locked (`BR2_TARGET_ENABLE_ROOT_LOGIN` is unset).

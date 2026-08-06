@@ -104,7 +104,7 @@ cmake --build --preset host-debug
 ctest --preset host-debug --output-on-failure
 ```
 
-For Buildroot and deployment, follow [development environment setup](docs/operations/development-environment.md) and [build/deploy operations](docs/operations/build-and-deploy.md). Upload scripts default to a dry run and require an explicit execution flag.
+For Buildroot and deployment, follow [development environment setup](docs/operations/development-environment.md) and [build/deploy operations](docs/operations/build-and-deploy.md). For the official-Debian compatibility baseline, follow the [Debian Tailnet bring-up runbook](docs/operations/debian-tailnet-bringup.md). Upload scripts default to a dry run and require an explicit execution flag.
 
 On a supported Linux x86_64 build host, `make verify-release-candidate` performs
 the separate full-image build/artifact gate. It is deliberately excluded from
