@@ -10,7 +10,7 @@ BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_MDEV=y
 BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/rootfs-overlay"
 BR2_ROOTFS_POST_BUILD_SCRIPT="board/beagleboard/beaglebone/post-build.sh $(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/post-build.sh"
 BR2_ROOTFS_POST_IMAGE_SCRIPT="support/scripts/genimage.sh"
-BR2_ROOTFS_POST_SCRIPT_ARGS="-c board/beagleboard/beaglebone/genimage.cfg"
+BR2_ROOTFS_POST_SCRIPT_ARGS="-c $(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/genimage.cfg"
 BR2_TARGET_GENERIC_HOSTNAME="beaglebone-house-panel"
 BR2_TARGET_GENERIC_ISSUE="BeagleBone House Panel prototype image"
 # BR2_TARGET_ENABLE_ROOT_LOGIN is not set
@@ -47,6 +47,7 @@ BR2_PACKAGE_BHP_VOCABULARY_PANEL=y
 BR2_PACKAGE_BHP_PRESENCE_SENSOR=y
 BR2_TARGET_ROOTFS_EXT2=y
 BR2_TARGET_ROOTFS_EXT2_4=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
 BR2_TARGET_UBOOT=y
 BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
 BR2_TARGET_UBOOT_CUSTOM_VERSION=y

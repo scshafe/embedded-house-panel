@@ -16,12 +16,14 @@ export BHP_SCRIPT_SERVICE_NAME
 TRACE_ID=$(bhp_new_trace_id)
 
 external_tree=$PROJECT_ROOT/system_image/buildroot_external
+expected_post_script_args="BR2_ROOTFS_POST_SCRIPT_ARGS=\"-c \$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/genimage.cfg\""
 required_files="
 external.desc
 external.mk
 Config.in
 configs/beaglebone_house_panel_defconfig
 configs/beaglebone_house_panel_bringup_defconfig
+board/beaglebone-house-panel/genimage.cfg
 board/beaglebone-house-panel/post-build.sh
 board/beaglebone-house-panel/bringup/post-build.sh
 board/beaglebone-house-panel/bringup/rootfs-overlay/etc/default/dropbear
@@ -40,6 +42,38 @@ package/lvgl/lvgl.mk
 for relative_path in $required_files; do
   test -s "$external_tree/$relative_path" || {
     bhp_fail VERIFY_BUILDROOT.REQUIRED_FILE_MISSING "$relative_path" "$TRACE_ID"
+    exit 1
+  }
+done
+
+for defconfig_name in beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig; do
+  defconfig_path=$external_tree/configs/$defconfig_name
+  for expected_defconfig_line in \
+    "$expected_post_script_args" \
+    'BR2_TARGET_ROOTFS_EXT2_SIZE="512M"'; do
+    grep -F -x "$expected_defconfig_line" "$defconfig_path" >/dev/null || {
+      bhp_fail VERIFY_BUILDROOT.DEFCONFIG_VALUE_MISSING \
+        "$defconfig_name: $expected_defconfig_line" "$TRACE_ID"
+      exit 1
+    }
+  done
+done
+
+genimage_configuration=$external_tree/board/beaglebone-house-panel/genimage.cfg
+genimage_dtb_references=$(grep -E -o '[[:alnum:]_.+-]+\.dtb' \
+  "$genimage_configuration" || true)
+if [ "$genimage_dtb_references" != am335x-boneblack.dtb ]; then
+  bhp_fail VERIFY_BUILDROOT.GENIMAGE_DTB_SET_INVALID \
+    "Expected only am335x-boneblack.dtb; found: ${genimage_dtb_references:-none}" \
+    "$TRACE_ID"
+  exit 1
+fi
+for expected_genimage_pattern in \
+  '[[:space:]]*image = "rootfs\.ext4"' \
+  '[[:space:]]*size = 512M'; do
+  grep -E -x "$expected_genimage_pattern" "$genimage_configuration" >/dev/null || {
+    bhp_fail VERIFY_BUILDROOT.GENIMAGE_VALUE_MISSING \
+      "$expected_genimage_pattern" "$TRACE_ID"
     exit 1
   }
 done
@@ -96,6 +130,8 @@ if [ -n "${BHP_BUILDROOT_DIR:-}" ]; then
     'BR2_PACKAGE_LVGL=y' \
     'BR2_PACKAGE_CHRONY=y' \
     'BR2_PACKAGE_TAILSCALE=y' \
+    "$expected_post_script_args" \
+    'BR2_TARGET_ROOTFS_EXT2_SIZE="512M"' \
     'BR2_SYSTEM_DHCP="eth0"'; do
     grep -F -x "$expected_config_line" "$output_directory/.config" >/dev/null || {
       bhp_fail VERIFY_BUILDROOT.CONFIG_VALUE_MISSING "$expected_config_line" "$TRACE_ID"
@@ -164,7 +200,9 @@ if [ -n "${BHP_BUILDROOT_DIR:-}" ]; then
     'BR2_PACKAGE_RSYNC=y' \
     'BR2_PACKAGE_DTC=y' \
     'BR2_PACKAGE_I2C_TOOLS=y' \
-    'BR2_PACKAGE_STRACE=y'; do
+    'BR2_PACKAGE_STRACE=y' \
+    "$expected_post_script_args" \
+    'BR2_TARGET_ROOTFS_EXT2_SIZE="512M"'; do
     grep -F -x "$expected_bringup_config_line" \
       "$bringup_output_directory/.config" >/dev/null || {
       bhp_fail VERIFY_BUILDROOT.BRINGUP_CONFIG_VALUE_MISSING \

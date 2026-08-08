@@ -38,7 +38,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Change both to state that version 1 is published but unconsumed, and rewrite the migration section (`docs/interfaces/panel-mode-protocol.md:15-68`) to describe a greenfield protocol replacement rather than a compatibility-window risk. Keep the atomic-cutover conclusion; it is correct. Delete the `supported_protocol_versions: [1]` error envelope at `:130-145`, which describes a UI→supervisor direction that version 1 does not have.
   - Verify: `make verify-docs` passes, and `rg -n 'AF_UNIX|protocol_version' vocabulary_panel/` still returns nothing, confirming the corrected claim.
 
-- [ ] **Step 3: Fix the two Buildroot defects that would stop the first image build**
+- [x] **Step 3: Fix the two Buildroot defects that would stop the first image build**
   - Add `BR2_TARGET_ROOTFS_EXT2_SIZE` to both `system_image/buildroot_external/configs/beaglebone_house_panel_defconfig` and `..._bringup_defconfig`. Upstream's default is `"60M"` (Buildroot 2026.05.1 `fs/ext2/Config.in`), which cannot hold the selected package set — the official Tailscale ARM tarball alone is ~34.7 MB compressed. Choose a value at or below the 512 MB rootfs partition that upstream `genimage.cfg` declares.
   - Add a project-owned `genimage.cfg` under `system_image/buildroot_external/board/beaglebone-house-panel/` naming only `am335x-boneblack.dtb`, and point `BR2_ROOTFS_POST_SCRIPT_ARGS` at it. Upstream `board/beagleboard/beaglebone/genimage.cfg` names eight DTBs; the defconfig builds one (`beaglebone_house_panel_defconfig:23`).
   - Add both new values to the assertion list in `scripts/verification/verify_buildroot_external_tree.sh:92-99` so a regression fails without a full build.
