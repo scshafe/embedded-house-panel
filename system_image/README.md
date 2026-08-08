@@ -66,7 +66,11 @@ from scratch. Consequently, a modified same-version Buildroot tree and
 - Buildroot 2026.05.1 currently packages Tailscale 1.78.1. That is sufficient to exercise image integration, not an approval for a networked product; confirm control-plane support and security status, then pin a reviewed version in the external tree before deployment.
 - Root filesystem read-only mode is deferred until a persistent-data partition and recovery/update design are tested.
 - No Tailscale auth key, node state, Lexinet credential, Wi-Fi secret, or SSH private key is present in the overlay.
-- Application init remains gated until real hardware configuration exists; an invalid adapter path must not create a suspend loop at boot.
+- Application init remains gated until real hardware configuration exists; an
+  invalid adapter path must not create a suspend loop at boot. Once explicitly
+  enabled, the panel supervisor daemon has three five-second-backoff restart
+  attempts before supervision stops visibly; an intentional stop is never
+  restarted.
 - `/etc/beaglebone-house-panel/image-version` records the project version,
   commit (when available), source content state (`clean`, `dirty`,
   `uncommitted`, or `source-archive`), exact project content ID (when built from

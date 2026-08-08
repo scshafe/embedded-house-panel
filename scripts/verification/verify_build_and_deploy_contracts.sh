@@ -32,10 +32,15 @@ command -v python3 >/dev/null 2>&1 || {
 	exit 1
 }
 temporary_root=$(mktemp -d "$temporary_parent/bhp-build-deploy-contracts.XXXXXX")
+panel_supervisor_fixture_short_runtime_link=
 
 cleanup()
 {
+	if [ -n "$panel_supervisor_fixture_short_runtime_link" ]; then
+		rm -f -- "$panel_supervisor_fixture_short_runtime_link"
+	fi
 	find "$temporary_root" -type l -exec rm -- {} \; 2>/dev/null || true
+	find "$temporary_root" -type s -exec rm -- {} \; 2>/dev/null || true
 	find "$temporary_root" -type f -exec rm -- {} \; 2>/dev/null || true
 	find "$temporary_root" -depth -type d -exec rmdir {} \; 2>/dev/null || true
 }
@@ -587,7 +592,317 @@ for required_toolchain_contract in \
 			"$required_toolchain_contract" "$TRACE_ID"
 		exit 1
 	}
+	done
+
+panel_supervisor_init=$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S70panel_supervisord
+# These are literal source contracts, not expressions for this verifier shell.
+# shellcheck disable=SC2016
+for panel_supervisor_restart_contract in \
+	'BHP_PANEL_SUPERVISOR_RESTART_LIMIT=3' \
+	'BHP_PANEL_SUPERVISOR_RESTART_BACKOFF_SECONDS=5' \
+	'panel_supervisord-supervisor.pid' \
+	'panel_supervisor_restart_attempt_' \
+	'BHP_PANEL_SUPERVISOR.RESTART_LIMIT_EXHAUSTED' \
+	'kill -TERM "$BHP_PANEL_SUPERVISOR_CHILD_PID"' \
+	'chown root:vocabulary-panel "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"' \
+	'chmod 0660 "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"' \
+	'-p "$SUPERVISOR_PIDFILE" -x /bin/sh' \
+	'-p "$PIDFILE"' \
+	'-x "$BHP_PANEL_SUPERVISOR_DAEMON"'; do
+	grep -F -- "$panel_supervisor_restart_contract" "$panel_supervisor_init" \
+		>/dev/null || {
+		bhp_fail VERIFY_BUILD_DEPLOY.PANEL_SUPERVISOR_RESTART_CONTRACT_MISSING \
+			"$panel_supervisor_restart_contract" "$TRACE_ID"
+		exit 1
+	}
 done
+
+# Execute the real foreground supervision path against a private root. The
+# fixture shortens only the declared retry count/backoff; production values are
+# asserted above. Its fake daemon creates a real Unix socket and records TERM.
+panel_supervisor_fixture=$temporary_root/panel-supervisor-supervision
+panel_supervisor_fixture_root=$panel_supervisor_fixture/root
+panel_supervisor_fixture_bin=$panel_supervisor_fixture/bin
+panel_supervisor_fixture_runtime=$panel_supervisor_fixture_root/run/beaglebone-house-panel
+panel_supervisor_fixture_short_runtime_link=$(mktemp -d /tmp/bhp-ps.XXXXXX)
+rmdir "$panel_supervisor_fixture_short_runtime_link"
+ln -s "$panel_supervisor_fixture_runtime" \
+	"$panel_supervisor_fixture_short_runtime_link"
+panel_supervisor_fixture_pid_directory=$panel_supervisor_fixture_root/var/run
+panel_supervisor_fixture_environment=$panel_supervisor_fixture_root/etc/beaglebone-house-panel/panel-supervisor.env
+panel_supervisor_fixture_library=$panel_supervisor_fixture_root/etc/beaglebone-house-panel/init-service-library.sh
+panel_supervisor_fixture_init=$panel_supervisor_fixture_root/etc/init.d/S70panel_supervisord
+panel_supervisor_fixture_daemon=$panel_supervisor_fixture_root/usr/sbin/panel_supervisord
+panel_supervisor_fixture_socket=$panel_supervisor_fixture_short_runtime_link/panel-mode.sock
+panel_supervisor_fixture_attempts=$panel_supervisor_fixture/attempts
+panel_supervisor_fixture_stop_record=$panel_supervisor_fixture/stop-record
+panel_supervisor_fixture_supervisor_pid=$panel_supervisor_fixture_pid_directory/panel_supervisord-supervisor.pid
+panel_supervisor_fixture_daemon_pid=$panel_supervisor_fixture_pid_directory/panel_supervisord.pid
+panel_supervisor_fixture_ready=$panel_supervisor_fixture_pid_directory/panel_supervisord.ready
+mkdir -p "$panel_supervisor_fixture_bin" "$panel_supervisor_fixture_runtime" \
+	"$panel_supervisor_fixture_pid_directory" \
+	"$(dirname "$panel_supervisor_fixture_environment")" \
+	"$(dirname "$panel_supervisor_fixture_init")" \
+	"$(dirname "$panel_supervisor_fixture_daemon")"
+
+sed \
+	-e 's/BHP_PANEL_SUPERVISOR_RESTART_LIMIT=3$/BHP_PANEL_SUPERVISOR_RESTART_LIMIT=2/' \
+	-e 's/BHP_PANEL_SUPERVISOR_RESTART_BACKOFF_SECONDS=5$/BHP_PANEL_SUPERVISOR_RESTART_BACKOFF_SECONDS=1/' \
+	"$panel_supervisor_init" >"$panel_supervisor_fixture_init"
+chmod 0755 "$panel_supervisor_fixture_init"
+
+{
+	printf '. "%s"\n' \
+		"$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/init-service-library.sh"
+	# The appended function bodies are literal fixture source.
+	# shellcheck disable=SC2016
+	printf '%s\n' \
+		'bhp_init_environment_file_is_secure()' \
+		'{' \
+		'  [ -f "$1" ] && [ -r "$1" ]' \
+		'}' \
+		'bhp_init_prepare_panel_runtime_directory()' \
+		'{' \
+		'  mkdir -p "$BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY" &&' \
+		'    chmod 2750 "$BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY"' \
+		'}'
+} >"$panel_supervisor_fixture_library"
+chmod 0600 "$panel_supervisor_fixture_library"
+
+cat >"$panel_supervisor_fixture_bin/start-stop-daemon" <<'EOF_START_STOP_DAEMON'
+#!/bin/sh
+operation=
+test_only=0
+pidfile=
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		-K) operation=stop; shift ;;
+		-t) test_only=1; shift ;;
+		-p) pidfile=$2; shift 2 ;;
+		-x) shift 2 ;;
+		*) shift ;;
+	esac
+done
+[ "$operation" = stop ] && [ -r "$pidfile" ] || exit 1
+pid=$(sed -n '1p' "$pidfile")
+case "$pid" in
+	''|*[!0-9]*) exit 1 ;;
+esac
+kill -0 "$pid" 2>/dev/null || exit 1
+[ "$test_only" -eq 0 ] || exit 0
+kill -TERM "$pid"
+EOF_START_STOP_DAEMON
+chmod 0755 "$panel_supervisor_fixture_bin/start-stop-daemon"
+
+cat >"$panel_supervisor_fixture_bin/chown" <<'EOF_CHOWN'
+#!/bin/sh
+exit 0
+EOF_CHOWN
+chmod 0755 "$panel_supervisor_fixture_bin/chown"
+
+cat >"$panel_supervisor_fixture_daemon" <<'EOF_PANEL_SUPERVISORD'
+#!/usr/bin/env python3
+import os
+import signal
+import socket
+import sys
+import time
+
+attempt_path = os.environ["BHP_TEST_PANEL_SUPERVISOR_ATTEMPTS"]
+try:
+    with open(attempt_path, encoding="utf-8") as attempts_file:
+        attempt = int(attempts_file.read()) + 1
+except FileNotFoundError:
+    attempt = 1
+with open(attempt_path, "w", encoding="utf-8") as attempts_file:
+    attempts_file.write(f"{attempt}\n")
+
+socket_path = os.environ["BHP_PANEL_SUPERVISOR_MODE_SOCKET"]
+try:
+    os.unlink(socket_path)
+except FileNotFoundError:
+    pass
+server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+server.bind(socket_path)
+server.listen(1)
+
+behavior = os.environ["BHP_TEST_PANEL_SUPERVISOR_BEHAVIOR"]
+if behavior == "always_exit" or (
+    behavior == "fail_once_then_hold" and attempt == 1
+):
+    server.close()
+    os.unlink(socket_path)
+    sys.exit(23)
+
+stop_requested = False
+
+
+def request_stop(_signal_number, _frame):
+    global stop_requested
+    stop_requested = True
+    with open(
+        os.environ["BHP_TEST_PANEL_SUPERVISOR_STOP_RECORD"],
+        "w",
+        encoding="utf-8",
+    ) as stop_file:
+        stop_file.write(f"{attempt}\n")
+
+
+signal.signal(signal.SIGTERM, request_stop)
+while not stop_requested:
+    time.sleep(0.05)
+server.close()
+try:
+    os.unlink(socket_path)
+except FileNotFoundError:
+    pass
+EOF_PANEL_SUPERVISORD
+chmod 0755 "$panel_supervisor_fixture_daemon"
+
+printf '%s\n' 'BHP_PANEL_SUPERVISOR_ENABLED=0' \
+	>"$panel_supervisor_fixture_environment"
+chmod 0600 "$panel_supervisor_fixture_environment"
+if env \
+	PATH="$panel_supervisor_fixture_bin:$PATH" \
+	BHP_PANEL_SUPERVISOR_INIT_LIBRARY="$panel_supervisor_fixture_library" \
+	BHP_PANEL_SUPERVISOR_INIT_ENVIRONMENT_FILE="$panel_supervisor_fixture_environment" \
+	BHP_PANEL_SUPERVISOR_INIT_SCRIPT_PATH="$panel_supervisor_fixture_init" \
+	BHP_PANEL_SUPERVISOR_INIT_DAEMON_PATH="$panel_supervisor_fixture_daemon" \
+	BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY="$panel_supervisor_fixture_short_runtime_link" \
+	BHP_PANEL_SUPERVISOR_INIT_PID_DIRECTORY="$panel_supervisor_fixture_pid_directory" \
+	BHP_PANEL_SUPERVISOR_MODE_SOCKET="$panel_supervisor_fixture_socket" \
+	BHP_TEST_PANEL_SUPERVISOR_ATTEMPTS="$panel_supervisor_fixture_attempts" \
+	BHP_TEST_PANEL_SUPERVISOR_STOP_RECORD="$panel_supervisor_fixture_stop_record" \
+	BHP_TEST_PANEL_SUPERVISOR_BEHAVIOR=fail_once_then_hold \
+	"$panel_supervisor_fixture_init" bhp-supervise >/dev/null 2>&1; then
+	bhp_fail VERIFY_BUILD_DEPLOY.DISABLED_PANEL_SUPERVISION_STARTED \
+		"Internal supervision bypassed opt-in enablement" "$TRACE_ID"
+	exit 1
+fi
+test ! -e "$panel_supervisor_fixture_attempts"
+
+printf '%s\n' 'BHP_PANEL_SUPERVISOR_ENABLED=1' \
+	>"$panel_supervisor_fixture_environment"
+panel_supervisor_fixture_restart_log=$panel_supervisor_fixture/restart.log
+env \
+	PATH="$panel_supervisor_fixture_bin:$PATH" \
+	BHP_PANEL_SUPERVISOR_INIT_LIBRARY="$panel_supervisor_fixture_library" \
+	BHP_PANEL_SUPERVISOR_INIT_ENVIRONMENT_FILE="$panel_supervisor_fixture_environment" \
+	BHP_PANEL_SUPERVISOR_INIT_SCRIPT_PATH="$panel_supervisor_fixture_init" \
+	BHP_PANEL_SUPERVISOR_INIT_DAEMON_PATH="$panel_supervisor_fixture_daemon" \
+	BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY="$panel_supervisor_fixture_short_runtime_link" \
+	BHP_PANEL_SUPERVISOR_INIT_PID_DIRECTORY="$panel_supervisor_fixture_pid_directory" \
+	BHP_PANEL_SUPERVISOR_MODE_SOCKET="$panel_supervisor_fixture_socket" \
+	BHP_TEST_PANEL_SUPERVISOR_ATTEMPTS="$panel_supervisor_fixture_attempts" \
+	BHP_TEST_PANEL_SUPERVISOR_STOP_RECORD="$panel_supervisor_fixture_stop_record" \
+	BHP_TEST_PANEL_SUPERVISOR_BEHAVIOR=fail_once_then_hold \
+	"$panel_supervisor_fixture_init" bhp-supervise \
+	>"$panel_supervisor_fixture_restart_log" 2>&1 &
+panel_supervisor_fixture_process=$!
+panel_supervisor_fixture_wait_count=0
+while [ ! -r "$panel_supervisor_fixture_ready" ]; do
+	if ! kill -0 "$panel_supervisor_fixture_process" 2>/dev/null ||
+		[ "$panel_supervisor_fixture_wait_count" -ge 8 ]; then
+		sed -n '1,40p' "$panel_supervisor_fixture_restart_log" >&2
+		bhp_fail VERIFY_BUILD_DEPLOY.PANEL_SUPERVISOR_RESTART_NOT_READY \
+			"Restarted fixture daemon did not become ready" "$TRACE_ID"
+		exit 1
+	fi
+	sleep 1
+	panel_supervisor_fixture_wait_count=$((panel_supervisor_fixture_wait_count + 1))
+done
+grep -F -x "$panel_supervisor_fixture_process" \
+	"$panel_supervisor_fixture_supervisor_pid" >/dev/null
+grep -F -x 2 "$panel_supervisor_fixture_attempts" >/dev/null
+cmp -s "$panel_supervisor_fixture_daemon_pid" "$panel_supervisor_fixture_ready"
+python3 -c 'import os,stat,sys; assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o660' \
+	"$panel_supervisor_fixture_socket"
+python3 - "$panel_supervisor_fixture_restart_log" <<'PY_RESTART_LOG'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as log_file:
+    records = [json.loads(line) for line in log_file if line.strip()]
+messages = {record["message"] for record in records}
+assert "panel_supervisor_restart_attempt_1_of_2_scheduled_after_exit_23_backoff_1_seconds" in messages
+assert "panel_supervisor_restart_attempt_1_of_2_running_backoff_1_seconds" in messages
+assert all(record["service"] == "beaglebone_house_panel.panel_supervisor" for record in records)
+PY_RESTART_LOG
+
+env \
+	PATH="$panel_supervisor_fixture_bin:$PATH" \
+	BHP_PANEL_SUPERVISOR_INIT_LIBRARY="$panel_supervisor_fixture_library" \
+	BHP_PANEL_SUPERVISOR_INIT_ENVIRONMENT_FILE="$panel_supervisor_fixture_environment" \
+	BHP_PANEL_SUPERVISOR_INIT_SCRIPT_PATH="$panel_supervisor_fixture_init" \
+	BHP_PANEL_SUPERVISOR_INIT_DAEMON_PATH="$panel_supervisor_fixture_daemon" \
+	BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY="$panel_supervisor_fixture_short_runtime_link" \
+	BHP_PANEL_SUPERVISOR_INIT_PID_DIRECTORY="$panel_supervisor_fixture_pid_directory" \
+	BHP_PANEL_SUPERVISOR_MODE_SOCKET="$panel_supervisor_fixture_socket" \
+	"$panel_supervisor_fixture_init" status >/dev/null
+env \
+	PATH="$panel_supervisor_fixture_bin:$PATH" \
+	BHP_PANEL_SUPERVISOR_INIT_LIBRARY="$panel_supervisor_fixture_library" \
+	BHP_PANEL_SUPERVISOR_INIT_ENVIRONMENT_FILE="$panel_supervisor_fixture_environment" \
+	BHP_PANEL_SUPERVISOR_INIT_SCRIPT_PATH="$panel_supervisor_fixture_init" \
+	BHP_PANEL_SUPERVISOR_INIT_DAEMON_PATH="$panel_supervisor_fixture_daemon" \
+	BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY="$panel_supervisor_fixture_short_runtime_link" \
+	BHP_PANEL_SUPERVISOR_INIT_PID_DIRECTORY="$panel_supervisor_fixture_pid_directory" \
+	BHP_PANEL_SUPERVISOR_MODE_SOCKET="$panel_supervisor_fixture_socket" \
+	"$panel_supervisor_fixture_init" stop >/dev/null
+wait "$panel_supervisor_fixture_process"
+grep -F -x 2 "$panel_supervisor_fixture_stop_record" >/dev/null
+panel_supervisor_fixture_attempt_count_before_stop=$(
+	sed -n '1p' "$panel_supervisor_fixture_attempts"
+)
+sleep 2
+grep -F -x "$panel_supervisor_fixture_attempt_count_before_stop" \
+	"$panel_supervisor_fixture_attempts" >/dev/null
+grep -F 'panel_supervisor_restart_attempt_1_of_2_stopped_intentionally_backoff_1_seconds' \
+	"$panel_supervisor_fixture_restart_log" >/dev/null
+test ! -e "$panel_supervisor_fixture_supervisor_pid"
+test ! -e "$panel_supervisor_fixture_daemon_pid"
+test ! -e "$panel_supervisor_fixture_ready"
+
+rm -f "$panel_supervisor_fixture_attempts" \
+	"$panel_supervisor_fixture_stop_record" "$panel_supervisor_fixture_socket"
+panel_supervisor_fixture_exhaustion_log=$panel_supervisor_fixture/exhaustion.log
+env \
+	PATH="$panel_supervisor_fixture_bin:$PATH" \
+	BHP_PANEL_SUPERVISOR_INIT_LIBRARY="$panel_supervisor_fixture_library" \
+	BHP_PANEL_SUPERVISOR_INIT_ENVIRONMENT_FILE="$panel_supervisor_fixture_environment" \
+	BHP_PANEL_SUPERVISOR_INIT_SCRIPT_PATH="$panel_supervisor_fixture_init" \
+	BHP_PANEL_SUPERVISOR_INIT_DAEMON_PATH="$panel_supervisor_fixture_daemon" \
+	BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY="$panel_supervisor_fixture_short_runtime_link" \
+	BHP_PANEL_SUPERVISOR_INIT_PID_DIRECTORY="$panel_supervisor_fixture_pid_directory" \
+	BHP_PANEL_SUPERVISOR_MODE_SOCKET="$panel_supervisor_fixture_socket" \
+	BHP_TEST_PANEL_SUPERVISOR_ATTEMPTS="$panel_supervisor_fixture_attempts" \
+	BHP_TEST_PANEL_SUPERVISOR_STOP_RECORD="$panel_supervisor_fixture_stop_record" \
+	BHP_TEST_PANEL_SUPERVISOR_BEHAVIOR=always_exit \
+	"$panel_supervisor_fixture_init" bhp-supervise \
+	>"$panel_supervisor_fixture_exhaustion_log" 2>&1 &
+panel_supervisor_fixture_process=$!
+if wait "$panel_supervisor_fixture_process"; then
+	bhp_fail VERIFY_BUILD_DEPLOY.PANEL_SUPERVISOR_RETRY_LIMIT_IGNORED \
+		"Fixture supervisor survived after exhausting finite retries" "$TRACE_ID"
+	exit 1
+fi
+grep -F -x 3 "$panel_supervisor_fixture_attempts" >/dev/null
+python3 - "$panel_supervisor_fixture_exhaustion_log" <<'PY_EXHAUSTION_LOG'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as log_file:
+    records = [json.loads(line) for line in log_file if line.strip()]
+messages = {record["message"] for record in records}
+for attempt in (1, 2):
+    assert f"panel_supervisor_restart_attempt_{attempt}_of_2_scheduled_after_exit_23_backoff_1_seconds" in messages
+    assert f"panel_supervisor_restart_attempt_{attempt}_of_2_startup_not_ready_exit_23_backoff_1_seconds" in messages
+assert "panel_supervisor_restart_attempt_2_of_2_limit_exhausted_after_exit_23_backoff_1_seconds" in messages
+assert any(record.get("error_code") == "BHP_PANEL_SUPERVISOR.RESTART_LIMIT_EXHAUSTED" for record in records)
+PY_EXHAUSTION_LOG
+test ! -e "$panel_supervisor_fixture_supervisor_pid"
+test ! -e "$panel_supervisor_fixture_daemon_pid"
+test ! -e "$panel_supervisor_fixture_ready"
 
 grep -F -x '*.credential' "$PROJECT_ROOT/.gitignore" >/dev/null
 python3 -m json.tool \

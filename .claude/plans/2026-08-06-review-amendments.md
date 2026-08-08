@@ -57,7 +57,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Notes: this is the amendment that makes the code honor the roadmap's own non-negotiable — "UI failure may prevent illumination but must never prevent blanking or suspend" (`.claude/plans/2026-08-05-end-to-end-development-roadmap.md:192`). Requires the answer to Step 1 decision 1.
   - Verify: `scripts/verification/verify_host_cpp.sh panel_supervisor` passes with the new cases; `make verify` passes.
 
-- [ ] **Step 6: Add restart supervision for the supervisor daemon**
+- [x] **Step 6: Add restart supervision for the supervisor daemon**
   - The fail-dark exit path is only safe if something restarts the process. `S70panel_supervisord` provides `start|stop|restart|status` only, and BusyBox `rcS` runs it once — no respawn exists in the external tree.
   - Add restart supervision with an explicit retry limit and backoff, and structured logging of each restart, without weakening the blank-before-exit behavior at `panel_supervisord.cpp:233` and `:366`.
   - Verify: `scripts/verification/verify_build_and_deploy_contracts.sh` passes with a new assertion covering the restart configuration; `make verify` passes.

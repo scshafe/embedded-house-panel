@@ -1,11 +1,26 @@
 #!/bin/sh
 
-BHP_INIT_LIBRARY=/etc/beaglebone-house-panel/init-service-library.sh
-DAEMON=panel_supervisord
-BHP_PANEL_SUPERVISOR_ENVIRONMENT_FILE=/etc/beaglebone-house-panel/panel-supervisor.env
+# canonical: bhp_panel_supervisor_restart_supervision -- the one bounded
+# restart owner for the foreground panel_supervisord process.
+
+# These process-environment path overrides are for host fixtures. Device
+# configuration still comes only from the root-managed environment file.
+BHP_INIT_LIBRARY=${BHP_PANEL_SUPERVISOR_INIT_LIBRARY:-/etc/beaglebone-house-panel/init-service-library.sh}
+BHP_PANEL_SUPERVISOR_ENVIRONMENT_FILE=${BHP_PANEL_SUPERVISOR_INIT_ENVIRONMENT_FILE:-/etc/beaglebone-house-panel/panel-supervisor.env}
+BHP_PANEL_SUPERVISOR_INIT_SCRIPT=${BHP_PANEL_SUPERVISOR_INIT_SCRIPT_PATH:-/etc/init.d/S70panel_supervisord}
+BHP_PANEL_SUPERVISOR_DAEMON=${BHP_PANEL_SUPERVISOR_INIT_DAEMON_PATH:-/usr/sbin/panel_supervisord}
+BHP_PANEL_SUPERVISOR_RUNTIME_DIRECTORY=${BHP_PANEL_SUPERVISOR_INIT_RUNTIME_DIRECTORY:-/run/beaglebone-house-panel}
+BHP_PANEL_SUPERVISOR_PID_DIRECTORY=${BHP_PANEL_SUPERVISOR_INIT_PID_DIRECTORY:-/var/run}
 BHP_PANEL_SUPERVISOR_SERVICE=beaglebone_house_panel.panel_supervisor
-BHP_PANEL_SUPERVISOR_DAEMON=/usr/sbin/$DAEMON
-PIDFILE=/var/run/$DAEMON.pid
+BHP_PANEL_SUPERVISOR_MODE_SOCKET_REQUIRED=$BHP_PANEL_SUPERVISOR_RUNTIME_DIRECTORY/panel-mode.sock
+BHP_PANEL_SUPERVISOR_RESTART_LIMIT=3
+BHP_PANEL_SUPERVISOR_RESTART_BACKOFF_SECONDS=5
+
+# The legacy PID path continues to identify panel_supervisord. Service control
+# targets the separate PID of the shell process that owns restart decisions.
+PIDFILE=$BHP_PANEL_SUPERVISOR_PID_DIRECTORY/panel_supervisord.pid
+SUPERVISOR_PIDFILE=$BHP_PANEL_SUPERVISOR_PID_DIRECTORY/panel_supervisord-supervisor.pid
+READY_FILE=$BHP_PANEL_SUPERVISOR_PID_DIRECTORY/panel_supervisord.ready
 
 if [ ! -r "$BHP_INIT_LIBRARY" ]; then
 	printf '%s\n' 'BHP_PANEL_SUPERVISOR.INIT_LIBRARY_MISSING' >&2
@@ -31,15 +46,10 @@ bhp_panel_supervisor_load_configuration()
 	fi
 }
 
-bhp_panel_supervisor_start()
+bhp_panel_supervisor_validate_enabled_configuration()
 {
-	bhp_panel_supervisor_load_configuration || return 1
-	if [ "$BHP_PANEL_SUPERVISOR_ENABLED" = 0 ]; then
-		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_disabled_by_configuration
-		return 0
-	fi
 	if [ "${BHP_PANEL_SUPERVISOR_MODE_SOCKET:-}" != \
-		/run/beaglebone-house-panel/panel-mode.sock ]; then
+		"$BHP_PANEL_SUPERVISOR_MODE_SOCKET_REQUIRED" ]; then
 		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
 			BHP_PANEL_SUPERVISOR.MODE_SOCKET_PATH_INVALID \
 			'Mode socket must use the supervisor-owned panel runtime directory'
@@ -51,69 +61,254 @@ bhp_panel_supervisor_start()
 			'Configured panel_supervisord executable is absent'
 		return 1
 	fi
-
 	if ! bhp_init_prepare_panel_runtime_directory; then
 		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
 			BHP_PANEL_SUPERVISOR.RUNTIME_DIRECTORY_FAILED \
 			'Failed to prepare root-owned IPC directory for vocabulary-panel group access'
 		return 1
 	fi
-	umask 027
-	if ! start-stop-daemon -S -b -m -p "$PIDFILE" \
-			-x "$BHP_PANEL_SUPERVISOR_DAEMON"; then
+}
+
+bhp_panel_supervisor_supervisor_is_running()
+{
+	start-stop-daemon -K -t -p "$SUPERVISOR_PIDFILE" -x /bin/sh \
+		>/dev/null 2>&1
+}
+
+bhp_panel_supervisor_daemon_is_running()
+{
+	start-stop-daemon -K -t -p "$PIDFILE" \
+		-x "$BHP_PANEL_SUPERVISOR_DAEMON" >/dev/null 2>&1
+}
+
+bhp_panel_supervisor_ready_daemon_is_running()
+{
+	[ -r "$READY_FILE" ] && [ -r "$PIDFILE" ] &&
+		cmp -s "$READY_FILE" "$PIDFILE" && bhp_panel_supervisor_daemon_is_running
+}
+
+bhp_panel_supervisor_write_pid()
+{
+	umask 077
+	printf '%s\n' "$2" >"$1"
+}
+
+bhp_panel_supervisor_log_restart()
+{
+	bhp_init_log "$1" "$BHP_PANEL_SUPERVISOR_SERVICE" \
+		"panel_supervisor_restart_attempt_${BHP_PANEL_SUPERVISOR_ATTEMPT}_of_${BHP_PANEL_SUPERVISOR_RESTART_LIMIT}_${2}_backoff_${BHP_PANEL_SUPERVISOR_RESTART_BACKOFF_SECONDS}_seconds"
+}
+
+BHP_PANEL_SUPERVISOR_STOP_REQUESTED=0
+BHP_PANEL_SUPERVISOR_CHILD_PID=
+BHP_PANEL_SUPERVISOR_WAIT_PID=
+
+bhp_panel_supervisor_request_stop()
+{
+	BHP_PANEL_SUPERVISOR_STOP_REQUESTED=1
+	[ -z "$BHP_PANEL_SUPERVISOR_WAIT_PID" ] ||
+		kill -TERM "$BHP_PANEL_SUPERVISOR_WAIT_PID" 2>/dev/null || true
+	# panel_supervisord handles TERM by blanking before it exits.
+	[ -z "$BHP_PANEL_SUPERVISOR_CHILD_PID" ] ||
+		kill -TERM "$BHP_PANEL_SUPERVISOR_CHILD_PID" 2>/dev/null || true
+}
+
+bhp_panel_supervisor_wait_seconds()
+{
+	sleep "$1" &
+	BHP_PANEL_SUPERVISOR_WAIT_PID=$!
+	wait "$BHP_PANEL_SUPERVISOR_WAIT_PID"
+	BHP_PANEL_SUPERVISOR_WAIT_STATUS=$?
+	BHP_PANEL_SUPERVISOR_WAIT_PID=
+	[ "$BHP_PANEL_SUPERVISOR_STOP_REQUESTED" = 0 ] || return 2
+	[ "$BHP_PANEL_SUPERVISOR_WAIT_STATUS" -eq 0 ]
+}
+
+bhp_panel_supervisor_wait_child()
+{
+	wait "$BHP_PANEL_SUPERVISOR_CHILD_PID"
+	BHP_PANEL_SUPERVISOR_CHILD_EXIT_STATUS=$?
+	while [ "$BHP_PANEL_SUPERVISOR_STOP_REQUESTED" = 1 ] &&
+		kill -0 "$BHP_PANEL_SUPERVISOR_CHILD_PID" 2>/dev/null; do
+		wait "$BHP_PANEL_SUPERVISOR_CHILD_PID"
+		BHP_PANEL_SUPERVISOR_CHILD_EXIT_STATUS=$?
+	done
+}
+
+bhp_panel_supervisor_foreground_supervise()
+{
+	bhp_panel_supervisor_load_configuration || return 1
+	if [ "$BHP_PANEL_SUPERVISOR_ENABLED" != 1 ]; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.SUPERVISION_DISABLED \
+			'Restart supervision requires explicit service enablement'
+		return 1
+	fi
+	bhp_panel_supervisor_validate_enabled_configuration || return 1
+	if bhp_panel_supervisor_daemon_is_running; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.ORPHANED_DAEMON_PRESENT \
+			'Refused to supervise while an unowned daemon is running'
+		return 1
+	fi
+	bhp_panel_supervisor_write_pid "$SUPERVISOR_PIDFILE" "$$" || return 1
+	rm -f "$PIDFILE" "$READY_FILE"
+	trap 'bhp_panel_supervisor_request_stop' HUP INT TERM
+	trap 'rm -f "$SUPERVISOR_PIDFILE" "$PIDFILE" "$READY_FILE"' 0
+
+	BHP_PANEL_SUPERVISOR_ATTEMPT=0
+	BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS=none
+	while :; do
+		if [ "$BHP_PANEL_SUPERVISOR_ATTEMPT" -gt 0 ]; then
+			bhp_panel_supervisor_log_restart warn \
+				"scheduled_after_exit_${BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS}" || return 1
+			bhp_panel_supervisor_wait_seconds \
+				"$BHP_PANEL_SUPERVISOR_RESTART_BACKOFF_SECONDS"
+			BHP_PANEL_SUPERVISOR_BACKOFF_STATUS=$?
+			if [ "$BHP_PANEL_SUPERVISOR_BACKOFF_STATUS" -eq 2 ]; then
+				bhp_panel_supervisor_log_restart info cancelled_by_intentional_stop
+				return 0
+			fi
+			[ "$BHP_PANEL_SUPERVISOR_BACKOFF_STATUS" -eq 0 ] || return 1
+		fi
+
+		"$BHP_PANEL_SUPERVISOR_DAEMON" &
+		BHP_PANEL_SUPERVISOR_CHILD_PID=$!
+		bhp_panel_supervisor_write_pid "$PIDFILE" \
+			"$BHP_PANEL_SUPERVISOR_CHILD_PID" || return 1
+		bhp_panel_supervisor_wait_seconds 1
+		BHP_PANEL_SUPERVISOR_STARTUP_WAIT_STATUS=$?
+		if [ "$BHP_PANEL_SUPERVISOR_STARTUP_WAIT_STATUS" -eq 2 ]; then
+			bhp_panel_supervisor_wait_child
+			return 0
+		fi
+		[ "$BHP_PANEL_SUPERVISOR_STARTUP_WAIT_STATUS" -eq 0 ] || return 1
+
+		if [ ! -S "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ]; then
+			kill -TERM "$BHP_PANEL_SUPERVISOR_CHILD_PID" 2>/dev/null || true
+			bhp_panel_supervisor_wait_child
+			BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS=$BHP_PANEL_SUPERVISOR_CHILD_EXIT_STATUS
+			[ "$BHP_PANEL_SUPERVISOR_ATTEMPT" -eq 0 ] ||
+				bhp_panel_supervisor_log_restart warn \
+					"startup_not_ready_exit_${BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS}"
+		else
+			if ! chown root:vocabulary-panel "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ||
+				! chmod 0660 "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"; then
+				bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+					BHP_PANEL_SUPERVISOR.MODE_SOCKET_PERMISSION_FAILED \
+					'Failed to establish root-owned group-only UI mode socket access'
+				bhp_panel_supervisor_request_stop
+				bhp_panel_supervisor_wait_child
+				return 1
+			fi
+			bhp_panel_supervisor_write_pid "$READY_FILE" \
+				"$BHP_PANEL_SUPERVISOR_CHILD_PID" || return 1
+			[ "$BHP_PANEL_SUPERVISOR_ATTEMPT" -eq 0 ] ||
+				bhp_panel_supervisor_log_restart info running
+			bhp_panel_supervisor_wait_child
+			BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS=$BHP_PANEL_SUPERVISOR_CHILD_EXIT_STATUS
+			rm -f "$READY_FILE"
+			if [ "$BHP_PANEL_SUPERVISOR_STOP_REQUESTED" = 1 ]; then
+				[ "$BHP_PANEL_SUPERVISOR_ATTEMPT" -eq 0 ] ||
+					bhp_panel_supervisor_log_restart info stopped_intentionally
+				return 0
+			fi
+			[ "$BHP_PANEL_SUPERVISOR_ATTEMPT" -eq 0 ] ||
+				bhp_panel_supervisor_log_restart warn \
+					"exited_${BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS}"
+		fi
+
+		rm -f "$PIDFILE"
+		BHP_PANEL_SUPERVISOR_CHILD_PID=
+		if [ "$BHP_PANEL_SUPERVISOR_ATTEMPT" -ge \
+			"$BHP_PANEL_SUPERVISOR_RESTART_LIMIT" ]; then
+			bhp_panel_supervisor_log_restart error \
+				"limit_exhausted_after_exit_${BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS}"
+			bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+				BHP_PANEL_SUPERVISOR.RESTART_LIMIT_EXHAUSTED \
+				'panel_supervisord exhausted its finite restart allowance'
+			return 1
+		fi
+		BHP_PANEL_SUPERVISOR_ATTEMPT=$((BHP_PANEL_SUPERVISOR_ATTEMPT + 1))
+	done
+}
+
+bhp_panel_supervisor_start()
+{
+	bhp_panel_supervisor_load_configuration || return 1
+	if [ "$BHP_PANEL_SUPERVISOR_ENABLED" = 0 ]; then
+		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_disabled_by_configuration
+		return 0
+	fi
+	bhp_panel_supervisor_validate_enabled_configuration || return 1
+	if bhp_panel_supervisor_supervisor_is_running; then
+		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_already_running
+		return 0
+	fi
+	if bhp_panel_supervisor_daemon_is_running; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.ORPHANED_DAEMON_PRESENT \
+			'Refused to start a second panel_supervisord'
+		return 1
+	fi
+	rm -f "$SUPERVISOR_PIDFILE" "$PIDFILE" "$READY_FILE"
+	if ! start-stop-daemon -S -b -m -p "$SUPERVISOR_PIDFILE" \
+		-x /bin/sh -- "$BHP_PANEL_SUPERVISOR_INIT_SCRIPT" bhp-supervise; then
 		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
 			BHP_PANEL_SUPERVISOR.START_FAILED \
-			'Failed to start the production panel supervisor'
+			'Failed to start the foreground restart supervisor'
 		return 1
 	fi
-	sleep 1
-	if ! bhp_init_pidfile_process_is_running "$PIDFILE"; then
-		rm -f "$PIDFILE"
+	sleep 2
+	if ! bhp_panel_supervisor_supervisor_is_running; then
 		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
 			BHP_PANEL_SUPERVISOR.STARTUP_EXITED \
-			'panel_supervisord exited during startup validation'
+			'Foreground restart supervision exited during startup'
 		return 1
 	fi
-	if [ ! -S "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ] ||
-		! chown root:vocabulary-panel "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ||
-		! chmod 0660 "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"; then
-		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
-			BHP_PANEL_SUPERVISOR.MODE_SOCKET_PERMISSION_FAILED \
-			'Failed to establish root-owned group-only UI mode socket access'
-		bhp_panel_supervisor_stop || return 1
-		return 1
-	fi
-	bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_started
+	bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_supervision_started
 }
 
 bhp_panel_supervisor_stop()
 {
-	if ! bhp_init_pidfile_process_is_running "$PIDFILE"; then
-		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_not_running
-		return 0
+	if bhp_panel_supervisor_supervisor_is_running; then
+		if ! start-stop-daemon -K -p "$SUPERVISOR_PIDFILE" -x /bin/sh ||
+			! bhp_init_wait_for_pidfile_exit "$SUPERVISOR_PIDFILE" 5; then
+			bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+				BHP_PANEL_SUPERVISOR.STOP_FAILED \
+				'Foreground supervisor or daemon did not stop safely after TERM'
+			return 1
+		fi
 	fi
-	if ! start-stop-daemon -K -p "$PIDFILE" \
-			-x "$BHP_PANEL_SUPERVISOR_DAEMON"; then
-		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
-			BHP_PANEL_SUPERVISOR.STOP_FAILED \
-			'Failed to stop the production panel supervisor'
-		return 1
+	if bhp_panel_supervisor_daemon_is_running; then
+		if ! start-stop-daemon -K -p "$PIDFILE" \
+			-x "$BHP_PANEL_SUPERVISOR_DAEMON" ||
+			! bhp_init_wait_for_pidfile_exit "$PIDFILE" 5; then
+			bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+				BHP_PANEL_SUPERVISOR.ORPHAN_STOP_FAILED \
+				'Failed to stop an orphaned panel_supervisord safely'
+			return 1
+		fi
 	fi
-	if ! bhp_init_wait_for_pidfile_exit "$PIDFILE" 5; then
-		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
-			BHP_PANEL_SUPERVISOR.STOP_TIMEOUT \
-			'panel_supervisord did not exit within five seconds after TERM'
-		return 1
-	fi
-	rm -f "$PIDFILE"
+	rm -f "$SUPERVISOR_PIDFILE" "$PIDFILE" "$READY_FILE"
 	bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_stopped
 }
 
 bhp_panel_supervisor_status()
 {
-	if bhp_init_pidfile_process_is_running "$PIDFILE"; then
-		bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_running
+	if bhp_panel_supervisor_supervisor_is_running; then
+		if bhp_panel_supervisor_ready_daemon_is_running; then
+			bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_running
+		else
+			bhp_init_log warn "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_restart_pending
+		fi
 		return 0
+	fi
+	if bhp_panel_supervisor_daemon_is_running; then
+		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
+			BHP_PANEL_SUPERVISOR.SUPERVISOR_MISSING \
+			'panel_supervisord is running without its restart owner'
+		return 1
 	fi
 	bhp_init_log info "$BHP_PANEL_SUPERVISOR_SERVICE" panel_supervisor_not_running
 	return 3
@@ -124,5 +319,6 @@ case "${1:-}" in
 	stop) bhp_panel_supervisor_stop ;;
 	restart) bhp_panel_supervisor_stop && bhp_panel_supervisor_start ;;
 	status) bhp_panel_supervisor_status ;;
+	bhp-supervise) bhp_panel_supervisor_foreground_supervise ;;
 	*) printf '%s\n' "Usage: $0 {start|stop|restart|status}" >&2; exit 1 ;;
 esac
