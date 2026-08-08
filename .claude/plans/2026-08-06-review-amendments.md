@@ -33,7 +33,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Notes: these are decisions 2, 3, 4, 5, 6, and 13 from the review's decision slate. The remaining slate items (bystander authority, battery requirement, wireless approach, Buildroot line, Linux build host, PIR part, `mac_companion/` location, voice-qualification scale) are not prerequisites for any step in this plan and stay open.
   - Verify: human review — the executor stops here and does not continue until every answer above is written down.
 
-- [ ] **Step 2: Correct the protocol-v1 consumer claim before it misinforms a review**
+- [x] **Step 2: Correct the protocol-v1 consumer claim before it misinforms a review**
   - `docs/interfaces/panel-mode-protocol.md:8` states that `vocabulary_panel` consumes version 1, and `docs/architecture/process-interconnectivity.md:16` diagrams that socket as implemented scaffold. Neither is true: no `AF_UNIX`, `connect(`, `display_mode`, or `protocol_version` reference exists anywhere under `vocabulary_panel/`.
   - Change both to state that version 1 is published but unconsumed, and rewrite the migration section (`docs/interfaces/panel-mode-protocol.md:15-68`) to describe a greenfield protocol replacement rather than a compatibility-window risk. Keep the atomic-cutover conclusion; it is correct. Delete the `supported_protocol_versions: [1]` error envelope at `:130-145`, which describes a UI→supervisor direction that version 1 does not have.
   - Verify: `make verify-docs` passes, and `rg -n 'AF_UNIX|protocol_version' vocabulary_panel/` still returns nothing, confirming the corrected claim.

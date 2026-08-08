@@ -1,9 +1,10 @@
 # Process Interconnectivity
 
 **Status:** the first three diagrams document the implemented but disabled
-scaffold. They do not describe the proposed production owner or claim that a
-Lexinet study API exists. The planned on-panel and Lexinet successor slice is
-shown separately; agenda-to-Mac provider and message flows remain in the
+scaffold, including the version 1 publisher ending at an unconsumed socket.
+They do not describe the proposed production owner or claim that a Lexinet
+study API exists. The planned on-panel and Lexinet successor slice is shown
+separately; agenda-to-Mac provider and message flows remain in the
 personal-agenda architecture.
 
 ## Current scaffold runtime topology
@@ -13,16 +14,20 @@ flowchart LR
     EVDEV["/dev/input/event*\nPIR state"] -->|"read-only"| SUP["panel_supervisor\nprivileged service user"]
     SUP -->|"write validated integer"| BL["/sys/class/backlight/.../brightness"]
     SUP -->|"write mem/freeze"| STATE["/sys/power/state"]
-    SUP -->|"JSON Lines, local Unix socket"| UI["vocabulary_panel\nunprivileged user"]
+    SUP -->|"publish JSON Lines"| MODE["panel-mode.sock\nversion 1, unconsumed"]
+    UI["vocabulary_panel\nunprivileged user"]
     UI -->|"HTTPS request"| SOCK["tailscaled / kernel TUN"]
     SOCK --> LEX["Lexinet"]
     UI -->|"DRM/framebuffer + evdev"| DISPLAY["display/touch"]
 ```
 
 Only the supervisor receives permissions for backlight and suspend. In this
-legacy scaffold, the vocabulary process can connect to the supervisor socket
-and display/input devices, but it cannot change system power directly. The
-planned neutral `panel_ui` replaces that device owner before production.
+legacy scaffold, ~~the vocabulary process can connect to the supervisor socket
+and display/input devices~~ the supervisor publishes version 1 to its local
+socket, but `vocabulary_panel` implements no `AF_UNIX` client and does not
+consume those snapshots. The vocabulary process remains unprivileged and
+cannot change system power directly. The planned neutral `panel_ui` replaces
+that device owner before production.
 
 ## Current scaffold daytime sequence
 
@@ -30,15 +35,17 @@ planned neutral `panel_ui` replaces that device owner before production.
 sequenceDiagram
     participant P as Presence provider
     participant S as Panel supervisor
+    participant M as Panel-mode socket (unconsumed)
     participant U as Vocabulary panel
     participant T as tailscaled
     participant L as Lexinet
 
     P->>S: asserted state event
     S->>S: read clock; calculate solar period
-    S->>U: mode.v1 {display_mode: vocabulary}
+    S->>M: publish mode.v1 {display_mode: vocabulary}
+    Note over M,U: no implemented client carries this snapshot to U
     S->>S: apply calibrated day brightness
-    U->>T: HTTPS next-card request
+    U->>T: provisional HTTPS next-card request (not mode-triggered)
     T->>L: route over tailnet
     L-->>U: validated response envelope
     U-->>U: word screen
@@ -53,7 +60,7 @@ Lexinet endpoint or the planned `study.v1` session contract.
 sequenceDiagram
     participant P as Presence provider
     participant S as Panel supervisor
-    participant U as Vocabulary panel
+    participant M as Panel-mode socket (unconsumed)
     participant K as Kernel PM
     participant T as tailscaled
 
@@ -61,25 +68,26 @@ sequenceDiagram
     S->>S: enter grace period
     S->>S: grace expires; re-read current state
     S->>S: apply brightness 0
-    S->>U: mode.v1 {display_mode: suspended}
+    S->>M: publish mode.v1 {display_mode: suspended}
     S->>K: request selected suspend experiment
     Note over K,T: network and tailnet become unavailable in DeepSleep0
     P->>K: GPIO0 wake interrupt
     K-->>S: process resumes
     S->>S: re-read GPIO + clock + solar truth
-    S->>U: recomputed mode; never blind-toggle
-    S->>S: v1 applies brightness after socket delivery
-    Note over S,U: render-ready/page-flip acknowledgement is not implemented yet
+    S->>M: publish recomputed mode; never blind-toggle
+    S->>S: v1 applies brightness after retaining the snapshot
+    Note over S,M: publication is unconsumed; no render-ready acknowledgement exists
     T-->>T: re-establish tailnet asynchronously
 ```
 
 ## Local mode protocol
 
-The supervisor is authoritative. The UI cannot command a mode; version 1 only
-delivers snapshots/events. With no connected UI, publication is deliberately a
-successful no-op so power policy cannot be held hostage by a crashed display
-process. A future sequence-bound render-ready acknowledgement may delay
-nonzero brightness without granting the UI power authority. See
+The supervisor is authoritative. The UI cannot command a mode. ~~Version 1 only
+delivers snapshots/events.~~ Version 1 publishes snapshots/events, but no
+implemented process consumes them. With no connected consumer, publication is
+deliberately a successful no-op so power policy cannot be held hostage by a
+crashed display process. A future sequence-bound render-ready acknowledgement
+may delay nonzero brightness without granting the UI power authority. See
 [panel mode protocol](../interfaces/panel-mode-protocol.md).
 
 ## Proposed production panel/Lexinet convergence slice
@@ -115,3 +123,7 @@ study authorization. API data is untrusted until the server-owned schema and
 panel validation both succeed. See the [Lexinet consumer transition
 contract](../interfaces/lexinet-contract.md) and [threat
 model](../security/threat-model.md).
+
+**Amended 2026-08-07:** corrected the current topology and sequences to show
+that the supervisor publishes protocol version 1 while the socket remains
+unconsumed; the future neutral `panel_ui` remains the first planned consumer.

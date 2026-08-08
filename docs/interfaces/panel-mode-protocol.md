@@ -1,26 +1,35 @@
 # Panel Mode Protocol
 
-**Status:** version 1 scaffold; supervisor-to-UI delivery is implemented, but a
-render-ready acknowledgement is not
+**Status:** ~~version 1 scaffold; supervisor-to-UI delivery is implemented, but
+a render-ready acknowledgement is not~~ version 1 publisher scaffold; the
+supervisor publishes snapshots, but no repository process consumes them and no
+render-ready acknowledgement exists
 
 **Transport:** local Unix-domain stream socket, newline-delimited UTF-8 JSON
 
 **Current authority:** `panel_supervisor` publishes version 1;
-`vocabulary_panel` consumes it in the scaffold.
+~~`vocabulary_panel` consumes it in the scaffold.~~ Version 1 is published but
+unconsumed. `vocabulary_panel` implements no Unix-socket protocol client.
 
 **Version 2 target:** `panel_supervisor` publishes lifecycle state and accepts
 presentation acknowledgements; neutral `panel_ui` consumes and acknowledges.
 Neither message direction grants the UI power authority.
 
-## Version 2 migration decision pending human review
+## Version 2 ~~migration~~ greenfield replacement decision pending human review
+
+Version 1 has no consumer or reverse message direction to migrate. Version 2 is
+therefore a greenfield replacement of the publisher-only scaffold, not an
+upgrade negotiated with an existing UI client.
 
 The proposed roadmap Step 1 decision is an atomic appliance-release cutover,
 not a runtime compatibility window:
 
 - supervisor, `panel_ui`, and their Buildroot service/configuration changes
   deploy and roll back as one content-identified appliance release;
-- enabled runtime components accept version 2 only; no adapter translates a
-  version 1 transport write into a presentation acknowledgement;
+- ~~enabled runtime components accept version 2 only; no adapter translates a
+  version 1 transport write into a presentation acknowledgement;~~ the
+  replacement supervisor publisher and new `panel_ui` consumer speak version 2
+  only, with no compatibility adapter for unconsumed version 1 snapshots;
 - any absent, stale, unknown-version, mismatched, failed, disconnected, or
   timed-out acknowledgement leaves requested nonzero brightness unapplied;
 - source changes may land incrementally while target services remain disabled,
@@ -28,9 +37,10 @@ not a runtime compatibility window:
 - rollback restores the complete prior release rather than mixing supervisor
   and UI artifacts from different protocol generations.
 
-Version 2 also makes presentation readiness a request-bound exchange rather
-than a bare sequence acknowledgement. Each enabled release must use all of the
-following fields:
+Version 2 makes presentation readiness a request-bound exchange. ~~It upgrades
+a bare version 1 sequence acknowledgement.~~ Version 1 has no acknowledgement
+to preserve or upgrade. Each enabled release must use all of the following
+fields:
 
 | Field | Source | Binding rule |
 |---|---|---|
@@ -61,11 +71,14 @@ selected DRM/fbdev commit primitive. A stronger attestation requirement would
 move page-flip observation into a more trusted display component and requires a
 new architecture decision.
 
-Version 1 cannot prove that a frame was committed, so a bounded compatibility
+~~Version 1 cannot prove that a frame was committed, so a bounded compatibility
 mode would either remain dark or weaken the safety property that motivates
 version 2. Reconsider compatibility only if supervisor and UI acquire genuinely
-independent deployment lifecycles. This migration choice remains proposed until
-the roadmap Step 1 human-review gate passes.
+independent deployment lifecycles.~~ Version 1 is unconsumed, so there is no
+consumer compatibility window to preserve. Reconsider dual-version support
+only if the replacement supervisor and `panel_ui` later acquire genuinely
+independent deployment lifecycles. This greenfield-replacement choice remains
+proposed until the roadmap Step 1 human-review gate passes.
 
 ## Snapshot/event envelope
 
@@ -125,21 +138,15 @@ equivalent the selected framebuffer path provides). Until then, the target
 services remain disabled by default and the no-white-flash behavior is an
 experiment requirement, not a proven invariant.
 
-## Error envelope
+## Version 1 error direction
 
-```json
-{
-  "data": null,
-  "error": {
-    "code": "PANEL_MODE.PROTOCOL_VERSION_UNSUPPORTED",
-    "message": "The received protocol version is not supported",
-    "details": {
-      "received_protocol_version": 2,
-      "supported_protocol_versions": [1]
-    }
-  },
-  "meta": {
-    "request_id": "local-43"
-  }
-}
-```
+~~This section previously specified a version 1 UI-to-supervisor
+unsupported-version response.~~ Version 1 has no UI-to-supervisor message
+direction, so it defines no response envelope. Version 2 acknowledgement errors
+belong to the replacement bidirectional contract and will not be inferred from
+the version 1 publisher.
+
+**Amended 2026-08-07:** corrected version 1 from a claimed supervisor/UI
+integration to a published-but-unconsumed scaffold, recast version 2 as a
+greenfield replacement that still cuts over atomically, and removed the invalid
+UI-to-supervisor version-error envelope.
