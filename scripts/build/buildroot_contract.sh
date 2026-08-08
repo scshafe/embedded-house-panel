@@ -80,6 +80,12 @@ bhp_buildroot_paths_overlap()
 {
 	BHP_BUILDROOT_CONTRACT_LEFT=$1
 	BHP_BUILDROOT_CONTRACT_RIGHT=$2
+	# Appending a separator turns the filesystem root into "//", so handle
+	# that ancestor explicitly before performing the component-boundary tests.
+	if [ "$BHP_BUILDROOT_CONTRACT_LEFT" = / ] || \
+	   [ "$BHP_BUILDROOT_CONTRACT_RIGHT" = / ]; then
+		return 0
+	fi
 	case "$BHP_BUILDROOT_CONTRACT_LEFT/" in
 		"$BHP_BUILDROOT_CONTRACT_RIGHT/"*) return 0 ;;
 	esac

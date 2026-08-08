@@ -16,10 +16,10 @@ case "$source_directory" in
 		exit 1
 		;;
 esac
-[ -d "$source_directory" ] && [ ! -L "$source_directory" ] || {
+if [ ! -d "$source_directory" ] || [ -L "$source_directory" ]; then
 	printf '%s\n' 'BUILDROOT_SOURCE_ID.DIRECTORY_INVALID' >&2
 	exit 1
-}
+fi
 command -v python3 >/dev/null 2>&1 || {
 	printf '%s\n' 'BUILDROOT_SOURCE_ID.PYTHON_MISSING' >&2
 	exit 1

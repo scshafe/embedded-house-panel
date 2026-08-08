@@ -19,14 +19,21 @@ constexpr std::size_t RESPONSE_BODY_LIMIT_DEFAULT = 262144;
 struct ResponseBuffer {
 	std::string response_body;
 	std::size_t maximum_response_bytes{RESPONSE_BODY_LIMIT_DEFAULT};
+	bool response_size_limit_exceeded{false};
 };
 
 std::size_t append_response(char *contents, std::size_t size, std::size_t count, void *user_data)
 {
-	const std::size_t byte_count = size * count;
 	auto &buffer = *static_cast<ResponseBuffer *>(user_data);
-	if (buffer.response_body.size() + byte_count > buffer.maximum_response_bytes)
+	if (count != 0 && size > buffer.maximum_response_bytes / count) {
+		buffer.response_size_limit_exceeded = true;
 		return 0;
+	}
+	const std::size_t byte_count = size * count;
+	if (byte_count > buffer.maximum_response_bytes - buffer.response_body.size()) {
+		buffer.response_size_limit_exceeded = true;
+		return 0;
+	}
 	buffer.response_body.append(contents, byte_count);
 	return byte_count;
 }
@@ -50,6 +57,21 @@ std::string review_rating_json_name(const vocabulary_panel::ReviewRating rating)
 	return vocabulary_panel::review_rating_name(rating);
 }
 
+bool is_tls_certificate_verification_failure(const CURLcode curl_result)
+{
+	return curl_result == CURLE_PEER_FAILED_VERIFICATION ||
+	       curl_result == CURLE_SSL_ISSUER_ERROR;
+}
+
+bool is_loopback_https_url(const std::string &url)
+{
+	constexpr const char *loopback_prefix = "https://127.0.0.1:";
+	if (url.rfind(loopback_prefix, 0) != 0)
+		return false;
+	const std::string port = url.substr(std::char_traits<char>::length(loopback_prefix));
+	return !port.empty() && port.find_first_not_of("0123456789") == std::string::npos;
+}
+
 } // namespace
 
 namespace vocabulary_panel {
@@ -67,6 +89,10 @@ struct HttpLexinetClient::Implementation {
 		if (!config.allow_insecure_http_for_tests &&
 		    config.lexinet_base_url.rfind("https://", 0) != 0) {
 			throw std::invalid_argument("LEXINET.HTTPS_REQUIRED");
+		}
+		if (!config.trusted_ca_certificate_pem_for_tests.empty() &&
+		    !is_loopback_https_url(config.lexinet_base_url)) {
+			throw std::invalid_argument("LEXINET.TEST_CA_REQUIRES_LOOPBACK_HTTPS");
 		}
 		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 			throw std::runtime_error("LEXINET.CURL_GLOBAL_INIT_FAILED");
@@ -87,7 +113,7 @@ struct HttpLexinetClient::Implementation {
 				{{"method", method}, {"target", config.lexinet_base_url}}, true});
 		}
 
-		ResponseBuffer response{{}, config.maximum_response_bytes};
+		ResponseBuffer response{{}, config.maximum_response_bytes, false};
 		curl_slist *headers = nullptr;
 		headers = curl_slist_append(headers, "Accept: application/json");
 		headers = curl_slist_append(headers, ("X-Request-Id: " + trace_id).c_str());
@@ -109,6 +135,11 @@ struct HttpLexinetClient::Implementation {
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+		curl_blob trusted_ca_certificate{
+			config.trusted_ca_certificate_pem_for_tests.data(),
+			config.trusted_ca_certificate_pem_for_tests.size(), CURL_BLOB_COPY};
+		if (!config.trusted_ca_certificate_pem_for_tests.empty())
+			curl_easy_setopt(curl, CURLOPT_CAINFO_BLOB, &trusted_ca_certificate);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, append_response);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "beaglebone-house-panel/0.1");
@@ -128,6 +159,26 @@ struct HttpLexinetClient::Implementation {
 			    {"duration_ms", std::to_string(duration_ms)},
 			    {"status", std::to_string(status_code)}});
 
+		if (response.response_size_limit_exceeded) {
+			return VocabularyPanelResult<Json>::failure({
+				"LEXINET.RESPONSE_SIZE_LIMIT_EXCEEDED",
+				"Lexinet response exceeded the configured byte limit",
+				{{"method", method},
+				 {"target", config.lexinet_base_url},
+				 {"maximum_response_bytes",
+				  std::to_string(config.maximum_response_bytes)}},
+				false});
+		}
+		if (is_tls_certificate_verification_failure(curl_result)) {
+			return VocabularyPanelResult<Json>::failure({
+				"LEXINET.TLS_CERTIFICATE_VERIFICATION_FAILED",
+				"Lexinet TLS peer or hostname verification failed",
+				{{"method", method},
+				 {"target", config.lexinet_base_url},
+				 {"curl_code",
+				  std::to_string(static_cast<int>(curl_result))}},
+				false});
+		}
 		if (curl_result != CURLE_OK) {
 			return VocabularyPanelResult<Json>::failure({
 				"LEXINET.HTTP_TRANSPORT_FAILED", curl_easy_strerror(curl_result),

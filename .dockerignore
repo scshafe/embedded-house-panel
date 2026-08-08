@@ -1,0 +1,12 @@
+# Deny the entire repository by default, including VCS metadata, local builds,
+# handoffs, hardware results, and configuration or credential material.
+# Only the two explicit Dockerfile COPY inputs are reachable below.
+**
+!scripts/
+!scripts/verification/
+!scripts/verification/shellcheck_with_aarch64_fallback.sh
+!system_image/
+!system_image/buildroot_external/
+!system_image/buildroot_external/package/
+!system_image/buildroot_external/package/lvgl/
+!system_image/buildroot_external/package/lvgl/lv_conf.h

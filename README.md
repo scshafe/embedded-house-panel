@@ -23,7 +23,7 @@ This is an executable scaffold, not a hardware-complete product.
 |---|---|---|
 | Presence/wake | Custom input-driver experiment plus stock `gpio-keys` comparison | PIR electrical behavior, cape pin conflicts, DeepSleep0 wake proof |
 | Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, clock-readiness, and local IPC adapters | Actual nodes, brightness, clock recovery, and suspend behavior on the target |
-| Vocabulary panel | Host-tested flash-card flow, provisional HTTPS Lexinet client, and strict-compiled LVGL DRM/fbdev renderer | Integrated graphical controller executable, actual Lexinet contract, cape nodes, and calibrated touch |
+| Vocabulary panel | Host-tested flash-card flow; Linux x86_64 verification reaches the provisional HTTPS Lexinet client and strict-compiled LVGL DRM/fbdev renderer | Integrated graphical controller executable, actual Lexinet contract, cape nodes, and calibrated touch |
 | Personal agenda | Proposed provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan | Neutral shared UI shell; EventKit/Contacts, Google, Tailnet, local STT, and Messages measurements; all implementation |
 | System image | Pinned Buildroot external tree, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | Full release image build, cape driver/device tree, and measured package/resource budget |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
@@ -163,6 +163,14 @@ make verify
 cmake --preset host-debug
 cmake --build --preset host-debug
 ctest --preset host-debug --output-on-failure
+```
+
+The Linux-only daemon paths and optional HTTP/LVGL adapters have a separate
+containerized host gate. It builds an explicit Linux x86_64 environment and
+runs the same repository suite inside it:
+
+```sh
+make verify-linux-x86_64
 ```
 
 For Buildroot and deployment, follow [development environment setup](docs/operations/development-environment.md) and [build/deploy operations](docs/operations/build-and-deploy.md). For the official-Debian compatibility baseline, follow the [Debian Tailnet bring-up runbook](docs/operations/debian-tailnet-bringup.md). Upload scripts default to a dry run and require an explicit execution flag.

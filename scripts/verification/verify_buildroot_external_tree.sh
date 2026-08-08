@@ -17,6 +17,8 @@ TRACE_ID=$(bhp_new_trace_id)
 
 external_tree=$PROJECT_ROOT/system_image/buildroot_external
 expected_post_script_args="BR2_ROOTFS_POST_SCRIPT_ARGS=\"-c \$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/genimage.cfg\""
+expected_kernel_fragment_config="BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES=\"\$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/linux-suspend-prerequisites.config\""
+suspend_prerequisite_fragment=$external_tree/board/beaglebone-house-panel/linux-suspend-prerequisites.config
 required_files="
 external.desc
 external.mk
@@ -24,6 +26,7 @@ Config.in
 configs/beaglebone_house_panel_defconfig
 configs/beaglebone_house_panel_bringup_defconfig
 board/beaglebone-house-panel/genimage.cfg
+board/beaglebone-house-panel/linux-suspend-prerequisites.config
 board/beaglebone-house-panel/post-build.sh
 board/beaglebone-house-panel/bringup/post-build.sh
 board/beaglebone-house-panel/bringup/rootfs-overlay/etc/default/dropbear
@@ -50,6 +53,7 @@ for defconfig_name in beaglebone_house_panel_defconfig beaglebone_house_panel_br
   defconfig_path=$external_tree/configs/$defconfig_name
   for expected_defconfig_line in \
     "$expected_post_script_args" \
+    "$expected_kernel_fragment_config" \
     'BR2_TARGET_ROOTFS_EXT2_SIZE="512M"'; do
     grep -F -x "$expected_defconfig_line" "$defconfig_path" >/dev/null || {
       bhp_fail VERIFY_BUILDROOT.DEFCONFIG_VALUE_MISSING \
@@ -58,6 +62,10 @@ for defconfig_name in beaglebone_house_panel_defconfig beaglebone_house_panel_br
     }
   done
 done
+
+"$SCRIPT_DIRECTORY/check_suspend_kernel_config.sh" \
+  --config "$suspend_prerequisite_fragment" --mode fragment
+"$SCRIPT_DIRECTORY/verify_suspend_kernel_config_checker.sh"
 
 genimage_configuration=$external_tree/board/beaglebone-house-panel/genimage.cfg
 genimage_dtb_references=$(grep -E -o '[[:alnum:]_.+-]+\.dtb' \
@@ -125,6 +133,7 @@ if [ -n "${BHP_BUILDROOT_DIR:-}" ]; then
   test -s "$output_directory/.config"
   for expected_config_line in \
     'BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.18.21"' \
+    "$expected_kernel_fragment_config" \
     'BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE="2026.04"' \
     'BR2_PACKAGE_BHP_PRESENCE_SENSOR=y' \
     'BR2_PACKAGE_LVGL=y' \
@@ -165,8 +174,32 @@ if [ -n "${BHP_BUILDROOT_DIR:-}" ]; then
         exit 1
       }
     done
+    make -C "$BHP_BUILDROOT_DIR" \
+      O="$output_directory" \
+      BR2_DL_DIR="$output_directory/downloads" \
+      BR2_EXTERNAL="$external_tree" \
+      linux-configure
+    effective_kernel_config=
+    effective_kernel_config_count=0
+    for candidate_kernel_config in "$output_directory"/build/linux-*/.config; do
+      test -f "$candidate_kernel_config" || continue
+      effective_kernel_config=$candidate_kernel_config
+      effective_kernel_config_count=$((effective_kernel_config_count + 1))
+    done
+    if [ "$effective_kernel_config_count" -ne 1 ]; then
+      bhp_fail VERIFY_BUILDROOT.EFFECTIVE_KERNEL_CONFIG_INVALID \
+        "Expected one generated Linux .config; found $effective_kernel_config_count" \
+        "$TRACE_ID"
+      exit 1
+    fi
+    "$SCRIPT_DIRECTORY/check_suspend_kernel_config.sh" \
+      --config "$effective_kernel_config" --mode effective
+    bhp_log info buildroot_kernel_config_evaluated "$TRACE_ID" \
+      effective_kernel_config "$effective_kernel_config" \
+      suspend_prerequisites available \
+      deepsleep0_evidence not_established
   else
-    bhp_log warn buildroot_toolchain_resolution_skipped "$TRACE_ID" \
+    bhp_log warn buildroot_toolchain_and_kernel_resolution_skipped "$TRACE_ID" \
       reason Bootlin_prebuilt_toolchain_requires_Linux_x86_64 \
       host_os "$(uname -s)" \
       host_arch "$(uname -m)"

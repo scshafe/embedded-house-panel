@@ -13,7 +13,8 @@ struct HttpLexinetConfig {
 	long request_timeout_ms{5000};
 	std::size_t maximum_response_bytes{262144};
 	bool allow_insecure_http_for_tests{false};
+	// Test-only in-memory trust anchor; accepted only for 127.0.0.1 HTTPS.
+	std::string trusted_ca_certificate_pem_for_tests;
 };
 
 } // namespace vocabulary_panel
-

@@ -99,7 +99,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
     on the general disclaimer at `:21-22`.
   - Verify: `make verify-docs` passes; every requirement in the review's traceability matrix has a named owner or a written deferral.
 
-- [ ] **Step 12: Make the host verification suite reach the code it claims to cover**
+- [x] **Step 12: Make the host verification suite reach the code it claims to cover**
   - Stand up a Linux x86_64 runner (a container is sufficient) that executes `scripts/verification/verify_host_cpp.sh all`. On macOS every `__linux__` path is dead code, so the daemon poll loop, suspend backoff, signal handling, and the `EVIOCGSW` read path (`panel_supervisor/src/evdev_presence_source.cpp:147-160`) have no executed test anywhere.
   - Add a daemon smoke test that runs `panel_supervisord` against temporary-directory sysfs fixtures and a fake evdev source for several cycles, asserting the structured-log trajectory rather than only the exit code.
   - Make the LVGL renderer and HTTP client reachable on the host: add a `host-dev` preset turning `BHP_BUILD_HTTP_LEXINET_CLIENT` and `BHP_BUILD_LVGL_RENDERER` on (`CMakeLists.txt:12`, `CMakePresets.json:17`), give the HTTP adapter its first tests (TLS verification, redirect refusal, size limits), and include both in `verify_host_cpp.sh`. Correct the `README.md:26` work-stream row, which currently reads as though the HTTP client is host-tested.

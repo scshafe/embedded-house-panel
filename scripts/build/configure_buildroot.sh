@@ -78,11 +78,11 @@ canonical_buildroot_output=$(
 if [ -d "$BHP_BUILDROOT_OUTPUT_DIR" ]; then
   existing_profile_file=$BHP_BUILDROOT_OUTPUT_DIR/.bhp-build-profile
   if [ -e "$existing_profile_file" ] || [ -L "$existing_profile_file" ]; then
-    test -f "$existing_profile_file" && test ! -L "$existing_profile_file" || {
+    if [ ! -f "$existing_profile_file" ] || [ -L "$existing_profile_file" ]; then
       bhp_fail BUILDROOT.EXISTING_PROFILE_STAMP_INVALID \
         "$existing_profile_file" "$TRACE_ID"
       exit 1
-    }
+    fi
     existing_profile=$(sed -n '1p' "$existing_profile_file")
     test "$(wc -l <"$existing_profile_file" | tr -d ' ')" -eq 1 || {
       bhp_fail BUILDROOT.EXISTING_PROFILE_STAMP_INVALID \

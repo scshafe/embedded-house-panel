@@ -55,11 +55,11 @@ case "$destination" in
 		;;
 esac
 if [ -e "$destination" ] || [ -L "$destination" ]; then
-	[ -d "$destination" ] && [ ! -L "$destination" ] || {
+	if [ ! -d "$destination" ] || [ -L "$destination" ]; then
 		bhp_fail BUILDROOT.DESTINATION_INVALID \
 			"Existing destination must be a real directory" "$TRACE_ID"
 		exit 1
-	}
+	fi
 else
 	mkdir -p "$destination"
 fi

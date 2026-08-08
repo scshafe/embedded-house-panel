@@ -35,6 +35,7 @@ add_library(panel_supervisor_linux_adapters STATIC
   src/exact_file_writer.cpp
   src/offline_solar_calculator.cpp
   src/panel_supervisord_config.cpp
+  src/rate_limited_stop_aware_suspend.cpp
   src/suspend_mode.cpp
   src/sysfs_backlight.cpp
   src/sysfs_suspend.cpp
@@ -153,4 +154,19 @@ if(BHP_BUILD_TESTS)
     target_compile_options(daemon_stop_controller_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
   add_test(NAME daemon_stop_controller_test COMMAND daemon_stop_controller_test)
+
+  add_executable(rate_limited_stop_aware_suspend_test
+    tests/rate_limited_stop_aware_suspend_test.cpp
+  )
+  target_link_libraries(rate_limited_stop_aware_suspend_test
+    PRIVATE panel_supervisor_linux_adapters
+  )
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(rate_limited_stop_aware_suspend_test
+      PRIVATE -Wall -Wextra -Wpedantic -Werror
+    )
+  endif()
+  add_test(NAME rate_limited_stop_aware_suspend_test
+    COMMAND rate_limited_stop_aware_suspend_test
+  )
 endif()

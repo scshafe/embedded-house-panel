@@ -449,10 +449,10 @@ if BHP_BUILDROOT_DIR=$pinned_source BHP_BUILDROOT_OUTPUT_DIR=$overlap_child \
 		"configure_buildroot.sh accepted output inside its source" "$TRACE_ID"
 	exit 1
 fi
-test ! -e "$overlap_child" && test ! -L "$overlap_child" || {
+if [ -e "$overlap_child" ] || [ -L "$overlap_child" ]; then
 	bhp_fail VERIFY_BUILD_DEPLOY.OVERLAP_CHECK_MUTATED_SOURCE "$overlap_child" "$TRACE_ID"
 	exit 1
-}
+fi
 if bhp_buildroot_output_is_separate "$pinned_source" "$temporary_root" \
 	"$PROJECT_ROOT"; then
 	bhp_fail VERIFY_BUILD_DEPLOY.OUTPUT_CONTAINING_SOURCE_ACCEPTED \

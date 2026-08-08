@@ -1,10 +1,13 @@
-.PHONY: verify verify-host verify-scripts verify-docs verify-release-candidate
+.PHONY: verify verify-host verify-linux-x86_64 verify-scripts verify-docs verify-release-candidate
 
 verify:
 	./scripts/verification/verify_repository.sh
 
 verify-host:
 	./scripts/verification/verify_host_cpp.sh all
+
+verify-linux-x86_64:
+	./scripts/verification/verify_linux_x86_64.sh
 
 verify-scripts:
 	./scripts/verification/verify_shell_scripts.sh

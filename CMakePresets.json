@@ -19,6 +19,16 @@
       }
     },
     {
+      "name": "host-dev",
+      "displayName": "Host optional adapters and tests",
+      "inherits": "host-debug",
+      "binaryDir": "${sourceDir}/.build/host-dev",
+      "cacheVariables": {
+        "BHP_BUILD_HTTP_LEXINET_CLIENT": "ON",
+        "BHP_BUILD_LVGL_RENDERER": "ON"
+      }
+    },
+    {
       "name": "buildroot-armv7-release",
       "displayName": "Buildroot ARMv7 release",
       "generator": "Unix Makefiles",
@@ -38,6 +48,10 @@
       "configurePreset": "host-debug"
     },
     {
+      "name": "host-dev",
+      "configurePreset": "host-dev"
+    },
+    {
       "name": "buildroot-armv7-release",
       "configurePreset": "buildroot-armv7-release"
     }
@@ -46,6 +60,13 @@
     {
       "name": "host-debug",
       "configurePreset": "host-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-dev",
+      "configurePreset": "host-dev",
       "output": {
         "outputOnFailure": true
       }

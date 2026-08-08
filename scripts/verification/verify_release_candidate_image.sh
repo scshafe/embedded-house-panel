@@ -61,11 +61,11 @@ for required_path in "$BHP_BUILDROOT_ARCHIVE" "$BHP_RELEASE_OUTPUT_PARENT"; do
 			;;
 	esac
 done
-test -f "$BHP_BUILDROOT_ARCHIVE" && test ! -L "$BHP_BUILDROOT_ARCHIVE" || {
+if [ ! -f "$BHP_BUILDROOT_ARCHIVE" ] || [ -L "$BHP_BUILDROOT_ARCHIVE" ]; then
 	bhp_fail RELEASE_CANDIDATE.BUILDROOT_ARCHIVE_INVALID \
 		"Buildroot archive must be a regular non-symlink file" "$TRACE_ID"
 	exit 1
-}
+fi
 buildroot_archive_sha256=$(bhp_sha256_file "$BHP_BUILDROOT_ARCHIVE") || {
 	bhp_fail RELEASE_CANDIDATE.BUILDROOT_ARCHIVE_ID_FAILED \
 		"$BHP_BUILDROOT_ARCHIVE" "$TRACE_ID"
@@ -77,12 +77,11 @@ if [ "$buildroot_archive_sha256" != \
 		"Archive is not the exact pinned Buildroot release" "$TRACE_ID"
 	exit 1
 fi
-test -d "$BHP_RELEASE_OUTPUT_PARENT" &&
-	test ! -L "$BHP_RELEASE_OUTPUT_PARENT" || {
+if [ ! -d "$BHP_RELEASE_OUTPUT_PARENT" ] || [ -L "$BHP_RELEASE_OUTPUT_PARENT" ]; then
 	bhp_fail RELEASE_CANDIDATE.OUTPUT_PARENT_INVALID \
 		"Create a dedicated real directory outside both source trees" "$TRACE_ID"
 	exit 1
-}
+fi
 
 source_content_id=$(
 	"$PROJECT_ROOT/scripts/build/project_content_id.sh" "$PROJECT_ROOT"
@@ -325,10 +324,10 @@ sdcard_sha256=$(bhp_sha256_file "$images_directory/sdcard.img") || {
 	exit 1
 }
 evidence_file=$BHP_BUILDROOT_OUTPUT_DIR/release-evidence.env
-test ! -e "$evidence_file" && test ! -L "$evidence_file" || {
+if [ -e "$evidence_file" ] || [ -L "$evidence_file" ]; then
 	bhp_fail RELEASE_CANDIDATE.EVIDENCE_PATH_PREEXISTED "$evidence_file" "$TRACE_ID"
 	exit 1
-}
+fi
 {
 	printf 'evidence_version=2\n'
 	printf 'profile=production\n'

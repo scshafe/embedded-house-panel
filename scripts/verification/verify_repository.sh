@@ -13,6 +13,47 @@ BHP_SCRIPT_SERVICE_NAME=beaglebone_house_panel.verify_repository
 export BHP_SCRIPT_SERVICE_NAME
 TRACE_ID=$(bhp_new_trace_id)
 
+"$PROJECT_ROOT/scripts/environment/check_host_dependencies.sh" --profile host --strict
+
+read_first_version_line()
+{
+  version_output=$(LC_ALL=C "$@" 2>&1) || return 1
+  version_first_line=$(printf '%s\n' "$version_output" | sed -n '1p')
+  test -n "$version_first_line" || return 1
+  printf '%s\n' "$version_first_line"
+}
+
+read_shellcheck_version()
+{
+  version_output=$(LC_ALL=C shellcheck --version 2>&1) || return 1
+  shellcheck_version=$(printf '%s\n' "$version_output" |
+    sed -n 's/^version:[[:space:]]*//p')
+  test -n "$shellcheck_version" || return 1
+  printf '%s\n' "$shellcheck_version"
+}
+
+cxx=${CXX:-c++}
+git_version=$(read_first_version_line git --version) || {
+  bhp_fail VERIFY_REPOSITORY.TOOL_VERSION_UNREADABLE git "$TRACE_ID"
+  exit 1
+}
+make_version=$(read_first_version_line make --version) || {
+  bhp_fail VERIFY_REPOSITORY.TOOL_VERSION_UNREADABLE make "$TRACE_ID"
+  exit 1
+}
+cxx_version=$(read_first_version_line "$cxx" --version) || {
+  bhp_fail VERIFY_REPOSITORY.TOOL_VERSION_UNREADABLE "$cxx" "$TRACE_ID"
+  exit 1
+}
+rg_version=$(read_first_version_line rg --version) || {
+  bhp_fail VERIFY_REPOSITORY.TOOL_VERSION_UNREADABLE rg "$TRACE_ID"
+  exit 1
+}
+shellcheck_version=$(read_shellcheck_version) || {
+  bhp_fail VERIFY_REPOSITORY.TOOL_VERSION_UNREADABLE shellcheck "$TRACE_ID"
+  exit 1
+}
+
 "$SCRIPT_DIRECTORY/verify_host_cpp.sh" all
 "$SCRIPT_DIRECTORY/verify_shell_scripts.sh"
 "$SCRIPT_DIRECTORY/verify_documentation.sh"
@@ -29,4 +70,11 @@ if rg --hidden --line-number \
   exit 1
 fi
 git -C "$PROJECT_ROOT" diff --check
-bhp_log info repository_verification_complete "$TRACE_ID" hardware_execution not_performed
+bhp_log info repository_verification_complete "$TRACE_ID" \
+  hardware_execution not_performed \
+  git_version "$git_version" \
+  make_version "$make_version" \
+  cxx_command "$cxx" \
+  cxx_version "$cxx_version" \
+  rg_version "$rg_version" \
+  shellcheck_version "$shellcheck_version"

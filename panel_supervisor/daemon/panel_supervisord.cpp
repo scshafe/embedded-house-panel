@@ -6,6 +6,7 @@
 #include "panel_supervisor/panel_policy.hpp"
 #include "panel_supervisor/panel_supervisor.hpp"
 #include "panel_supervisor/panel_supervisord_config.hpp"
+#include "panel_supervisor/rate_limited_stop_aware_suspend.hpp"
 #include "panel_supervisor/suspend.hpp"
 #include "panel_supervisor/sysfs_backlight.hpp"
 #include "panel_supervisor/sysfs_suspend.hpp"
@@ -15,7 +16,6 @@
 #include "bhp/structured_log_level.h"
 #include "bhp/structured_logger.h"
 
-#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <iostream>
@@ -33,52 +33,6 @@ namespace {
 class DisabledSuspend final : public Suspend {
 public:
 	Result<void> request_suspend() override { return Result<void>::success(); }
-};
-
-class RateLimitedStopAwareSuspend final : public Suspend {
-public:
-	RateLimitedStopAwareSuspend(Suspend &configured_suspend,
-				    DaemonStopController &stop_controller,
-				    const std::chrono::milliseconds minimum_request_interval)
-		: configured_suspend_(configured_suspend),
-		  stop_controller_(stop_controller),
-		  minimum_request_interval_(minimum_request_interval)
-	{
-	}
-
-	Result<void> request_suspend() override
-	{
-		if (stop_controller_.stop_requested()) {
-			return Result<void>::success();
-		}
-		while (std::chrono::steady_clock::now() < next_request_not_before_) {
-			const auto remaining =
-				next_request_not_before_ - std::chrono::steady_clock::now();
-			auto remaining_milliseconds =
-				std::chrono::duration_cast<std::chrono::milliseconds>(remaining);
-			if (remaining_milliseconds < remaining) {
-				remaining_milliseconds += std::chrono::milliseconds(1);
-			}
-			const auto wait_result = stop_controller_.wait_for(remaining_milliseconds);
-			if (!wait_result) {
-				return Result<void>::failure(wait_result.error());
-			}
-			if (wait_result.value()) {
-				return Result<void>::success();
-			}
-		}
-		auto result = configured_suspend_.request_suspend();
-		next_request_not_before_ =
-			std::chrono::steady_clock::now() + minimum_request_interval_;
-		return result;
-	}
-
-private:
-	Suspend &configured_suspend_;
-	DaemonStopController &stop_controller_;
-	std::chrono::milliseconds minimum_request_interval_;
-	std::chrono::steady_clock::time_point next_request_not_before_{
-		std::chrono::steady_clock::time_point::min()};
 };
 
 std::string error_chain(const SupervisorError &error)

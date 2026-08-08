@@ -15,10 +15,21 @@ TRACE_ID=$(bhp_new_trace_id)
 
 profile=host
 strict=false
+host_compiler_command=
+host_operating_system=
 
 usage()
 {
   printf '%s\n' "Usage: $0 [--profile host|buildroot|deploy] [--strict]"
+}
+
+read_first_version_line()
+{
+  environment_version_output=$(LC_ALL=C "$@" 2>&1) || return 1
+  environment_version_first_line=$(printf '%s\n' \
+    "$environment_version_output" | sed -n '1p')
+  test -n "$environment_version_first_line" || return 1
+  printf '%s\n' "$environment_version_first_line"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -44,13 +55,21 @@ while [ "$#" -gt 0 ]; do
 done
 
 case "$profile" in
-  host) required_commands="git make c++ rg shellcheck" ;;
+  host)
+    required_commands="git make rg shellcheck"
+    host_compiler_command=${CXX:-c++}
+    host_operating_system=$(uname -s)
+    if [ "$host_operating_system" = Linux ]; then
+      required_commands="$required_commands cc cmake ctest pkg-config python3"
+    fi
+    ;;
   buildroot) required_commands="git make gcc g++ cmake tar xz patch rsync bc bison flex perl python3 file wget curl cpio unzip dtc" ;;
   deploy) required_commands="ssh scp rsync shasum" ;;
   *) bhp_fail ENVIRONMENT.PROFILE_INVALID "Unknown profile: $profile" "$TRACE_ID"; exit 1 ;;
 esac
 
 missing_commands=""
+unreadable_version_commands=""
 for command_name in $required_commands; do
   if command -v "$command_name" >/dev/null 2>&1; then
     bhp_log info dependency_available "$TRACE_ID" profile "$profile" command "$command_name"
@@ -59,6 +78,39 @@ for command_name in $required_commands; do
     missing_commands="$missing_commands $command_name"
   fi
 done
+
+if [ -n "$host_compiler_command" ]; then
+  if command -v "$host_compiler_command" >/dev/null 2>&1; then
+    bhp_log info dependency_available "$TRACE_ID" \
+      profile "$profile" \
+      command "$host_compiler_command" \
+      dependency_role cxx
+  else
+    bhp_log warn dependency_missing "$TRACE_ID" \
+      profile "$profile" \
+      command "$host_compiler_command" \
+      dependency_role cxx
+    missing_commands="$missing_commands $host_compiler_command"
+  fi
+fi
+
+if [ "$profile" = host ] && [ "$host_operating_system" = Linux ]; then
+  for versioned_command in cmake pkg-config; do
+    command -v "$versioned_command" >/dev/null 2>&1 || continue
+    if command_version=$(read_first_version_line \
+      "$versioned_command" --version); then
+      bhp_log info dependency_version_available "$TRACE_ID" \
+        profile "$profile" \
+        command "$versioned_command" \
+        version "$command_version"
+    else
+      bhp_log warn dependency_version_unreadable "$TRACE_ID" \
+        profile "$profile" \
+        command "$versioned_command"
+      unreadable_version_commands="$unreadable_version_commands $versioned_command"
+    fi
+  done
+fi
 
 if [ "$profile" = buildroot ] && [ "$(uname -s)" != Linux ]; then
   bhp_log warn buildroot_linux_host_required "$TRACE_ID" host_os "$(uname -s)"
@@ -76,6 +128,11 @@ fi
 
 if [ -n "$missing_commands" ] && [ "$strict" = true ]; then
   bhp_fail ENVIRONMENT.DEPENDENCIES_MISSING "Missing:$missing_commands" "$TRACE_ID"
+  exit 1
+fi
+if [ -n "$unreadable_version_commands" ] && [ "$strict" = true ]; then
+  bhp_fail ENVIRONMENT.TOOL_VERSIONS_UNREADABLE \
+    "Unreadable:$unreadable_version_commands" "$TRACE_ID"
   exit 1
 fi
 

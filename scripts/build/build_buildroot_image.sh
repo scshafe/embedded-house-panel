@@ -59,11 +59,11 @@ test -f "$BHP_BUILDROOT_OUTPUT_DIR/.config" || {
   exit 1
 }
 profile_file=$BHP_BUILDROOT_OUTPUT_DIR/.bhp-build-profile
-test -f "$profile_file" && test ! -L "$profile_file" || {
+if [ ! -f "$profile_file" ] || [ -L "$profile_file" ]; then
   bhp_fail BUILDROOT.PROFILE_STAMP_MISSING \
     "Re-run configure_buildroot.sh with an explicit profile" "$TRACE_ID"
   exit 1
-}
+fi
 configured_profile=$(sed -n '1p' "$profile_file")
 test "$(wc -l <"$profile_file" | tr -d ' ')" -eq 1 || {
   bhp_fail BUILDROOT.PROFILE_STAMP_INVALID "$profile_file" "$TRACE_ID"

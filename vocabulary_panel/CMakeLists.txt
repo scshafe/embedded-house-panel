@@ -25,6 +25,26 @@ if(BHP_BUILD_HTTP_LEXINET_CLIENT)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(vocabulary_panel_http_lexinet PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
+  if(BHP_BUILD_TESTS)
+    find_package(OpenSSL REQUIRED)
+    find_package(Threads REQUIRED)
+    add_executable(vocabulary_panel_http_lexinet_client_test
+      tests/fixtures/loopback_http_server.cpp
+      tests/http_lexinet_client_test.cpp)
+    target_include_directories(vocabulary_panel_http_lexinet_client_test PRIVATE tests)
+    target_link_libraries(vocabulary_panel_http_lexinet_client_test
+      PRIVATE
+        vocabulary_panel_http_lexinet
+        OpenSSL::SSL
+        OpenSSL::Crypto
+        Threads::Threads)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+      target_compile_options(vocabulary_panel_http_lexinet_client_test
+        PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+    add_test(NAME vocabulary_panel_http_lexinet_client_test
+      COMMAND vocabulary_panel_http_lexinet_client_test)
+  endif()
 endif()
 
 if(BHP_BUILD_LVGL_RENDERER)
