@@ -77,7 +77,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Specialist: `doddy`
   - Verify: human review confirms every capability holder validates provenance independently of `panel_ui`; `make verify-docs` passes with the new ADR registered.
 
-- [ ] **Step 9: Reconcile the stale behavior documents against code and roadmap**
+- [x] **Step 9: Reconcile the stale behavior documents against code and roadmap**
   - `docs/behavior/panel-policy.md` describes fault behavior three different ways — retain output (`:16`), retain last value (`:40`), terminate (`:66`) — and the code terminates. It also routes features inside `PanelPolicy` (`:21`, `:36`), which `.claude/plans/2026-08-05-end-to-end-development-roadmap.md:195` forbids. Correct both, and record the Step 1 decision-6 grace-period answer here as the single source of truth, superseding the conflicting `dark_idle` description at `docs/architecture/power-domain-architecture.md:98`.
   - `docs/behavior/flash-card-ux.md:36` and `:98` forbid offline rating, while `docs/architecture/lexinet-study-integration.md:519-527` queues ratings through the outbox. The outbox model is the intended one; mark the UX document's progression superseded, as its own header at `:3-8` already anticipates.
   - Fix the incidental drift found alongside: `docs/research/gui-strategies.md:62` states Linux 6.18.38 where the defconfig pins 6.18.21; `README.md:125-134` omits `shared/` and `config/` from the repository map; the Lexinet plan says HTTP where the code enforces HTTPS.

@@ -7,6 +7,13 @@ proposes a two-sided card with explicit flip/next/back semantics. If approved,
 that decision supersedes this progression before production controller work;
 the project must not implement both interaction models.
 
+~~The implemented cached-card progression ends after the example and never offers a rating.~~
+For the intended product UX, that branch is superseded by the bounded outbox
+behavior below. This records the intended offline behavior without approving or
+changing the pending status of any `LEXI-*` decision. The checked-in scaffold
+remains fail-closed until idempotency, bounds, corruption handling, and visible
+sync status are implemented together.
+
 ## Current scaffold UX goals
 
 - Work at a likely 480×272 resolution with large touch targets.
@@ -15,9 +22,14 @@ the project must not implement both interaction models.
   product contract.
 - Never flash a white surface while entering or leaving after-hours mode.
 - Make loading, offline, empty, and failed states visibly different.
-- Keep Lexinet authoritative; never imply that an unsubmitted review was saved.
+- Keep Lexinet authoritative; never imply that a locally queued rating was
+  saved.
 
-## Current scaffold interaction
+## Scaffold interaction with intended offline amendment
+
+The online path below remains scaffold evidence. The amended cached-card branch
+describes the intended bounded-outbox transition and is not an implementation
+claim.
 
 ```mermaid
 stateDiagram-v2
@@ -33,11 +45,38 @@ stateDiagram-v2
     Submitting --> Loading: review acknowledged
     Submitting --> Error: review rejected; retain current card
     Offline --> Word: cached card selected with degraded badge
-    Example --> OfflineComplete: cached/degraded card; never offer rating
-    OfflineComplete --> Loading: retry connection
+    Example --> OfflineRatingPreflight: cached/degraded card + eligible rating
+    OfflineRatingPreflight --> Word: rating and required successor fact durable
+    OfflineRatingPreflight --> OfflineComplete: rating durable + completion/refill snapshot
+    OfflineRatingPreflight --> Example: preflight or commit rejected; retain card
+    OfflineComplete --> Loading: retry connection or refill
     Error --> Loading: retry
     Empty --> Loading: refresh
 ```
+
+For an eligible cached item, offline rating admission is one all-or-nothing
+local transition:
+
+1. The item is revealed, its rating affordance is active, and the complete
+   transition preflight proves that the crash-consistent outbox is writable and
+   has one slot for `rated` plus one reserved slot for a possible
+   `rating_voided` Undo. Showing a never-presented successor also requires a
+   third slot for its `presented` fact.
+2. The rating, idempotency data, and any required successor fact become durable
+   before the UI leaves the current item. The UI then advances through the same
+   canonical session-ordering primitive as `next`; it never invents or reorders
+   a cached card. With only the two base slots, it may instead advance to the
+   explicit tracking-paused completion/refill snapshot and leave a
+   never-presented cached successor unshown.
+3. The successor or completion snapshot remains visibly offline/degraded and
+   labels the rating `queued locally`, never `saved`. A live one-tap **Undo**
+   appends the exact `rating_voided` correction durably, consumes its reserved
+   slot, and leaves that successor snapshot in place.
+4. If capacity, durability, or any transition invariant cannot be guaranteed,
+   the UI visibly rejects the rating, keeps the current card visible and
+   unrated, and reports `study tracking paused`. Only a Lexinet acknowledgement
+   may change an event from `queued locally` or `syncing` to `saved`; neither a
+   retry nor a successful socket write fabricates synchronization.
 
 ## Current scaffold supervisor-driven flow
 
@@ -79,7 +118,7 @@ flowchart LR
 │                                        │
 │  [ Again ] [ Hard ] [ Good ] [ Easy ]  │
 │                                        │
-│  Review is saved only after Lexinet ✓  │
+│  queued locally — not saved yet        │
 └────────────────────────────────────────┘
 ```
 
@@ -94,8 +133,9 @@ qualifies for production.
 | State | Copy | Allowed action |
 |---|---|---|
 | Loading | “Connecting to Lexinet…” | Cancel only after a bounded timeout |
-| Offline, cache present | “Offline — cached card; reviews are not being saved” | Study or retry; no silent review queue |
-| Offline study complete | “Reconnect to save reviews” | Retry; rating controls remain unavailable |
+| Offline, cache present | ~~“Offline — cached card; reviews are not being saved”~~ “Offline — cached session”; show each event as `queued locally`, `syncing`, `saved`, or `rejected` | ~~Study or retry; no silent review queue~~ Study or navigate; rate only after the full durable preflight succeeds; retry sync |
+| Offline study complete / refill required | ~~“Reconnect to save reviews”~~ “Offline — refill required”; retain the honest status of the accepted rating | ~~Retry; rating controls remain unavailable~~ Use the live Undo affordance if present, or retry/refill; do not fabricate a successor or saved state |
+| Offline tracking paused | “Study tracking paused — rating not queued” | Continue fact-free history navigation or retry; keep the current card unrated |
 | Offline, no cache | “Lexinet unavailable” | Retry |
 | Empty | “No review card available” | Refresh |
 | Response invalid | Machine-readable error code plus short explanation | Retry after contract/config correction |
@@ -103,3 +143,7 @@ qualifies for production.
 ## Night surface
 
 Night mode is not a dimmed daytime UI. It is a separate solid-red rendering path with no network calls or white intermediate frames. The exact RGB value and brightness are calibrated on the cape in the dark.
+
+**Amended 2026-08-07:** superseded the categorical no-offline-rating branch
+with the intended bounded, durable outbox UX without approving any pending
+`LEXI-*` decision or claiming the safeguards are implemented.

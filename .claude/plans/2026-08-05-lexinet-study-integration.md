@@ -26,7 +26,8 @@ as the production default.
   and CLI backed by PostgreSQL. Its study API, schema, selection policy, scoped
   authorization, and HTTPS tsnet listener do not exist yet.
 - The panel currently has a forward-only fixture-backed `FlashCardSession`, a
-  provisional synchronous HTTP adapter, and a presentation-only LVGL renderer.
+  provisional synchronous ~~HTTP~~ HTTPS adapter, and a presentation-only LVGL
+  renderer.
   It has no production graphical controller, offline outbox, backward
   navigation, media broker, or voice implementation.
 - The personal-agenda design adds a sibling display application. Before this
@@ -322,10 +323,10 @@ as the production default.
     matching `study.v1`; validate protocol version, session-item and source
     identities, bounds, UTF-8, immutable content projection/revision, positions,
     and complete error objects.
-  - Preserve the guarded HTTP adapter's TLS verification, redirect refusal,
-    credential-file handling for the fallback path, size limits, trace IDs, and
-    typed failures. Move every request to a cancellable worker so rendering and
-    input threads never block on Wi-Fi or Tailnet recovery.
+  - Preserve the guarded ~~HTTP~~ HTTPS adapter's TLS verification, redirect
+    refusal, credential-file handling for the fallback path, size limits, trace
+    IDs, and typed failures. Move every request to a cancellable worker so
+    rendering and input threads never block on Wi-Fi or Tailnet recovery.
   - Add a bounded, versioned, owner-only card/session cache and idempotent event
     outbox with crash-consistent atomic commits. An event payload, sequence, and
     UUID plus the persisted random `client_stream_id` become durable together
@@ -730,3 +731,8 @@ two-phase call-graph gate derives effects before voice projection admission,
 the broker lease start is one-shot, and packaging revokes raw UI touch access
 under distinct exact service principals. No step or product status changed, and
 no hardware behavior is claimed.
+
+**Amended 2026-08-07:** corrected the production adapter transport wording to
+HTTPS, matching the client's fail-closed URL validation. The intentionally
+loopback fake HTTP test server and existing code symbol names remain unchanged;
+no checkbox or decision status changed.

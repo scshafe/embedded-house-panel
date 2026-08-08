@@ -142,6 +142,8 @@ See [system architecture](docs/architecture/system-architecture.md),
 | `presence_sensor/` | Kernel-side PIR state/events and wake experiments |
 | `panel_supervisor/` | Presence, solar, display, and sleep policy |
 | `vocabulary_panel/` | Lexinet client boundary and flash-card presentation |
+| `shared/` | Canonical user-space capabilities shared across product domains, currently structured logging |
+| `config/` | Example build, deployment, and service configuration templates; secrets excluded |
 | `system_image/` | Buildroot external tree and target lifecycle |
 | `hardware_tests/` | Non-destructive discovery and on-device evidence capture |
 | `enclosure/` | Future source CAD, print exports, and assembly documentation |
@@ -200,3 +202,7 @@ The current scaffold and every hardware-evidence gate remain unchanged.
   production update/rollback, and enclosure geometry.
 
 The current preferred directions are recorded as experiments, not irreversible architecture.
+
+**Amended 2026-08-07:** added the existing `shared/` and `config/` ownership
+rows to the repository map; no implementation, decision status, or hardware
+claim changed.

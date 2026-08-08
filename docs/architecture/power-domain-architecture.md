@@ -92,10 +92,16 @@ BeagleBone backend, and at least one future SOM backend.
 A configured state must fail visibly when unsupported rather than silently
 entering a shallower mode.
 
+This table describes the proposed future two-domain, MCU-backed product. In
+particular, `dark_idle` is a future MCU-era application-processor state; it is
+not the current AM335x presence-grace behavior. The authoritative current grace
+contract lives only in [panel policy](../behavior/panel-policy.md).
+
 | State | Application processor | Display and media | Network | Wake | Use |
 |---|---|---|---|---|---|
 | `active` | Running | Required rails on | Available | Already interactive | Occupied daytime UI or active voice/gesture interaction |
-| `dark_idle` | Running and runtime-idle | Backlight off; camera/mic normally off | Available | Immediate | Brief vacancy or debugging control |
+| ~~`dark_idle`~~ | ~~Running and runtime-idle~~ | ~~Backlight off; camera/mic normally off~~ | ~~Available~~ | ~~Immediate~~ | ~~Brief vacancy or debugging control~~ |
+| `dark_idle` (future MCU era only) | Running and runtime-idle | Backlight off; camera/mic normally off | Available | Immediate | Future controller-backed brief vacancy or debugging control; never current presence grace |
 | `suspend_to_ram` | Platform deep suspend, RAM retained | Display/camera/mic rails off | Unavailable unless a complete WoWLAN chain is proven | PIR resume or supervisor-armed policy deadline | Medium vacancy |
 | `application_domain_off` | Clean shutdown, SOM rail off | All Linux-domain rails off | Unavailable | MCU cold boot | Long vacancy, low battery, or repeated fault |
 | `leased_night_light` | Off | Only dedicated red LED on under a bounded supervisor-issued lease | Unavailable | Raw PIR/button handled by MCU within lease limits | After-hours light without starting Linux |
@@ -117,7 +123,7 @@ stateDiagram-v2
     LeasedNightLight --> Booting: interaction requested
     Booting --> Active: application_ready
     Booting --> FaultBackoff: timeout or repeated reset
-    Active --> DarkIdle: brief absence
+    Active --> DarkIdle: future MCU-era brief vacancy
     DarkIdle --> Active: motion
     DarkIdle --> SuspendReady: configured timeout
     SuspendReady --> Active: motion before suspend
@@ -190,7 +196,9 @@ The responsibility split is explicit:
 
 - `panel_supervisor` is the only product-policy owner. It decides solar mode,
   presence grace, display behavior, ordinary suspend/off timing, and the exact
-  bounded night-light lease.
+  bounded night-light lease. This proposed architecture does not restate current
+  grace duration or brightness; [panel policy](../behavior/panel-policy.md) is
+  authoritative for those semantics.
 - The MCU enforces hard ceilings: minimum battery reserve, thermal cutoff,
   maximum boot duration, an absolute awake time/energy budget per wake and
   rolling time window, maximum wake rate, and fault backoff. Acknowledgements
@@ -369,3 +377,10 @@ controller, charger/power-path circuit, SOM/carrier, wake input, isolation path,
 and shutdown handshake are prototyped. Record battery-boundary current,
 transition energy, wake latency, missed/false wakes, failure recovery, thermal
 behavior, and exact software revisions.
+
+**Amended 2026-08-07:** ~~The original `dark_idle` row could be read as the
+current presence-grace display behavior.~~ `dark_idle` is now explicitly a
+future MCU-era state in this proposed two-domain architecture, while the current
+grace contract defers to the authoritative panel-policy document. No product
+decision changed status, roadmap Step 1 remains unapproved, and no hardware
+observation was promoted into a default.

@@ -59,8 +59,12 @@ It remains provisional until the target experiments pass.
   [`3c323d714afbc772050fbf665d67700f9a869d79`](https://gitlab.com/buildroot.org/buildroot/-/commit/3c323d714afbc772050fbf665d67700f9a869d79)
   from 2026-08-04. Its generic
   [`beaglebone_defconfig`](https://gitlab.com/buildroot.org/buildroot/-/blob/3c323d714afbc772050fbf665d67700f9a869d79/configs/beaglebone_defconfig)
-  selects Cortex-A8, Linux 6.18.38, and the standard BeagleBone device trees; it
-  does not explicitly select this cape overlay or a GUI stack.
+  ~~selects Cortex-A8, Linux 6.18.38, and the standard BeagleBone device trees;
+  it does not explicitly select this cape overlay or a GUI stack.~~ The
+  project-owned production and bring-up defconfigs explicitly pin Linux
+  6.18.21 and the BeagleBone Black device tree. Neither project image has been
+  built end to end, so this is configuration evidence rather than build or
+  hardware evidence.
 - Buildroot also carries a separate
   [`beaglebone_qt5_defconfig`](https://gitlab.com/buildroot.org/buildroot/-/blob/3c323d714afbc772050fbf665d67700f9a869d79/configs/beaglebone_qt5_defconfig),
   but it pins a 4.19 TI kernel and TI SGX userspace. It is useful historical
@@ -203,3 +207,8 @@ with every run. Do not turn a discovery result into a hidden fallback.
 The provisional numerical budgets above are deliberately testable, but they are
 not claims about the unmeasured cape. Preserve the raw results so a later
 decision can tighten or relax them transparently.
+
+**Amended 2026-08-07:** struck the upstream-generic kernel wording that could
+be mistaken for the project configuration and recorded the explicit Linux
+6.18.21 pin in both project defconfigs. No image build or hardware behavior is
+claimed.
