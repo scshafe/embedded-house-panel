@@ -89,11 +89,14 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Add a gate-to-step mapping table to the roadmap; the dependency map uses `S0`–`S4`/`H0`–`H7` (`:82-112`, `:477-492`) while the body uses `Step 0`–`15` with no correspondence stated.
   - Verify: `make verify-docs` passes; every roadmap step that invokes a subordinate plan names a step that exists in that plan.
 
-- [ ] **Step 11: Give the unowned requirements an owner or an explicit deferral**
+- [x] **Step 11: Give the unowned requirements an owner or an explicit deferral**
   - **Wireless.** `.claude/plans/2026-08-05-end-to-end-development-roadmap.md:394` requires proving asynchronous Wi-Fi/Tailnet recovery at Step 12, but the production defconfig has only `BR2_SYSTEM_DHCP="eth0"`, `system_image/README.md:48` states no Wi-Fi profile is included, and `docs/operations/debian-tailnet-bringup.md:433` defers Wi-Fi entirely. Add a row to the work-partition table (`:123-136`) recording the chosen approach, or amend the Step 12 criterion to match a wired prototype. Do not leave an acceptance criterion with no provisioning path.
   - **Timezone data.** `docs/architecture/personal-agenda-and-birthday-wishes.md:406-408` flags that Buildroot omits tzdata and offers two options; no defconfig entry, plan step, or decision ID owns the choice. Assign one. (Solar policy is UTC plus coordinates and correctly needs no tzdata; this is an agenda and clock-display concern.)
   - **`shared/http_runtime/`.** `docs/architecture/application-capability-ownership.md:34` names Lexinet plan Step 6 as first delivery authority; that plan never mentions it, while `vocabulary_panel/src/http_lexinet_client.cpp:71` and `:75` hold `curl_global_init`/`cleanup` inside a feature. Add a sub-step to Lexinet Step 6 with its own Output and Verify lines, forbidding `curl_global_*` outside the shared runtime.
-  - **Unbuilt registry paths.** Six paths cited in the registry at `:38-39` do not exist. Mark each row's status explicitly rather than relying only on the general disclaimer at `:21-22`.
+  - **Unbuilt registry paths.** ~~Six paths cited in the registry at `:38-39`
+    do not exist.~~ Eight unique paths declared across six registry rows do not
+    exist. Mark each affected row's status explicitly rather than relying only
+    on the general disclaimer at `:21-22`.
   - Verify: `make verify-docs` passes; every requirement in the review's traceability matrix has a named owner or a written deferral.
 
 - [ ] **Step 12: Make the host verification suite reach the code it claims to cover**
@@ -141,7 +144,25 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
 
 Carried forward from the review; each needs evidence or a decision this plan cannot supply.
 
-**Defer until hardware is available:** wireless implementation once the approach from Step 11 is chosen; reconciling the four divergent suspend-trial populations (20 / 50-per-cell / 100-per-cell-plus-1,000-soak / unnumbered) across `docs/research/gui-strategies.md`, `.claude/plans/2026-08-05-beaglebone-hardware-baseline.md:111`, `:144`, `docs/research/compute-platform-assessment.md:323-325`, and roadmap `:488`; extending the power schema for transition traces and battery boundaries; tzdata packaging; touch calibration; decomposing `FlashCardStage` and retyping the renderer on a neutral frame — do this *with* the shell, not after; Buildroot stable-versus-LTS (2026.05.1 reaches end of life in September 2026, LTS 2025.02.16 runs to March 2028); the Tailscale external-tree version override, needed before the first Buildroot tailnet test and before the agenda design's Serve app-capability dependency on 1.92 can be satisfied against the pinned 1.78.1; the kernel point-release refresh policy (6.18.21 pinned, 6.18.43 current).
+**Defer until hardware is available:** ~~wireless implementation once the
+approach from Step 11 is chosen~~ wireless implementation only if roadmap Step
+14 selects it, after adapter/driver, antenna, suspend/recovery, and power
+evidence; reconciling the four divergent suspend-trial populations (20 /
+50-per-cell / 100-per-cell-plus-1,000-soak / unnumbered) across
+`docs/research/gui-strategies.md`,
+`.claude/plans/2026-08-05-beaglebone-hardware-baseline.md:111`, `:144`,
+`docs/research/compute-platform-assessment.md:323-325`, and roadmap `:488`;
+extending the power schema for transition traces and battery boundaries;
+~~tzdata packaging~~ tzdata packaging only if `AGENDA-011` selects panel-local
+IANA resolution, then owned by roadmap Step 11's reviewed plan and Step 12
+target execution; touch calibration;
+decomposing `FlashCardStage` and retyping the renderer on a neutral frame — do
+this *with* the shell, not after; Buildroot stable-versus-LTS (2026.05.1 reaches
+end of life in September 2026, LTS 2025.02.16 runs to March 2028); the Tailscale
+external-tree version override, needed before the first Buildroot tailnet test
+and before the agenda design's Serve app-capability dependency on 1.92 can be
+satisfied against the pinned 1.78.1; the kernel point-release refresh policy
+(6.18.21 pinned, 6.18.43 current).
 
 **Future-product concerns:** always-on MCU registry rows and its ADR; read-only root with a bounded writable partition; an OTA update-and-rollback ADR, which must land before enclosure CAD; encrypted or hardware-bound storage if the companion signing key remains on the panel; display burn-in policy for a near-static surface; daytime ambient brightness; bystander authentication if Step 14 does not accept the limitation.
 
@@ -154,3 +175,10 @@ the actual amendment date. Execution began on 2026-08-07 and ADR 0004 records
 the human gate on that date, so forcing later corrections to claim 2026-08-06
 would make their provenance false. Existing 2026-08-06 amendments retain their
 original date.
+
+**Amended 2026-08-07:** the Step 11 audit found eight absent declared paths
+across six registry rows, replacing the review's six-path estimate. Wireless
+product selection remains deferred to roadmap Step 14, and tzdata packaging is
+now conditional on the still-pending `AGENDA-011` choice, with roadmap Step 11's
+reviewed plan and Step 12 target execution as its evidence owners. No product
+decision was approved.

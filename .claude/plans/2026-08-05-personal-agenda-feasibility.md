@@ -71,14 +71,19 @@ conditional roadmap in the architecture document.
 ## Steps
 
 - [ ] **Step 1: Freeze the feasibility contract and safety matrix**
-  - Review and record the ten product decisions in the architecture document,
-    including provider priority, birthday window and February 29 policy,
-    voice-prepare versus touch-to-record/submit semantics, recording bound,
-    retention, playback-gated audio acceptability, companion availability,
-    compromised-UI authority, command-distinctiveness disposition, and companion
-    repository boundary. Prefer `Lexi, finish recording`; the requested `Lexi,
-    end birthday wish` remains pending a reviewed context-separated acoustic
-    exception because it is a near neighbor of `send birthday wish`.
+  - Review and record the ~~ten product decisions~~ eleven product decisions in
+    the architecture document, including provider priority, the still-pending
+    household-timezone data path and configuration/projection ownership,
+    birthday window and February 29 policy, voice-prepare versus
+    touch-to-record/submit semantics, recording bound, retention,
+    playback-gated audio acceptability, companion availability, compromised-UI
+    authority, command-distinctiveness disposition, and companion repository
+    boundary. `AGENDA-011` remains deliberately deferred here: record that
+    neither timezone alternative is selected and carry the choice to roadmap
+    Step 6 after the feasibility evidence and ADR. Prefer `Lexi, finish
+    recording`; the requested `Lexi, end birthday wish` remains pending a
+    reviewed context-separated acoustic exception because it is a near neighbor
+    of `send birthday wish`.
   - Define stable experiment outcomes for every probe:
     `available`, `permission_denied`, `unsupported`,
     `failed_before_submission`, `submitted`, and `delivery_unknown`. Do not use
@@ -355,3 +360,8 @@ exception into the later panel-wide catalog; this feasibility tranche still
 does not implement or select a recognizer. The later production plan must use a
 purpose-internal, stop-only active command set during `wish_recording`; it may
 not run the general command projection over exportable recording audio.
+
+**Amended 2026-08-07:** Step 1 now carries all eleven `AGENDA-*` decisions,
+including the deliberately pending timezone-data and ownership choice. It does
+not select an alternative or complete the still-unchecked review step; roadmap
+Step 6 owns the post-evidence decision.

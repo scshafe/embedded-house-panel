@@ -127,14 +127,25 @@ or sleep mode safe from legacy source alone.
   - Measure active daytime, dim-red LCD, dedicated red LED if available,
     backlight zero, idle, `freeze`, `mem`/DeepSleep0, transitions, and any safe
     PMIC-off/controller prototype.
-  - Capture a shared GPIO marker with PIR, analyzer, CPU-ready, rendered-frame,
+  - ~~Capture a shared GPIO marker with PIR, analyzer, CPU-ready, rendered-frame,
     photodiode/backlight, Wi-Fi, tailnet, and Lexinet milestones under the same
-    trial correlation ID.
+    trial correlation ID.~~
+  - Capture a shared GPIO marker with PIR, analyzer, CPU-ready, rendered-frame,
+    photodiode/backlight, recovery for the exact configured network transport,
+    tailnet, and Lexinet milestones under the same trial correlation ID. Include
+    Wi-Fi association/recovery only when Wi-Fi is explicitly selected for the
+    measured configuration and backed by adapter, driver, provisioning,
+    antenna, suspend/recovery, and power evidence. Wired Ethernet remains the
+    prototype baseline; this plan selects no network hardware default.
   - Use independent state entries, fixed settling/window durations, blocked or
     randomized state order, and repeats across cold boots and thermal states.
-  - Exercise low-state-of-charge voltage sag and load steps during simultaneous
+  - ~~Exercise low-state-of-charge voltage sag and load steps during simultaneous
     display/Wi-Fi/media load, including charger removal/handover, shutdown
-    reserve, boot-lockout hysteresis, reset reason, and recovery.
+    reserve, boot-lockout hysteresis, reset reason, and recovery.~~
+  - Exercise low-state-of-charge voltage sag and load steps during simultaneous
+    display, exact configured network transport, and media load, including
+    charger removal/handover, shutdown reserve, boot-lockout hysteresis, reset
+    reason, and recovery.
   - Output: `docs/hardware/power-baseline.md`, updated schema, reusable capture
     tooling, schema-valid summaries, and content-hashed raw traces under the
     ignored results directory.
@@ -178,3 +189,8 @@ or sleep mode safe from legacy source alone.
 companion feasibility plan may finish while the board is unavailable. Pending
 plans select a free number from the current target branch at ADR creation and
 repeat the collision check immediately before merge.
+
+**Amended 2026-08-07:** Step 7 now measures recovery and simultaneous load for
+the exact configured network transport. Wi-Fi is included only when explicitly
+selected and evidence-backed; wired Ethernet remains the prototype baseline,
+and no network hardware default was introduced.

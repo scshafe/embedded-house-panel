@@ -418,6 +418,10 @@ Buildroot currently omits timezone data. The feature must add a bounded tzdata
 selection or receive fully resolved local dates and offsets from the companion;
 it must never infer timezone from coordinates.
 
+`AGENDA-011` owns this still-pending choice. Roadmap Step 6 must name both the
+household-timezone configuration authority and the local-date projection owner
+in the reviewed post-ADR production plan. Neither alternative is selected here.
+
 ## Birthday-wish lifecycle
 
 ```mermaid
@@ -947,8 +951,11 @@ Production implementation is incomplete until evidence proves:
 
 These stable IDs are the review bundle for roadmap Step 1. `Proposed` means the
 recommendation is implementation-ready but is not an accepted product decision
-until the user confirms it. An evidence-gated choice remains deliberately open
-even after the user approves the decision to defer it.
+until the user confirms it. ~~An evidence-gated choice remains deliberately open
+even after the user approves the decision to defer it.~~ An evidence-gated
+`Proposed` choice remains deliberately open even after the user approves the
+decision to defer it. `Pending` means no alternative is selected and the named
+later review gate must make the choice before implementation.
 
 | ID | Proposed version 1 decision | Status | Consequence |
 |---|---|---|---|
@@ -962,6 +969,7 @@ even after the user approves the decision to defer it.
 | `AGENDA-008` | Require the signed, logged-in Mac companion to be reachable before recording begins | Proposed | Version 1 does not retain a panel draft waiting for a Mac |
 | `AGENDA-009` | A panel without measured playback is text-only; adding a speaker/playback path is deferred to hardware and product-platform evidence | Proposed policy with hardware decision deferred | Recording may still support local transcription without enabling audio submission |
 | `AGENDA-010` | Keep `DraftOnlyTransport` until the feasibility matrix selects a Messages adapter; keep the feasibility probe here and promote a successful production companion to a top-level `mac_companion/` domain in this repository | Proposed adapter deferment and repository boundary | Shared contracts and release sequencing stay discoverable; reconsider separation only if independent ownership or cadence emerges |
+| `AGENDA-011` | Choose exactly one reviewed timezone path: bounded panel-local IANA zone data or companion-resolved local dates and offsets; the household timezone is explicit configuration, never inferred from coordinates | Pending — deliberately deferred to roadmap Step 6 after feasibility evidence and its ADR | Roadmap Step 6 names the household-timezone configuration authority and local-date projection owner; Step 7 implements the reviewed choice; if panel-local data is selected, packaging belongs to roadmap Step 11's reviewed target-integration plan and Step 12 execution after evidence |
 
 ### Safety stop points included in this review
 
@@ -1038,3 +1046,10 @@ added the separate supervisor-observed touch-provenance flow for capture and
 dispatch, and made the media broker and personal-context client enforce it
 independently of `panel_ui` under proposed ADR 0005. `AGENDA-*` statuses are
 unchanged, roadmap Step 1 is not approved, and no hardware behavior is claimed.
+
+**Amended 2026-08-07:** added pending `AGENDA-011` to own the unresolved
+timezone-data path. Roadmap Step 6 must select and name configuration/projection
+authority, Step 7 implements the reviewed choice, and any panel-local packaging
+belongs to roadmap Step 11's reviewed target-integration plan and Step 12
+execution after evidence. Neither alternative was selected and no existing
+`AGENDA-*` status changed.

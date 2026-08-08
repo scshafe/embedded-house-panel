@@ -72,22 +72,35 @@ require_fixed_count() {
   fi
 }
 
-require_proposed_decision() {
+require_decision_status() {
   relative_path=$1
   decision_id=$2
-  require_fixed_count "$relative_path" "$decision_id" 1 \
-    VERIFY_DOCS.DECISION_ID_COUNT_INVALID
-  awk -v decision_id="$decision_id" '
-    index($0, "| `" decision_id "` |") == 1 && $0 ~ /\| Proposed[^|]*\|/ {
-      matching_rows += 1
+  required_status_prefix=$3
+  awk -F '|' -v decision_id="$decision_id" \
+    -v required_status_prefix="$required_status_prefix" '
+    function trim(value) {
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
     }
-    END { exit(matching_rows == 1 ? 0 : 1) }
+    trim($2) == "`" decision_id "`" {
+      decision_rows += 1
+      if (index(trim($4), required_status_prefix) == 1) {
+        matching_rows += 1
+      }
+    }
+    END { exit(decision_rows == 1 && matching_rows == 1 ? 0 : 1) }
   ' "$PROJECT_ROOT/$relative_path" || {
     bhp_fail VERIFY_DOCS.DECISION_STATUS_INVALID \
-      "$decision_id must occur once as a Proposed table row in $relative_path" \
+      "$decision_id must occur once as a $required_status_prefix table row in $relative_path" \
       "$TRACE_ID"
     exit 1
   }
+}
+
+require_proposed_decision() {
+  require_fixed_count "$1" "$2" 1 VERIFY_DOCS.DECISION_ID_COUNT_INVALID
+  require_decision_status "$1" "$2" Proposed
 }
 
 lexinet_control_pattern() {
@@ -201,6 +214,137 @@ require_fixed_count docs/architecture/application-capability-ownership.md \
   VERIFY_DOCS.OWNERSHIP_REVIEW_STATUS_INVALID
 require_fixed_count docs/architecture/application-capability-ownership.md \
   '## Registry' 1 VERIFY_DOCS.OWNERSHIP_REGISTRY_MISSING
+
+ownership_registry=docs/architecture/application-capability-ownership.md
+if ! ownership_registry_error=$(awk -F '|' \
+  -v target_plan_token="roadmap Step 11's reviewed target-integration plan" '
+  function trim(value) {
+    sub(/^[[:space:]]+/, "", value)
+    sub(/[[:space:]]+$/, "", value)
+    return value
+  }
+  function fail(message) {
+    if (failures == 0) {
+      print message
+    }
+    failures += 1
+  }
+  function require_status(capability, expected_status) {
+    if (row_count[capability] != 1 || row_status[capability] != expected_status) {
+      fail(capability " must occur once with status " expected_status)
+    }
+  }
+  function require_token(capability, required_text) {
+    if (row_count[capability] != 1 || index(row_text[capability], required_text) == 0) {
+      fail(capability " is missing row token " required_text)
+    }
+  }
+  BEGIN {
+    expected_header = "| Capability | Runtime authority / canonical location | First delivery authority | Implementation status | Extension rule |"
+    absent_status = "Not implemented — declared path absent"
+    supervisor = "Presence, solar, brightness, and suspend policy"
+    lifecycle = "Supervisor/UI lifecycle contract"
+    display = "Display, ~~touch,~~ application touch interpretation, LVGL lifetime, surface routing, and modal precedence"
+    touch = "Physical-touch observation and single-use provenance"
+    vocabulary = "Vocabulary presentation and study navigation"
+    http = "Process-wide HTTP initialization, cancellation primitives, and common transport budgets"
+    lexinet = "Vocabulary content, eligibility, session order, and durable learning state"
+    media = "Raw microphone capture and purpose-scoped media leases"
+    spoken = "Spoken-command vocabulary, pronunciation provenance, confusability analysis, active command sets, and backend recognizer projections"
+    recognition = "Recognition decision policy and its content identity"
+    personal_context = "Panel-to-Mac signing key and typed companion transport"
+    mac_companion = "Calendar, Contacts, local dictation, recipient provisioning, and Messages handoff"
+    civil_time = "Household civil-time projection for agenda and neutral clock display"
+  }
+  /^\| Capability \|/ {
+    header_count += 1
+    if ($0 != expected_header) {
+      fail("ownership registry header does not contain the exact status column")
+    }
+    in_registry = 1
+    next
+  }
+  in_registry && /^\|---/ { next }
+  in_registry && /^\|/ {
+    capability = trim($2)
+    row_count[capability] += 1
+    row_text[capability] = $0
+    row_status[capability] = trim($5)
+    registry_rows += 1
+    if (row_count[capability] != 1 || NF != 7 || row_status[capability] == "") {
+      fail("every capability must occur once with five nonempty table columns")
+    }
+    if (row_status[capability] == absent_status) {
+      absent_status_rows += 1
+    }
+    next
+  }
+  in_registry { in_registry = 0 }
+  END {
+    if (header_count != 1 || registry_rows == 0 || absent_status_rows != 6) {
+      fail("registry must have one status header and exactly six absent-path rows")
+    }
+    require_status(display, absent_status)
+    require_status(http, absent_status)
+    require_status(media, absent_status)
+    require_status(spoken, absent_status)
+    require_status(recognition, absent_status)
+    require_status(personal_context, absent_status)
+    require_token(display, "`panel_ui/`")
+    require_token(http, "`shared/http_runtime/`")
+    require_token(media, "`media_broker/`")
+    require_token(spoken, "`shared/spoken_command_catalog/`")
+    require_token(spoken, "`docs/interfaces/spoken-command-catalog.json`")
+    require_token(recognition, "`config/voice/recognition-policies/`")
+    require_token(recognition, "`docs/interfaces/schemas/recognition-policy.schema.json`")
+    require_token(recognition, "`media_broker/`")
+    require_token(personal_context, "`personal_context_client/`")
+    require_token(supervisor, "Lexinet plan Step 7a")
+    require_token(lifecycle, "Lexinet plan Step 7a")
+    require_token(display, "Lexinet plan Step 7a")
+    require_token(vocabulary, "Lexinet plan Step 6 and Step 7b")
+    require_token(lexinet, "Lexinet plan Step 1b, then Steps 2–5")
+    require_token(touch, "Roadmap Step 2 / Lexinet plan Step 7a")
+    require_token(touch, "roadmap Step 8 / Lexinet plan Step 9")
+    if (index(row_text[touch], "after ADR 0005 approval") != 0) {
+      fail("touch delivery still depends on already-accepted ADR 0005 approval")
+    }
+    require_token(media, "Roadmap Step 7")
+    require_token(media, "separately reviewed roadmap Step 6 agenda production plan")
+    require_token(personal_context, "Roadmap Step 7")
+    require_token(personal_context, "separately reviewed roadmap Step 6 agenda production plan")
+    require_token(mac_companion, "Personal-agenda feasibility plan selects adapters")
+    require_token(mac_companion, "Roadmap Step 7")
+    require_token(mac_companion, "separately reviewed roadmap Step 6 agenda production plan")
+    require_status(civil_time, "Pending — no canonical implementation path selected")
+    require_token(civil_time, "AGENDA-011 under roadmap Step 6")
+    require_token(civil_time, target_plan_token)
+    require_token(civil_time, "Step 12 execution")
+    require_token(civil_time, "timezone arithmetic stays out of `panel_supervisor`")
+    exit(failures == 0 ? 0 : 1)
+  }
+' "$PROJECT_ROOT/$ownership_registry"); then
+  bhp_fail VERIFY_DOCS.OWNERSHIP_REGISTRY_INVALID \
+    "$ownership_registry: $ownership_registry_error" "$TRACE_ID"
+  exit 1
+fi
+
+for absent_registry_path in \
+  panel_ui \
+  shared/http_runtime \
+  media_broker \
+  shared/spoken_command_catalog \
+  docs/interfaces/spoken-command-catalog.json \
+  config/voice/recognition-policies \
+  docs/interfaces/schemas/recognition-policy.schema.json \
+  personal_context_client; do
+  test ! -e "$PROJECT_ROOT/$absent_registry_path" || {
+    bhp_fail VERIFY_DOCS.OWNERSHIP_DECLARED_ABSENT_PATH_PRESENT \
+      "$absent_registry_path exists but the ownership registry declares its path absent" \
+      "$TRACE_ID"
+    exit 1
+  }
+done
 
 for decision_id in \
   LEXI-001 LEXI-002 LEXI-003 LEXI-004 LEXI-005 LEXI-006 LEXI-007; do
@@ -385,6 +529,8 @@ for decision_id in \
   require_proposed_decision \
     docs/architecture/personal-agenda-and-birthday-wishes.md "$decision_id"
 done
+require_decision_status \
+  docs/architecture/personal-agenda-and-birthday-wishes.md AGENDA-011 Pending
 require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
   '## Version 1 product decisions pending human review' 1 \
   VERIFY_DOCS.AGENDA_DECISION_REVIEW_MISSING

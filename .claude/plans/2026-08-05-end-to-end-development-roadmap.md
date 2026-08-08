@@ -137,6 +137,7 @@ injection, packaging, or build automation.
 | Voice intent lifecycle | Yes, with fakes/corpus harness | Stable intent and media-lease contracts | Actual microphone, room, engine, latency, power |
 | Optional gesture intent/harness | Yes, after gesture and privacy scope is defined | Consented fixtures and a camera-neutral intent contract | Actual camera, room, model, false actions, latency, power |
 | Buildroot packages and image build | Yes | Supported Linux x86_64 host for full image | Boot, drivers, cape compatibility, runtime budget |
+| Target network transport and image provisioning (`system_image/` owner) | Generic, credential-free image hooks and dry-run provisioning only | Step 11 binds the exact measured prototype path; Step 14 selects the final transport and radio | Link/radio, driver/firmware, antenna where applicable, DHCP/DNS/time, Tailnet recovery, suspend/resume, power, and recovery evidence for every enabled path |
 | Deployment and recovery automation | Yes, dry-run/fake target | Explicit configuration | Actual boot/install/rollback rehearsal |
 | PIR, suspend/wake, display, battery | No | Named physical assembly and instruments | Entire work item |
 | Enclosure CAD | Preparation only | Measured stack, connectors, airflow, controls | Fit, thermal, radio, assembly, and print trials |
@@ -163,8 +164,12 @@ behavior.
     decision, and the ten personal-agenda/safety decisions in their architecture
     documents.~~ Execute Lexinet Step 1a at this gate for the seven Lexinet
     semantics and shared spoken-command-catalog decision. At the same gate,
-    review the ten personal-agenda/safety decisions in their architecture
-    document. Record each as accepted, changed, or deliberately deferred,
+    ~~review the ten personal-agenda/safety decisions in their architecture
+    document.~~ Review the eleven personal-agenda/safety decisions in their
+    architecture document. Keep `AGENDA-011` pending and deliberately deferred
+    to Step 6 after feasibility evidence and ADR review; counting it here does
+    not approve either household civil-time contract. Record each other
+    decision as accepted, changed, or deliberately deferred,
     including the proposed `finish recording` replacement for the confusable
     requested stop phrase.
   - Resolve the Lexinet checkout path in configuration; never hard-code an
@@ -234,19 +239,32 @@ behavior.
     production-isolated shadow runner for a later pinned FSRS experiment,
     server-authoritative cycle terminalization and idempotent successor linking,
     API/CLI, least-privilege HTTPS Tailnet access, and the cancellable panel
-    client with a bounded correction-capable outbox.
-  - Move process-wide HTTP initialization into one shared runtime before adding
-    another network client. Keep vocabulary cache/outbox persistence semantics
+    client with a bounded correction-capable outbox. Inside Step 6, explicitly
+    execute its named **Shared HTTP runtime** sub-step before constructing any
+    HTTP handle or cancellable network worker.
+  - ~~Move process-wide HTTP initialization into one shared runtime before adding
+    another network client.~~ Use the Shared HTTP runtime sub-step to create the
+    sole process-wide HTTP lifetime owner, inject it into the vocabulary client,
+    and share cancellation and validated transport budgets. Keep vocabulary
+    contract, authorization, cache/outbox, retry, and delivery semantics
     domain-specific; do not make a generic store that erases delivery rules.
   - Use deterministic seed/clock inputs, a disposable database, Lexinet-owned
     golden examples, a local fake HTTP server, fault-injected filesystem
     commits, and explicit cancellation barriers.
   - Render cached data before network recovery, expose honest degraded states,
     and never evict an unacknowledged study event.
-  - Output: use the outputs in ~~Lexinet Steps 1–6~~ Lexinet Step 1b and Steps
-    2–6.
-  - Verify: every exact verification clause in ~~Lexinet Steps 1–6~~ Lexinet
-    Step 1b and Steps 2–6 passes. The join gate additionally requires the live
+  - Output: ~~use the outputs in Lexinet Steps 1–6.~~ ~~Use the outputs in
+    Lexinet Step 1b and Steps 2–6.~~ Use every
+    output in Lexinet Step 1b and Steps 2–6, including the Shared HTTP runtime
+    sub-step's tracked `shared/http_runtime/` implementation, lifecycle/
+    cancellation tests, validated-budget contract, and injected vocabulary
+    adapter.
+  - Verify: ~~every exact verification clause in Lexinet Steps 1–6 passes.~~
+    ~~Every exact verification clause in Lexinet Step 1b and Steps 2–6 passes.~~
+    Every exact verification clause in Lexinet Step 1b and Steps 2–6
+    passes, including the Shared HTTP runtime sub-step's intended host command,
+    lifecycle/adapter tests, and tracked-source `curl_global_*` ownership
+    assertion. The join gate additionally requires the live
     cross-repository contract test to accept an explicit Lexinet source path
     and `make verify` to pass in this repository.
 
@@ -315,11 +333,26 @@ behavior.
   - Require the plan to extend the existing neutral shell, HTTP runtime, media
     broker, intent namespace, and Buildroot ownership instead of creating
     competing capabilities.
-  - Output: a separate production plan, or an explicit read-only/draft-only
-    direction if the ADR rejects a transport.
-  - Verify: human review confirms that the plan follows the ADR, retains the
+  - Resolve the still-pending `AGENDA-011` in this separately reviewed plan,
+    after the feasibility evidence and ADR review: choose exactly one household
+    civil-time contract, either bounded panel-local IANA zone data or
+    companion-resolved local dates and offsets. Keep the household timezone
+    explicit and never infer it from coordinates. Step 7 implements only the
+    reviewed choice. If panel-local evaluation is selected, specify its exact
+    bounded data/version contract here, but leave target-image packaging to the
+    reviewed Step 11 plan and Step 12 execution after physical/image evidence.
+  - Output: ~~a separate production plan, or an explicit read-only/draft-only
+    direction if the ADR rejects a transport.~~ A separate production plan that
+    records exactly one `AGENDA-011` choice, or an explicit read-only/draft-only
+    direction if the ADR rejects a transport; a panel-local choice names its
+    bounded zone-data contract without prematurely packaging it.
+  - Verify: ~~human review confirms that the plan follows the ADR, retains the
     touch-confirmation/no-retry/privacy boundaries, and has a `Verify:` line for
-    every atomic step. Stop here; do not combine approval with implementation.
+    every atomic step.~~ Human review confirms that the plan follows the ADR,
+    resolves `AGENDA-011` to exactly one reviewed civil-time contract, retains
+    the touch-confirmation/no-retry/privacy boundaries, and has a `Verify:` line
+    for every atomic step. Stop here; do not combine approval with
+    implementation.
 
 - [ ] **Step 7: Implement the reviewed agenda production slice on the host**
   - Execute only the reviewed follow-up plan from Step 6.
@@ -424,30 +457,60 @@ behavior.
 - [ ] **Step 11: Write and review the target-integration plan**
   - After both the host-readiness checkpoint and hardware-baseline ADR exist,
     create a target-integration plan rather than guessing node names in advance.
-  - Translate the measured display, touch, backlight, PIR, suspend, network,
+  - ~~Translate the measured display, touch, backlight, PIR, suspend, network,
     storage, and power facts into explicit configuration, rollback steps,
-    observation points, reliability populations, and verification commands.
+    observation points, reliability populations, and verification commands.~~
+    Translate the measured display, touch, backlight, PIR, suspend, storage, and
+    power facts into explicit configuration, rollback steps, observation
+    points, reliability populations, and verification commands. Bind each
+    prototype network transport the plan enables to its exact measured
+    interface/radio, driver/firmware, provisioning, base-network recovery, and
+    Tailnet path. Assign its credential-free image support and per-device
+    provisioning boundary to `system_image/`. This amendment selects neither
+    wired nor wireless: the reviewed target plan may select only its
+    evidence-backed prototype path and must not promote that path to the final
+    product choice; Step 14 owns final transport/radio selection.
+  - If the reviewed Step 6 plan selects panel-local IANA evaluation under
+    `AGENDA-011`, include the exact bounded zone set, version, image location,
+    update/rollback rule, and civil-time tests in this target plan. If it selects
+    companion-resolved dates and offsets, add no panel tzdata by implication.
   - Preserve the host artifact hashes and hardware evidence cell in every target
     result so software and physical observations cannot be mixed across builds.
-  - Output: a separate target-integration plan with atomic deploy, rollback,
-    functional, fault, optical, network, and soak steps.
-  - Verify: human review confirms that every hardware value is evidence-backed,
-    the recovery path is usable, and each step has a `Verify:` line. Stop here;
-    do not combine approval with target mutation or execution.
+  - Output: ~~a separate target-integration plan with atomic deploy, rollback,
+    functional, fault, optical, network, and soak steps.~~ A separate
+    target-integration plan with atomic deploy, rollback, functional, fault,
+    optical, exact-network-path, conditional zone-data, and soak steps.
+  - Verify: ~~human review confirms that every hardware value is evidence-backed,
+    the recovery path is usable, and each step has a `Verify:` line.~~ Human
+    review confirms that every hardware value is evidence-backed, every enabled
+    prototype network path has named physical evidence and a credential-safe
+    `system_image/` provisioning path, the recovery path is usable, the
+    `AGENDA-011` packaging branch matches Step 6, and each step has a `Verify:`
+    line. Stop here; do not combine approval with target mutation or execution.
 
 - [ ] **Step 12: Integrate and qualify the complete appliance on target**
   - Execute only the reviewed target-integration plan from Step 11 and configure
-    only its measured display, touch, backlight, PIR, suspend, and network paths.
+    only its measured display, touch, backlight, PIR, suspend, and ~~network
+    paths~~ exact named network-transport and Tailnet paths.
   - Prove the chain from physical PIR stimulus through attributed wake,
     recomputed presence/time/solar truth, correct frame commit, optical output,
-    asynchronous Wi-Fi/Tailnet recovery, and Lexinet/companion availability.
+    ~~asynchronous Wi-Fi/Tailnet recovery~~ asynchronous recovery of the exact
+    Step 11-configured network transport and Tailnet, and Lexinet/companion
+    availability.
+  - Execute the Step 11 zone-data branch exactly: when `AGENDA-011` selected
+    panel-local evaluation, package and test only the reviewed bounded IANA data;
+    when it selected companion-resolved dates and offsets, prove the panel image
+    does not acquire an undeclared tzdata dependency.
   - Verify no stale or bright frame appears on boot, mode change, crash,
     suspend, or resume. Local cached/night output must not wait for the network.
   - Exercise the full day/night/presence state table, clock correction,
     Tailnet loss/recovery, server/Mac unavailability, corrupt local state,
     abrupt restart, and safe service degradation.
-  - Verify: the on-target plan passes its optical, input, lifecycle, network,
-    and reliability matrix on the exact named assembly and software image;
+  - Verify: ~~the on-target plan passes its optical, input, lifecycle, network,
+    and reliability matrix on the exact named assembly and software image;~~ the
+    on-target plan passes its optical, input, lifecycle, civil-time, network, and
+    reliability matrix on the exact named assembly and software image, with
+    physical/recovery evidence for every enabled network path;
     every observation shares a correlation ID from stimulus through visible
     frame and power trace.
 
@@ -493,11 +556,19 @@ behavior.
     peripherals, and battery-chain measurements.
   - Measure both `board_input` and `product_battery` boundaries, including
     converter/charger loss, low-state-of-charge sag, simultaneous
-    display/Wi-Fi/media load, shutdown reserve, boot lockout, handover, and
-    recovery. Never compare unnamed boundaries.
-  - Freeze the final board, always-on controller if any, radios, storage,
+    ~~display/Wi-Fi/media load~~ display and media load over the exact candidate
+    network transport (including Wi-Fi only for a candidate that selects it),
+    shutdown reserve, boot lockout, handover, and recovery. Never compare
+    unnamed boundaries.
+  - ~~Freeze the final board, always-on controller if any, radios, storage,
     microphone, speaker/playback path, power source, charger, and update/recovery
-    design in an ADR.
+    design in an ADR.~~ Freeze the final board, always-on controller if any,
+    selected network transport and radio/antenna path or paths, storage,
+    microphone, speaker/playback path, power source, charger, and update/recovery
+    design in an ADR. Require physical driver/firmware, link/radio/antenna,
+    reconnect, suspend/resume, power, and recovery evidence for every network
+    path the final image enables; prototype evidence does not transfer to a
+    different transport, radio, antenna, board, or image.
   - Verify: the selected product configuration passes the common bake-off and
     reliability gates in the compute-platform assessment; runtime calculations
     reproduce from content-hashed traces and include transition energy.
@@ -644,3 +715,14 @@ or product-decision status changed, and no hardware behavior is claimed.
 **Amended 2026-08-07:** replaced partial Lexinet-step invocations with exact
 Steps 1a, 1b, 7a, and 7b and added the gate-to-roadmap-step correspondence.
 No roadmap checkbox changed; Step 1 remains pending.
+
+**Amended 2026-08-07:** assigned target network transport and credential-free
+image provisioning to `system_image/`, made Step 11 bind exact measured
+prototype paths, replaced Step 12's Wi-Fi-specific recovery claim with the
+configured transport plus Tailnet, and left final transport/radio selection to
+Step 14 with physical evidence required per enabled path. Step 1 now counts the
+still-pending `AGENDA-011`; Step 6 resolves it after feasibility review, while
+conditional panel-local zone-data packaging remains a Step 11 plan/Step 12
+execution concern. Roadmap Step 3 now explicitly consumes and verifies Lexinet
+Step 6's Shared HTTP runtime sub-step. No checkbox, product-decision status, or
+hardware claim changed.

@@ -341,6 +341,49 @@ as the production default.
     refusal, credential-file handling for the fallback path, size limits, trace
     IDs, and typed failures. Move every request to a cancellable worker so
     rendering and input threads never block on Wi-Fi or Tailnet recovery.
+  - **Shared HTTP runtime sub-step**
+    - Create `shared/http_runtime/` as the canonical panel-wide HTTP lifetime,
+      cancellation, and common-transport-budget capability. It is the sole owner
+      of `curl_global_init` and `curl_global_cleanup`; no feature client, adapter,
+      test fixture, or executable may call either function directly.
+    - Construct and successfully initialize the runtime at the process
+      composition root before any client, worker, or easy handle exists. On
+      shutdown, reject new work, propagate the shared cancellation signal, join
+      every registered HTTP worker, destroy all handles, and only then perform
+      global cleanup. Initialization failure and invalid/repeated shutdown return
+      explicit structured outcomes rather than leaving a partially live runtime.
+    - Define shared cancellation primitives and one validated transport-budget
+      contract for connect deadline, whole-request deadline, and response-byte
+      ceiling. Reject zero, negative, overflowed, or internally inconsistent
+      values before work starts; do not hide a caller timeout behind an unrelated
+      default.
+    - Inject the live runtime and validated budgets into `HttpLexinetClient` and
+      its worker instead of constructing global libcurl state inside the
+      vocabulary feature. Vocabulary-owned `study.v1` models, authorization and
+      credential policy, request/response validation, retry classification,
+      cache/outbox rules, and delivery/degraded semantics remain in
+      `vocabulary_panel/`; the shared runtime must not become a generic study
+      client or persistence layer.
+    - Output (shared HTTP runtime): `shared/http_runtime/` README, CMake target,
+      public lifetime/cancellation/budget interfaces, libcurl implementation,
+      focused runtime tests, and the injected vocabulary adapter/worker seam.
+    - Verify (shared HTTP runtime): after review-amendments Step 12 adds the
+      `host-dev` reachability path, run `cmake --preset host-dev`,
+      `cmake --build --preset host-dev`,
+      `ctest --preset host-dev --output-on-failure -R
+      'http_runtime|http_lexinet_client'`, and
+      `scripts/verification/verify_host_cpp.sh vocabulary_panel`. Named tests
+      prove init-before-handle ordering, one process lifetime across multiple
+      injected clients, validated-budget rejection, cancellation unblocking,
+      worker join and handle destruction before cleanup, fail-closed shutdown,
+      TLS verification, redirect refusal, and response-size limits. A
+      tracked-source assertion using `git grep -n -E
+      'curl_global_(init|cleanup)[[:space:]]*[(]' -- '*.c' '*.cc' '*.cpp'
+      '*.cxx' '*.h' '*.hpp'` must report both calls only below
+      `shared/http_runtime/`. The
+      current `host-debug` preset and `verify_host_cpp.sh` do not compile the HTTP
+      adapter/runtime, so they are not evidence for this sub-step until that
+      Step 12 verification work lands.
   - Add a bounded, versioned, owner-only card/session cache and idempotent event
     outbox with crash-consistent atomic commits. An event payload, sequence, and
     UUID plus the persisted random `client_stream_id` become durable together
@@ -394,8 +437,13 @@ as the production default.
     cross-repository live contract test that accepts an explicit Lexinet source
     path rather than assuming either local checkout path.
   - Output (panel): study client models/adapter, cache/outbox, cancellable worker,
-    configuration, fixtures with provenance, and failure/recovery tests.
-  - Verify: `scripts/verification/verify_host_cpp.sh vocabulary_panel`; tests
+    configuration, fixtures with provenance, and failure/recovery tests. The
+    Shared HTTP runtime sub-step retains its own output boundary above.
+  - Verify: ~~`scripts/verification/verify_host_cpp.sh vocabulary_panel`;~~ the
+    Shared HTTP runtime sub-step's intended `host-dev`/tracked-source checks pass,
+    and the Step 12-expanded
+    `scripts/verification/verify_host_cpp.sh vocabulary_panel` runs the adapter,
+    runtime, and vocabulary tests; tests
     cover truncation, malformed UTF-8/JSON, unknown version, timeout,
     cancellation, TLS failure, disk full, atomic-write interruption at every
     boundary, corrupted cache, duplicate acknowledgement, idempotency conflict,
@@ -778,3 +826,12 @@ no checkbox or decision status changed.
 **Amended 2026-08-07:** split Steps 1 and 7 into independently verifiable
 review/authoring and spine/vocabulary boundaries. All four replacement steps
 remain pending; no product-decision status or hardware claim changed.
+
+**Amended 2026-08-07:** added the named Shared HTTP runtime sub-step to Step 6.
+It makes tracked `shared/http_runtime/` the sole process-wide libcurl lifetime
+owner, orders cleanup after cancellation and worker join, shares validated
+transport budgets, and injects the runtime without moving study semantics out
+of `vocabulary_panel/`. Its intended host tests and tracked-source assertion are
+explicitly gated on the review-amendments Step 12 work that makes the currently
+omitted HTTP adapter/runtime reachable. No checkbox or product-decision status
+changed.
