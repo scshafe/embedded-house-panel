@@ -83,7 +83,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Fix the incidental drift found alongside: `docs/research/gui-strategies.md:62` states Linux 6.18.38 where the defconfig pins 6.18.21; `README.md:125-134` omits `shared/` and `config/` from the repository map; the Lexinet plan says HTTP where the code enforces HTTPS.
   - Verify: `make verify-docs` and `make verify` pass; a search for the grace-period behavior returns one authoritative statement.
 
-- [ ] **Step 10: Split the two subordinate plan steps the roadmap executes in halves**
+- [x] **Step 10: Split the two subordinate plan steps the roadmap executes in halves**
   - Roadmap Step 2 executes "the platform-spine portion of Lexinet Step 7" (`.claude/plans/2026-08-05-end-to-end-development-roadmap.md:182`) and Step 4 executes the rest (`:233`), but Lexinet Step 7 is a single checkbox with a single Verify block (`.claude/plans/2026-08-05-lexinet-study-integration.md:400`, `:451-462`). After roadmap Step 2 lands, the shell and protocol will exist while that checkbox still reads unchecked with them as outputs — inviting a later session to rebuild them as peers.
   - Split Lexinet Step 7 into 7a (spine: shell, protocol v2, intent envelope, packaging) and 7b (vocabulary surface), and Step 1 into 1a (review) and 1b (contract authoring), each with its own Verify clause. Update the roadmap to invoke the sub-steps by name.
   - Add a gate-to-step mapping table to the roadmap; the dependency map uses `S0`–`S4`/`H0`–`H7` (`:82-112`, `:477-492`) while the body uses `Step 0`–`15` with no correspondence stated.

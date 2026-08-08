@@ -84,14 +84,28 @@ as the production default.
 
 ## Steps
 
-- [ ] **Step 1: Freeze product semantics and the cross-repository contract**
+- [ ] ~~**Step 1: Freeze product semantics and the cross-repository contract**~~
+  - ~~One completion boundary coupled human review to cross-repository contract
+    authoring.~~ Superseded by Steps 1a and 1b; every requirement is
+    redistributed below.
+
+- [ ] **Step 1a: Review product semantics and the shared command-catalog decision**
   - Obtain human review of the seven Lexinet decisions in the architecture
     document: two-sided `flip`, unrated `next`, face-preserving `back`,
     topic-union corpus, one initial profile with touch/voice ratings,
     append-only learning evidence with rebuildable projections, and
     `variety_first_v1` plus an authority-isolated shadow runner for a later
-    pinned FSRS experiment. Review the shared
-    spoken-command catalog decision at the same gate.
+    pinned FSRS experiment.
+  - Review the shared spoken-command catalog decision at the same gate.
+  - Record every decision as accepted, changed, or deliberately deferred.
+    Silence or a blank remains pending and does not authorize Step 1b.
+  - Output: reviewed dispositions for the seven Lexinet decisions and the
+    shared spoken-command-catalog decision.
+  - Verify: human review confirms every decision has an explicit disposition
+    and that no blank or deferred decision was treated as approval.
+
+- [ ] **Step 1b: Author the cross-repository study contract**
+  - Requires Step 1a.
   - In Lexinet, add a decision note and a canonical machine-readable
     `study.v1` contract for session create/resume/sync, complete card
     projections, `rated` and `rating_voided` events, scheduler provenance,
@@ -113,9 +127,9 @@ as the production default.
     golden success/error examples, and contract validation test.
   - Output (panel): revised `docs/interfaces/lexinet-contract.md` and generated
     or provenance-stamped contract fixtures; no manually divergent authority.
-  - Verify: human review of product semantics; Lexinet's contract validator
-    rejects an invalid example; a panel test identifies the exact pinned
-    `study.v1` protocol/version and rejects unknown required semantics.
+  - Verify: Lexinet's contract validator rejects an invalid example; a panel
+    test identifies the exact pinned `study.v1` protocol/version and rejects
+    unknown required semantics.
 
 - [ ] **Step 2: Add the Lexinet study persistence model and merge rules**
   - Add paired `0007_study.up.sql`/`.down.sql` migrations following existing
@@ -400,15 +414,68 @@ as the production default.
     contract test passes against the Lexinet disposable server.
 
 - [ ] ~~**Step 7: Refactor the panel into one production interaction controller**~~
-- [ ] **Step 7: Add vocabulary interaction to the neutral production panel shell**
+- [ ] ~~**Step 7: Add vocabulary interaction to the neutral production panel shell**~~
+  - ~~One completion boundary coupled the platform spine to the vocabulary
+    surface.~~ Superseded by Steps 7a and 7b; every requirement is
+    redistributed below.
+
+- [ ] **Step 7a: Establish the neutral production panel spine**
+  - Requires roadmap Step 1 and Lexinet Step 1a. It may run in parallel with
+    Lexinet Steps 1b–6.
   - Establish `panel_ui` as the unprivileged sole owner of LVGL, display,
     application hit testing, and touch routing. Add ADR 0005's supervisor-owned
     raw-touch observation/provenance ports and normalized non-blocking event
     stream; the UI cannot open the raw device, author provenance, redeem an
-    observation, or send a feature request on that stream. Version the
-    supervisor protocol so its daytime value is lifecycle-neutral
-    (`day_active`), preserve the one-client render-ready handshake, and keep
-    feature routing entirely outside the supervisor.
+    observation, or send a feature request on that stream.
+  - Version the supervisor protocol so its daytime value is lifecycle-neutral
+    (`day_active`), preserve the one-client sequence-bound
+    dark-frame/render-ready handshake, and keep feature routing entirely
+    outside the supervisor.
+  - ~~Add one versioned `InteractionIntent` model and one controller method used
+    by touch, host fixtures, and voice.~~ Add one versioned, namespaced
+    panel-wide intent envelope used by touch, host fixtures, and voice. Carry
+    one closed top-level semantic `intent_id` with no version 1 domain payload.
+    Register `study.flip`, `study.next`, `study.back`, `study.rate.*`,
+    touch-only `study.rating.undo`, and the reserved touch-only
+    `agenda.start_wish_recording` and `agenda.submit_wish` IDs with their
+    respective `capture_start` and `external_submission` effect classes and no
+    spoken forms; this step does not enable the agenda effects.
+  - Require voice evidence to carry a catalog `spoken_form_id` belonging to the
+    bound active set and mapping exactly to `intent_id`; touch emits the same ID
+    directly. Validate source instance, monotonic sequence, render generation,
+    active surface, lifecycle mode, and transition state. Do not queue input
+    across loading, commit, suspend, or resume.
+  - Assign one local ingress order. The first valid intent wins a configurable
+    measured conflict window; classify a matching second intent as duplicate and
+    a differing one as conflict rather than applying or queuing it. Give every
+    accepted intent visible acknowledgement and every rejection a typed,
+    content-free diagnostic reason.
+  - ~~Wire the controller directly to the supervisor mode socket and make the
+    vocabulary renderer the production UI.~~ Wire the neutral `panel_ui` shell
+    to the supervisor socket. Add its pure controller, headless renderer,
+    sibling-surface contracts, and neutral production executable. Replace
+    printable-ASCII assumptions with one shell-owned bounded Unicode/font
+    policy supporting future contact and calendar text, and add the
+    `bhp-panel-ui` Buildroot entry point.
+  - ~~Output (panel): a vocabulary-owned production executable and
+    vocabulary-specific Buildroot entry point.~~ Output: canonical panel intent
+    envelope and registry, neutral shell and pure controller, headless renderer,
+    supervisor handshake extension, supervisor touch-observation/provenance
+    seams, neutral production executable, `bhp-panel-ui` Buildroot entry point,
+    and deterministic shell/protocol/race tests.
+  - Verify: host shell tests reject invalid intent/source/form mappings,
+    nonmonotonic sequences, stale generations, and invalid lifecycle/surface
+    states; duplicate/coalescing and conflict ordering are deterministic;
+    loading, commit, suspend, and resume mode transitions reject or cancel
+    affected input rather than queuing it;
+    supervisor tests prove a crashed, unready, or slow touch consumer cannot
+    hold power policy hostage, no bright frame precedes render-ready, and
+    disconnect or restart invalidates pending touch observations; packaging
+    exposes one neutral UI entry point.
+
+- [ ] **Step 7b: Add the vocabulary surface to the neutral panel shell**
+  - Requires Lexinet Steps 6 and 7a. Consume their shell, envelope, worker,
+    cache, and outbox; do not create peer capabilities.
   - Make a two-sided card and bounded browser-style history canonical in
     `FlashCardSession`: new cards open on front, `flip` toggles, `next` follows
     forward history or consumes prefetch, and `back` restores the prior face.
@@ -416,60 +483,28 @@ as the production default.
     event-delivery state instead of extending the current fused
     `FlashCardStage`; one reducer enforces their combined invariants and emits
     the render snapshot.
-  - ~~Add one versioned `InteractionIntent` model and one controller method used
-    by touch, host fixtures, and voice.~~ Add one versioned, namespaced
-    panel-wide intent envelope used by touch, host fixtures, and voice, then
-    route `study.flip`, `study.next`, `study.back`, `study.rate.*`, and
+  - Route `study.flip`, `study.next`, `study.back`, `study.rate.*`, and
     touch-only `study.rating.undo` through one vocabulary controller method.
-    Accept a rating only while the back is
-    revealed, durably enqueue it before advancing, and expose a one-tap touch
-    Undo that durably appends `rating_voided` for the exact rating UUID. Validate
-    source instance, monotonic sequence, render generation, active surface,
-    lifecycle mode, and transition state; do not queue input across loading,
-    commit, suspend, or resume. Carry one closed top-level semantic `intent_id`
-    (`study.flip`, `study.next`, `study.back`, `study.rate.*`, or touch-only
-    `study.rating.undo`) with no version 1 domain payload. Reserve touch-only
-    `agenda.start_wish_recording` and `agenda.submit_wish` in the panel intent
-    registry with no spoken forms and effect classes `capture_start` and
-    `external_submission`; this plan does not enable either. Voice evidence must
-    include a catalog `spoken_form_id` that belongs to the bound active set and
-    maps exactly to that `intent_id`; touch emits the same ID directly. Undo
-    carries no caller-supplied target, resolves the UUID exclusively from the
-    current durable lease, and is forbidden for voice.
-  - Assign one local ingress order. The first valid intent wins a configurable
-    measured conflict window; classify a matching second intent as duplicate and
-    a differing one as conflict rather than applying or queuing it. Give every
-    accepted intent visible acknowledgement and every rejection a typed,
-    content-free diagnostic reason.
-  - ~~Wire the controller directly to the supervisor mode socket and make the
-    vocabulary renderer the production UI.~~ Wire the `panel_ui` shell to the
-    supervisor socket and make the vocabulary controller a subordinate surface
-    connected to its cancellable study worker, cache/outbox, and LVGL surface
-    renderer. Add touch targets for flip/next/back, Again/Hard/Good/Easy, and
-    rating Undo; replace printable-ASCII assumptions with one shell-owned
-    bounded Unicode/font policy that also supports future contact and calendar
-    text.
-  - Implement the sequence-bound dark-frame/render-ready acknowledgement needed
-    before the supervisor raises nonzero brightness without granting the UI
-    power authority.
-  - ~~Output (panel): a vocabulary-owned production executable and
-    vocabulary-specific Buildroot entry point.~~ Output: canonical panel intent
-    envelope and shell, vocabulary intent/session/controller types, subordinate
-    LVGL touch flow, neutral production executable, supervisor handshake
-    extension, supervisor touch-observation/provenance seams, `bhp-panel-ui`
-    Buildroot entry point, and deterministic shell/controller/race tests.
+    Accept a rating only while the back is revealed, durably enqueue it before
+    advancing, and expose a one-tap touch Undo that durably appends
+    `rating_voided` for the exact current durable rating UUID. Undo carries no
+    caller-supplied target, resolves the UUID exclusively from the current
+    durable lease, and is forbidden for voice.
+  - Connect the vocabulary controller to the shell's cancellable study worker,
+    cache/outbox, and subordinate LVGL surface. Add touch targets for
+    flip/next/back, Again/Hard/Good/Easy, and rating Undo; render through the
+    shell-owned Unicode/font policy.
+  - Output: vocabulary intent/session/controller types, reducer and render
+    snapshot, subordinate LVGL vocabulary surface and touch flow, and
+    deterministic vocabulary/controller/outbox tests.
   - Verify: host tests prove touch semantics, face/history restoration, boundary
     no-ops, forward-history reuse, prefetch depletion, no implicit rating,
-    rating rejection on the front, invalid intent/source/form mappings,
-    durable-before-advance, touch-only lease-resolved Undo with no arbitrary
-    target that leaves the successor visible, final-card completion/refill state
-    with Undo, one effective rating per session item with replacement only after
-    void, outbox correction reservation and terminal-rejection release,
-    generation rejection, coalescing,
-    cancellation, and mode transitions;
-    supervisor tests prove a crashed/unready/slow touch consumer cannot hold
-    power policy hostage, no bright frame precedes render-ready, and disconnect
-    or restart invalidates pending touch observations.
+    rating rejection on the front, durable-before-advance, touch-only
+    lease-resolved Undo with no arbitrary target that leaves the successor
+    visible, final-card completion/refill state with Undo, one effective rating
+    per session item with replacement only after void, outbox correction
+    reservation and terminal-rejection release, and study-worker cancellation
+    on shell-directed surface or lifecycle closure.
 
 - [ ] **Step 8: Add the privacy-bounded voice intent work stream on the host**
   - ~~Define a vocabulary-only media broker whose entire protocol assumes that
@@ -699,23 +734,26 @@ as the production default.
 
 **Amended 2026-08-05:** the personal-agenda proposal exposed that the planned
 vocabulary executable, global intent enum, media broker, Buildroot package, and
-service ownership would become competing appliance authorities. Steps 7–9 now
-converge on one neutral `panel_ui`, namespaced feature intents, one
+service ownership would become competing appliance authorities. ~~Steps 7–9~~
+Steps 7a–9 now converge on one neutral `panel_ui`, namespaced feature intents, one
 purpose-scoped media broker, and role-specific IPC/state ownership. Lexinet
-Steps 1–6 remain otherwise independent.
+~~Steps 1–6 remain otherwise independent.~~ Step 1a is the review gate; Steps
+1b–6 remain otherwise independent.
 
-**Amended 2026-08-05:** the end-to-end roadmap permits the neutral shell and
+**Amended 2026-08-05:** ~~the end-to-end roadmap permits the neutral shell and
 protocol-v2 foundation inside Step 7 to begin after Step 1, in parallel with
 Lexinet server/data work. Step 7 is not checked complete until Step 6 is
 integrated and the vocabulary surface, intent routing, LVGL ownership, and
-render-readiness tests all pass.
+render-readiness tests all pass.~~ The independently verifiable Step 7a may
+begin after roadmap Step 1 and Lexinet Step 1a, in parallel with Steps 1b–6;
+Step 7b requires both Step 7a and Step 6.
 
 **Amended 2026-08-06:** the user asked for Again/Hard/Good/Easy through both
 touch and voice, a modular rating-aware next-card algorithm, durable evidence
 for later scheduler changes, and tooling that keeps a growing multi-application
 voice vocabulary distinguishable. Step 3 now replaces the rating-inert shuffle
-with `variety_first_v1` behind a versioned scheduler seam; Steps 2, 4, 6, and 7
-make ratings and corrections replayable; Steps 8–10 add one phoneme-provenance
+with `variety_first_v1` behind a versioned scheduler seam; Steps 2, 4, 6, and
+~~7~~ 7b make ratings and corrections replayable; Steps 8–10 add one phoneme-provenance
 catalog, canonical active command sets, content-addressed backend projections,
 deterministic command-confusability analysis, candidate advice, and later
 on-device directional confusion evidence. Independent review further fixed the
@@ -724,8 +762,8 @@ reservation lifecycle, intent-field invariants, shadow-runner scope, hard voice
 effect admission, artifact identity chain, reproducible metric formulas, and
 held-out statistical qualification protocol.
 
-**Amended 2026-08-07:** reconciled Steps 7–9 and the done criteria with proposed
-ADR 0005. The supervisor becomes the raw touch observer, the UI retains
+**Amended 2026-08-07:** reconciled ~~Steps 7–9~~ Steps 7a–9 and the done
+criteria with proposed ADR 0005. The supervisor becomes the raw touch observer, the UI retains
 application routing, touch-only start/submit intents receive stable IDs, the
 two-phase call-graph gate derives effects before voice projection admission,
 the broker lease start is one-shot, and packaging revokes raw UI touch access
@@ -736,3 +774,7 @@ no hardware behavior is claimed.
 HTTPS, matching the client's fail-closed URL validation. The intentionally
 loopback fake HTTP test server and existing code symbol names remain unchanged;
 no checkbox or decision status changed.
+
+**Amended 2026-08-07:** split Steps 1 and 7 into independently verifiable
+review/authoring and spine/vocabulary boundaries. All four replacement steps
+remain pending; no product-decision status or hardware claim changed.

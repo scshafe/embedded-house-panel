@@ -86,7 +86,7 @@ authorization; enabling real-recipient messaging during a software build.
 
 ```mermaid
 flowchart TD
-    DONE["Completed scaffold + documented Tailnet path"] --> CONTRACTS["S0: review product decisions + freeze shared contracts"]
+    DONE["Completed scaffold + documented Tailnet path"] --> CONTRACTS["S0: review decisions + freeze ownership/migration choices"]
 
     CONTRACTS --> SPINE["S1: neutral panel shell + lifecycle protocol v2"]
     CONTRACTS --> LEX["S2: Lexinet study service + resilient panel data plane"]
@@ -117,11 +117,12 @@ flowchart TD
 ```
 
 After S0, the platform/Lexinet lane and the Mac feasibility lane may proceed in
-parallel. The neutral shell foundation may start while Lexinet server work is
+parallel. ~~The neutral shell foundation may start while Lexinet server work is
 underway, but the Lexinet plan's Step 7 is not complete until the Step 6 data
-plane and vocabulary surface are integrated. Hardware work never blocks pure
-domain work, fixtures, protocol tests, fault injection, packaging, or build
-automation.
+plane and vocabulary surface are integrated.~~ Lexinet Step 7a and Steps 1b–6
+may proceed in parallel after S0; Step 7b requires both Step 7a and Step 6.
+Hardware work never blocks pure domain work, fixtures, protocol tests, fault
+injection, packaging, or build automation.
 
 ## Work partition
 
@@ -157,12 +158,15 @@ behavior.
     `make verify` was recorded as passing at their completion boundary.
 
 - [ ] **Step 1: Freeze product decisions and shared contract ownership**
-  - ~~Review the five Lexinet semantics in its architecture document.~~ Review
-    the seven Lexinet semantics, the shared spoken-command-catalog decision, and
-    the ten personal-agenda/safety decisions in their architecture documents.
-    Record each as accepted, changed, or deliberately deferred, including the
-    proposed `finish recording` replacement for the confusable requested stop
-    phrase.
+  - ~~Review the five Lexinet semantics in its architecture document.~~
+    ~~Review the seven Lexinet semantics, the shared spoken-command-catalog
+    decision, and the ten personal-agenda/safety decisions in their architecture
+    documents.~~ Execute Lexinet Step 1a at this gate for the seven Lexinet
+    semantics and shared spoken-command-catalog decision. At the same gate,
+    review the ten personal-agenda/safety decisions in their architecture
+    document. Record each as accepted, changed, or deliberately deferred,
+    including the proposed `finish recording` replacement for the confusable
+    requested stop phrase.
   - Resolve the Lexinet checkout path in configuration; never hard-code an
     incidental sibling layout into cross-repository tests.
   - Record that the Lexinet plan supplies the first neutral shell, shared HTTP
@@ -178,18 +182,21 @@ behavior.
   - Output: reviewed product-decision sections, reconciled plan dependencies,
     an explicit Lexinet source-path input, and a recorded protocol migration
     choice.
-  - Verify: human review confirms the product decisions and safety stop points;
+  - Verify: Lexinet Step 1a's human-review verification passes, and human review
+    confirms the remaining product decisions and safety stop points;
     `make verify-docs` and `make verify` pass with no credentials or personal
     identifiers in the repository.
 
 - [ ] **Step 2: Establish the neutral host platform spine**
-  - Execute the platform-spine portion of Lexinet Step 7: introduce
+  - ~~Execute the platform-spine portion of Lexinet Step 7.~~ Execute Lexinet
+    Step 7a: introduce
     ~~`panel_ui` as sole display/touch owner~~ `panel_ui` as sole display,
     application-hit-testing, and touch-routing owner; add the ADR 0005
     supervisor observation/provenance ports with host fakes; and add a headless
     renderer, a pure shell controller, namespaced interaction intents, and
-    sibling surface contracts. Vocabulary-specific data binding may remain
-    pending until Step 3 below.
+    sibling surface contracts. ~~Vocabulary-specific data binding may remain
+    pending until Step 3 below.~~ Vocabulary-specific data binding remains owned
+    by Step 4 after Step 3 delivers the data plane.
   - Upgrade the local lifecycle protocol to v2. Every request and presentation
     acknowledgement binds the appliance release, unpredictable supervisor
     session, per-connection challenge, monotonic event sequence, complete
@@ -205,10 +212,14 @@ behavior.
   - Reuse one canonical set of supervisor clock, presence, solar, backlight,
     suspend, channel, and renderer fakes. Exercise the production codec over a
     real temporary Unix socket or `socketpair`; do not fake serialization.
-  - Output: protocol v2 contract, duplex supervisor channel, neutral shell,
+  - Output: ~~protocol v2 contract, duplex supervisor channel, neutral shell,
     headless renderer, reusable test support, and deterministic lifecycle
-    scenarios.
-  - Verify: host tests prove zero-before-render and exact-ack-before-nonzero
+    scenarios.~~ Use every Lexinet Step 7a output: protocol v2 contract and
+    duplex supervisor channel, intent envelope/registry, neutral shell and
+    headless renderer, touch-provenance seams, neutral executable and Buildroot
+    entry point, reusable test support, and deterministic lifecycle scenarios.
+  - Verify: every exact verification clause in Lexinet Step 7a passes. Host
+    tests additionally prove zero-before-render and exact-ack-before-nonzero
     ordering across startup, day/night changes, suspend/resume, supervisor
     restart, stale acknowledgements, UI crash, and timeout;
     `scripts/verification/verify_host_cpp.sh all` and `make verify` pass. This
@@ -216,7 +227,8 @@ behavior.
 
 - [ ] **Step 3: Build the Lexinet study service and resilient panel data plane**
   - ~~Execute a rating-inert `shuffle_bag_v1` selector as the production
-    scheduler.~~ Execute Lexinet plan Steps 1–6 in their recorded order:
+    scheduler.~~ ~~Execute Lexinet plan Steps 1–6 in their recorded order.~~
+    Execute Lexinet Step 1b, then Steps 2–6 in their recorded order:
     `study.v1` contract, append-only learning evidence and rebuildable
     projections, active `variety_first_v1` behind the scheduler seam, a
     production-isolated shadow runner for a later pinned FSRS experiment,
@@ -231,17 +243,19 @@ behavior.
     commits, and explicit cancellation barriers.
   - Render cached data before network recovery, expose honest degraded states,
     and never evict an unacknowledged study event.
-  - Output: use the outputs in Lexinet Steps 1–6.
-  - Verify: every exact verification clause in Lexinet Steps 1–6 passes. The
-    join gate additionally requires the live
+  - Output: use the outputs in ~~Lexinet Steps 1–6~~ Lexinet Step 1b and Steps
+    2–6.
+  - Verify: every exact verification clause in ~~Lexinet Steps 1–6~~ Lexinet
+    Step 1b and Steps 2–6 passes. The join gate additionally requires the live
     cross-repository contract test to accept an explicit Lexinet source path
     and `make verify` to pass in this repository.
 
 - [ ] **Step 4: Complete the vocabulary surface and fake-only media broker**
-  - Finish Lexinet Step 7 by adapting the vocabulary reducer and LVGL renderer
-    beneath `panel_ui`; preserve two-sided cards, bounded face-preserving
-    history, one local intent order, and equivalent touch/semantic-command
-    navigation and rating paths with touch Undo.
+  - ~~Finish Lexinet Step 7.~~ Execute Lexinet Step 7b by adapting the
+    vocabulary reducer and LVGL renderer beneath `panel_ui`; preserve two-sided
+    cards, bounded face-preserving history, one local intent order, and
+    equivalent touch/semantic-command navigation and rating paths with touch
+    Undo.
   - Execute Lexinet Step 8 after the panel intent contract is stable. Introduce
     one purpose-scoped media broker and enable only `command_recognition` with
     deterministic fake capture/recognizer paths. Add the canonical command
@@ -263,12 +277,12 @@ behavior.
     suspend preparation, or fault closes capture, wipes volatile buffers, and
     acknowledges quiescence by a deadline. Voice failure never blocks touch or
     power policy.
-  - Output: use the outputs in Lexinet Steps 7–8.
-  - Verify: every exact verification clause in Lexinet Steps 7–8 passes. The
-    combined host matrix covers touch/voice conflicts, replay, mode changes,
-    UI/broker crashes, network stalls, and resume with pending events;
-    `make verify` passes. Do not select a real recognizer or claim microphone
-    rail-off.
+  - Output: use the outputs in ~~Lexinet Steps 7–8~~ Lexinet Step 7b and Step 8.
+  - Verify: every exact verification clause in ~~Lexinet Steps 7–8~~ Lexinet
+    Step 7b and Step 8 passes. The combined host matrix covers touch/voice
+    conflicts, replay, mode changes, UI/broker crashes, network stalls, and
+    resume with pending events; `make verify` passes. Do not select a real
+    recognizer or claim microphone rail-off.
 
 - [ ] **Step 5: Run personal-agenda and birthday-wish feasibility in parallel**
   - Execute the personal-agenda feasibility plan. Step 1 joins the program
@@ -526,6 +540,29 @@ behavior.
 | H6 — product power | Platform freeze | Reproducible battery-boundary traces and platform bake-off |
 | H7 — acceptance | Household deployment | Recoverable release, final soak, safe power, complete enclosure and runbooks |
 
+### Gate-to-step mapping
+
+This table names the roadmap work that earns each dependency/evidence gate.
+Intermediate unlabeled graph nodes remain ordinary dependencies, not hidden
+completion gates.
+
+| Gate | Roadmap work that earns or publishes it | Exact subordinate boundary | Next roadmap work |
+|---|---|---|---|
+| S0 | Step 1 | Lexinet Step 1a plus the agenda/product review and migration/ownership choices | Steps 2, 3, and 5 may start |
+| S1 | Step 2 | Lexinet Step 7a | Step 4 after S2 also passes |
+| S2 | Step 3 | Lexinet Step 1b, then Steps 2–6 | Step 4 after S1 also passes |
+| S3 | Step 5 | Remaining Personal-agenda feasibility Step 1 contract/probe-matrix work plus Steps 2–7; its decision review joined S0 | Step 6 |
+| S3a | Step 6 | Separately reviewed agenda production plan | Step 7 |
+| S4 | Step 8 earns the evidence; Step 9 publishes the checkpoint | Lexinet Step 9, approved agenda packaging, host matrices, and pinned image artifacts | Host side of the Step 11 join; Step 10 remains independent |
+| H0 | Inside Step 10 | Hardware Steps 1–2; Hardware Step 3 remains an intermediate pre-H1 baseline | Remaining non-destructive Step 10 work and permitted target mutation |
+| H1 | Inside Step 10 | Hardware Step 4 | Hardware Step 5 |
+| H2 | Inside Step 10 | Hardware Step 5 | Hardware Step 6 |
+| H3 | Inside Step 10 | Hardware Step 6 earns H3; Hardware Steps 7–8 still complete the baseline and ADR | Step 11 only after complete Step 10 and S4 |
+| H4 | Step 12 | Reviewed target-integration plan from Step 11 | Step 13 |
+| H5 | Step 13 | Dependency-map H5a speech plus optional H5b gesture are branches of this one evidence gate | Step 14 |
+| H6 | Step 14 | Product power/platform comparison and ADR | Step 15 |
+| H7 | Step 15 | Final release, recovery, enclosure, and acceptance matrix | End-to-end completion |
+
 Protocol success, compilation, a release image, one resume, an ALSA device, or
 a photograph alone cannot satisfy a physical gate. Missing observation points
 produce `unobserved`, never inferred success.
@@ -603,3 +640,7 @@ distinct principals, and the packaging cutover revokes raw UI touch access. The
 effect gate is two-phase, broker lease start is one-shot, and an issued
 personal-context confirmation token expires independently of lifecycle. No step
 or product-decision status changed, and no hardware behavior is claimed.
+
+**Amended 2026-08-07:** replaced partial Lexinet-step invocations with exact
+Steps 1a, 1b, 7a, and 7b and added the gate-to-roadmap-step correspondence.
+No roadmap checkbox changed; Step 1 remains pending.
