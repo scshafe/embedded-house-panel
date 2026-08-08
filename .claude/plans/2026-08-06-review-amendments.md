@@ -22,7 +22,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
 
 ## Steps
 
-- [ ] **Step 1: Record the human decisions that later steps depend on**
+- [x] **Step 1: Record the human decisions that later steps depend on**
   - Capture the user's answer to each of the following in a new `docs/decisions/` record or an explicit section of the roadmap — whichever the user prefers — with the date and the decision text. Do not infer an answer from silence, and do not proceed past a blank.
     1. Is a UI presentation-acknowledgement timeout a *fault* (daemon dies) or a *degraded non-fatal state*? (Blocks Step 5.)
     2. May `panel_ui` ever send the supervisor anything other than a presentation acknowledgement? (Blocks Step 7 and Step 8.)

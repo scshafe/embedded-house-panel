@@ -13,6 +13,7 @@ still occupy their filename and are never treated as a free number.
 | [0001](0001-separate-policy-from-presentation.md) | Accepted for the scaffold | Separate power policy from presentation |
 | [0002](0002-buildroot-baseline.md) | Proposed; hardware-gated | Prefer Buildroot after Debian hardware bring-up |
 | [0003](0003-characterize-beaglebone-before-selecting-product-platform.md) | Accepted for the current investigation | Characterize BeagleBone before selecting the product platform |
+| [0004](0004-freeze-review-gate-integration-contracts.md) | Accepted | Freeze review-gate integration contracts |
 
 No later number is reserved by a plan.
 
@@ -30,3 +31,6 @@ No later number is reserved by a plan.
 This repository's numbering convention does not automatically apply to the
 separate Lexinet repository. Lexinet records use whatever authority that
 repository establishes.
+
+**Amended 2026-08-07:** registered ADR 0004 as the authoritative record for
+the six human decisions required by the 2026-08-06 review amendment plan.
