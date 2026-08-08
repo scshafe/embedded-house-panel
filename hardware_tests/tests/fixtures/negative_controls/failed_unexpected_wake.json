@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "subject_correlation_id": "fixture-entered-and-attributed",
+  "control_correlation_id": "fixture-negative-control-success",
+  "stimulus_applied": false,
+  "unexpected_wake_observed": true,
+  "evidence_source": "masked_pir_control_trace",
+  "control_started_at_utc": "2026-08-07T12:00:04Z",
+  "control_completed_at_utc": "2026-08-07T12:00:05Z"
+}

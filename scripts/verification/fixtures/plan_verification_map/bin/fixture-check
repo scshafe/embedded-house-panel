@@ -1,0 +1,4 @@
+#!/bin/sh
+# Static resolver fixture. The verification-map checker must never execute it.
+
+exit 99

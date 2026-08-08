@@ -1,0 +1,3 @@
+           CPU0
+ 45:          3  gpio  beagle-house-pir
+ 46:          1  gpio  beagle-house-pir-secondary

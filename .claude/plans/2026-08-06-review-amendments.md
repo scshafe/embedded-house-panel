@@ -107,7 +107,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Have `verify_repository.sh` run `scripts/environment/check_host_dependencies.sh` first and record tool versions in the pass log, so a missing `ripgrep` reports a dependency error rather than a documentation failure.
   - Verify: `make verify` passes on the Linux runner with the daemon smoke and new adapter tests included; the Kconfig assertions fail when any of the four symbols is disabled.
 
-- [ ] **Step 13: Build the evidence tooling the hardware gates already assume**
+- [x] **Step 13: Build the evidence tooling the hardware gates already assume**
   - Add a wake-trial manifest schema alongside `hardware_tests/schemas/power_measurement.schema.json`, requiring per-trial correlation ID, external stimulus record, confirmed state entry, suspend-stat delta, interrupt delta, wake reason, negative control, and the five-way classification the hardware plan demands (`.claude/plans/2026-08-05-beaglebone-hardware-baseline.md:101-104`). Add a classifier testable against canned sysfs fixtures. `hardware_tests/scripts/run_suspend_wake_trials.sh` currently records timestamps and `wakeup_sources` only, and `hardware_tests/README.md:36-44` says so honestly — but no step before the board returns builds the replacement.
   - Extend `collect_read_only_board_inventory.sh` to capture `/proc/interrupts`, `/sys/power/mem_sleep`, `/sys/power/suspend_stats`, pinctrl state, and cape EEPROM — the baselines the attribution deltas need.
   - Add `schema_version` to the power schema.

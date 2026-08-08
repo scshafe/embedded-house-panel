@@ -56,11 +56,11 @@ done
 
 case "$profile" in
   host)
-    required_commands="git make rg shellcheck"
+    required_commands="git make python3 rg shellcheck"
     host_compiler_command=${CXX:-c++}
     host_operating_system=$(uname -s)
     if [ "$host_operating_system" = Linux ]; then
-      required_commands="$required_commands cc cmake ctest pkg-config python3"
+      required_commands="$required_commands cc cmake ctest pkg-config"
     fi
     ;;
   buildroot) required_commands="git make gcc g++ cmake tar xz patch rsync bc bison flex perl python3 file wget curl cpio unzip dtc" ;;

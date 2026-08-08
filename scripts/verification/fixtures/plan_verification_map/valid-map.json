@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "plan": "plans/sample.md",
+      "step": "Step 1",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "completed proof remains active.",
+      "test_symbol": "fixture.completed_proof",
+      "command": "FIXTURE_MODE=<recorded proof> test -n fixture && bin/fixture-check",
+      "proof_kind": "automated",
+      "proof_status": "recorded"
+    },
+    {
+      "plan": "plans/sample.md",
+      "step": "Step 2",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "first automated proof",
+      "test_symbol": "fixture.first_automated_proof",
+      "command": "fixture-command --case first",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": "plans/sample.md",
+      "step": "Step 2",
+      "verify_index": 1,
+      "item_index": 2,
+      "clause_item": "second human proof.",
+      "test_symbol": "fixture.second_human_proof",
+      "command": "fixture-command --case second",
+      "proof_kind": "human",
+      "proof_status": "planned"
+    },
+    {
+      "plan": "plans/sample.md",
+      "step": "Step 2",
+      "verify_index": 2,
+      "item_index": 1,
+      "clause_item": "third proof without a colon",
+      "test_symbol": "fixture.third_without_colon",
+      "command": "fixture-command --case third",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": "plans/sample.md",
+      "step": "Step 2",
+      "verify_index": 2,
+      "item_index": 2,
+      "clause_item": "fourth proof without a colon.",
+      "test_symbol": "fixture.fourth_without_colon",
+      "command": "fixture-command --case fourth",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    }
+  ]
+}

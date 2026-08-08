@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "correlation_id": "fixture-temporal-pre-trial",
+  "implementation": "stock_gpio_keys_wake_baseline",
+  "requested_state": "mem",
+  "selected_mem_sleep": "deep",
+  "starting_level": "deasserted",
+  "wake_edge": "rising",
+  "expected_interrupt_label": "beagle-house-pir",
+  "trial_started_at_utc": "2026-08-07T22:20:00Z",
+  "external_stimulus": {"status": "observed", "stimulus_type": "pir_motion", "observed_at_utc": "2026-08-07T22:20:02Z", "observer": "logic_analyzer", "timing_marker_id": "fixture-marker-pre-trial"},
+  "state_entry": {"confirmed": true, "observed_state": "mem:deep", "evidence_source": "power_trace", "observed_at_utc": "2026-08-07T22:19:59Z"},
+  "wake_reason": {"status": "observed", "expected_source": "wkup_m3_gpio0", "observed_source": "wkup_m3_gpio0", "evidence_source": "wkup_m3_resume_log"},
+  "negative_control": {"status": "passed", "companion_correlation_id": "fixture-negative-pre-trial", "evidence_source": "masked_pir_control_trace"},
+  "linux_input_event": {"status": "observed", "event_type": "EV_SW", "event_code": 11, "event_value": 1, "observed_at_utc": "2026-08-07T22:20:03Z"},
+  "resume_observation": {"status": "observed", "observed_at_utc": "2026-08-07T22:20:04Z", "sensor_level": "asserted"}
+}

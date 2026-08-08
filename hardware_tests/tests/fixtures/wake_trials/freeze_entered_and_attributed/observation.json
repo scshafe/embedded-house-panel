@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "correlation_id": "fixture-freeze-entered-and-attributed",
+  "implementation": "stock_gpio_keys_wake_baseline",
+  "requested_state": "freeze",
+  "selected_mem_sleep": null,
+  "starting_level": "deasserted",
+  "wake_edge": "rising",
+  "expected_interrupt_label": "beagle-house-pir",
+  "trial_started_at_utc": "2026-08-07T21:00:00Z",
+  "external_stimulus": {
+    "status": "observed",
+    "stimulus_type": "pir_motion",
+    "observed_at_utc": "2026-08-07T21:00:02Z",
+    "observer": "logic_analyzer",
+    "timing_marker_id": "fixture-marker-freeze"
+  },
+  "state_entry": {
+    "confirmed": true,
+    "observed_state": "freeze",
+    "evidence_source": "power_trace_and_serial_console",
+    "observed_at_utc": "2026-08-07T21:00:01Z"
+  },
+  "wake_reason": {
+    "status": "observed",
+    "expected_source": "gpio0",
+    "observed_source": "gpio0",
+    "evidence_source": "kernel_resume_log"
+  },
+  "negative_control": {
+    "status": "passed",
+    "companion_correlation_id": "fixture-negative-freeze",
+    "evidence_source": "masked_pir_control_trace"
+  },
+  "linux_input_event": {
+    "status": "observed",
+    "event_type": "EV_SW",
+    "event_code": 11,
+    "event_value": 1,
+    "observed_at_utc": "2026-08-07T21:00:03Z"
+  },
+  "resume_observation": {
+    "status": "observed",
+    "observed_at_utc": "2026-08-07T21:00:03Z",
+    "sensor_level": "asserted"
+  }
+}

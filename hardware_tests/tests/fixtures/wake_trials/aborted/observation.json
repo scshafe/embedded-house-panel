@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "correlation_id": "fixture-aborted",
+  "implementation": "custom_pir_input_driver",
+  "requested_state": "mem",
+  "selected_mem_sleep": "deep",
+  "starting_level": "asserted",
+  "wake_edge": "falling",
+  "expected_interrupt_label": "beagle-house-pir",
+  "trial_started_at_utc": "2026-08-07T13:00:00Z",
+  "external_stimulus": {
+    "status": "not_applied",
+    "stimulus_type": null,
+    "observed_at_utc": null,
+    "observer": null,
+    "timing_marker_id": null
+  },
+  "state_entry": {
+    "confirmed": false,
+    "observed_state": null,
+    "evidence_source": "serial_console",
+    "observed_at_utc": "2026-08-07T13:00:01Z"
+  },
+  "wake_reason": {
+    "status": "observed",
+    "expected_source": "wkup_m3_gpio0",
+    "observed_source": "rtc0",
+    "evidence_source": "kernel_resume_log"
+  },
+  "negative_control": {
+    "status": "failed",
+    "companion_correlation_id": "fixture-negative-control-aborted",
+    "evidence_source": "masked_pir_control_trace"
+  },
+  "linux_input_event": {
+    "status": "unobserved",
+    "event_type": "EV_SW",
+    "event_code": 11,
+    "event_value": null,
+    "observed_at_utc": null
+  },
+  "resume_observation": {
+    "status": "timeout",
+    "observed_at_utc": "2026-08-07T13:01:00Z",
+    "sensor_level": null
+  }
+}

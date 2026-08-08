@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "correlation_id": "fixture-wrong-source",
+  "implementation": "custom_pir_input_driver",
+  "requested_state": "mem",
+  "selected_mem_sleep": "deep",
+  "starting_level": "deasserted",
+  "wake_edge": "rising",
+  "expected_wake_source": "wkup_m3_gpio0",
+  "expected_interrupt_label": "beagle-house-pir",
+  "trial_started_at_utc": "2026-08-07T15:00:00Z"
+}

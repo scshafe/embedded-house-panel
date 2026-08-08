@@ -15,6 +15,14 @@ TRACE_ID=$(bhp_new_trace_id)
 
 "$PROJECT_ROOT/scripts/environment/check_host_dependencies.sh" --profile host --strict
 
+python3 "$SCRIPT_DIRECTORY/check_plan_verification_map.py"
+python3 "$SCRIPT_DIRECTORY/verify_plan_verification_map.py"
+(
+  cd "$PROJECT_ROOT"
+  PYTHONDONTWRITEBYTECODE=1 \
+    python3 -m unittest hardware_tests.tests.test_classify_wake_trial
+)
+
 read_first_version_line()
 {
   version_output=$(LC_ALL=C "$@" 2>&1) || return 1

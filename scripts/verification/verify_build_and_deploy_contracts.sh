@@ -908,7 +908,7 @@ grep -F -x '*.credential' "$PROJECT_ROOT/.gitignore" >/dev/null
 python3 -m json.tool \
 	"$PROJECT_ROOT/hardware_tests/schemas/power_measurement.schema.json" >/dev/null
 python3 -c \
-	'import json,sys; schema=json.load(open(sys.argv[1])); assert "supply_boundary" in schema["required"]; assert schema["properties"]["supply_boundary"].get("minLength", 0) >= 1' \
+	'import json,sys; schema=json.load(open(sys.argv[1])); assert "schema_version" in schema["required"]; assert schema["properties"]["schema_version"].get("const") == 1; assert "supply_boundary" in schema["required"]; assert schema["properties"]["supply_boundary"].get("minLength", 0) >= 1' \
 	"$PROJECT_ROOT/hardware_tests/schemas/power_measurement.schema.json"
 
 bhp_log info build_and_deploy_contract_verification_complete "$TRACE_ID" \

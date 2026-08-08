@@ -32,3 +32,7 @@ tailscaled.state
 .DS_Store
 *.swp
 *.swo
+
+# Python verification artifacts
+__pycache__/
+*.py[cod]

@@ -5,6 +5,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "schema_version",
     "measurement_id",
     "measured_at_utc",
     "git_commit",
@@ -18,6 +19,7 @@
     "sample_duration_seconds"
   ],
   "properties": {
+    "schema_version": {"const": 1},
     "measurement_id": {"type": "string", "minLength": 1},
     "measured_at_utc": {"type": "string", "format": "date-time"},
     "git_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},

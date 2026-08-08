@@ -1,0 +1,2 @@
+           CPU0       CPU1
+ 45:         10          5  gpio  pir-secondary

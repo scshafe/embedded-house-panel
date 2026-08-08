@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "subject_correlation_id": "fixture-freeze-entered-and-attributed",
+  "control_correlation_id": "fixture-negative-freeze",
+  "stimulus_applied": false,
+  "unexpected_wake_observed": false,
+  "evidence_source": "masked_pir_control_trace",
+  "control_started_at_utc": "2026-08-07T20:59:00Z",
+  "control_completed_at_utc": "2026-08-07T20:59:30Z"
+}

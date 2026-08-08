@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "correlation_id": "fixture-wrong-source-incomplete-raw",
+  "implementation": "custom_pir_input_driver",
+  "requested_state": "mem",
+  "selected_mem_sleep": "deep",
+  "starting_level": "deasserted",
+  "wake_edge": "rising",
+  "expected_interrupt_label": "beagle-house-pir",
+  "trial_started_at_utc": "2026-08-07T18:00:00Z",
+  "external_stimulus": {
+    "status": "observed",
+    "stimulus_type": "pir_motion",
+    "observed_at_utc": "2026-08-07T18:00:02Z",
+    "observer": "logic_analyzer",
+    "timing_marker_id": "fixture-marker-wrong-source-incomplete"
+  },
+  "state_entry": {
+    "confirmed": true,
+    "observed_state": "mem:deep",
+    "evidence_source": "power_trace_and_serial_console",
+    "observed_at_utc": "2026-08-07T18:00:01Z"
+  },
+  "wake_reason": {
+    "status": "observed",
+    "expected_source": "wkup_m3_gpio0",
+    "observed_source": "rtc0",
+    "evidence_source": "wkup_m3_resume_log"
+  },
+  "negative_control": {
+    "status": "passed",
+    "companion_correlation_id": "fixture-negative-wrong-incomplete",
+    "evidence_source": "masked_pir_control_trace"
+  },
+  "linux_input_event": {
+    "status": "unobserved",
+    "event_type": "EV_SW",
+    "event_code": 11,
+    "event_value": null,
+    "observed_at_utc": null
+  },
+  "resume_observation": {
+    "status": "observed",
+    "observed_at_utc": "2026-08-07T18:00:03Z",
+    "sensor_level": "deasserted"
+  }
+}

@@ -1,0 +1,3 @@
+           CPU0       CPU1
+ 45:         10          5  gpio  beagle-house-pir
+ 72:          3          0  rtc0

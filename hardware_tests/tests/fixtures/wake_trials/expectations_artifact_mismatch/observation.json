@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "correlation_id": "fixture-expectations-artifact-mismatch",
+  "implementation": "stock_gpio_keys_wake_baseline",
+  "requested_state": "mem",
+  "selected_mem_sleep": "deep",
+  "starting_level": "deasserted",
+  "wake_edge": "rising",
+  "expected_interrupt_label": "beagle-house-pir",
+  "trial_started_at_utc": "2026-08-07T22:10:00Z",
+  "external_stimulus": {"status": "unobserved", "stimulus_type": null, "observed_at_utc": null, "observer": null, "timing_marker_id": null},
+  "state_entry": {"confirmed": null, "observed_state": null, "evidence_source": null, "observed_at_utc": null},
+  "wake_reason": {"status": "unobserved", "expected_source": "wkup_m3_gpio0", "observed_source": null, "evidence_source": null},
+  "negative_control": {"status": "unobserved", "companion_correlation_id": null, "evidence_source": null},
+  "linux_input_event": {"status": "unobserved", "event_type": "EV_SW", "event_code": 11, "event_value": null, "observed_at_utc": null},
+  "resume_observation": {"status": "unobserved", "observed_at_utc": null, "sensor_level": null}
+}

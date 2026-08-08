@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beaglebone-house-panel.local/schemas/wake_trial.schema.json",
+  "title": "Correlated suspend and wake trial",
+  "description": "Structural evidence contract for one suspend/wake attempt. This JSON Schema is not an acceptance oracle because Draft 2020-12 cannot express the required cross-field equality and temporal bindings. Only the canonical classifier and summary semantic recomputation may accept entered_and_attributed; cumulative counters are supporting evidence and are never attribution by themselves.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "correlation_id",
+    "implementation",
+    "requested_state",
+    "selected_mem_sleep",
+    "starting_level",
+    "wake_edge",
+    "expected_interrupt_label",
+    "trial_started_at_utc",
+    "classified_at_utc",
+    "external_stimulus",
+    "state_entry",
+    "suspend_write_result",
+    "suspend_stat_delta",
+    "interrupt_delta",
+    "mem_sleep_selection",
+    "runner_timestamps",
+    "temporal_correlation",
+    "wake_reason",
+    "negative_control",
+    "linux_input_event",
+    "resume_observation",
+    "classification",
+    "classification_reasons"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "correlation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "implementation": {"type": "string", "minLength": 1},
+    "requested_state": {"type": "string", "enum": ["freeze", "mem"]},
+    "selected_mem_sleep": {"type": ["string", "null"], "minLength": 1},
+    "starting_level": {"type": "string", "enum": ["asserted", "deasserted"]},
+    "wake_edge": {"type": "string", "enum": ["rising", "falling", "both", "level"]},
+    "expected_interrupt_label": {"type": "string", "minLength": 1},
+    "trial_started_at_utc": {"type": "string", "format": "date-time"},
+    "classified_at_utc": {"type": "string", "format": "date-time"},
+    "external_stimulus": {"$ref": "#/$defs/external_stimulus"},
+    "state_entry": {"$ref": "#/$defs/state_entry"},
+    "suspend_write_result": {
+      "type": "string",
+      "enum": ["returned_after_resume", "rejected", "unobserved"]
+    },
+    "suspend_stat_delta": {"$ref": "#/$defs/suspend_stat_delta"},
+    "interrupt_delta": {"$ref": "#/$defs/interrupt_delta"},
+    "mem_sleep_selection": {"$ref": "#/$defs/mem_sleep_selection"},
+    "runner_timestamps": {"$ref": "#/$defs/runner_timestamps"},
+    "temporal_correlation": {"$ref": "#/$defs/temporal_correlation"},
+    "wake_reason": {"$ref": "#/$defs/wake_reason"},
+    "negative_control": {"$ref": "#/$defs/negative_control"},
+    "linux_input_event": {"$ref": "#/$defs/linux_input_event"},
+    "resume_observation": {"$ref": "#/$defs/resume_observation"},
+    "classification": {
+      "type": "string",
+      "enum": [
+        "entered_and_attributed",
+        "aborted",
+        "wrong_source",
+        "timeout",
+        "unobserved"
+      ]
+    },
+    "classification_reasons": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"}
+    }
+  },
+  "$defs": {
+    "nullable_non_empty_string": {"type": ["string", "null"], "minLength": 1},
+    "nullable_timestamp": {"type": ["string", "null"], "format": "date-time"},
+    "external_stimulus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "stimulus_type", "observed_at_utc", "observer", "timing_marker_id"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "not_applied", "unobserved"]},
+        "stimulus_type": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "observed_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "observer": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "timing_marker_id": {"$ref": "#/$defs/nullable_non_empty_string"}
+      }
+    },
+    "state_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confirmed", "observed_state", "evidence_source", "observed_at_utc", "matches_requested_state"],
+      "properties": {
+        "confirmed": {"type": ["boolean", "null"]},
+        "observed_state": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "evidence_source": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "observed_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "matches_requested_state": {"type": "boolean"}
+      }
+    },
+    "counter_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "before", "after", "delta"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved"]},
+        "before": {"type": ["integer", "null"], "minimum": 0},
+        "after": {"type": ["integer", "null"], "minimum": 0},
+        "delta": {"type": ["integer", "null"], "minimum": 0}
+      }
+    },
+    "suspend_stat_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source", "success", "fail"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved"]},
+        "source": {"const": "/sys/power/suspend_stats"},
+        "success": {"$ref": "#/$defs/counter_delta"},
+        "fail": {"$ref": "#/$defs/counter_delta"}
+      }
+    },
+    "interrupt_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source", "expected_interrupt_label", "before", "after", "delta"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved"]},
+        "source": {"const": "/proc/interrupts"},
+        "expected_interrupt_label": {"type": "string", "minLength": 1},
+        "before": {"type": ["integer", "null"], "minimum": 0},
+        "after": {"type": ["integer", "null"], "minimum": 0},
+        "delta": {"type": ["integer", "null"], "minimum": 0}
+      }
+    },
+    "mem_sleep_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source", "before", "after", "stable"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved", "not_applicable"]},
+        "source": {"const": "/sys/power/mem_sleep"},
+        "before": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "after": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "stable": {"type": ["boolean", "null"]}
+      }
+    },
+    "runner_timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "before_capture_at_utc",
+        "process_returned_at_utc",
+        "after_capture_at_utc"
+      ],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved"]},
+        "before_capture_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "process_returned_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "after_capture_at_utc": {"$ref": "#/$defs/nullable_timestamp"}
+      }
+    },
+    "temporal_correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "required_order", "runner_order"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved", "contradictory"]},
+        "required_order": {
+          "const": [
+            "trial_started_at_utc",
+            "runner_before_capture_at_utc",
+            "state_entry.observed_at_utc",
+            "external_stimulus.observed_at_utc",
+            "linux_input_event.observed_at_utc",
+            "runner_process_returned_at_utc",
+            "resume_observation.observed_at_utc",
+            "classified_at_utc"
+          ]
+        },
+        "runner_order": {
+          "const": [
+            "runner_process_returned_at_utc",
+            "runner_after_capture_at_utc",
+            "classified_at_utc"
+          ]
+        }
+      }
+    },
+    "wake_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "expected_source", "observed_source", "evidence_source", "attributed"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved"]},
+        "expected_source": {"type": "string", "minLength": 1},
+        "observed_source": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "evidence_source": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "attributed": {"type": "boolean"}
+      }
+    },
+    "negative_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "subject_correlation_id",
+        "companion_correlation_id",
+        "stimulus_applied",
+        "unexpected_wake_observed",
+        "evidence_source",
+        "control_started_at_utc",
+        "control_completed_at_utc",
+        "correlation_bound",
+        "temporally_isolated",
+        "temporal_relationship",
+        "independently_verified"
+      ],
+      "properties": {
+        "status": {"type": "string", "enum": ["passed", "failed", "unobserved"]},
+        "subject_correlation_id": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "companion_correlation_id": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "stimulus_applied": {"type": ["boolean", "null"]},
+        "unexpected_wake_observed": {"type": ["boolean", "null"]},
+        "evidence_source": {"$ref": "#/$defs/nullable_non_empty_string"},
+        "control_started_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "control_completed_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "correlation_bound": {"type": "boolean"},
+        "temporally_isolated": {"type": "boolean"},
+        "temporal_relationship": {
+          "type": ["string", "null"],
+          "enum": ["before_subject", "after_subject", null]
+        },
+        "independently_verified": {"type": "boolean"}
+      }
+    },
+    "linux_input_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "event_type", "event_code", "event_value", "observed_at_utc", "matches_declared_edge"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "unobserved"]},
+        "event_type": {"const": "EV_SW"},
+        "event_code": {"const": 11},
+        "event_value": {"type": ["integer", "null"], "enum": [0, 1, null]},
+        "observed_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "matches_declared_edge": {"type": "boolean"}
+      }
+    },
+    "resume_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "observed_at_utc", "sensor_level", "matches_linux_event"],
+      "properties": {
+        "status": {"type": "string", "enum": ["observed", "timeout", "unobserved"]},
+        "observed_at_utc": {"$ref": "#/$defs/nullable_timestamp"},
+        "sensor_level": {
+          "type": ["string", "null"],
+          "enum": ["asserted", "deasserted", null]
+        },
+        "matches_linux_event": {"type": "boolean"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"classification": {"const": "entered_and_attributed"}}},
+      "then": {
+        "properties": {
+          "suspend_write_result": {"const": "returned_after_resume"},
+          "external_stimulus": {
+            "properties": {
+              "status": {"const": "observed"},
+              "stimulus_type": {"type": "string", "minLength": 1},
+              "observed_at_utc": {"type": "string", "format": "date-time"},
+              "observer": {"type": "string", "minLength": 1},
+              "timing_marker_id": {"type": "string", "minLength": 1}
+            }
+          },
+          "state_entry": {
+            "properties": {
+              "confirmed": {"const": true},
+              "observed_state": {"type": "string", "minLength": 1},
+              "evidence_source": {"type": "string", "minLength": 1},
+              "observed_at_utc": {"type": "string", "format": "date-time"},
+              "matches_requested_state": {"const": true}
+            }
+          },
+          "suspend_stat_delta": {
+            "properties": {
+              "status": {"const": "observed"},
+              "success": {
+                "properties": {
+                  "status": {"const": "observed"},
+                  "before": {"type": "integer", "minimum": 0},
+                  "after": {"type": "integer", "minimum": 0},
+                  "delta": {"const": 1}
+                }
+              },
+              "fail": {
+                "properties": {
+                  "status": {"const": "observed"},
+                  "before": {"type": "integer", "minimum": 0},
+                  "after": {"type": "integer", "minimum": 0},
+                  "delta": {"const": 0}
+                }
+              }
+            }
+          },
+          "interrupt_delta": {
+            "properties": {
+              "status": {"const": "observed"},
+              "expected_interrupt_label": {"type": "string", "minLength": 1},
+              "before": {"type": "integer", "minimum": 0},
+              "after": {"type": "integer", "minimum": 0},
+              "delta": {"type": "integer", "minimum": 1}
+            }
+          },
+          "wake_reason": {
+            "properties": {
+              "status": {"const": "observed"},
+              "expected_source": {"type": "string", "minLength": 1},
+              "observed_source": {"type": "string", "minLength": 1},
+              "evidence_source": {"type": "string", "minLength": 1},
+              "attributed": {"const": true}
+            }
+          },
+          "negative_control": {
+            "properties": {
+              "status": {"const": "passed"},
+              "subject_correlation_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+              },
+              "companion_correlation_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+              },
+              "stimulus_applied": {"const": false},
+              "unexpected_wake_observed": {"const": false},
+              "evidence_source": {"type": "string", "minLength": 1},
+              "control_started_at_utc": {"type": "string", "format": "date-time"},
+              "control_completed_at_utc": {"type": "string", "format": "date-time"},
+              "correlation_bound": {"const": true},
+              "temporally_isolated": {"const": true},
+              "temporal_relationship": {
+                "type": "string",
+                "enum": ["before_subject", "after_subject"]
+              },
+              "independently_verified": {"const": true}
+            }
+          },
+          "linux_input_event": {
+            "properties": {
+              "status": {"const": "observed"},
+              "event_value": {"type": "integer", "enum": [0, 1]},
+              "observed_at_utc": {"type": "string", "format": "date-time"},
+              "matches_declared_edge": {"const": true}
+            }
+          },
+          "resume_observation": {
+            "properties": {
+              "status": {"const": "observed"},
+              "observed_at_utc": {"type": "string", "format": "date-time"},
+              "sensor_level": {"type": "string", "enum": ["asserted", "deasserted"]},
+              "matches_linux_event": {"const": true}
+            }
+          },
+          "runner_timestamps": {
+            "properties": {
+              "status": {"const": "observed"},
+              "before_capture_at_utc": {"type": "string", "format": "date-time"},
+              "process_returned_at_utc": {"type": "string", "format": "date-time"},
+              "after_capture_at_utc": {"type": "string", "format": "date-time"}
+            }
+          },
+          "temporal_correlation": {"properties": {"status": {"const": "observed"}}},
+          "classification_reasons": {"const": ["ALL_ATTRIBUTION_EVIDENCE_CONFIRMED"]}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requested_state": {"const": "mem"}
+        }
+      },
+      "then": {
+        "properties": {
+          "selected_mem_sleep": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requested_state": {"const": "freeze"}
+        }
+      },
+      "then": {
+        "properties": {
+          "selected_mem_sleep": {"type": "null"},
+          "mem_sleep_selection": {"properties": {"status": {"const": "not_applicable"}}}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "classification": {"const": "entered_and_attributed"},
+          "requested_state": {"const": "mem"}
+        }
+      },
+      "then": {
+        "properties": {
+          "mem_sleep_selection": {
+            "properties": {
+              "status": {"const": "observed"},
+              "before": {"type": "string", "minLength": 1},
+              "after": {"type": "string", "minLength": 1},
+              "stable": {"const": true}
+            }
+          }
+        }
+      }
+    }
+  ]
+}
