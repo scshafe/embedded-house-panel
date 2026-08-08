@@ -188,7 +188,7 @@ flowchart LR
 
     subgraph panel["BeagleBone appliance"]
         SUP["panel_supervisor\nlifecycle + power authority"]
-        UI["panel_ui\nsole display/touch owner"]
+        UI["panel_ui\nsole display + application touch router"]
         VOCAB["vocabulary feature"]
         AGENDA["personal agenda feature"]
         MEDIA["media broker\nsole microphone owner"]
@@ -196,8 +196,13 @@ flowchart LR
         TSD["tailscaled"]
 
         SUP -->|"day-active / night / suspended"| UI
+        SUP -->|"normalized touch observation + opaque ID"| UI
+        SUP -->|"lifecycle media window"| MEDIA
         UI --> VOCAB
         UI --> AGENDA
+        UI -->|"direct purpose-scoped lease request"| MEDIA
+        MEDIA -->|"exact-peer touch claim"| SUP
+        CLIENT -->|"exact-peer touch/hold claim"| SUP
         MEDIA -->|"semantic commands"| UI
         MEDIA -->|"purpose-bound wish artifact"| CLIENT
         AGENDA -->|"typed agenda/draft operations"| CLIENT
@@ -226,15 +231,20 @@ flowchart LR
 ```
 
 The supervisor never receives birthdays, calendar events, selected screens,
-recipient references, transcripts, or draft state. It continues to own only
+recipient references, transcripts, or draft state. ~~It continues to own only
 presence interpretation, solar state, brightness, suspend, and bounded media
-leases.
+leases.~~ It owns presence interpretation, solar state, brightness, suspend,
+generic lifecycle-media ceilings, and the proposed physical-touch observation
+and opaque provenance binding. The media broker owns media leases.
 
 ## One display owner
 
 The current future controller and Buildroot service are vocabulary-specific,
 while the LVGL renderer owns process-global state and the exact display and
-touch devices. A second agenda renderer cannot safely coexist.
+touch devices. A second agenda renderer cannot safely coexist. At the proposed
+ADR 0005 cutover, the supervisor takes sole raw touch-device access and forwards
+normalized events; the neutral UI retains display ownership and application hit
+testing.
 
 Before either graphical application is promoted, introduce one neutral,
 unprivileged `panel_ui` process:
@@ -242,7 +252,8 @@ unprivileged `panel_ui` process:
 ```mermaid
 flowchart TB
     MODE["panel mode protocol v2\nday_active / night_red / suspended"] --> SHELL["panel_ui shell"]
-    TOUCH["touch"] --> SHELL
+    TOUCH["exact configured touch evdev"] --> OBSERVER["panel_supervisor\nphysical-touch observer"]
+    OBSERVER -->|"normalized event + opaque observation ID"| SHELL
     INTENT["namespaced voice intents"] --> SHELL
 
     SHELL --> ROUTER{"surface router"}
@@ -257,7 +268,7 @@ flowchart TB
     NIGHT --> LVGL
     DIAG --> LVGL
     MODAL --> LVGL
-    LVGL --> DISPLAY["DRM/fbdev + touch"]
+    LVGL --> DISPLAY["DRM/fbdev display"]
 ```
 
 The supervisor's internal `UiMode::Day` is already lifecycle-neutral, but
@@ -461,13 +472,28 @@ submission, fail before invoking the adapter and require a new preview. The
 confirmation view is built from that prepared summary, then a short-lived
 single-use token binds the touch action to the exact revision.
 
-Touch confirmation reduces accidental speech activation; it is not a security
-proof against a compromised `panel_ui`. The proposed version 1 boundary accepts
-that the UI can exercise the panel's allowlisted message authority and bounds
-that exposure on the Mac by current birthday, provisioned route, draft expiry,
-rate limits, and one attempted submission per route per household date. This
-limitation remains pending with the Step 1 safety review. A stronger requirement
-needs a dedicated physical confirmation input owned outside the UI process.
+~~Touch confirmation reduces accidental speech activation; it is not a
+security proof against a compromised `panel_ui`. The proposed version 1
+boundary accepts that the UI can exercise the panel's allowlisted message
+authority and bounds that exposure on the Mac by current birthday, provisioned
+route, draft expiry, rate limits, and one attempted submission per route per
+household date. This limitation remains pending with the Step 1 safety review.
+A stronger requirement needs a dedicated physical confirmation input owned
+outside the UI process.~~ Under proposed
+[ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md),
+the personal-context client creates that token only after it validates the
+prepared immutable dispatch revision and claims a fresh physical-touch
+observation directly from the supervisor. The token carries the
+supervisor-authored `touch_provenance` envelope, observer-measured contact
+duration, exact canonical operation digest, audience, committed presentation
+binding, and monotonic expiry. The client, not the UI, evaluates the reviewed
+hold threshold and refuses dispatch when provenance is missing, too short,
+expired, replayed, stale at claim, wrong-audience, or bound to another revision.
+`panel_ui` cannot mint, alter, renew, redeem, or reuse the envelope. After token
+creation, lifecycle change or supervisor restart does not retroactively revoke
+it; the personal-context client has no lifecycle subscription. Exact prepared
+revision/provenance binding, monotonic expiry, client restart, and atomic
+dispatch consumption govern the token.
 
 Only one composer and one active draft are allowed per panel. Starting another
 requires explicit cancellation of the first, and a draft's person/route cannot
@@ -492,15 +518,22 @@ sequenceDiagram
     C-->>P: opaque recipient + masked route + capabilities
     P-->>UI: validated prepared context
     UI-->>U: Ready to record + Record button
-    U->>UI: touch Record
-    UI->>S: request bounded foreground media lease
-    S->>B: arm lifecycle window + hard expiry
-    UI->>B: start wish_recording within lease
+    S->>B: publish active lifecycle window + hard expiry
+    U->>S: physical touch on Record
+    S-->>UI: normalized touch + touch_observation_id
+    UI->>B: agenda.start_wish_recording lease request + observation ID
+    B->>S: claim observation for canonical lease digest
+    S-->>B: touch provenance; observation consumed
+    B->>B: create armed lease + unique opaque lease_id
+    B-->>UI: armed lease_id only
+    UI->>B: capture_start(lease_id only) on same authenticated connection
+    B->>B: load stored binding; verify peer + current purpose/lifecycle/deadlines
+    B->>B: atomically consume start; armed -> active
     B-->>UI: recording started
     UI-->>U: prominent mic indicator + timer + Stop
     U->>B: spoken wish
     U->>B: “Lexi, finish recording”
-    B->>B: stop-only detector halts capture and trims command tail
+    B->>B: stop-only detector trims tail; active -> closed
     B-->>UI: agenda.stop_wish_recording + artifact ready
     alt send as text
         B->>P: bounded audio + content hash
@@ -516,8 +549,13 @@ sequenceDiagram
     C-->>P: prepared immutable draft summary
     P-->>UI: validated summary
     UI-->>U: recipient + route + sender + exact reviewed content
-    U->>UI: hold to submit
-    UI->>P: bound confirmation token
+    U->>S: physical hold-to-submit contact
+    S-->>UI: normalized touch + observation ID + measured duration
+    UI->>P: agenda.submit_wish + exact prepared revision + observation ID
+    P->>S: claim observation for canonical dispatch digest + hold threshold
+    S-->>P: single-use touch provenance envelope
+    P->>P: validate duration; create bound confirmation token
+    Note over P: later lifecycle/supervisor change does not revoke issued token
     P->>C: signed single-use submission
     C->>M: one transport handoff
     C-->>P: submitted / failed_before_submission / delivery_unknown
@@ -540,10 +578,33 @@ no-raw-media network posture. A command-listening buffer must never be promoted
 into a wish. Purpose, maximum duration, maximum bytes, destination capability,
 and lease expiry are fixed before capture begins.
 
-The supervisor does not learn birthday or draft semantics. It grants or denies
-only a generic, bounded media-safety window from presence/lifecycle/power state
-and imposes the hard quiesce deadline. The broker validates the named capture
-purpose and its tighter artifact rules inside that ceiling.
+~~The supervisor does not learn birthday or draft semantics. It grants or
+denies only a generic, bounded media-safety window from
+presence/lifecycle/power state and imposes the hard quiesce deadline. The
+broker validates the named capture purpose and its tighter artifact rules
+inside that ceiling.~~ The supervisor still learns no birthday, draft, or
+capture-purpose semantics. It publishes lifecycle state and the hard quiesce
+deadline directly to the broker, observes physical touch, and binds one
+observation to an opaque operation digest only for an exact authenticated
+capability-holder peer. The broker owns the media lease and validates the named
+capture purpose, the supervisor-touch binding, and its tighter artifact rules
+inside the lifecycle ceiling.
+
+Observation claim and capture start are distinct one-shot consumptions. A
+successful broker claim consumes the observation, then creates one in-memory
+`armed` lease with an unpredictable `lease_id` bound to the exact UI peer and
+request, `agenda.start_wish_recording`, `wish_recording`, operation digest,
+lifecycle session/snapshot/sequence, start deadline, and capture expiry. The UI
+receives only the opaque ID, never the stored provenance or lifecycle binding.
+The first `capture_start` carries only that ID over the same still-authenticated
+UI connection/peer. The broker retrieves the immutable binding and verifies its
+peer, provenance, purpose, lifecycle, and deadlines against current broker
+state before atomically consuming start authorization and changing
+`armed -> active` before opening the microphone. Repeated starts return a
+structured already-consumed outcome. Explicit stop changes `active -> closed`;
+expiry, lifecycle closure, UI disconnect, mute, or broker restart changes
+`armed|active -> closed`; `closed` is terminal. Unknown, mismatched, expired,
+already-started, closed, and no-active-capture outcomes remain distinct.
 
 During recording, `command_recognition` is not separately leased and no study,
 agenda-prepare, or other application command set is active. The stop-only
@@ -633,11 +694,17 @@ back to trusting loopback headers or a credential in an argument, URL, image
 overlay, log, or diagnostic.
 
 App capabilities authorize a Tailnet node, not an individual Linux process and
-not a physical touch. Their separation narrows and audits the companion API but
-does not replace signed requests, local device permissions, the
+not a physical touch. ~~Their separation narrows and audits the companion API
+but does not replace signed requests, local device permissions, the
 prepared-summary confirmation, or the proposed limitation that a compromised
 authorized UI can request allowed operations and root can exercise the device
-key directly. That limitation remains pending Step 1 human review.
+key directly. That limitation remains pending Step 1 human review.~~ Their
+separation narrows and audits the companion API but does not replace signed
+requests, local device permissions, or prepared-summary confirmation. The
+personal-context client now also requires a supervisor-authored single-use
+touch-provenance envelope for dispatch. Root can still exercise the device key,
+and a compromised UI can still misrepresent what it displayed around a genuine
+touch; those limitations remain pending human review.
 
 Proposed capabilities are deliberately separate:
 
@@ -682,8 +749,12 @@ DELETE /api/v1/birthday-wish-drafts/{draft_ref}
   locations and private titles, and disable wish preparation until the
   companion revalidates a fresh current occurrence. Expired or prior-day
   snapshots expose no names, birthdays, titles, or locations.
-- A composer receives a supervisor-owned activity/media lease with a hard
-  ceiling. The UI can request but cannot grant or indefinitely renew it.
+- ~~A composer receives a supervisor-owned activity/media lease with a hard
+  ceiling. The UI can request but cannot grant or indefinitely renew it.~~ The
+  media broker owns the purpose-scoped lease. The UI requests it directly from
+  the broker, which opens it only from an unexpired supervisor-observed touch
+  bound to that canonical request and within the supervisor-published lifecycle
+  ceiling.
 - Suspend preparation revokes capture, waits only a bounded quiesce interval,
   blanks the UI, and never submits a draft.
 - Mac offline means only a same-day, within-retention degraded agenda may remain
@@ -693,7 +764,10 @@ DELETE /api/v1/birthday-wish-drafts/{draft_ref}
 
 The existing one-client supervisor socket should remain the UI lifecycle
 channel. A future media broker receives a distinct lease/quiesce socket and
-group; it must not join the UI socket group.
+group; it must not join the UI socket group. The provenance claim endpoint is a
+third, narrow interface: it admits the media broker and personal-context client
+under two distinct exact service UIDs checked with `SO_PEERCRED`, and it denies
+the UI regardless of group membership.
 
 ## Trust map
 
@@ -703,9 +777,9 @@ group; it must not join the UI socket group.
 | Calendar titles and locations | Shoulder surfing or excessive cache | Daytime-only UI; bounded projection/cache; freshness and private-event policy | Physical room occupant can see the lit panel |
 | Birthdays and names | Contact corpus disclosure | Selected sources; today/near-term projection only | Names remain visible on the intended appliance |
 | Recipient handles and chat identities | Wrong-recipient or database disclosure | Mac-only route provisioning; opaque panel references; masked preview | Mac compromise bypasses this boundary |
-| Raw wish audio and transcript | Silent collection, persistence, or exfiltration | Touch-gated visible capture; hardware indicator/mute; RAM-only panel draft; local Mac STT; bounded deletion | Compromised UI can request an allowed capture while the lifecycle lease is active; Tailnet transfer is deliberate |
+| Raw wish audio and transcript | Silent collection, persistence, or exfiltration | Touch-gated visible capture; broker-owned lease requires a single-use supervisor-observed touch bound to the exact request; hardware indicator/mute; RAM-only panel draft; local Mac STT; bounded deletion | A compromised UI can misrepresent pixels around a genuine bound touch; Tailnet transfer is deliberate |
 | Panel companion-signing key | Extraction or borrowing by another process | Root-provisioned narrow typed client; never exposed to UI/broker; single-use companion challenges | Root/physical panel compromise can exercise it |
-| Messages authority | False activation, replay, duplicate send | Touch before capture and submit; signed single-use prepare/dispatch; allowlisted current-birthday route; daily attempt bound | A compromised `panel_ui` can fabricate touch-level requests; root can use the device key |
+| Messages authority | False activation, replay, duplicate send | Personal-context client requires supervisor-authored touch provenance and observer-measured qualifying hold bound to the immutable dispatch revision; signed single-use prepare/dispatch; allowlisted current-birthday route; daily attempt bound | A compromised `panel_ui` cannot fabricate touch provenance but can misrepresent pixels around a genuine bound touch; root can use the device key |
 | Submission outcome | Duplicate after ambiguous timeout | No automatic retry after handoff; `delivery_unknown` state | Transport may not expose delivery receipts |
 | Mac privacy grants | Background use beyond intent | Signed visible menu-bar app; selected sources/recipients; status and disable control | EventKit's system permission is broader than logical use |
 | Panel snapshot | Storage theft | Minimum fields, bounded retention, owner-only storage | First prototype has no hardware-backed encrypted storage |
@@ -742,7 +816,10 @@ on the separate feasibility plan and its ADR.
 
 ### A. Neutral panel shell prerequisite
 
-- Introduce `panel_ui` as the sole display/touch/LVGL owner.
+- ~~Introduce `panel_ui` as the sole display/touch/LVGL owner.~~ Introduce
+  `panel_ui` as the sole display, LVGL, application-hit-testing, and
+  touch-routing owner; the supervisor remains the independent physical-touch
+  observer and provenance issuer.
 - Version the supervisor protocol around lifecycle values such as `day_active`.
 - Add a namespaced intent router and subordinate Lexinet/agenda surfaces.
 - Move service ownership from `bhp-vocabulary-panel` toward
@@ -780,7 +857,8 @@ on the separate feasibility plan and its ADR.
 
 - Generalize the planned media broker around purpose-specific leases without
   weakening the command-recognition privacy path.
-- Add touch-to-record, recording indication, a purpose-internal stop-only
+- Add supervisor-observed, broker-claimed touch-to-record; recording indication;
+  a purpose-internal stop-only
   `ActiveCommandSet` and detector, touch stop,
   size/duration bounds, RAM-only artifact lifecycle, upload hashing, and failure
   cleanup.
@@ -791,8 +869,9 @@ on the separate feasibility plan and its ADR.
 
 - Package only the measured local transcription adapter.
 - Implement exact text review or complete audio playback, re-record/cancel,
-  immutable prepared summary, atomic confirmation consumption, and
-  hold-to-submit.
+  immutable prepared summary, supervisor-authored contact duration and touch
+  provenance validated by the personal-context client, atomic confirmation
+  consumption, and hold-to-submit.
 - Promote exactly one proven Messages transport, retaining `DraftOnlyTransport`
   as a safe fallback.
 - Add OS-version regression tests and honest submission-state telemetry.
@@ -825,7 +904,16 @@ Production implementation is incomplete until evidence proves:
   recipient, and every submission previews the exact selected route and
   content;
 - no voice recognition can begin `wish_recording`; affirmative touch is required
-  before capture or artifact transfer;
+  before capture or artifact transfer, and the broker rejects a missing,
+  expired, replayed, stale-presentation, wrong-audience, or wrong-operation
+  supervisor provenance envelope;
+- a successful observation claim creates exactly one immutable `armed` lease;
+  `capture_start` carries only its opaque `lease_id` over the same authenticated
+  UI connection, the broker validates the stored binding against current peer,
+  purpose, lifecycle, and deadlines, and only the first valid start transitions
+  `armed -> active`; repeated starts fail structured; stop transitions
+  `active -> closed`; and expiry, lifecycle closure, UI disconnect, mute, or
+  broker restart closes both `armed` and `active` leases;
 - command-listening audio never becomes a wish artifact;
 - while `wish_recording` is active, only `agenda.stop_wish_recording` can enter
   its purpose-internal command set; no general command-recognition lease or
@@ -835,6 +923,12 @@ Production implementation is incomplete until evidence proves:
 - audio submission is impossible until complete playback succeeds; a duration
   or waveform never satisfies content review;
 - no test produces two Messages submissions from one confirmed draft;
+- the personal-context client refuses dispatch unless its confirmation token
+  contains fresh single-use supervisor-authored touch provenance and a
+  qualifying observer-measured hold bound to the exact immutable dispatch
+  revision; an issued token survives later lifecycle/supervisor changes but not
+  monotonic expiry, personal-context-client restart, prepared-revision mismatch,
+  or atomic dispatch consumption;
 - concurrent confirmation replay produces one durable `dispatch_started`
   winner, and route/sender/transport revision changes require a new preview;
 - ambiguous post-handoff failures remain `delivery_unknown` and are never
@@ -862,7 +956,7 @@ even after the user approves the decision to defer it.
 | `AGENDA-002` | Show birthdays today plus the next seven local calendar days | Proposed household preference | The Today surface stays bounded while offering useful notice |
 | `AGENDA-003` | Observe February 29 birthdays on February 28 in non-leap years | Proposed household preference | The normalized model never invents a birth year or age |
 | `AGENDA-004` | Accept `Lexi, send birthday wish` as a prepare alias, but display **Ready to record a draft** and perform no capture or external effect | Proposed from the requested phrase | Product language remains convenient while the state transition stays reversible |
-| `AGENDA-005` | Touch starts recording and touch-hold submits; prefer `Lexi, finish recording` to stop active recording; admit the requested `Lexi, end birthday wish` alias only after a reviewed context-separated acoustic exception; voice alone cannot start capture or submit; accept that a compromised authorized `panel_ui` can fabricate those touch-equivalent requests within the Mac allowlist | Proposed safety and command-distinctiveness boundary | Ambient speech can at most open or stop a visible local workflow, but stronger proof of physical touch needs a separately owned input and static phonetic distance cannot replace measured recognition evidence |
+| `AGENDA-005` | Touch starts recording and touch-hold submits; prefer `Lexi, finish recording` to stop active recording; admit the requested `Lexi, end birthday wish` alias only after a reviewed context-separated acoustic exception; voice alone cannot start capture or submit; ~~accept that a compromised authorized `panel_ui` can fabricate those touch-equivalent requests within the Mac allowlist~~ require the media broker and personal-context client to claim fresh, operation-bound supervisor-observed touch provenance independently of `panel_ui`, with the client validating observer-measured hold duration | Proposed safety and command-distinctiveness boundary | Ambient speech can at most open or stop a visible local workflow; ~~stronger proof of physical touch needs a separately owned input~~ the proposed supervisor observer supplies physical-touch provenance, while trusted-rendering semantics remain outside the prototype; static phonetic distance cannot replace measured recognition evidence |
 | `AGENDA-006` | Use 60 seconds as the recording ceiling, keep no persistent offline panel drafts, cap Mac draft content at 30 minutes, and cap non-content duplicate-suppression metadata at 30 days with deterministic early deletion | Proposed | Evidence may tighten the bounds; raising them or adding persistent drafts requires review |
 | `AGENDA-007` | Permit an ordinary reviewed audio-file attachment when the special Messages audio-note form is unavailable; choose the exact encoded format from feasibility evidence | Proposed with evidence-gated format | Audio remains disabled until complete local playback succeeds |
 | `AGENDA-008` | Require the signed, logged-in Mac companion to be reachable before recording begins | Proposed | Version 1 does not retain a panel draft waiting for a Mac |
@@ -884,11 +978,15 @@ even after the user approves the decision to defer it.
   automatically.
 - Every submission is bound to one fresh birthday occurrence, provisioned
   opaque route, immutable prepared content, sender/transport revision, expiry,
-  and single-use touch confirmation.
-- Approving the touch-authority safety boundary accepts that a compromised
+  and single-use supervisor-authored touch confirmation with an
+  observer-measured qualifying hold.
+- ~~Approving the touch-authority safety boundary accepts that a compromised
   `panel_ui` can exercise the narrowly allowlisted message authority exposed to
   it. A dedicated physical confirmation input is required if that limitation is
-  unacceptable.
+  unacceptable.~~ Proposed ADR 0005 prevents `panel_ui` from authoring or
+  redeeming touch provenance. It does not prove that the pixels surrounding a
+  genuine touch were honest; eliminating that limitation requires a trusted
+  renderer or independently verified hit map.
 - Approving the retention decision sets a 30-minute hard ceiling on Mac content
   and a 30-day ceiling on non-content duplicate-suppression metadata.
   Cancellation, terminal failure, handoff outcome, expiry, and crash recovery
@@ -934,3 +1032,9 @@ The first executable tranche is
 - [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve)
 - [Tailscale Serve CLI](https://tailscale.com/docs/reference/tailscale-cli/serve)
 - [Tailscale identity](https://tailscale.com/docs/concepts/tailscale-identity)
+
+**Amended 2026-08-07:** moved `wish_recording` leases to the media broker,
+added the separate supervisor-observed touch-provenance flow for capture and
+dispatch, and made the media broker and personal-context client enforce it
+independently of `panel_ui` under proposed ADR 0005. `AGENDA-*` statuses are
+unchanged, roadmap Step 1 is not approved, and no hardware behavior is claimed.

@@ -55,9 +55,14 @@ authorization; enabling real-recipient messaging during a software build.
 ## Non-negotiable architecture
 
 - `panel_supervisor` alone owns presence, solar policy, backlight, and suspend.
-- One neutral, unprivileged `panel_ui` process owns LVGL, display, and touch.
-  Vocabulary and agenda are sibling feature reducers/surfaces, never competing
-  display processes.
+- ~~One neutral, unprivileged `panel_ui` process owns LVGL, display, and touch.~~
+  One neutral, unprivileged `panel_ui` process owns LVGL, display, application
+  hit testing, and touch routing. Vocabulary and agenda are sibling feature
+  reducers/surfaces, never competing display processes.
+- Under proposed ADR 0005, `panel_supervisor` is the sole raw touch-device
+  observer and provenance issuer. The broker and personal-context client
+  validate one operation-bound observation under distinct exact service
+  principals; `panel_ui` cannot author or redeem it.
 - One purpose-scoped media broker alone owns the microphone. Command audio
   stays broker-local. Birthday-wish recording is a separate, visible,
   explicitly confirmed purpose.
@@ -179,9 +184,12 @@ behavior.
 
 - [ ] **Step 2: Establish the neutral host platform spine**
   - Execute the platform-spine portion of Lexinet Step 7: introduce
-    `panel_ui` as sole display/touch owner, a headless renderer, a pure shell
-    controller, namespaced interaction intents, and sibling surface contracts.
-    Vocabulary-specific data binding may remain pending until Step 3 below.
+    ~~`panel_ui` as sole display/touch owner~~ `panel_ui` as sole display,
+    application-hit-testing, and touch-routing owner; add the ADR 0005
+    supervisor observation/provenance ports with host fakes; and add a headless
+    renderer, a pure shell controller, namespaced interaction intents, and
+    sibling surface contracts. Vocabulary-specific data binding may remain
+    pending until Step 3 below.
   - Upgrade the local lifecycle protocol to v2. Every request and presentation
     acknowledgement binds the appliance release, unpredictable supervisor
     session, per-connection challenge, monotonic event sequence, complete
@@ -244,6 +252,13 @@ behavior.
     a schema-validated, content-addressed recognition-policy artifact bound to
     its backend and recognizer identity. Reserve, but do not yet enable,
     `wish_recording`.
+  - Add the deterministic two-phase effect gate from ADR 0005. Phase A derives
+    every registered intent's endpoint-to-effect pairs and deduplicated effect
+    set independent of input source, including touch-only IDs; unresolved edges
+    fail conservatively. Phase B derives voice-emittable IDs from each active
+    spoken-form projection and applies the unchanged matrix to every effect in
+    their Phase-A sets; any one forbidden effect fails, and no touch-only ID may
+    enter a voice projection.
   - Ensure absence, night mode, surface change, mute, consumer disconnect,
     suspend preparation, or fault closes capture, wipes volatile buffers, and
     acknowledges quiescence by a deadline. Voice failure never blocks touch or
@@ -308,22 +323,42 @@ behavior.
     is active; the same stream may feed only a purpose-internal stop set
     containing `agenda.stop_wish_recording`, which may halt capture but cannot
     route another intent or submit.
+  - Implement the one-shot broker lease contract: successful touch-observation
+    claim consumes the observation and creates an immutable uniquely identified
+    `armed` lease. The UI receives only its opaque `lease_id`; `capture_start`
+    carries only that ID over the same authenticated connection. The broker
+    validates its stored binding against current peer, purpose, lifecycle, and
+    deadlines before the first valid start separately consumes authorization
+    and transitions `armed -> active`; stop transitions `active -> closed`; and
+    expiry, lifecycle closure, UI disconnect, mute, or broker restart transitions
+    `armed|active -> closed`. Every invalid/repeated transition returns a
+    structured outcome.
+  - Do not add a lifecycle subscription to `personal_context_client`. Once it
+    has claimed touch and created a confirmation token, lifecycle or supervisor
+    changes do not revoke that token. Exact prepared-revision/provenance binding,
+    monotonic expiry, client restart, and atomic dispatch consumption govern it.
   - Output: the host-tested panel/Mac implementation permitted by the reviewed
     plan, or the selected read-only/draft-only endpoint.
   - Verify: use the follow-up plan's tests; additionally prove expiry,
     permission revocation, offline behavior, route revision changes, replay,
-    concurrent confirmation, cancellation/deletion, and UI/media-broker
-    isolation. `make verify` passes before packaging.
+    concurrent confirmation, the complete broker lease state machine,
+    post-issuance confirmation lifetime across lifecycle/supervisor changes,
+    cancellation/deletion, and UI/media-broker isolation. `make verify` passes
+    before packaging.
 
 - [ ] **Step 8: Produce the host-integrated release candidate**
   - Execute Lexinet Step 9 and the approved agenda packaging work. Migrate the
     vocabulary-specific service toward neutral `bhp-panel-ui`; assign distinct
     service users, groups, sockets, state paths, restart limits, and device
     permissions.
-  - Keep only the supervisor able to write backlight/suspend, only `panel_ui`
-    able to open the classified display/touch devices, and only the broker able
-    to open the classified microphone. Until hardware discovery, target device
-    values remain unset and services remain disabled.
+  - Keep only the supervisor able to write backlight/suspend and open the
+    classified touch device, only `panel_ui` able to open the classified display,
+    and only the broker able to open the classified microphone. Revoke the
+    vocabulary/UI service's raw `bhp-touch` group membership at the atomic touch
+    forwarding cutover. Assign the supervisor, UI, broker, and personal-context
+    client distinct exact service principals; require reciprocal peer-credential
+    and root-owned-socket checks on provenance channels. Until hardware
+    discovery, target device values remain unset and services remain disabled.
   - Run full host system simulations using fake presence, clock, display,
     capture, Lexinet, companion, storage, and Tailnet boundaries. Cover cold
     boot, untrusted clock, sunrise/sunset rollover, absence during work,
@@ -560,3 +595,11 @@ no previously unchecked step was marked complete. Independent review sharpened
 the join with canonical server event order, bounded Undo ownership, hard
 voice-effect admission, artifact-bound recognizer output, and held-out acoustic
 qualification rather than changing the selected architecture.
+
+**Amended 2026-08-07:** reconciled the future touch owner and packaging steps
+with proposed ADR 0005. The supervisor becomes the raw observer, `panel_ui`
+retains application routing, capability holders validate provenance under
+distinct principals, and the packaging cutover revokes raw UI touch access. The
+effect gate is two-phase, broker lease start is one-shot, and an issued
+personal-context confirmation token expires independently of lifecycle. No step
+or product-decision status changed, and no hardware behavior is claimed.

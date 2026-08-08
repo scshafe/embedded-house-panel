@@ -95,16 +95,21 @@ may delay nonzero brightness without granting the UI power authority. See
 ```mermaid
 flowchart LR
     PIR["PIR / attributed input"] --> SUP["panel_supervisor\npower + lifecycle authority"]
-    SUP -->|"mode.v2 snapshot / commit deadline"| SHELL["panel_ui\nsole display + touch owner"]
+    TOUCH["exact configured touch evdev"] -->|"direct observation"] SUP
+    SUP -->|"mode.v2 snapshot / commit deadline"| SHELL["panel_ui\nsole display + application touch router"]
+    SUP -->|"separate one-way normalized touch observation + opaque ID"| SHELL
     SHELL --> STUDY["vocabulary reducer\ncache + outbox"]
     SHELL --> AGENDA["agenda reducer"]
     CATALOG["spoken-command catalog"] --> SET["ActiveCommandSet"]
     SET --> PROJ["content-addressed backend projection"]
     POLICY["validated recognition-policy artifact"] --> BROKER
     MIC["microphone"] --> BROKER["media broker\nraw capture owner"]
+    SUP -->|"lifecycle window; close on absence / night / suspend preparation"| BROKER
+    SHELL -->|"direct purpose-scoped lease request + touch observation ID"| BROKER
+    BROKER -->|"exact-peer claim for canonical operation digest"| SUP
     PROJ --> BROKER
     BROKER -->|"artifact-bound semantic intent"| SHELL
-    SHELL --> DISPLAY["DRM/fbdev + touch"]
+    SHELL --> DISPLAY["DRM/fbdev + application touch routing"]
     STUDY -->|"HTTPS study.v1"| TAIL["tailscaled / kernel TUN"]
     TAIL --> LEX["Lexinet study service"]
 ```
@@ -115,6 +120,28 @@ shell, catalog pipeline, and cross-repository tests. It intentionally stops at
 the agenda reducer; the signed personal-context client, recording-artifact
 transfer, Tailnet route, and Mac companion are documented in
 [Personal Agenda and Birthday Wishes](personal-agenda-and-birthday-wishes.md).
+
+~~The diagram's former `panel_ui`-owned touch edge left the UI able to author
+the same touch claim consumed by a capability holder.~~ Under proposed
+[ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md),
+the supervisor observes the exact configured touch device and forwards
+normalized events on a separate one-way stream. The UI maps those events to
+application actions, then requests media leases directly from the broker. Only
+the broker or personal-context client can claim an observation from the
+supervisor and bind it once to an opaque canonical operation digest. Those
+claimants use distinct exact service UIDs verified with `SO_PEERCRED`; group
+membership cannot substitute, and each claimant reciprocally verifies the
+supervisor UID and root-owned socket identity. Version, supervisor session, and
+sequence bind lifecycle, observation, and provenance messages. Disconnect,
+restart, stale session, replay, or an unreconciled gap closes the media window
+and broker leases, and invalidates unclaimed observations or in-flight claim
+exchanges. It does not revoke a confirmation token already created by the
+personal-context client, which has no lifecycle subscription and applies its
+own expiry/restart/consumption rules. Cutover removes the UI's current raw
+`bhp-touch` access, and slow observation/provenance consumers are dropped so
+they cannot delay blanking or suspend. This does not add any request, lease,
+feature message, or capability negotiation to the UI-to-supervisor lifecycle
+socket.
 
 ## Lexinet boundary
 
@@ -127,3 +154,8 @@ model](../security/threat-model.md).
 **Amended 2026-08-07:** corrected the current topology and sequences to show
 that the supervisor publishes protocol version 1 while the socket remains
 unconsumed; the future neutral `panel_ui` remains the first planned consumer.
+
+**Amended 2026-08-07:** added the proposed ADR 0005 touch-provenance path,
+direct UI-to-broker lease request, supervisor lifecycle publication, and
+capability-holder claim boundary. These are future contracts, not implemented
+code, hardware evidence, roadmap approval, or product-decision approval.

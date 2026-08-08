@@ -20,6 +20,15 @@ Microphone and camera support is proposed but not implemented. Their future
 default is physically unpowered, with controls that do not depend solely on a
 compromiseable UI process.
 
+The current Buildroot scaffold still grants the vocabulary service raw access
+to the exactly classified `bhp-touch` device. Proposed
+[ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md)
+requires a future atomic cutover: the supervisor becomes the sole direct touch
+reader and provenance issuer, forwards normalized input to `panel_ui`, and the
+UI's raw node/group access is revoked. Until that packaging change and
+on-target evidence exist, capability-holder touch validation is a proposed
+contract, not an implemented control.
+
 Personal agenda and birthday-wish support is also proposed, not implemented.
 Its additional trust boundary is a signed, logged-in-user Mac companion that
 owns Apple/Google authorization, full recipient routes, local transcription,
@@ -36,7 +45,9 @@ flowchart LR
     SUP <-->|"versioned but untrusted messages"| MCU["Proposed always-on controller"]
     MCU --> POWER["Application-domain power"]
     ROOM["Untrusted room audio / video"] --> MEDIA["Proposed power-gated media"]
-    SUP -->|"bounded capture authorization"| BROKER["Proposed media-session broker"]
+    TOUCH["Exactly configured touch evdev"] -->|"future direct observation"| SUP
+    SUP -->|"lifecycle window + touch observation"| BROKER["Proposed media-session broker"]
+    BROKER -->|"exact-peer one-time provenance claim"| SUP
     MEDIA --> BROKER
     UI -->|"semantic interaction request"| BROKER
     BROKER -->|"purpose-bounded semantic result"| UI
@@ -60,9 +71,9 @@ flowchart LR
 | Household presence inference | Excessive logs, UI compromise, or remote disclosure | Store only current/transition diagnostics locally; exact unique touch grant; both project PIR names stay root-only | Device identity is not cryptographic, physical/root compromise bypasses it, and any new presence-provider name must extend the tested deny list |
 | Calendar titles, locations, birthdays, and names | Screen disclosure, excessive synchronization, or storage theft | Planned: content-free capability discovery before consent; local opt-in and grants; selected calendars/provisioned contacts only; daytime display; bounded Today projection/cache; private-event policy; visible freshness | macOS grants remain broad and a compromised companion or logged-in user can read beyond the adapter's logical boundary; intended room occupants can see a lit panel |
 | Provider OAuth tokens and full contact/message routes | Theft from the physically accessible panel | Planned: Mac Keychain and companion-only routing; panel receives opaque people and masked destinations | Compromise of the logged-in Mac user bypasses this boundary |
-| Raw audio, images, and unrestricted transcripts | Silent collection, accidental logging, or tailnet exfiltration | Planned: media rails default off; purpose-bound broker sessions; command audio is never transmitted; a voice wish command only opens the composer; `bounded_learning_observation` navigation may append idempotent non-mastery `presented`/`revealed` facts, while ratings are visibly acknowledged and append-only correctable by touch Undo; touch begins wish capture; hardware indicator/mute | No media broker or rail control is implemented; compromised UI can simulate allowed capture while its lease is active, and root/physical compromise bypasses policy |
+| Raw audio, images, and unrestricted transcripts | Silent collection, accidental logging, or tailnet exfiltration | Planned: media rails default off; purpose-bound broker sessions; command audio is never transmitted; a voice wish command only opens the composer; `bounded_learning_observation` navigation may append idempotent non-mastery `presented`/`revealed` facts, while ratings are visibly acknowledged and append-only correctable by touch Undo; the broker opens capture only from single-use supervisor-observed touch provenance bound to its exact lease request; hardware indicator/mute | No media broker, touch-provenance flow, or rail control is implemented; ~~compromised UI can simulate allowed capture while its lease is active~~ a compromised UI cannot mint provenance but can misuse a genuine touch on a misrepresented frame; root/physical compromise bypasses policy |
 | Spoken-command vocabulary and recognizer output | Near-homophones, phrase containment, context leakage, artifact/policy mismatch, or acoustic substitution triggers the wrong semantic action | Planned: one reviewed language-tagged catalog; pronunciation provenance; deterministic pair analysis; hard effect-class admission excluding capture start/submission/power/illumination; content-addressed active command sets and backend projections; schema-validated canonical recognition-policy artifacts bound to backend/model identities and verified by the broker; the complete identity chain in each voice intent; abstention; visible acknowledgement; touch fallback and append-only rating correction; single-use held-out selection plus untouched confirmation evidence before enabling a real engine | Static phonetic distance is not a probability or a safety proof; actual microphones, speakers, noise, accents, and recognizer builds remain unproven until on-device evidence exists |
-| Birthday-wish body/audio and Messages authority | False activation, wrong recipient, replay, duplicate submission, or hidden retention | Planned: allowlisted current-birthday route, touch before capture and submit, single-use signed request, atomic dispatch barrier, daily attempt bound, local STT, playback-gated audio, 30-minute Mac content ceiling, deterministic terminal deletion, and 30-day non-content attempt-metadata ceiling | Messages semantics are unproven; compromised `panel_ui` can fabricate touch-level allowed requests, and root can use the device key |
+| Birthday-wish body/audio and Messages authority | False activation, wrong recipient, replay, duplicate submission, or hidden retention | Planned: allowlisted current-birthday route; broker-validated supervisor touch before capture; personal-context-client validation of supervisor-authored provenance and observer-measured qualifying hold before submit; single-use signed request; atomic dispatch barrier; daily attempt bound; local STT; playback-gated audio; 30-minute Mac content ceiling; deterministic terminal deletion; and 30-day non-content attempt-metadata ceiling | Messages semantics are unproven; ~~compromised `panel_ui` can fabricate touch-level allowed requests~~ a compromised UI can misrepresent pixels around a genuine bound touch but cannot author provenance; root can use the device key |
 | Microphone/camera activation state | Compromised UI falsifies software indicator or mute | Planned: physical mic mute removes bias/clock/power; camera indicator is tied to its rail; mechanical shutter preferred | Prototype USB devices may not expose a separately switchable rail; controls remain unproven |
 | Always-on controller availability and authority | Wake storm drains battery, stale Linux state controls output, or controller fault prevents boot | Planned: bounded sequenced protocol, independent safety ceilings, watchdog, boot backoff, reset reconciliation, authenticated A/B update | No controller, protocol, bootloader, or secure update path is implemented |
 | eMMC durability | Corruption or wear | No implemented control yet; read-only root and a bounded writable data partition are planned evidence gates | Current writable-root prototype remains exposed to abrupt-power-loss corruption and wear |
@@ -74,6 +85,15 @@ flowchart LR
 - The unprivileged UI never owns raw ALSA/V4L2 nodes, microphone/camera rail
   GPIOs, or a general media group. A narrow broker grants a purpose, duration,
   and bounded semantic result under supervisor authorization.
+- Under proposed ADR 0005, the UI also loses raw touch-evdev access at cutover.
+  The supervisor forwards normalized events and observer-measured contact
+  duration, while the broker and personal-context client claim one observation
+  under two distinct exact service UIDs checked with `SO_PEERCRED`. Each holder
+  reciprocally validates the supervisor UID and root-owned socket identity.
+  Version/session/sequence mismatch, replay, disconnect, or supervisor restart
+  closes broker media windows/leases and invalidates unclaimed observations or
+  in-flight claims. It does not revoke an already-issued personal-context
+  confirmation token; that client has no lifecycle subscription.
 - A physical microphone mute removes the microphone's power, clock, or bias.
 - Camera and microphone power indicators are coupled to hardware rails rather
   than controlled only by application software.
@@ -144,10 +164,15 @@ Tailscale supplies private transport, not complete application authorization.
 The companion must reject forged Serve headers and require a provisioned panel
 signature over a single-use server challenge and canonical request. The UI and
 broker use a narrow typed local client rather than a general-purpose companion
-socket or the private signing key. This blocks ordinary same-user Mac processes
-from borrowing the companion's TCC grants, but it does not prove touch: a
-compromised authorized UI can still request the allowlisted operations exposed
-to it.
+socket or the private signing key. ~~This blocks ordinary same-user Mac
+processes from borrowing the companion's TCC grants, but it does not prove
+touch: a compromised authorized UI can still request the allowlisted operations
+exposed to it.~~ This blocks ordinary same-user Mac processes from borrowing the
+companion's TCC grants. The personal-context client additionally refuses
+dispatch unless the confirmation token contains fresh, single-use,
+supervisor-authored touch provenance and an observer-measured qualifying hold
+bound to the exact prepared revision. A compromised UI can still misrepresent
+what it displayed around a genuine touch.
 
 ## Power-state data exposure
 
@@ -201,3 +226,9 @@ scripts list every included path and redact before archive creation.
 These are honest prototype boundaries, not permanent prohibitions. The
 personal-agenda work must revisit storage protection before it persists more
 than the minimized bounded snapshot or enables reboot-surviving drafts.
+
+**Amended 2026-08-07:** replaced the proposed UI-authored touch limitation for
+capture and Messages dispatch with ADR 0005's supervisor-observed,
+capability-holder-validated provenance boundary. The text explicitly preserves
+the current raw-touch scaffold as not yet migrated, makes no hardware claim,
+and does not preempt the broader threat-model review planned for Step 14.

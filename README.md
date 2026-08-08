@@ -99,16 +99,31 @@ neutral shell; it does not add agenda or vocabulary decisions to the supervisor:
 
 ```mermaid
 flowchart LR
-    SUP["panel supervisor\nlifecycle + power only"] -->|"day_active / night_red / suspended"| SHELL["panel_ui\nsole display/touch owner"]
+    TOUCH["exact configured touch evdev"] -->|"future direct observation"| SUP["panel supervisor\nlifecycle + power + touch provenance"]
+    SUP -->|"day_active / night_red / suspended"| SHELL["panel_ui\nsole display + application touch router"]
+    SUP -->|"normalized touch observation + opaque ID"| SHELL
     CATALOG["spoken-command catalog\nactive sets + backend projections"] --> BROKER["media broker\nsole microphone owner"]
+    SUP -->|"lifecycle window"| BROKER
+    SHELL -->|"direct media lease request"| BROKER
+    BROKER -->|"exact-peer touch claim"| SUP
     BROKER -->|"artifact-bound namespaced intent"| SHELL
     SHELL --> VOCAB["Lexinet study feature"]
     SHELL --> AGENDA["personal agenda feature"]
     VOCAB --> LEXINET["Lexinet over tailnet"]
     AGENDA --> CLIENT["signed personal-context client"]
+    CLIENT -->|"exact-peer touch/hold claim"| SUP
     BROKER -->|"touch-initiated wish artifact"| CLIENT
     CLIENT --> MAC["signed Mac companion\nover tailnet"]
 ```
+
+~~The earlier convergence sketch assigned the raw touch device to `panel_ui`
+and left touch provenance inside the process asking capability holders to
+act.~~ Proposed [ADR 0005](docs/decisions/0005-validate-touch-provenance-at-capability-holders.md)
+makes the supervisor the future raw-touch observer while leaving application
+hit testing in the UI. The packaging cutover must revoke the current UI service's
+raw `bhp-touch` access and use distinct exact service principals for broker and
+personal-context provenance claims. This is a proposed contract, not current
+code or hardware evidence.
 
 See [system architecture](docs/architecture/system-architecture.md),
 [application capability ownership](docs/architecture/application-capability-ownership.md),
@@ -160,6 +175,10 @@ Do not flash or boot the installed eMMC OS. Inventory the unpowered hardware, pr
 
 The complete executable sequence is the
 [BeagleBone hardware baseline plan](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md).
+
+**Amended 2026-08-07:** reconciled the proposed convergence sketch with ADR
+0005's supervisor-observed touch provenance and capability-holder validation.
+The current scaffold and every hardware-evidence gate remain unchanged.
 
 ## Decisions intentionally still open
 

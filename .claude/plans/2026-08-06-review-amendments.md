@@ -15,7 +15,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
 - The review changed nothing. This repository is unmodified at the time of writing.
 - **This plan is written to be reviewed before it is executed.** Roadmap Steps 6 and 11 already establish that convention (`.claude/plans/2026-08-05-end-to-end-development-roadmap.md:293`, `:387`); it applies here too.
 - Step 1 is a human decision gate. Steps 5, 7, and 8 cannot be executed correctly until it is answered, because each encodes a choice that is the user's to make, not the executor's.
-- When amending an existing plan or document, follow the repository convention: strikethrough the obsolete text with `~~...~~`, insert the replacement, and append `**Amended 2026-08-06:** <reason>` at the bottom. Never silently rewrite — the change must be traceable in `git diff`.
+- When amending an existing plan or document, follow the repository convention: strikethrough the obsolete text with `~~...~~`, insert the replacement, and append ~~`**Amended 2026-08-06:** <reason>`~~ `**Amended <actual YYYY-MM-DD>:** <reason>` at the bottom. Never silently rewrite — the change must be traceable in `git diff`.
 - Any ADR created here allocates its four-digit prefix by scanning `docs/decisions/` at creation and re-scanning immediately before merge (`docs/decisions/README.md:22-32`). `0004` is currently free; that is not a reservation.
 - `make verify` requires `ripgrep` and `shellcheck` on the host (`scripts/environment/check_host_dependencies.sh:47`). Both are installed on the development host as of 2026-08-06, and `make verify` passes there with exit 0 — only the `KERNEL_DIR` and `BHP_BUILDROOT_DIR` checks skip, by design. A verify failure on this host is therefore a real regression, not an environment gap. The suite still does not preflight its declared dependencies, so a host missing one reports a documentation failure rather than a dependency error; Step 12 fixes that.
 - `make verify-release-candidate` cannot run on this host: it requires Linux x86_64 and aborts with `RELEASE_CANDIDATE.HOST_UNSUPPORTED` (`.build/release-gate-host-check.log`). No Buildroot image has ever been built end to end, which is why the Step 3 defects went undetected.
@@ -69,7 +69,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Specialist: `rigorous-architect`
   - Verify: human review confirms the frozen field set matches the recorded decisions; `make verify-docs` passes.
 
-- [ ] **Step 8: Move voice effect-admission enforcement to the capability holders**
+- [x] **Step 8: Move voice effect-admission enforcement to the capability holders**
   - The admission matrix (`docs/architecture/spoken-command-distinctiveness.md:100-111`) is enforced by the catalog validator and re-checked inside `panel_ui` — the process that `docs/security/threat-model.md:65` and `docs/architecture/personal-agenda-and-birthday-wishes.md:708` both concede can fabricate touch-level requests. The three capability holders never verify provenance: `docs/architecture/personal-agenda-and-birthday-wishes.md:496` and `:517-521` show lease and confirmation requests with no touch-vs-voice discriminator.
   - Amend the architecture documents so that (a) the media broker refuses `capture_start` unless the lease was opened by a supervisor-observed touch, (b) the personal-context client refuses dispatch unless the confirmation token carries a `touch` provenance field set by whoever observed the touch, and (c) an acceptance gate inspects the reachable call graph per `intent_id` rather than the catalog alone. Keep the matrix itself unchanged — it is correct.
   - Resolve the media-lease authority contradiction in the same pass: `docs/architecture/personal-agenda-and-birthday-wishes.md:496` has `panel_ui` requesting the lease from the supervisor, `docs/architecture/application-capability-ownership.md:37` assigns leases to the broker, `:696` says the broker must not join the UI socket group, and `docs/interfaces/panel-mode-protocol.md:107` declares the UI→supervisor direction command-free. Pick one and make the other three match.
@@ -133,7 +133,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
 - Steps 1–15 are checked, or an unchecked step carries a written reason and an owner.
 - `make verify` passes on the development host and on the Linux runner introduced in Step 12.
 - No pending product decision has changed status, and roadmap Step 1 remains unapproved.
-- Each amended plan or document carries its `**Amended 2026-08-06:**` footer, and the amendments are visible in `git diff`.
+- Each amended plan or document carries its ~~`**Amended 2026-08-06:**`~~ `**Amended <actual YYYY-MM-DD>:**` footer, and the amendments are visible in `git diff`.
 - The deferred register below is intact, with nothing quietly dropped.
 - The work is committed on a branch and left for review; this plan does not authorize a merge.
 
@@ -148,3 +148,9 @@ Carried forward from the review; each needs evidence or a decision this plan can
 **Simplification candidates raised by the review, not adopted here** — each would reduce scope but is a product decision: dropping gap-free ingestion ordinals, the client-stream receipt ledger, and the request-hash conflict path for a single-writer reality; dropping the predecessor flush-receipt barrier in favor of the server-side exhaustion predicate; deferring content-addressed recognition-policy artifacts while keeping the effect-admission matrix; scaling the voice qualification protocol down from roughly a thousand utterances and 24 hours of negative audio; cutting `scripts/verification/verify_documentation.sh` from 437 lines of phrase-count assertions to link validity, secret absence, and placeholder detection.
 
 **Amended 2026-08-06:** recorded the verified host baseline in Context. `ripgrep` was installed after this plan was written, so `make verify` now passes on the development host with exit 0; a failure there is a regression rather than a missing tool. Step 12's preflight item is unchanged — it makes the suite report a missing dependency as a dependency error on the next host, including the Linux runner that same step introduces. Also recorded that `make verify-release-candidate` cannot run here, which is why the Step 3 Buildroot defects were never surfaced by a build.
+
+**Amended 2026-08-07:** replaced the fixed review-date footer example with
+the actual amendment date. Execution began on 2026-08-07 and ADR 0004 records
+the human gate on that date, so forcing later corrections to claim 2026-08-06
+would make their provenance false. Existing 2026-08-06 amendments retain their
+original date.

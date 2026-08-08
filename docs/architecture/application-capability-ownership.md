@@ -28,7 +28,8 @@ implementation instead of creating a peer.
 | Presence state and Linux wake event | `presence_sensor/` | BeagleBone hardware baseline plan | Implementations emit the same persistent input ABI; no presence implementation owns product policy |
 | Presence, solar, brightness, and suspend policy | `panel_supervisor/` | Implemented scaffold; protocol-v2 work continues in the Lexinet plan's Step 7 | No UI, feature, broker, or kernel module may write policy or power state |
 | Supervisor/UI lifecycle contract | `docs/interfaces/panel-mode-protocol.md`; supervisor publishes and `panel_ui` acknowledges | Lexinet plan Step 7 | Version the one contract; never introduce a feature-specific lifecycle channel |
-| Display, touch, LVGL lifetime, surface routing, and modal precedence | planned `panel_ui/` | Lexinet plan Step 7 | New features add a reducer/surface and namespaced intents beneath the one shell |
+| Display, ~~touch,~~ application touch interpretation, LVGL lifetime, surface routing, and modal precedence | planned `panel_ui/` | Lexinet plan Step 7 | New features add a reducer/surface and namespaced intents beneath the one shell; the UI consumes normalized touch observations but cannot author touch provenance |
+| Physical-touch observation and single-use provenance | planned narrow capability inside `panel_supervisor/`, governed by [ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md) | A reviewed implementation plan after ADR 0005 approval | The supervisor is the only direct touch-evdev reader and provenance issuer; cutover revokes raw UI access, forwards normalized observations including observer-measured contact duration without interpreting feature semantics, and admits the broker and personal-context client under distinct exact service UIDs to claim one observation for one operation |
 | Vocabulary presentation and study navigation | `vocabulary_panel/` as a subordinate feature domain | Lexinet plan Steps 6–7 | Extend the study reducer; do not restore a vocabulary-owned display executable |
 | Personal-agenda presentation and birthday-wish composer | planned agenda feature beneath `panel_ui` | Separate post-feasibility production plan | Extend the shell and media contracts selected by the earlier Lexinet steps |
 | Process-wide HTTP initialization, cancellation primitives, and common transport budgets | planned `shared/http_runtime/` | Lexinet plan Step 6 | Domain clients retain their schemas, authorization, cache, and retry semantics while sharing one runtime |
@@ -52,6 +53,16 @@ implementation instead of creating a peer.
 - The supervisor exposes lifecycle and generic media-safety facts only. It does
   not learn feature routes, birthdays, vocabulary sessions, recording content,
   recipient identity, or provider state.
+- The supervisor's proposed touch-provenance capability observes and attests a
+  completed physical contact without deciding what the touch means. The UI
+  cannot claim an observation from the supervisor; the broker or
+  personal-context client binds it to one opaque operation digest after
+  validating the request.
+- The existing vocabulary service's raw `bhp-touch` access is scaffold state,
+  not the proposed boundary. The later Buildroot cutover must remove that group
+  membership and raw node permission from the UI when the supervisor-owned
+  observation stream is enabled; this documentation amendment does not change
+  packaging.
 - The media broker owns raw capture but not display, message submission, or
   suspend. A failure or quiescence timeout fails the media purpose closed and
   cannot hold power policy hostage.
@@ -71,3 +82,9 @@ which process can exercise a device, secret, or external effect. Adding a new
 implementation behind an existing documented extension point does not require
 an ownership ADR, but it must retain the same contract, permissions, structured
 failures, and evidence gates.
+
+**Amended 2026-08-07:** split application touch interpretation from
+security-relevant physical-touch observation. Proposed ADR 0005 assigns the
+latter to a narrow supervisor capability so every effect holder can validate
+provenance without trusting `panel_ui`; no roadmap or pending product decision
+is approved by this amendment.

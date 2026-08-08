@@ -1,7 +1,14 @@
 # Vocabulary Panel
 
 Owns the unprivileged Lexinet-backed study feature and its subordinate render
-surface. The planned neutral `panel_ui` remains the sole display/touch owner.
+surface. ~~The planned neutral `panel_ui` remains the sole display/touch
+owner.~~ The planned neutral `panel_ui` remains the sole display, application
+hit-testing, and touch-routing owner. Under proposed
+[ADR 0005](../docs/decisions/0005-validate-touch-provenance-at-capability-holders.md),
+the supervisor becomes the sole raw touch-device observer and provenance issuer
+at a later atomic packaging cutover; that cutover revokes the current
+vocabulary/UI service's raw `bhp-touch` access. The checked-in scaffold has not
+made that migration.
 
 ## Public promises
 
@@ -41,3 +48,7 @@ ctest --preset host-debug --output-on-failure
 - `@extension-point flash_card_renderer`: the first concrete target implementation is the [LVGL 9.5 renderer](gui/lvgl/README.md), with explicit direct-DRM and fbdev transports; Qt remains a bounded fallback experiment.
 
 See [flash-card UX](../docs/behavior/flash-card-ux.md) and [GUI research](../docs/research/gui-strategies.md).
+
+**Amended 2026-08-07:** separated proposed application touch routing from raw
+touch observation/provenance under ADR 0005 without changing the current
+service, package, permissions, or hardware claims.

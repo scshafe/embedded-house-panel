@@ -214,6 +214,18 @@ Exact spoken forms remain proposed until the first catalog report is reviewed:
 The invocation prefix is required but excluded from secondary payload-distance
 scoring so the shared word does not dilute differences among commands.
 
+The panel intent registry is broader than the spoken-form projection. It also
+contains safety-relevant touch-only intents with no spoken forms:
+
+| Touch-only intent | Capability endpoint | Effect class | Provenance rule |
+|---|---|---|---|
+| `agenda.start_wish_recording` | Media-broker lease open followed by `capture_start` | `capture_start` | Broker requires one supervisor observation bound to the canonical lease operation |
+| `agenda.submit_wish` | Personal-context-client dispatch | `external_submission` | Client requires one supervisor observation, observer-measured qualifying hold, and exact prepared-revision binding |
+
+No active spoken command set may project either ID. Their absence from the
+spoken catalog does not remove them from per-`intent_id` call-graph analysis or
+runtime provenance enforcement.
+
 ## Runtime and safety boundary
 
 The catalog describes language; it does not grant authority. The catalog plus
@@ -245,12 +257,65 @@ utterance sequence. The form must map to that exact intent inside the identified
 active set; there is no second namespace/action translation table. Raw audio,
 transcripts, and engine scores remain inside the broker.
 
-`panel_ui` independently revalidates the active surface, workflow state,
+~~`panel_ui` independently revalidates the active surface, workflow state,
 catalog revision, active-command-set digest, configured backend artifact
 identity, recognizer build/model identity, recognition-policy digest, render
-generation, lifecycle mode, and transition idleness.
+generation, lifecycle mode, and transition idleness.~~ `panel_ui` continues to
+perform those checks for deterministic routing and visible behavior, but its
+result is not security-relevant provenance. The media broker validates its exact
+caller, current lifecycle window, touch provenance, and one-shot lease state.
+The personal-context client validates its exact caller, prepared revision,
+touch/hold provenance, token expiry, process lifetime, and atomic consumption;
+it does not subscribe to lifecycle state. Both enforce their narrow boundary
+under
+[ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md).
 No utterance queues across a surface change, loading/commit boundary, absence,
 night mode, suspend, resume, or broker restart.
+
+For `capture_start`, the media broker requires a live `wish_recording` lease
+opened from a supervisor-observed touch. The lease binds the single-use touch
+provenance envelope to the canonical lease request and `intent_id`; a catalog
+classification, voice intent, UI-authored `touch` flag, or lifecycle window
+alone cannot open or start capture. The supervisor publishes lifecycle state
+directly to the broker, and absence, night, or suspend preparation closes the
+window without consulting the UI.
+
+A successful observation claim consumes the observation and creates an `armed`
+lease with a unique opaque ID bound to the exact UI connection/peer and request,
+intent, purpose, operation digest, provenance, lifecycle, start deadline, and
+capture expiry. The UI receives only that ID and never receives or echoes the
+stored provenance or lifecycle binding. `capture_start` carries only the ID over
+the same still-authenticated connection. The broker verifies the stored binding
+against the current peer, purpose, lifecycle, and deadlines before it separately
+consumes start authorization and atomically transitions `armed -> active`.
+Repeated starts fail structured. Stop transitions `active -> closed`; expiry,
+lifecycle closure, UI disconnect, mute, or broker restart transitions
+`armed|active -> closed`; `closed` is terminal.
+
+For external submission, the personal-context client requires its confirmation
+token to contain a supervisor-authored `touch_provenance` envelope bound to the
+exact prepared-dispatch revision and observer-measured contact duration that
+meets the reviewed hold threshold. It consumes the token at its atomic dispatch
+barrier. `panel_ui` cannot mint, alter, renew, redeem, or supply the duration in
+the provenance envelope. The supervisor claim endpoint authenticates the media
+broker and personal-context client as two distinct exact service UIDs rather
+than trusting a shared group. Once created, this confirmation token is not
+retroactively revoked by lifecycle change or supervisor restart. Exact
+prepared-revision binding, touch/hold provenance, monotonic expiry, client
+restart, and atomic dispatch consumption govern it.
+
+The deterministic acceptance gate has two phases. Phase A analyzes every
+registered `intent_id` source-independently, traverses registered handlers to
+capability endpoints, and records every endpoint-to-effect pair plus the
+deduplicated endpoint-owned effect set. It does not rank the separate capture,
+submission, or power/illumination categories; the study-effect dominance order
+remains only in the canonical matrix above. Unresolved edges reach every
+compatible registered target; unenumerable edges fail. Phase B derives each
+voice-emittable ID set from the validated active spoken-form projection and
+applies the unchanged matrix to every effect in each ID's Phase-A set under the
+projection context and safeguards. Any one forbidden effect fails. Touch-only
+IDs remain absent from every voice projection but still receive Phase-A
+results.
 
 Learning ratings affect only the configured learner and are append-only and
 correctable, so a qualifying recognizer may commit one after visible feedback;
@@ -309,6 +374,25 @@ static review waiver never selects a production engine.
   acoustic qualification.
 - Repository checks find no second handwritten command list or recognizer
   configuration.
+- Phase A reproducibly reports every registered `intent_id`, reachable
+  endpoint-to-effect pair, and deduplicated effect set, including touch-only
+  IDs; unresolved dispatch fails closed.
+- Phase B reproducibly derives voice-emittable IDs from each active spoken-form
+  projection, rejects every touch-only ID in a projection, and applies the
+  unchanged matrix to every effect in the corresponding Phase-A set. Any one
+  forbidden effect rejects the projection. No admitted voice projection reaches
+  `capture_start`, external submission, or power/illumination.
+- Negative runtime cases prove that the media broker refuses `capture_start`
+  unless its only payload is the opaque `lease_id` on the same authenticated UI
+  connection and the broker's stored binding still matches the current peer,
+  purpose, lifecycle, and deadlines; atomically consumes only one
+  `armed -> active` start; returns structured repeat/closed/expiry/binding
+  failures; and closes `armed|active` on lifecycle closure or restart. They also
+  prove that the
+  personal-context client refuses dispatch without the exact single-use
+  supervisor-authored touch provenance for the prepared revision, preserves an
+  already-issued token across later lifecycle/supervisor changes, and invalidates
+  it on client restart, monotonic expiry, or atomic dispatch consumption.
 - Every flagged pair has a recorded disposition; exact overlapping collisions
   cannot be waived.
 - On-target qualification uses single-use selection and untouched confirmation
@@ -331,3 +415,8 @@ static review waiver never selects a production engine.
 - [Phonologically informed edit distance](https://aclanthology.org/W18-0311/)
 - [W3C Speech Recognition Grammar Specification](https://www.w3.org/TR/speech-grammar/)
 - [Speech Commands dataset and evaluation motivation](https://arxiv.org/abs/1804.03209)
+
+**Amended 2026-08-07:** moved effect-admission enforcement from catalog and UI
+claims to the media broker, personal-context client, and a reachable-call-graph
+acceptance gate under proposed ADR 0005. The admission matrix and product
+decision status are unchanged; this amendment does not approve roadmap Step 1.

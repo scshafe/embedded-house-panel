@@ -31,8 +31,10 @@ as the production default.
   navigation, media broker, or voice implementation.
 - The personal-agenda design adds a sibling display application. Before this
   plan's graphical work, introduce one neutral `panel_ui` shell as the sole
-  LVGL/display/touch owner. Keep `vocabulary_panel` as a subordinate study
-  domain and keep calendar/birthday state out of `PanelPolicy`.
+  ~~LVGL/display/touch owner~~ LVGL/display/application-touch router. Under
+  proposed ADR 0005, the supervisor is the sole raw touch observer and
+  provenance issuer. Keep `vocabulary_panel` as a subordinate study domain and
+  keep calendar/birthday state out of `PanelPolicy`.
 - The
   [application capability ownership registry](../../docs/architecture/application-capability-ownership.md)
   makes this plan the first delivery authority, not the feature owner, for the
@@ -42,7 +44,7 @@ as the production default.
   `study.rate.*`, and touch-only `study.rating.undo`). Voice-eligible forms are
   registered in one versioned, language-tagged spoken-command catalog; the Undo
   intent deliberately has no spoken alias. One shared media broker owns the microphone through
-  purpose-scoped leases and consumes only the content-addressed backend
+    purpose-scoped leases and consumes only the content-addressed backend
   projection for the canonical active command set plus its matching validated,
   content-addressed recognition-policy artifact.
   Command-listening audio remains broker-local; a future, visibly initiated
@@ -398,10 +400,14 @@ as the production default.
 
 - [ ] ~~**Step 7: Refactor the panel into one production interaction controller**~~
 - [ ] **Step 7: Add vocabulary interaction to the neutral production panel shell**
-  - Establish `panel_ui` as the unprivileged sole owner of LVGL, display, and
-    touch lifecycle. Version the supervisor protocol so its daytime value is
-    lifecycle-neutral (`day_active`), preserve the one-client render-ready
-    handshake, and keep feature routing entirely outside the supervisor.
+  - Establish `panel_ui` as the unprivileged sole owner of LVGL, display,
+    application hit testing, and touch routing. Add ADR 0005's supervisor-owned
+    raw-touch observation/provenance ports and normalized non-blocking event
+    stream; the UI cannot open the raw device, author provenance, redeem an
+    observation, or send a feature request on that stream. Version the
+    supervisor protocol so its daytime value is lifecycle-neutral
+    (`day_active`), preserve the one-client render-ready handshake, and keep
+    feature routing entirely outside the supervisor.
   - Make a two-sided card and bounded browser-style history canonical in
     `FlashCardSession`: new cards open on front, `flip` toggles, `next` follows
     forward history or consumes prefetch, and `back` restores the prior face.
@@ -421,7 +427,10 @@ as the production default.
     lifecycle mode, and transition state; do not queue input across loading,
     commit, suspend, or resume. Carry one closed top-level semantic `intent_id`
     (`study.flip`, `study.next`, `study.back`, `study.rate.*`, or touch-only
-    `study.rating.undo`) with no version 1 domain payload. Voice evidence must
+    `study.rating.undo`) with no version 1 domain payload. Reserve touch-only
+    `agenda.start_wish_recording` and `agenda.submit_wish` in the panel intent
+    registry with no spoken forms and effect classes `capture_start` and
+    `external_submission`; this plan does not enable either. Voice evidence must
     include a catalog `spoken_form_id` that belongs to the bound active set and
     maps exactly to that `intent_id`; touch emits the same ID directly. Undo
     carries no caller-supplied target, resolves the UUID exclusively from the
@@ -446,8 +455,8 @@ as the production default.
     vocabulary-specific Buildroot entry point.~~ Output: canonical panel intent
     envelope and shell, vocabulary intent/session/controller types, subordinate
     LVGL touch flow, neutral production executable, supervisor handshake
-    extension, `bhp-panel-ui` Buildroot entry point, and deterministic
-    shell/controller/race tests.
+    extension, supervisor touch-observation/provenance seams, `bhp-panel-ui`
+    Buildroot entry point, and deterministic shell/controller/race tests.
   - Verify: host tests prove touch semantics, face/history restoration, boundary
     no-ops, forward-history reuse, prefetch depletion, no implicit rating,
     rating rejection on the front, invalid intent/source/form mappings,
@@ -457,8 +466,9 @@ as the production default.
     void, outbox correction reservation and terminal-rejection release,
     generation rejection, coalescing,
     cancellation, and mode transitions;
-    supervisor tests prove a crashed/unready UI cannot hold power policy hostage
-    and no bright frame precedes render-ready.
+    supervisor tests prove a crashed/unready/slow touch consumer cannot hold
+    power policy hostage, no bright frame precedes render-ready, and disconnect
+    or restart invalidates pending touch observations.
 
 - [ ] **Step 8: Add the privacy-bounded voice intent work stream on the host**
   - ~~Define a vocabulary-only media broker whose entire protocol assumes that
@@ -477,7 +487,15 @@ as the production default.
     correctable ratings may qualify only with their distinct safeguards;
     `capture_stop` is restricted to the recording purpose's stop-only set; and
     capture start, external submission, power, and illumination are forbidden.
-    Pair review cannot waive this matrix.
+    Pair review cannot waive this matrix. Add a reproducible two-phase
+    acceptance gate. Phase A source-independently inspects every registered
+    `intent_id`, including touch-only IDs, traverses all registered handlers,
+    and records every endpoint-to-effect pair plus its deduplicated effect set;
+    unresolved edges conservatively reach every compatible target and
+    unenumerable edges fail. Phase B derives voice-emittable IDs from each
+    validated active spoken-form projection and applies the unchanged matrix to
+    every effect in each ID's Phase-A set. Any one forbidden effect fails.
+    Touch-only IDs must be absent from every voice projection.
   - Derive one content-addressed `ActiveCommandSet` for each allowed context,
     then deterministically project it into backend-specific grammar,
     keyword/token, pronunciation-lexicon, or fake artifacts. Record catalog,
@@ -506,14 +524,26 @@ as the production default.
     visible acknowledgement plus touch Undo for ratings. A false rating may
     affect an already-materialized successor cycle; its correction affects the
     next unmaterialized cycle and that residual risk must remain explicit.
-  - Gate command capture on a supervisor-issued generic media-safety window and
-    a broker-validated `command_recognition` purpose, plus `day_active`, the
+  - Gate command capture on a ~~supervisor-issued generic media-safety window~~
+    supervisor-published lifecycle window and a broker-owned,
+    broker-validated `command_recognition` lease, plus `day_active`, the
     active Lexinet surface, asserted presence, a connected intent consumer, and
     any available physical mute state. The supervisor need not know application
     purpose semantics. Any surface change, night, absence, suspend, mute,
     disconnect, or fault must close ALSA, wipe volatile audio, and acknowledge
     quiescence by a deadline. Record a software-only limitation when prototype
     hardware cannot prove microphone rail-off. Voice never blocks power.
+  - Freeze one broker lease state machine. For a future touch-gated purpose, a
+    successful observation claim separately creates a uniquely identified
+    immutable `armed` lease. The UI receives only its opaque `lease_id`; start
+    carries only that ID over the same authenticated connection. The broker
+    validates its stored peer, provenance, purpose, lifecycle, and deadlines
+    against current state before atomically consuming start authorization and
+    transitioning `armed -> active`; stop transitions `active -> closed`; and
+    expiry, lifecycle closure, consumer disconnect, mute, or broker restart
+    transitions `armed|active -> closed`. Repeated, closed, expired, and
+    mismatched starts return distinct structured outcomes. This plan keeps
+    `wish_recording` disabled.
   - Keep touch fully functional with the broker missing, muted, crashed, denied
     microphone access, or returning malformed messages.
   - Update process, power, UX, protocol, threat-model, and service-sandbox
@@ -542,6 +572,14 @@ as the production default.
     transition, volatile-buffer erasure, malformed-client isolation, and
     continued touch operation; repository search and captured network tests find
     no raw audio or transcripts outside the in-memory broker test boundary.
+    Phase A reports every intent's endpoint-to-effect pairs and deduplicated
+    effect set; Phase B proves that every voice projection excludes touch-only
+    IDs, checks every reachable effect under the unchanged matrix, and rejects
+    the projection if any effect is forbidden. No admitted voice-emittable ID
+    reaches `capture_start`, external submission, power, or illumination.
+    Broker tests cover the one-shot
+    `armed -> active -> closed` state machine and structured repeat/closed/
+    expiry/binding failures.
 
 - [ ] ~~**Step 9: Package and exercise the complete nonselected-engine integration**~~
 - [ ] **Step 9: Package the shared shell and nonselected-engine integration**
@@ -549,11 +587,18 @@ as the production default.
     neutral `bhp-panel-ui` package. Add separate service users/groups,
     role-specific Unix-socket directories, per-service state paths, restart
     limits, dependency ordering, configuration, and diagnostic redaction for
-    the shell, vocabulary feature, and media broker.
+    the supervisor, shell, vocabulary feature, and media broker. Reserve a
+    distinct personal-context-client principal and provenance ACL contract for
+    later agenda packaging without installing that absent service.
   - Ensure only the broker can open the exactly classified microphone device,
-    only `panel_ui` can open touch/display, and only the supervisor can write
-    backlight or power interfaces. Do not use the generic `audio` or `input`
-    groups and do not embed Tailnet state or Lexinet credentials in the image.
+    only `panel_ui` can open the display, only the supervisor can open the
+    exactly classified touch device or write backlight/power interfaces, and no
+    role shares a service UID. Atomically revoke the vocabulary/UI service's
+    current raw `bhp-touch` membership when supervisor forwarding is enabled.
+    Provenance peers reciprocally validate exact UIDs and root-owned socket
+    identities; protocol version/session/sequence, disconnect, and restart fail
+    closed. Do not use generic `audio` or `input` groups and do not embed Tailnet
+    state or Lexinet credentials in the image.
   - Extend build/deploy/provisioning scripts for explicit Lexinet endpoint,
     profile, topic set, cache/outbox bounds, host contract-test path, catalog
     revision, language tag, active-command-set digest, backend projection format,
@@ -630,7 +675,9 @@ as the production default.
 - The panel renders cached cards promptly, exposes honest offline/sync state,
   and implements equivalent `flip`, `next`, `back`, and four-rating behavior for
   touch and semantic voice intents, including a touch correction path.
-- One neutral `panel_ui` owns display/touch and routes namespaced intents;
+- ~~One neutral `panel_ui` owns display/touch and routes namespaced intents.~~
+  One neutral `panel_ui` owns display and application touch routing; the
+  supervisor alone observes raw touch and issues single-use provenance; and
   vocabulary remains a feature reducer rather than the appliance shell.
 - The panel's Tailnet identity can use only study capabilities; compromise does
   not grant vocabulary mutation, and transport/authentication fail closed.
@@ -639,8 +686,10 @@ as the production default.
   delay suspend, and the PIR remains the wake path.
 - One reviewed command catalog produces canonical active command sets,
   deterministic backend projections, and reproducible confusability reports;
-  static scores remain advisory and the on-target corpus supplies the actual
-  directional confusion evidence.
+  the deterministic two-phase gate derives source-independent endpoint effects
+  before checking voice projections against the unchanged matrix; static scores
+  remain advisory and the on-target corpus supplies the actual directional
+  confusion evidence.
 - Host, database, contract, fault-injection, and Buildroot verification pass in
   both repositories.
 - On-target evidence ends in an explicit recognizer/board decision. Packaging a
@@ -673,3 +722,11 @@ canonical per-profile ingestion ordinal, same-batch correction rule, single Undo
 reservation lifecycle, intent-field invariants, shadow-runner scope, hard voice
 effect admission, artifact identity chain, reproducible metric formulas, and
 held-out statistical qualification protocol.
+
+**Amended 2026-08-07:** reconciled Steps 7–9 and the done criteria with proposed
+ADR 0005. The supervisor becomes the raw touch observer, the UI retains
+application routing, touch-only start/submit intents receive stable IDs, the
+two-phase call-graph gate derives effects before voice projection admission,
+the broker lease start is one-shot, and packaging revokes raw UI touch access
+under distinct exact service principals. No step or product status changed, and
+no hardware behavior is claimed.
