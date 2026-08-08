@@ -33,10 +33,22 @@ public:
 	 *
 	 * Extra clients are immediately closed without disturbing the primary client
 	 * or panel policy. Per-client setup/send/protocol failure isolates that client
-	 * and remains a successful policy notification. The server never consumes UI
+	 * and remains a successful publication. The server never consumes UI
 	 * input and UI data cannot affect power policy.
 	 */
-	[[nodiscard]] Result<void> notify_ui_mode(const UiModeNotification &notification) override;
+	[[nodiscard]] Result<PendingPresentation>
+	publish(const UiModeNotification &notification) override;
+
+	/**
+	 * Returns immediate non-commit because protocol v1 has no acknowledgement.
+	 *
+	 * The deadline and pending sequence are accepted to preserve the presentation
+	 * seam, but this adapter never fabricates renderer commitment from a socket
+	 * write or connected client.
+	 */
+	[[nodiscard]] PresentationOutcome await_presentation(
+		const PendingPresentation &pending_presentation,
+		std::chrono::steady_clock::time_point deadline) override;
 
 	[[nodiscard]] const std::string &socket_path() const noexcept;
 	[[nodiscard]] std::uint64_t event_sequence() const noexcept;

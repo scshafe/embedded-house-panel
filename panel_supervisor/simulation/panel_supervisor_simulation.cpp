@@ -86,16 +86,30 @@ private:
 
 class SimulationUiModeNotifier final : public UiModeNotifier {
 public:
-	Result<void> notify_ui_mode(const UiModeNotification &notification) override
+	Result<PendingPresentation> publish(const UiModeNotification &notification) override
 	{
 		ui_mode_ = notification.ui_mode;
-		return Result<void>::success();
+		++publication_sequence_;
+		return Result<PendingPresentation>::success(
+			PendingPresentation{publication_sequence_});
+	}
+
+	PresentationOutcome await_presentation(
+		const PendingPresentation &pending_presentation,
+		std::chrono::steady_clock::time_point deadline) override
+	{
+		(void)deadline;
+		if (pending_presentation.publication_sequence != publication_sequence_) {
+			return PresentationNotCommitted{PresentationNotCommittedReason::Stale};
+		}
+		return PresentationCommitted{};
 	}
 
 	[[nodiscard]] UiMode ui_mode() const noexcept { return ui_mode_; }
 
 private:
 	UiMode ui_mode_{UiMode::Suspended};
+	std::uint64_t publication_sequence_{0};
 };
 
 class SimulationSuspend final : public Suspend {

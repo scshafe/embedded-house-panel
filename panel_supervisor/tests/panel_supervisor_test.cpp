@@ -107,7 +107,9 @@ public:
 	{
 		++write_count;
 		calls_.emplace_back("backlight");
-		if (failure.has_value()) {
+		if (failure.has_value() &&
+		    (!failure_write_count.has_value() ||
+		     failure_write_count.value() == write_count)) {
 			return Result<void>::failure(failure.value());
 		}
 		applied_brightness = brightness_percent;
@@ -116,6 +118,7 @@ public:
 
 	std::optional<int> applied_brightness;
 	std::optional<SupervisorError> failure;
+	std::optional<int> failure_write_count;
 	int write_count{0};
 
 private:
@@ -126,22 +129,45 @@ class FakeUiModeNotifier final : public UiModeNotifier {
 public:
 	explicit FakeUiModeNotifier(std::vector<std::string> &calls) : calls_(calls) {}
 
-	Result<void> notify_ui_mode(const UiModeNotification &notification) override
+	Result<PendingPresentation> publish(const UiModeNotification &notification) override
 	{
-		++notification_count;
-		calls_.emplace_back("ui_mode");
-		if (failure.has_value()) {
-			return Result<void>::failure(failure.value());
+		++publication_count;
+		calls_.emplace_back("publish");
+		if (publish_failure.has_value()) {
+			return Result<PendingPresentation>::failure(publish_failure.value());
 		}
 		notified_mode = notification.ui_mode;
 		last_notification = notification;
-		return Result<void>::success();
+		++publication_sequence;
+		return Result<PendingPresentation>::success(
+			PendingPresentation{publication_sequence});
+	}
+
+	PresentationOutcome await_presentation(
+		const PendingPresentation &pending_presentation,
+		const std::chrono::steady_clock::time_point deadline) override
+	{
+		++await_count;
+		calls_.emplace_back("await_presentation");
+		last_pending_presentation = pending_presentation;
+		last_deadline = deadline;
+		if (throw_await_exception) {
+			throw std::runtime_error(
+				"test presentation exception must not cross the supervisor boundary");
+		}
+		return presentation_outcome;
 	}
 
 	std::optional<UiMode> notified_mode;
 	std::optional<UiModeNotification> last_notification;
-	std::optional<SupervisorError> failure;
-	int notification_count{0};
+	std::optional<PendingPresentation> last_pending_presentation;
+	std::optional<std::chrono::steady_clock::time_point> last_deadline;
+	std::optional<SupervisorError> publish_failure;
+	PresentationOutcome presentation_outcome{PresentationCommitted{}};
+	std::uint64_t publication_sequence{0};
+	int publication_count{0};
+	int await_count{0};
+	bool throw_await_exception{false};
 
 private:
 	std::vector<std::string> &calls_;
@@ -214,7 +240,8 @@ bool resume_reacquires_all_inputs_and_applies_fresh_night_state()
 	TEST_REQUIRE(fixture.presence_source.read_count == 2);
 	TEST_REQUIRE(fixture.solar_calculator.calculation_count == 2);
 	TEST_REQUIRE(fixture.solar_calculator.observed_times.back() == fixture.clock.current_time);
-	const std::vector<std::string> expected_resume_calls{"ui_mode", "backlight"};
+	const std::vector<std::string> expected_resume_calls{
+		"backlight", "publish", "await_presentation", "backlight"};
 	TEST_REQUIRE(fixture.calls == expected_resume_calls);
 	TEST_REQUIRE(fixture.log_output.str().find("resume_recomputation_started") !=
 		     std::string::npos);
@@ -242,7 +269,8 @@ bool initial_absence_applies_outputs_before_requesting_suspend()
 	const auto result = fixture.supervisor.start("ordered-suspend");
 
 	TEST_REQUIRE(result.has_value());
-	const std::vector<std::string> expected_calls{"backlight", "ui_mode", "suspend"};
+	const std::vector<std::string> expected_calls{
+		"backlight", "publish", "await_presentation", "suspend"};
 	TEST_REQUIRE(fixture.calls == expected_calls);
 	TEST_REQUIRE(fixture.backlight.applied_brightness ==
 		     test_fixture::kSuspendedBrightnessPercent);
@@ -267,7 +295,8 @@ bool initial_active_mode_is_notified_before_nonzero_backlight()
 	const auto result = fixture.supervisor.start("ordered-active");
 
 	TEST_REQUIRE(result.has_value());
-	const std::vector<std::string> expected_calls{"ui_mode", "backlight"};
+	const std::vector<std::string> expected_calls{
+		"backlight", "publish", "await_presentation", "backlight"};
 	TEST_REQUIRE(fixture.calls == expected_calls);
 	TEST_REQUIRE(fixture.ui_mode_notifier.last_notification.has_value());
 	TEST_REQUIRE(fixture.ui_mode_notifier.last_notification->ui_mode == UiMode::Day);
@@ -324,20 +353,100 @@ bool thrown_adapter_exception_is_converted_to_typed_failure()
 	return true;
 }
 
-bool failed_active_ui_notification_does_not_raise_backlight()
+bool failed_active_publication_is_degraded_and_keeps_backlight_zero()
 {
 	SupervisorFixture fixture;
 	fixture.presence_source.detected = true;
-	fixture.ui_mode_notifier.failure = unavailable_error("fake_ui_mode_notifier");
+	fixture.ui_mode_notifier.publish_failure = unavailable_error("fake_ui_mode_notifier");
 	const auto result = fixture.supervisor.start("ui-mode-failure");
 
-	TEST_REQUIRE(!result.has_value());
-	TEST_REQUIRE(result.error().code() == ErrorCode::UiModeNotificationFailed);
-	TEST_REQUIRE(!fixture.supervisor.state().applied_brightness_percent.has_value());
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
 	TEST_REQUIRE(!fixture.supervisor.state().notified_ui_mode.has_value());
-	TEST_REQUIRE(fixture.backlight.write_count == 0);
-	TEST_REQUIRE(fixture.supervisor.state().system_state == SystemState::Faulted);
+	TEST_REQUIRE(fixture.backlight.write_count == 1);
+	TEST_REQUIRE(fixture.supervisor.state().system_state == SystemState::Active);
 	TEST_REQUIRE(fixture.suspend.request_count == 0);
+	TEST_REQUIRE(fixture.log_output.str().find("\"level\":\"warn\"") !=
+		     std::string::npos);
+	TEST_REQUIRE(fixture.log_output.str().find("\"degraded_reason\":\"publication_failed\"") !=
+		     std::string::npos);
+	return true;
+}
+
+bool degraded_absent_presentation_still_blanks_and_suspends(
+	PresentationOutcome presentation_outcome, const std::string &expected_status,
+	const std::string &expected_reason, const std::string &trace_id)
+{
+	SupervisorFixture fixture;
+	fixture.ui_mode_notifier.presentation_outcome = std::move(presentation_outcome);
+	const auto result = fixture.supervisor.start(trace_id);
+
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().system_state == SystemState::Suspended);
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.applied_brightness == 0);
+	TEST_REQUIRE(fixture.suspend.request_count == 1);
+	const std::vector<std::string> expected_calls{
+		"backlight", "publish", "await_presentation", "suspend"};
+	TEST_REQUIRE(fixture.calls == expected_calls);
+	const std::string logs = fixture.log_output.str();
+	TEST_REQUIRE(logs.find("\"level\":\"warn\"") != std::string::npos);
+	TEST_REQUIRE(logs.find("\"message\":\"presentation_degraded\"") !=
+		     std::string::npos);
+	TEST_REQUIRE(logs.find("\"presentation_status\":\"" + expected_status + "\"") !=
+		     std::string::npos);
+	TEST_REQUIRE(logs.find("\"degraded_reason\":\"" + expected_reason + "\"") !=
+		     std::string::npos);
+	return true;
+}
+
+bool explicitly_failed_presentation_still_reaches_suspend_with_zero_brightness()
+{
+	return degraded_absent_presentation_still_blanks_and_suspends(
+		PresentationFailed{
+			PresentationFailureReason::ExplicitFailure,
+			SupervisorError(
+				ErrorCode::UiModeNotificationFailed,
+				"Test UI explicitly failed to present the requested snapshot",
+				{{"presentation_result", "failed"}})},
+		"failed", "explicit_failure", "presentation-explicit-failure");
+}
+
+bool timed_out_presentation_still_reaches_suspend_with_zero_brightness()
+{
+	return degraded_absent_presentation_still_blanks_and_suspends(
+		PresentationNotCommitted{PresentationNotCommittedReason::TimedOut},
+		"not_committed", "timed_out", "presentation-timeout");
+}
+
+bool disconnected_presentation_still_reaches_suspend_with_zero_brightness()
+{
+	return degraded_absent_presentation_still_blanks_and_suspends(
+		PresentationNotCommitted{PresentationNotCommittedReason::Disconnected},
+		"not_committed", "disconnected", "presentation-disconnected");
+}
+
+bool noncommitted_active_cycle_blanks_a_previously_lit_backlight()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	TEST_REQUIRE(fixture.supervisor.start("presentation-lit-start").has_value());
+	TEST_REQUIRE(fixture.backlight.applied_brightness ==
+		     test_fixture::kPresentDayBrightnessPercent);
+
+	fixture.ui_mode_notifier.presentation_outcome =
+		PresentationNotCommitted{PresentationNotCommittedReason::TimedOut};
+	fixture.calls.clear();
+	fixture.clock.current_time += std::chrono::seconds(1);
+	const auto result = fixture.supervisor.poll("presentation-lit-timeout");
+
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().system_state == SystemState::Active);
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.applied_brightness == 0);
+	const std::vector<std::string> expected_calls{
+		"backlight", "publish", "await_presentation"};
+	TEST_REQUIRE(fixture.calls == expected_calls);
 	return true;
 }
 
@@ -346,15 +455,33 @@ bool failed_active_backlight_preserves_successful_ui_notification()
 	SupervisorFixture fixture;
 	fixture.presence_source.detected = true;
 	fixture.backlight.failure = unavailable_error("fake_backlight");
+	fixture.backlight.failure_write_count = 2;
 	const auto result = fixture.supervisor.start("backlight-failure");
 
 	TEST_REQUIRE(!result.has_value());
 	TEST_REQUIRE(result.error().code() == ErrorCode::BacklightWriteFailed);
 	TEST_REQUIRE(fixture.supervisor.state().notified_ui_mode == UiMode::Day);
-	TEST_REQUIRE(!fixture.supervisor.state().applied_brightness_percent.has_value());
-	const std::vector<std::string> expected_calls{"ui_mode", "backlight"};
+	TEST_REQUIRE(fixture.supervisor.state().applied_brightness_percent == 0);
+	const std::vector<std::string> expected_calls{
+		"backlight", "publish", "await_presentation", "backlight"};
 	TEST_REQUIRE(fixture.calls == expected_calls);
 	TEST_REQUIRE(fixture.supervisor.state().system_state == SystemState::Faulted);
+	return true;
+}
+
+bool rejected_suspend_request_remains_a_fatal_cycle_error()
+{
+	SupervisorFixture fixture;
+	fixture.suspend.failure = unavailable_error("fake_suspend");
+	const auto result = fixture.supervisor.start("suspend-failure");
+
+	TEST_REQUIRE(!result.has_value());
+	TEST_REQUIRE(result.error().code() == ErrorCode::SuspendRequestFailed);
+	TEST_REQUIRE(result.error().cause() != nullptr);
+	TEST_REQUIRE(result.error().cause()->code() == ErrorCode::AdapterUnavailable);
+	TEST_REQUIRE(fixture.backlight.applied_brightness == 0);
+	TEST_REQUIRE(fixture.supervisor.state().system_state == SystemState::Faulted);
+	TEST_REQUIRE(fixture.suspend.request_count == 1);
 	return true;
 }
 
@@ -438,7 +565,7 @@ bool retryable_untrusted_startup_clock_can_be_retried_without_intermediate_outpu
 	TEST_REQUIRE(fixture.presence_source.read_count == 0);
 	TEST_REQUIRE(fixture.solar_calculator.calculation_count == 0);
 	TEST_REQUIRE(fixture.backlight.write_count == 0);
-	TEST_REQUIRE(fixture.ui_mode_notifier.notification_count == 0);
+	TEST_REQUIRE(fixture.ui_mode_notifier.publication_count == 0);
 	TEST_REQUIRE(fixture.suspend.request_count == 0);
 
 	fixture.clock.failure.reset();
@@ -483,7 +610,7 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 14> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 19> tests{{
 		{"resume_reacquires_all_inputs_and_applies_fresh_night_state",
 		 resume_reacquires_all_inputs_and_applies_fresh_night_state},
 		{"resume_while_still_absent_requests_suspend_again",
@@ -498,10 +625,20 @@ int main()
 		 empty_trace_id_returns_typed_error_without_reading_ports},
 		{"thrown_adapter_exception_is_converted_to_typed_failure",
 		 thrown_adapter_exception_is_converted_to_typed_failure},
-		{"failed_active_ui_notification_does_not_raise_backlight",
-		 failed_active_ui_notification_does_not_raise_backlight},
+		{"failed_active_publication_is_degraded_and_keeps_backlight_zero",
+		 failed_active_publication_is_degraded_and_keeps_backlight_zero},
+		{"explicitly_failed_presentation_still_reaches_suspend_with_zero_brightness",
+		 explicitly_failed_presentation_still_reaches_suspend_with_zero_brightness},
+		{"timed_out_presentation_still_reaches_suspend_with_zero_brightness",
+		 timed_out_presentation_still_reaches_suspend_with_zero_brightness},
+		{"disconnected_presentation_still_reaches_suspend_with_zero_brightness",
+		 disconnected_presentation_still_reaches_suspend_with_zero_brightness},
+		{"noncommitted_active_cycle_blanks_a_previously_lit_backlight",
+		 noncommitted_active_cycle_blanks_a_previously_lit_backlight},
 		{"failed_active_backlight_preserves_successful_ui_notification",
 		 failed_active_backlight_preserves_successful_ui_notification},
+		{"rejected_suspend_request_remains_a_fatal_cycle_error",
+		 rejected_suspend_request_remains_a_fatal_cycle_error},
 		{"safety_backlight_blank_writes_only_exact_zero_and_wraps_failure",
 		 safety_backlight_blank_writes_only_exact_zero_and_wraps_failure},
 		{"safety_blank_turns_off_a_lit_backlight_after_runtime_clock_failure",

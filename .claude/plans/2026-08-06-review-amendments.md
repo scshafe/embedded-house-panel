@@ -50,7 +50,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Either register the input device first and then request the IRQ — the initial-state sync at `:174` already covers edges missed in the gap — or request with `IRQF_NO_AUTOEN` and call `enable_irq()` after registration. Preserve the existing `devm` cleanup ordering and the hard-fail-on-wake-setup behavior.
   - Verify: `KERNEL_DIR=<kernel build tree> scripts/verification/verify_presence_sensor_sources.sh` compiles the module cleanly; add a source-order assertion to that script so the ordering cannot silently regress.
 
-- [ ] **Step 5: Give the supervisor a presentation outcome that is not a cycle fault**
+- [x] **Step 5: Give the supervisor a presentation outcome that is not a cycle fault**
   - Today the blank path applies the backlight, calls `notify_ui_mode`, and returns early on failure (`panel_supervisor/src/panel_supervisor.cpp:311-329`), so the suspend request at `:331` is unreachable. The daemon then treats the failed cycle as fatal (`panel_supervisor/daemon/panel_supervisord.cpp:358-363`). Protocol v2 turns timeout, disconnect, stale, and duplicate acknowledgements into normal events on this exact path.
   - Split the seam into `publish(snapshot) -> Result<PendingPresentation>` and `await_presentation(deadline) -> Committed | NotCommitted | Failed`. Only `Committed` may gate nonzero brightness; none of the three outcomes may abort the cycle or skip the suspend request. Reclassify presentation failures out of `fail_cycle` entirely.
   - Add tests proving that a failed, timed-out, and disconnected presentation each still reach the suspend request with brightness at zero.

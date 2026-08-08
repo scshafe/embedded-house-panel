@@ -466,19 +466,19 @@ Result<std::string> UnixSocketUiModeNotifier::encode_notification(
 	return Result<std::string>::success(json.str());
 }
 
-Result<void> UnixSocketUiModeNotifier::notify_ui_mode(
+Result<PendingPresentation> UnixSocketUiModeNotifier::publish(
 	const UiModeNotification &notification)
 {
 	if (event_sequence_ == std::numeric_limits<std::uint64_t>::max()) {
-		return Result<void>::failure(SupervisorError(
+		return Result<PendingPresentation>::failure(SupervisorError(
 			ErrorCode::UiSocketSequenceOverflow,
 			"Failed to publish panel mode snapshot because event sequence is exhausted",
 			{{"event_sequence", std::to_string(event_sequence_)},
-			 {"operation", "unix_socket_ui_mode_notifier.notify_ui_mode"}}));
+			 {"operation", "unix_socket_ui_mode_notifier.publish"}}));
 	}
 	const auto accepted_result = accept_pending_primary_client();
 	if (!accepted_result) {
-		return Result<void>::failure(accepted_result.error());
+		return Result<PendingPresentation>::failure(accepted_result.error());
 	}
 	if (accepted_result.value() && !current_snapshot_line_.empty()) {
 		(void)send_line_to_client(current_snapshot_line_);
@@ -487,12 +487,22 @@ Result<void> UnixSocketUiModeNotifier::notify_ui_mode(
 	const std::uint64_t next_sequence = event_sequence_ + 1;
 	const auto encoded_result = encode_notification(notification, next_sequence);
 	if (!encoded_result) {
-		return Result<void>::failure(encoded_result.error());
+		return Result<PendingPresentation>::failure(encoded_result.error());
 	}
 	event_sequence_ = next_sequence;
 	current_snapshot_line_ = encoded_result.value();
 	(void)send_line_to_client(current_snapshot_line_);
-	return Result<void>::success();
+	return Result<PendingPresentation>::success(PendingPresentation{event_sequence_});
+}
+
+PresentationOutcome UnixSocketUiModeNotifier::await_presentation(
+	const PendingPresentation &pending_presentation,
+	const std::chrono::steady_clock::time_point deadline)
+{
+	(void)pending_presentation;
+	(void)deadline;
+	return PresentationNotCommitted{
+		PresentationNotCommittedReason::AcknowledgementUnavailable};
 }
 
 const std::string &UnixSocketUiModeNotifier::socket_path() const noexcept

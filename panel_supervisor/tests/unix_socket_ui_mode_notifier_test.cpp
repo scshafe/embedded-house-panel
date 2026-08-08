@@ -153,15 +153,21 @@ bool new_client_receives_current_snapshot_before_incremental_snapshot()
 		struct stat socket_status{};
 		TEST_REQUIRE(::stat(socket_path.c_str(), &socket_status) == 0);
 		TEST_REQUIRE((socket_status.st_mode & 0777) == 0660);
-		TEST_REQUIRE(
-			notifier->notify_ui_mode(notification(UiMode::Day, PresenceState::Present,
-							      SolarState::Day, SystemState::Active,
-							      88, 1'700'000'000LL))
-				.has_value());
+		const auto first_pending =
+			notifier->publish(notification(UiMode::Day, PresenceState::Present,
+						       SolarState::Day, SystemState::Active, 88,
+						       1'700'000'000LL));
+		TEST_REQUIRE(first_pending.has_value());
 		TEST_REQUIRE(notifier->event_sequence() == 1);
+		const auto v1_outcome = notifier->await_presentation(
+			first_pending.value(), std::chrono::steady_clock::now());
+		TEST_REQUIRE(
+			std::holds_alternative<PresentationNotCommitted>(v1_outcome));
+		TEST_REQUIRE(std::get<PresentationNotCommitted>(v1_outcome).reason ==
+			     PresentationNotCommittedReason::AcknowledgementUnavailable);
 
 		ConnectedClient client(socket_path);
-		TEST_REQUIRE(notifier->notify_ui_mode(
+		TEST_REQUIRE(notifier->publish(
 					     notification(UiMode::Night, PresenceState::GracePeriod,
 							  SolarState::Night, SystemState::Active,
 							  12, 1'700'000'060LL))
@@ -210,17 +216,17 @@ bool extra_client_is_closed_without_disturbing_primary_client()
 	auto notifier = std::move(notifier_result).value();
 
 	ConnectedClient primary(socket_path);
-	TEST_REQUIRE(notifier->notify_ui_mode(notification(UiMode::Day, PresenceState::Present,
-							  SolarState::Day, SystemState::Active,
-							  80, 1'700'000'000LL))
+	TEST_REQUIRE(notifier->publish(notification(UiMode::Day, PresenceState::Present,
+						   SolarState::Day, SystemState::Active,
+						   80, 1'700'000'000LL))
 			     .has_value());
 	TEST_REQUIRE(primary.read_lines(1).find("\"event_sequence\":1") != std::string::npos);
 	TEST_REQUIRE(notifier->has_connected_client());
 
 	ConnectedClient extra(socket_path);
-	TEST_REQUIRE(notifier->notify_ui_mode(notification(UiMode::Night, PresenceState::Present,
-							  SolarState::Night, SystemState::Active,
-							  10, 1'700'000'060LL))
+	TEST_REQUIRE(notifier->publish(notification(UiMode::Night, PresenceState::Present,
+						   SolarState::Night, SystemState::Active,
+						   10, 1'700'000'060LL))
 			     .has_value());
 	TEST_REQUIRE(extra.peer_closed_connection());
 	TEST_REQUIRE(primary.read_lines(1).find("\"event_sequence\":2") != std::string::npos);

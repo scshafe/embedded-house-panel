@@ -63,6 +63,10 @@ private:
 						     std::string target, std::string operation,
 						     long long duration_ms, bool succeeded,
 						     const SupervisorError *error = nullptr);
+	[[nodiscard]] Result<void> log_degraded_presentation(
+		const std::string &trace_id, SupervisorEvent event,
+		const PolicyDecision &decision, const PresentationOutcome &outcome,
+		std::string operation, long long duration_ms);
 	[[nodiscard]] Result<PanelState>
 	fail_cycle(const std::string &trace_id, SupervisorEvent event, SupervisorError error,
 		   std::map<std::string, std::string> context = {});

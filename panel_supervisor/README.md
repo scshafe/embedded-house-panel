@@ -31,7 +31,7 @@ Presence states are `unknown`, `present`, `grace_period`, and `absent`. Solar
 states are `unknown`, `day`, and `night`. System states are `starting`,
 `active`, `suspended`, `recomputing_after_resume`, and `faulted`.
 
-| Raw presence and elapsed time | Presence state | System state | Brightness | UI mode |
+| Raw presence and elapsed time | Presence state | System state | Requested brightness | UI mode |
 | --- | --- | --- | --- | --- |
 | detected | `present` | `active` | configured present day/night | day/night |
 | not detected, elapsed `< grace_period` | `grace_period` | `active` | configured grace day/night | day/night |
@@ -42,13 +42,21 @@ The exact grace deadline is absent. A wall clock moving backward relative to a
 remembered presence instant is an explicit error. An error from the presence
 device is never interpreted as absence.
 
-Output order is direction-safe. A suspended or zero-brightness decision writes
-the backlight first, then publishes UI mode, then requests suspend. An active
-nonzero decision publishes the complete UI mode snapshot before raising
-brightness. The current protocol has no renderer-ready acknowledgement, so this
-ordering reduces stale-frame exposure but does not claim a production-grade
-no-flash guarantee. That guarantee requires a future protocol acknowledgement
-or a display controller that can atomically stage a frame before illumination.
+Output order is direction-safe. Every cycle writes exact logical brightness
+zero, publishes the complete UI mode snapshot, and awaits an explicit
+presentation outcome. Only `committed` permits the requested nonzero brightness
+write. `not_committed` and `failed` outcomes keep applied brightness at zero,
+emit a structured `presentation_degraded` warning, complete the cycle, and do
+not skip a requested suspend. Timeout, disconnect, stale, duplicate, mismatch,
+and explicit negative acknowledgement are degraded presentation outcomes rather
+than cycle faults.
+
+The version-1 Unix-socket adapter retains and offers snapshots exactly as
+before, but it has no renderer-ready acknowledgement and therefore returns
+immediate `not_committed` with reason `acknowledgement_unavailable`. It never
+fabricates commitment from a successful socket write or connected client, so
+the production version-1 path remains dark until the version-2 acknowledgement
+protocol is implemented and enabled.
 
 ## Linux runtime adapters
 
@@ -73,7 +81,8 @@ The production slice includes:
   single-component `/sys/class/backlight/<device>/{brightness,max_brightness}`
   pair. Values are not clamped.
 - `UnixSocketUiModeNotifier`, the supervisor-owned local Unix stream server for
-  protocol-v1 JSON Lines snapshots.
+  protocol-v1 JSON Lines snapshots. Publication returns a pending sequence;
+  awaiting it returns immediate non-commit because version 1 is one-way.
 - `SysfsSuspend`, which writes only the explicitly selected `freeze` or `mem`
   token to exactly `/sys/power/state`.
 
@@ -141,16 +150,17 @@ paths are preserved. Shutdown likewise removes only the socket identity this
 process created. The deployment pre-creates the parent directory with the UI
 group and setgid mode so `0660` grants only the intended access.
 
-Every notification is one complete version-1 snapshot with monotonically
+Every publication is one complete version-1 snapshot with monotonically
 increasing `event_sequence`, display mode, presence state, solar state, system
 state, effective logical brightness, UTC observation timestamp, and local
 request ID. A newly accepted client receives the retained current snapshot
 before the next incremental snapshot. At most one UI client is retained;
 extra, slow, or disconnected clients are isolated and closed without faulting
 panel policy. The server never reads client data; the UI cannot issue power
-commands through this channel. Zero clients still counts as one-way publication
-success, which is why the render-ready acknowledgement remains a product
-blocker. The canonical shape and vocabularies are documented in
+commands through this channel. A retained one-way publication still succeeds
+with zero clients, but awaiting presentation reports
+`acknowledgement_unavailable`; it never counts as committed. The canonical shape
+and vocabularies are documented in
 [`docs/interfaces/panel-mode-protocol.md`](../docs/interfaces/panel-mode-protocol.md).
 
 ## Suspend and shutdown behavior
@@ -170,10 +180,12 @@ returned and resume recomputation still finds the room absent. A failed suspend
 write is not retried: retryable and nonretryable suspend adapter errors both
 remain fatal so an unproven power transition cannot become an implicit loop.
 
-Except for the explicitly classified initial clock-readiness wait above, the
-daemon exits on every operational failure. It does not silently turn a hard
-failure into absence, day, night, a guessed brightness, or a different suspend
-mode. All operations and failures use the repository's canonical
+Except for the explicitly classified initial clock-readiness wait and the
+explicit degraded presentation outcomes above, the daemon exits on every
+operational failure. Backlight writes, structured-log writes, and rejected
+suspend writes remain fatal. The daemon does not silently turn a hard failure
+into absence, day, night, a guessed brightness, or a different suspend mode.
+All operations and failures use the repository's canonical
 `bhp::StructuredLogger`, typed `Result<T>`, and causal `SupervisorError` chain.
 
 Once the validated backlight adapter exists, every explicit fatal path and
@@ -207,7 +219,9 @@ single-client/stale-path behavior, exact-name evdev selection rules, clock
 synchronization observations, startup clock retry classification, retry after
 an untrusted-clock cycle without intermediate outputs, signal-interruptible
 waits, fatal safety-blank behavior after a lit runtime state, preservation of
-primary and secondary blank-failure evidence, and logging-stream failure.
+primary and secondary blank-failure evidence, logging-stream failure, and
+failed, timed-out, or disconnected presentations continuing through exact-zero
+brightness to suspend.
 Test-only injected file access stands in for sysfs where production path
 validation is intentionally exact; no host test claims target hardware evidence.
 

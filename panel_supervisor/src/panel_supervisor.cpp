@@ -27,6 +27,29 @@ std::map<std::string, std::string> port_error_context(const char *event, const c
 	return {{"event", event}, {"operation", operation}};
 }
 
+std::string error_code_chain(const SupervisorError &error)
+{
+	std::string chain(to_string(error.code()));
+	auto cause = error.cause();
+	while (cause != nullptr) {
+		chain += " <- ";
+		chain += to_string(cause->code());
+		cause = cause->cause();
+	}
+	return chain;
+}
+
+std::string_view presentation_status(const PresentationOutcome &outcome) noexcept
+{
+	if (std::holds_alternative<PresentationCommitted>(outcome)) {
+		return "committed";
+	}
+	if (std::holds_alternative<PresentationNotCommitted>(outcome)) {
+		return "not_committed";
+	}
+	return "failed";
+}
+
 template <typename Callable>
 auto invoke_adapter(Callable &&callable, const char *adapter_name, const char *operation_name)
 	-> decltype(callable())
@@ -224,19 +247,18 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 		observed_at,
 	};
 
-	auto apply_backlight = [this, &decision, &event_name, &trace_id]() -> Result<void> {
+	auto apply_backlight = [this, &event_name, &trace_id](
+				 const int brightness_percent) -> Result<void> {
 		const auto started_at = std::chrono::steady_clock::now();
 		auto result = invoke_adapter(
-			[this, &decision]() {
-				return backlight_.set_brightness_percent(
-					decision.brightness_percent);
+			[this, brightness_percent]() {
+				return backlight_.set_brightness_percent(brightness_percent);
 			},
 			"backlight", "set_brightness_percent");
 		if (!result) {
 			auto context = port_error_context(event_name.c_str(),
 							  "backlight.set_brightness_percent");
-			context.emplace("brightness_percent",
-					std::to_string(decision.brightness_percent));
+			context.emplace("brightness_percent", std::to_string(brightness_percent));
 			const auto error = SupervisorError::wrap(
 				ErrorCode::BacklightWriteFailed,
 				"Failed to apply policy brightness during panel state "
@@ -250,7 +272,7 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 			}
 			return Result<void>::failure(error);
 		}
-		state_.applied_brightness_percent = decision.brightness_percent;
+		state_.applied_brightness_percent = brightness_percent;
 		const auto external_log_result =
 			log_external_call(trace_id, "backlight", "set_brightness_percent",
 					  elapsed_milliseconds(started_at), true);
@@ -260,38 +282,96 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 		return Result<void>::success();
 	};
 
-	auto notify_ui_mode = [this, &decision, &event_name, &trace_id,
-			       &ui_mode_notification]() -> Result<void> {
-		const auto started_at = std::chrono::steady_clock::now();
-		auto result = invoke_adapter(
+	auto publish_and_await_presentation =
+		[this, &decision, event, &event_name, &trace_id,
+		 &ui_mode_notification]() -> Result<PresentationOutcome> {
+		const auto publish_started_at = std::chrono::steady_clock::now();
+		auto publish_result = invoke_adapter(
 			[this, &ui_mode_notification]() {
-				return ui_mode_notifier_.notify_ui_mode(ui_mode_notification);
+				return ui_mode_notifier_.publish(ui_mode_notification);
 			},
-			"ui_mode_notifier", "notify_ui_mode");
-		if (!result) {
+			"ui_mode_notifier", "publish");
+		const auto publish_duration_ms = elapsed_milliseconds(publish_started_at);
+		if (!publish_result) {
 			auto context = port_error_context(event_name.c_str(),
-							  "ui_mode_notifier.notify_ui_mode");
+							  "ui_mode_notifier.publish");
 			context.emplace("ui_mode", std::string(to_string(decision.ui_mode)));
 			const auto error = SupervisorError::wrap(
 				ErrorCode::UiModeNotificationFailed,
-				"Failed to notify UI mode during panel state recomputation",
-				result.error(), std::move(context), result.error().retryable());
-			const auto external_log_result =
-				log_external_call(trace_id, "ui_mode_notifier", "notify_ui_mode",
-						  elapsed_milliseconds(started_at), false, &error);
-			if (!external_log_result) {
-				return Result<void>::failure(external_log_result.error());
+				"Failed to publish the UI presentation snapshot during panel state "
+				"recomputation",
+				publish_result.error(), std::move(context),
+				publish_result.error().retryable());
+			PresentationOutcome outcome = PresentationFailed{
+				PresentationFailureReason::PublicationFailed, error};
+			const auto warning_result = log_degraded_presentation(
+				trace_id, event, decision, outcome, "publish",
+				publish_duration_ms);
+			if (!warning_result) {
+				return Result<PresentationOutcome>::failure(warning_result.error());
 			}
-			return Result<void>::failure(error);
+			return Result<PresentationOutcome>::success(std::move(outcome));
 		}
 		state_.notified_ui_mode = decision.ui_mode;
-		const auto external_log_result =
-			log_external_call(trace_id, "ui_mode_notifier", "notify_ui_mode",
-					  elapsed_milliseconds(started_at), true);
+		auto external_log_result =
+			log_external_call(trace_id, "ui_mode_notifier", "publish",
+					  publish_duration_ms, true);
 		if (!external_log_result) {
-			return Result<void>::failure(external_log_result.error());
+			return Result<PresentationOutcome>::failure(external_log_result.error());
 		}
-		return Result<void>::success();
+
+		const auto pending_presentation = publish_result.value();
+		// Version 1 cannot acknowledge, so the current scaffold never waits. The
+		// protocol-v2 work must inject its reviewed timeout instead of promoting an
+		// unmeasured duration into runtime configuration.
+		const auto presentation_deadline = std::chrono::steady_clock::now();
+		const auto await_started_at = std::chrono::steady_clock::now();
+		PresentationOutcome outcome = PresentationCommitted{};
+		bool adapter_returned_outcome = false;
+		try {
+			outcome = ui_mode_notifier_.await_presentation(
+				pending_presentation, presentation_deadline);
+			adapter_returned_outcome = true;
+		} catch (const std::exception &) {
+			outcome = PresentationFailed{
+				PresentationFailureReason::AdapterContractViolation,
+				SupervisorError(
+					ErrorCode::AdapterUnavailable,
+					"UI presentation adapter violated its explicit-outcome "
+					"contract by throwing a standard exception",
+					{{"adapter", "ui_mode_notifier"},
+					 {"exception_kind", "standard_exception"},
+					 {"operation", "await_presentation"}})};
+		} catch (...) {
+			outcome = PresentationFailed{
+				PresentationFailureReason::AdapterContractViolation,
+				SupervisorError(
+					ErrorCode::AdapterUnavailable,
+					"UI presentation adapter violated its explicit-outcome "
+					"contract by throwing a non-standard exception",
+					{{"adapter", "ui_mode_notifier"},
+					 {"exception_kind", "non_standard_exception"},
+					 {"operation", "await_presentation"}})};
+		}
+		const auto await_duration_ms = elapsed_milliseconds(await_started_at);
+		if (adapter_returned_outcome) {
+			external_log_result =
+				log_external_call(trace_id, "ui_mode_notifier",
+						  "await_presentation", await_duration_ms, true);
+			if (!external_log_result) {
+				return Result<PresentationOutcome>::failure(
+					external_log_result.error());
+			}
+		}
+		if (!std::holds_alternative<PresentationCommitted>(outcome)) {
+			const auto warning_result = log_degraded_presentation(
+				trace_id, event, decision, outcome, "await_presentation",
+				await_duration_ms);
+			if (!warning_result) {
+				return Result<PresentationOutcome>::failure(warning_result.error());
+			}
+		}
+		return Result<PresentationOutcome>::success(std::move(outcome));
 	};
 
 	auto apply_output = [this, &trace_id, event](auto &&operation) -> Result<PanelState> {
@@ -306,25 +386,27 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 		return fail_cycle(trace_id, event, result.error());
 	};
 
-	const bool blank_before_mode = decision.target_system_state == SystemState::Suspended ||
-				       decision.brightness_percent == 0;
-	if (blank_before_mode) {
-		const auto backlight_output = apply_output(apply_backlight);
-		if (!backlight_output) {
-			return backlight_output;
-		}
-		const auto ui_output = apply_output(notify_ui_mode);
-		if (!ui_output) {
-			return ui_output;
-		}
-	} else {
-		const auto ui_output = apply_output(notify_ui_mode);
-		if (!ui_output) {
-			return ui_output;
-		}
-		const auto backlight_output = apply_output(apply_backlight);
-		if (!backlight_output) {
-			return backlight_output;
+	const auto blank_output = apply_output([&apply_backlight]() {
+		return apply_backlight(0);
+	});
+	if (!blank_output) {
+		return blank_output;
+	}
+
+	const auto presentation_result = publish_and_await_presentation();
+	if (!presentation_result) {
+		state_.system_state = SystemState::Faulted;
+		return Result<PanelState>::failure(presentation_result.error());
+	}
+	const PresentationOutcome presentation_outcome = presentation_result.value();
+	const bool presentation_committed =
+		std::holds_alternative<PresentationCommitted>(presentation_outcome);
+	if (presentation_committed && decision.brightness_percent != 0) {
+		const auto brightness_output = apply_output([&apply_backlight, &decision]() {
+			return apply_backlight(decision.brightness_percent);
+		});
+		if (!brightness_output) {
+			return brightness_output;
 		}
 	}
 
@@ -361,11 +443,16 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 	state_.system_state = decision.target_system_state;
 	try {
 		logger_.log(bhp::StructuredLogLevel::info, "panel_state_recomputed", trace_id,
-			    {{"brightness_percent", std::to_string(decision.brightness_percent)},
+			    {{"brightness_percent",
+			      std::to_string(state_.applied_brightness_percent.value_or(0))},
 			     {"event", event_name},
 			     {"policy_revision", std::to_string(decision.policy_revision)},
+			     {"presentation_status",
+			      std::string(presentation_status(presentation_outcome))},
 			     {"presence_detected", bool_string(observation.presence_detected)},
 			     {"presence_state", std::string(to_string(decision.presence_state))},
+			     {"requested_brightness_percent",
+			      std::to_string(decision.brightness_percent)},
 			     {"solar_state", std::string(to_string(decision.solar_state))},
 			     {"system_state", std::string(to_string(decision.target_system_state))},
 			     {"ui_mode", std::string(to_string(decision.ui_mode))}});
@@ -427,6 +514,60 @@ Result<void> PanelSupervisor::log_external_call(const std::string &trace_id, std
 					{{"logging_exception_kind", "non_standard_exception"},
 					 {"operation", context.at("operation")},
 					 {"target", context.at("target")}}));
+	}
+
+	return Result<void>::success();
+}
+
+Result<void> PanelSupervisor::log_degraded_presentation(
+	const std::string &trace_id, const SupervisorEvent event,
+	const PolicyDecision &decision, const PresentationOutcome &outcome,
+	std::string operation, const long long duration_ms)
+{
+	std::map<std::string, std::string> context{
+		{"brightness_percent", "0"},
+		{"degraded", "true"},
+		{"duration_ms", std::to_string(duration_ms)},
+		{"event", std::string(to_string(event))},
+		{"operation", std::move(operation)},
+		{"policy_revision", std::to_string(decision.policy_revision)},
+		{"presentation_status", std::string(presentation_status(outcome))},
+		{"requested_brightness_percent", std::to_string(decision.brightness_percent)},
+		{"system_state", std::string(to_string(decision.target_system_state))},
+		{"target", "ui_mode_notifier"},
+		{"ui_mode", std::string(to_string(decision.ui_mode))},
+	};
+
+	if (const auto *not_committed = std::get_if<PresentationNotCommitted>(&outcome)) {
+		context.emplace("degraded_reason", std::string(to_string(not_committed->reason)));
+	} else if (const auto *failed = std::get_if<PresentationFailed>(&outcome)) {
+		context.emplace("degraded_reason", std::string(to_string(failed->reason)));
+		context.emplace("error_code", std::string(to_string(failed->error.code())));
+		context.emplace("error_message", failed->error.message());
+		context.emplace("retryable", bool_string(failed->error.retryable()));
+		context.emplace("stack_trace", error_code_chain(failed->error));
+		for (const auto &[key, value] : failed->error.context()) {
+			context.emplace("error_context_" + key, value);
+		}
+	}
+
+	try {
+		logger_.log(bhp::StructuredLogLevel::warn, "presentation_degraded", trace_id,
+			    context);
+	} catch (const std::exception &) {
+		return Result<void>::failure(SupervisorError(
+			ErrorCode::StructuredLogWriteFailed,
+			"Failed to write the degraded presentation warning",
+			{{"logging_exception_kind", "standard_exception"},
+			 {"operation", context.at("operation")},
+			 {"presentation_status", context.at("presentation_status")}}));
+	} catch (...) {
+		return Result<void>::failure(SupervisorError(
+			ErrorCode::StructuredLogWriteFailed,
+			"Failed to write the degraded presentation warning",
+			{{"logging_exception_kind", "non_standard_exception"},
+			 {"operation", context.at("operation")},
+			 {"presentation_status", context.at("presentation_status")}}));
 	}
 
 	return Result<void>::success();

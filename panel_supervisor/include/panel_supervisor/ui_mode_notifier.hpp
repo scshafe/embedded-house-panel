@@ -1,7 +1,10 @@
 #pragma once
 
+#include "panel_supervisor/presentation_outcome.hpp"
 #include "panel_supervisor/result.hpp"
 #include "panel_supervisor/ui_mode_notification.hpp"
+
+#include <chrono>
 
 namespace house_panel::supervisor {
 
@@ -15,10 +18,23 @@ public:
 	 * Publishes one complete, idempotent UI snapshot or returns a typed failure.
 	 *
 	 * The notification contains every value required by the versioned process
-	 * protocol. Implementations must not infer missing policy state.
+	 * protocol. Implementations must not infer missing policy state. A successful
+	 * publish means only that a presentation is pending; it never proves that the
+	 * requested pixels were committed.
 	 */
-	[[nodiscard]] virtual Result<void>
-	notify_ui_mode(const UiModeNotification &notification) = 0;
+	[[nodiscard]] virtual Result<PendingPresentation>
+	publish(const UiModeNotification &notification) = 0;
+
+	/**
+	 * Consumes the matching pending presentation no later than `deadline`.
+	 *
+	 * Committed, not-committed, and failed presentations are explicit values, not
+	 * cycle errors. Implementations must identify timeout, disconnect, stale,
+	 * duplicate, mismatch, and explicit negative acknowledgement honestly.
+	 */
+	[[nodiscard]] virtual PresentationOutcome await_presentation(
+		const PendingPresentation &pending_presentation,
+		std::chrono::steady_clock::time_point deadline) = 0;
 };
 
 } // namespace house_panel::supervisor
