@@ -45,7 +45,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Notes: neither defect has ever surfaced because the image has never been built — `.build/release-gate-host-check.log` ends in `RELEASE_CANDIDATE.HOST_UNSUPPORTED`, and no `.img` or `rootfs.ext4` exists in the tree.
   - Verify: `BHP_BUILDROOT_DIR=<pinned 2026.05.1 tree> scripts/verification/verify_buildroot_external_tree.sh` passes with the new assertions; `make verify` passes.
 
-- [ ] **Step 4: Reorder the PIR driver so the input device is registered before its IRQ**
+- [x] **Step 4: Reorder the PIR driver so the input device is registered before its IRQ**
   - `presence_sensor/experiments/custom_pir_input_driver/beagle_house_pir_input_driver.c:161` requests the threaded IRQ before `input_register_device` at `:169`. `input_event_dispose()` writes `dev->vals[dev->num_vals++]` with no NULL guard, and `vals` is allocated only inside `input_register_device()`, so an edge arriving in that window dereferences NULL. A PIR asserted or chattering during its warm-up makes this a plausible boot-path oops.
   - Either register the input device first and then request the IRQ — the initial-state sync at `:174` already covers edges missed in the gap — or request with `IRQF_NO_AUTOEN` and call `enable_irq()` after registration. Preserve the existing `devm` cleanup ordering and the hard-fail-on-wake-setup behavior.
   - Verify: `KERNEL_DIR=<kernel build tree> scripts/verification/verify_presence_sensor_sources.sh` compiles the module cleanly; add a source-order assertion to that script so the ordering cannot silently regress.

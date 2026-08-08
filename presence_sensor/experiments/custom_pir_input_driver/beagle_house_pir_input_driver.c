@@ -158,6 +158,15 @@ static int beagle_house_pir_probe(struct platform_device *platform_device)
 
 	platform_set_drvdata(platform_device, pir);
 
+	/*
+	 * Register before the IRQ can run: input event buffers are initialized by
+	 * input_register_device(). The post-request sample closes the state gap.
+	 */
+	error = input_register_device(pir->input);
+	if (error)
+		return dev_err_probe(device, error,
+				     "failed to register input device\n");
+
 	irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	error = devm_request_threaded_irq(device, pir->irq, NULL,
 					  beagle_house_pir_irq_thread,
@@ -165,11 +174,6 @@ static int beagle_house_pir_probe(struct platform_device *platform_device)
 	if (error)
 		return dev_err_probe(device, error,
 				     "failed to request both-edge IRQ %d\n", pir->irq);
-
-	error = input_register_device(pir->input);
-	if (error)
-		return dev_err_probe(device, error,
-				     "failed to register input device\n");
 
 	error = beagle_house_pir_report_state(pir);
 	if (error)

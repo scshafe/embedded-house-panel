@@ -27,6 +27,7 @@ done
 
 for required_driver_symbol in \
   devm_gpiod_get \
+  input_register_device \
   devm_request_threaded_irq \
   IRQF_TRIGGER_RISING \
   IRQF_TRIGGER_FALLING \
@@ -38,6 +39,27 @@ for required_driver_symbol in \
     exit 1
   }
 done
+
+if ! awk '
+  /^[[:space:]]*error[[:space:]]*=[[:space:]]*input_register_device[[:space:]]*\([[:space:]]*pir->input[[:space:]]*\)[[:space:]]*;[[:space:]]*$/ {
+    input_register_count++
+    input_register_line = NR
+  }
+  /^[[:space:]]*error[[:space:]]*=[[:space:]]*devm_request_threaded_irq[[:space:]]*\([[:space:]]*device[[:space:]]*,/ {
+    irq_request_count++
+    irq_request_line = NR
+  }
+  END {
+    exit !(input_register_count == 1 &&
+           irq_request_count == 1 &&
+           input_register_line < irq_request_line)
+  }
+' "$driver"; then
+  bhp_fail VERIFY_PRESENCE.INPUT_IRQ_ORDER_INVALID \
+    'expected exactly one input registration before exactly one threaded IRQ request' \
+    "$TRACE_ID"
+  exit 1
+fi
 
 grep -F 'compatible = "gpio-keys"' "$stock_overlay" >/dev/null
 grep -F 'wakeup-source;' "$stock_overlay" >/dev/null
