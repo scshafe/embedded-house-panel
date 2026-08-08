@@ -62,7 +62,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Add restart supervision with an explicit retry limit and backoff, and structured logging of each restart, without weakening the blank-before-exit behavior at `panel_supervisord.cpp:233` and `:366`.
   - Verify: `scripts/verification/verify_build_and_deploy_contracts.sh` passes with a new assertion covering the restart configuration; `make verify` passes.
 
-- [ ] **Step 7: Settle and freeze the protocol-v2 field set**
+- [x] **Step 7: Settle and freeze the protocol-v2 field set**
   - Using the Step 1 answers to decisions 2, 3, and 4, rewrite the version-2 binding table (`docs/interfaces/panel-mode-protocol.md:33-53`) to the agreed field set. If the reduced set is chosen: keep `connection_challenge`, `snapshot_id`, `display_mode`, `render_generation`, `presentation_result`, and the `SO_PEERCRED` UID check; demote `supervisor_session_id` and `event_sequence` to inputs of `snapshot_id`, echoed for diagnostics only. If `appliance_release_id` is retained, name its producer; if not, delete it from the binding and state where release atomicity is enforced instead.
   - Enumerate the complete version-2 `display_mode` set in the same document. `day_active` is currently required by `.claude/plans/2026-08-05-end-to-end-development-roadmap.md:194`, `README.md:102`, and `docs/architecture/lexinet-study-integration.md`, but is not a legal value at `docs/interfaces/panel-mode-protocol.md:93`.
   - Record the answer to decision 2 in the document as a durable invariant, so Step 8 and any future media-lease work inherit it.
