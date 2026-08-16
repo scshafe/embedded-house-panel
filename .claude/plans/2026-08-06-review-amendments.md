@@ -125,15 +125,35 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Specialist: `doddy`
   - Verify: human review confirms room access plus touch is recorded as sufficient authorization without a second factor; human review confirms adversarial acoustic classes plus provisional voice evidence plus restart and grouped-rejection disposition; human review confirms physical-loss scope includes the companion signing key and all three revocations; human review confirms the boolean/timestamp detector plus arena-to-draft handoff plus immediate-blank/bounded-independent-quiescence ordering; human review confirms supervisor-owned evidence-selected PIR debounce/wake-rate policy without an unmeasured default; `make verify-docs` passes.
 
-- [ ] **Step 15: Reframe Lexinet Step 5 as remediation of a live exposure**
+- [x] **Step 15a: Close the empty-token Tailnet authentication bypass in Lexinet**
+  - The user explicitly authorized changes in the sibling checkout at
+    `/Users/coleshaffer/lexinet` on 2026-08-16. Preserve loopback-only operation
+    without a bearer when Tailnet is disabled, but reject any effective startup
+    configuration that enables the Tailnet listener with an empty or
+    whitespace-only service bearer.
+  - Put one canonical validation function at the server boundary, call it before
+    migrations or listener/database startup from the CLI, and retain defensive
+    validation inside `server.Serve` for non-CLI callers. Return a stable typed
+    configuration error without logging or echoing credential material.
+  - Add focused tests proving the unsafe default/effective configuration fails
+    before external work, `--tailnet on` cannot override an empty token into an
+    exposed service, and explicitly Tailnet-disabled loopback development still
+    works without a token.
+  - Completed in the sibling Lexinet repository at commit `178d9ea`. The guard
+    covers Lexinet's native Tailnet listener; a host-side TCP proxy remains a
+    separately documented bearer-provisioning boundary that the process cannot
+    observe.
+  - Verify: in `/Users/coleshaffer/lexinet`, `go test ./internal/config/... ./internal/server/... ./internal/cli/...`; `go build ./... && go vet ./...`.
+
+- [ ] **Step 15b: Reframe Lexinet Step 5 as remediation of a live exposure**
   - `requireBearer` returns the handler unchanged when the token is empty (`/Users/coleshaffer/lexinet/internal/server/server.go:155-158`), every mutation route sits inside that group (`:53-58`, `internal/server/api.go:89-98`), the shipped deploy config sets `auth_token = ""` (`deploy/docker/config.toml:18`), and `docker-compose.yml` documents that tailnet exposure is bridged by a TCP-mode `tailscale serve`, which carries no identity and applies no authentication.
   - Amend `docs/architecture/lexinet-study-integration.md:665` and Lexinet plan Step 5 to state that the study work must *close* an existing unauthenticated path, not merely add a scoped one, and that the Step 5 negative test ("a nontagged node cannot reach or authorize to the study service") does not currently hold.
-  - Notes: the Lexinet repository is a separate checkout and this plan does not change it. The interim mitigations — setting a token, and making an empty token with the tailnet listener enabled a startup error rather than an auth bypass — belong to that repository and to the user. Record them here as prerequisites, not as executed work.
+  - Notes: ~~the Lexinet repository is a separate checkout and this plan does not change it. The interim mitigations — setting a token, and making an empty token with the tailnet listener enabled a startup error rather than an auth bypass — belong to that repository and to the user. Record them here as prerequisites, not as executed work.~~ The sibling Lexinet repository remains a separate authority, but the user explicitly authorized Step 15a to implement the startup guard there. Record the completed guard and the still-required provisioned token as prerequisites; do not imply that this narrow mitigation delivers the later scoped Tailnet identity design.
   - Verify: human review confirms the panel-side documents no longer assume a configured bearer, and that the interim mitigation is either done or explicitly accepted as an open risk with a date.
 
 ## Done criteria
 
-- Steps 1–15 are checked, or an unchecked step carries a written reason and an owner.
+- Steps 1–15b are checked, or an unchecked step carries a written reason and an owner.
 - `make verify` passes on the development host and on the Linux runner introduced in Step 12.
 - No pending product decision has changed status, and roadmap Step 1 remains unapproved.
 - Each amended plan or document carries its ~~`**Amended 2026-08-06:**`~~ `**Amended <actual YYYY-MM-DD>:**` footer, and the amendments are visible in `git diff`.
@@ -200,3 +220,16 @@ re-scanned without a collision, `make verify-docs` and `git diff --check`
 passed, and Step 14 is now complete. This approval does not itself complete
 Step 15 or claim that any proposed media, provenance, PIR, or hardware control
 has been implemented.
+
+**Amended 2026-08-16:** split the former documentation-only Step 15 into
+Steps 15a and 15b after the user explicitly authorized closing the live
+empty-token Tailnet authentication bypass in the sibling Lexinet repository.
+The new executable gate preserves unauthenticated loopback-only development,
+fails before migrations or listeners when Tailnet is enabled without a bearer,
+and leaves scoped Tailnet identity/TLS work to the Lexinet integration plan.
+
+**Amended 2026-08-16:** completed Step 15a in sibling Lexinet commit `178d9ea`
+after focused CLI/config/server tests, full build/vet, and adversarial review.
+The review kept host-side TCP proxy exposure explicit: the native-listener
+guard cannot observe that topology, so a nonempty bearer remains mandatory
+before enabling such a proxy.
