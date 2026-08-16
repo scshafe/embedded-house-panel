@@ -144,11 +144,36 @@ flowchart TD
     UV --> UA["visible correction ACK; remain on successor"]
 ```
 
-Rendering a session item for the first time creates its one idempotent
+~~Rendering a session item for the first time creates its one idempotent
 `presented` fact. Revealing its back for the first time creates its one
 idempotent `revealed` fact. Re-rendering or revisiting the item creates neither
 again. Neither fact claims mastery. `again`, `hard`, `good`, and `easy` are valid
-only after `revealed` and mean:
+only after `revealed`.~~
+
+Rendering a session item for the first time from non-voice system/session entry
+or touch creates its one idempotent `presented` fact before display. A first
+render caused by voice records only a bounded, session-local provisional marker;
+it does not enter the durable outbox or Lexinet. A later study touch
+bound to the same active session, session item, immutable content revision, and
+render generation promotes that marker before applying its semantic action. An
+accepted touch or voice rating bound to the same tuple promotes the
+current item's provisional `presented` and any dependent provisional `revealed`
+observation atomically with `rated`. Voice reveal remains provisional while its
+`presented` prerequisite is provisional. Unpromoted markers are discarded at
+session termination or process restart, cannot satisfy server-authoritative
+cycle exhaustion, and never acquire a client-stream sequence. Restart recovery
+must also discard the provisional render and open a non-card resume gate; it may
+not automatically redisplay an issued item that lacks canonical `presented`
+evidence. A touch through that gate durably creates `presented` before display,
+while a voice resume creates a new provisional marker. Session termination
+abandons that session-item view, so later system entry cannot silently relabel
+the discarded voice observation as canonical.
+
+Revealing the back for the first time creates its one idempotent `revealed` fact
+when `presented` is already canonical; otherwise the voice-originated reveal is
+provisional under the same rule. Re-rendering or revisiting the item creates
+neither fact again. Neither fact claims mastery. `again`, `hard`, `good`, and
+`easy` are valid only after the local view is revealed and mean:
 
 | Rating | Learner meaning |
 |---|---|
@@ -167,14 +192,28 @@ Undo appends an idempotent `rating_voided` event that names the exact `rated`
 event; it never erases history. Accepting a rating must reserve enough bounded
 outbox capacity for that correction.
 
-Rating admission preflights the complete local transition. It always requires
+~~Rating admission preflights the complete local transition. It always requires
 one slot for `rated` plus one reserved Undo slot. Advancing to an
 already-presented forward item or a non-card completion snapshot needs no other
 event. Showing a never-presented prefetched successor additionally requires a
 third slot, and the rating plus successor `presented` fact commit atomically
 before render. With only the two base slots, the rating may still advance to an
 explicit tracking-paused completion snapshot while leaving the cached successor
-unshown. With fewer than two, rating is rejected and the current card remains.
+unshown. With fewer than two, rating is rejected and the current card remains.~~
+
+Rating admission preflights the complete local transition. It always requires
+one slot for `rated` plus one reserved Undo slot and enough ordinary slots for
+every provisional prerequisite it must promote. Advancing to an
+already-presented forward item or a non-card completion snapshot needs no other
+event. A touch rating that shows a never-presented prefetched successor
+additionally requires one slot, and the rating plus successor `presented` fact
+commit atomically before render. A voice rating commits the current item's
+promotions and rating but leaves a never-presented successor provisional. If the
+rating, Undo reservation, and all current-item prerequisite promotions fit but
+a touch-originated successor's additional `presented` slot does not, advance to
+an explicit tracking-paused non-card completion snapshot. If any rating, Undo,
+or prerequisite-promotion capacity is missing, reject the rating and keep the
+current card visible and unrated.
 
 Single-shot voice rating accepts residual false-recognition risk proportionate
 to a correctable, single-learner event. Undo is a compensating event, not a
@@ -462,6 +501,11 @@ oversized body, or out-of-order event with a stable machine-readable code.
 The panel must not make a working Tailnet a prerequisite for useful wake
 behavior.
 
+~~The prior suspend tail used `S->>M: quiesce` followed by
+`M-->>S: capture closed; volatile audio wiped` as its only media-closure
+evidence.~~ The sequence below preserves immediate blanking and independent
+supervisor observation.
+
 ```mermaid
 sequenceDiagram
     participant P as PIR / kernel
@@ -485,10 +529,12 @@ sequenceDiagram
     S->>M: arm purpose-bound command lease
     M-->>C: namespaced study voice intents
     P->>S: absent after grace
-    S->>M: quiesce
-    M-->>S: capture closed; volatile audio wiped
+    S->>S: write exact-zero brightness
+    S->>M: revoke capture; bounded quiesce
     S->>C: suspended mode
     C-->>S: black frame / state saved
+    M-->>S: closure report (telemetry)
+    S->>S: independently verify capture/device closure
     S->>P: request measured suspend path
 ```
 
@@ -507,14 +553,31 @@ the affordance to its current render generation; a restored identical snapshot
 may reissue it from durable state under a new generation. Appending the void
 consumes the reservation. The next accepted non-Undo study intent, replacement
 lease, explicit routing to another product surface, or ending the study session
-expires it and releases the reserved slot. A terminal server rejection of the
+expires it and releases the reserved slot. ~~A terminal server rejection of the
 target rating atomically marks that local rating unsaved, removes the now
-meaningless affordance, and releases the reservation without emitting a void.
-Network loss, absence, and suspend do not silently expire it. Thus Undo
-survives immediate navigation and temporary Tailnet loss without allowing
-unbounded reservations or a stale intent to correct another rating.
+meaningless affordance, and releases the reservation without emitting a void.~~
+A stable terminal server rejection
+never emits a void; it uses the complete transition-group disposition below to
+remove the now-meaningless affordance and release the reservation. Network loss,
+absence, and suspend do not silently expire it. Thus Undo survives immediate
+navigation and temporary Tailnet loss without allowing unbounded reservations
+or a stale intent to correct another rating.
 
-Pending events are visibly marked `queued locally`, `syncing`, `saved`, or
+When a rating promotes provisional prerequisites, its local atomic transaction
+records the complete constituent set: current-item promotions, `rated`, and any
+touch-originated successor `presented`. Failure before that transaction commits
+leaves the provisional markers, current render, and capacity unchanged. A
+stable terminal server rejection of the batch atomically marks every
+constituent `rejected`, removes the Undo affordance, and releases its reservation
+without a void. It preserves the already-rendered successor and face/history
+state because exposure cannot be undone, but rejected evidence is neither
+canonical nor restored to “confirmation required”: the confirming action did
+occur, while persistence failed. It cannot satisfy cycle exhaustion or be
+reissued under new identities. A voice-originated successor marker, which was
+not a constituent, remains provisional. The UI stays visibly tracking-rejected
+until authoritative reconciliation or a new session replaces that state.
+
+~~Pending events are visibly marked `queued locally`, `syncing`, `saved`, or
 `rejected`; queued is never presented as saved. Pending events are never evicted
 to make room for cards. Admission counts one ordinary slot for a new
 `presented` or `revealed` fact and one event plus one reservation for a rating.
@@ -522,7 +585,20 @@ At the outbox bound, an action that would create any new study fact is visibly
 rejected as “study tracking paused”: `next` may traverse already-presented
 forward history but cannot show a never-presented cached item; `flip` may toggle
 an already-revealed item but cannot reveal a back for the first time; `back` and
-other fact-free local navigation continue. No exposure is silently untracked.
+other fact-free local navigation continue. No exposure is silently untracked.~~
+
+Pending events are visibly marked `queued locally`, `syncing`, `saved`, or
+`rejected`; queued is never presented as saved. A provisional voice observation
+is separately labeled `voice — confirmation required`, never `queued` or
+`saved`. Pending events are never evicted to make room for cards. Admission
+counts one ordinary slot for each newly canonical `presented` or `revealed` fact
+and one event plus one reservation for a rating. At the outbox bound, touch and
+rating actions that would create or promote a study fact are visibly rejected as
+“study tracking paused.” Voice `next` may still show a never-presented cached
+item only with its bounded provisional marker, and voice `flip` may reveal it
+only provisionally; neither can satisfy server exhaustion or sync. `back` and
+other fact-free local navigation continue. No provisional exposure is silently
+presented as canonical evidence.
 Once the card queue is exhausted offline, `next` reports that refill is required.
 Disk-full, corrupt, and unwritable state are typed failures and never become an
 empty corpus.
@@ -579,16 +655,29 @@ map there to the exact top-level `intent_id`. Touch adapters emit those same
 stable IDs directly. Unknown intent/source/evidence combinations are rejected
 before reducer dispatch.
 
+~~Equivalent touch and voice intents traverse the same method and tests. `rate`
+additionally requires the current item to be revealed, the rating affordance
+active, and correction capacity available. It durably queues the event, visibly
+acknowledges the selected rating, and advances through the same navigation
+primitive as `next`; failure leaves the card visible and unrated.~~
+
 The neutral shell owns ingress ordering and routes only `study` intents to the
 vocabulary reducer. The reducer is the sole study state-transition owner. It
 rejects stale render generations, replayed/nonmonotonic sequences, commands
 received while a transition is committing, voice evidence that does not match
 the configured catalog/active-set/backend/recognizer/policy identity, and commands when
 the study surface is inactive. Equivalent touch and voice intents traverse the
-same method and tests. `rate` additionally requires the current item to be
+same method and tests for intent validation, navigation, and rating meaning;
+the authenticated `source_kind` selects only the evidence-durability branch
+described above. `rate` additionally requires the current item to be
 revealed, the rating affordance active, and correction capacity available. It
-durably queues the event, visibly acknowledges the selected rating, and advances through the same
-navigation primitive as `next`; failure leaves the card visible and unrated.
+atomically promotes any provisional prerequisites, durably queues the event,
+visibly acknowledges the selected rating, and advances through the same
+navigation primitive as `next`; failure leaves the card visible and unrated. A
+voice-originated successor first presentation remains provisional. A qualifying
+study touch matching the active session, session item, immutable content
+revision, and render generation of a provisional marker promotes it before the
+touch's semantic transition. No caller supplies a promotion flag or event UUID.
 `study.rating.undo` durably appends the exact correction and consumes its reservation
 before acknowledging; it leaves the already displayed successor card or
 completion/refill-required snapshot in place.
@@ -633,6 +722,15 @@ or broker fault closes capture and wipes the volatile ring. Voice does not wake
 suspended Linux; the PIR remains the wake source. An always-on voice wake path
 would require a separate low-power DSP/MCU or a future board capability and is
 outside this integration.
+
+The supervisor blanks immediately when lifecycle policy requires it; blanking
+never waits for the broker. A broker closure report is telemetry, not proof.
+Before writing the suspend state, the supervisor independently verifies
+kernel-visible capture-owner/device closure and any available microphone-rail
+evidence. Media stays disabled if the selected platform cannot expose that
+independent observation. At runtime, failure or deadline expiry takes the
+bounded broker-termination/media-off path and cannot delay suspend
+indefinitely.
 
 `CommandRecognizer` is an engine extension point, not a general transcription
 interface. The canonical
@@ -785,23 +883,48 @@ The integration is not complete until automated or on-target evidence proves:
 - accepted, semantic-duplicate, and terminal-rejected client sequences have
   replayable hash-bound receipts, so each stream advances contiguously without
   putting non-events into the scheduler ledger;
-- a permanent rating rejection removes its Undo lease and reservation without a
-  void and remains visibly unsaved across restart;
+- ~~a permanent rating rejection removes its Undo lease and reservation without
+  a void and remains visibly unsaved across restart;~~ a stable terminal
+  rejection of a grouped rating transition marks every constituent rejected,
+  preserves the already-visible face/history/successor state, releases its Undo
+  lease and reservation without a void, and remains visibly unsaved across
+  restart;
 - rating the final cached item advances to a stable completion/refill-required
   successor snapshot with Undo; a background refill cannot erase the affordance;
-- rating with two available slots can commit the rating plus Undo reservation
+- ~~rating with two available slots can commit the rating plus Undo reservation
   and advance only to an already-presented or non-card successor; showing a
   never-presented successor requires a third slot and commits its `presented`
-  fact atomically with the rating before render;
-- at the outbox bound, fact-free history navigation remains usable but first
+  fact atomically with the rating before render;~~ rating admission reserves the rating, Undo correction, and every provisional
+  prerequisite promotion atomically; a touch rating that shows a
+  never-presented successor additionally commits that successor's `presented`
+  fact before render, while a voice rating leaves that successor provisional;
+- ~~at the outbox bound, fact-free history navigation remains usable but first
   presentation, first reveal, and rating are rejected rather than silently
-  untracked;
+  untracked;~~ at the outbox bound, fact-free history navigation remains usable; touch first
+  presentation/reveal and every rating or promotion are rejected rather than
+  silently untracked, while voice first presentation/reveal remains explicitly
+  provisional and unsynchronized;
 - cached interaction works during a Tailnet interruption and reconciles after
   reconnect without duplicate events;
 - power loss before, during, or after local enqueue and server acknowledgement
   yields either one pending event or one accepted event, never silent loss;
-- touch and voice produce identical navigation/rating transitions, and voice
-  failure never disables touch;
+- ~~touch and voice produce identical navigation/rating transitions, and voice
+  failure never disables touch;~~ touch and voice produce identical navigation/rating transitions at the
+  semantic reducer layer, while source-qualified evidence durability keeps a
+  voice-only first presentation and dependent reveal provisional; voice failure
+  never disables touch;
+- a provisional voice observation has no client-stream sequence, cannot sync or
+  satisfy cycle exhaustion, promotes only from a study touch or accepted rating
+  matching its active session, session item, immutable content revision, and
+  render generation, and disappears on session termination/restart; restart
+  enters a non-card resume gate so the same unpresented item becomes canonical
+  only after a new touch-originated action, while voice recreates provisional
+  state;
+- a grouped rating transition either commits all current-item promotions,
+  `rated`, and any touch-successor `presented` locally or leaves the prior state
+  unchanged; stable terminal batch rejection marks every constituent rejected,
+  preserves already-visible navigation state, releases Undo without a void,
+  and excludes those facts from exhaustion or identity-changing reissue;
 - every voice `spoken_form_id` belongs to the bound active command set and maps
   losslessly to the envelope's exact stable `intent_id`; touch uses that same ID
   and no parallel namespace/action mapping exists;
@@ -867,6 +990,15 @@ requested panel-wide phonetic command analysis. The proposal now uses a
 correctable rating event, a rebuildable scheduler projection,
 `variety_first_v1`, an isolated shadow-runner boundary for later pinned FSRS
 evaluation, and the canonical shared spoken-command catalog.
+
+**Amended 2026-08-08:** kept touch and voice on one semantic reducer while
+making a voice-only first `presented` fact and its dependent reveal provisional
+until an active-session/item/revision/render-bound study touch or accepted
+rating atomically promotes them. Restart now uses a non-card resume gate, and
+grouped terminal rejection has an explicit all-constituent disposition. The
+amendment also makes immediate blanking precede bounded supervisor-verified
+media quiescence before the suspend-state write. This does not change any
+`LEXI-*` status or approve roadmap Step 1.
 
 ## Additional primary scheduler references
 

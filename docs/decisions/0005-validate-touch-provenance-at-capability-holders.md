@@ -63,6 +63,13 @@ invalidated by expiry, a new lifecycle snapshot or committed render generation,
 UI disconnect, absence, night, suspend preparation, or supervisor restart. Raw
 coordinates do not enter the provenance token or logs.
 
+The observation proves fresh physical contact on the committed frame, not the
+person's household identity. The accepted authorization model intentionally
+treats any person with room access who can perform the required contact as
+authorized and adds no second factor. Capture start and irreversible submission
+still require separate observations: one Record touch cannot authorize the
+later qualifying submit hold.
+
 Touch forwarding and provenance service are subordinate to lifecycle safety.
 They use bounded non-blocking queues; a slow, disconnected, or failed consumer
 is dropped and receives no provenance. Such failure cannot fault the supervisor,
@@ -236,6 +243,9 @@ validation remains mandatory; the two-phase static gate does not replace it.
 - Compromising `panel_ui` no longer lets it invent the physical-touch evidence
   required for capture start or message dispatch.
 - One touch cannot authorize both a media lease and a later message submission.
+- Touch provenance does not authenticate a household member. Any person with
+  room access who performs the separately required contact is intentionally
+  authorized without a second factor.
 - The supervisor gains a narrow observation and attestation responsibility but
   no feature semantics, media ownership, message authority, or new UI request
   path.
@@ -258,3 +268,8 @@ validation remains mandatory; the two-phase static gate does not replace it.
 - [Spoken command distinctiveness](../architecture/spoken-command-distinctiveness.md)
 - [Personal agenda and birthday wishes](../architecture/personal-agenda-and-birthday-wishes.md)
 - [Security and trust map](../security/threat-model.md)
+
+**Amended 2026-08-08:** clarified that provenance proves contact rather than
+person identity and recorded room access plus the separately required
+Record/submit contacts as sufficient authorization without a second factor. No
+roadmap step or pending product-decision status changed.

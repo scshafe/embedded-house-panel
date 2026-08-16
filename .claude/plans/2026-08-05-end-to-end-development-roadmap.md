@@ -272,8 +272,10 @@ behavior.
   - ~~Finish Lexinet Step 7.~~ Execute Lexinet Step 7b by adapting the
     vocabulary reducer and LVGL renderer beneath `panel_ui`; preserve two-sided
     cards, bounded face-preserving history, one local intent order, and
-    equivalent touch/semantic-command navigation and rating paths with touch
-    Undo.
+    ~~equivalent touch/semantic-command navigation and rating paths with touch
+    Undo.~~ equivalent touch/semantic-command navigation and rating meanings
+    with touch Undo, while voice-only first presentation/dependent reveal remains
+    provisional until exact-bound touch or rating promotion.
   - Execute Lexinet Step 8 after the panel intent contract is stable. Introduce
     one purpose-scoped media broker and enable only `command_recognition` with
     deterministic fake capture/recognizer paths. Add the canonical command
@@ -292,9 +294,14 @@ behavior.
     their Phase-A sets; any one forbidden effect fails, and no touch-only ID may
     enter a voice projection.
   - Ensure absence, night mode, surface change, mute, consumer disconnect,
-    suspend preparation, or fault closes capture, wipes volatile buffers, and
-    acknowledges quiescence by a deadline. Voice failure never blocks touch or
-    power policy.
+    suspend preparation, or fault closes capture and wipes volatile buffers.
+    ~~The broker acknowledges quiescence by a deadline.~~ Its reply is telemetry.
+    ~~The supervisor independently verifies kernel-visible capture-owner/device
+    closure and available microphone-rail-off evidence before blank/suspend.~~
+    The supervisor blanks immediately, then independently verifies that evidence
+    before the suspend-state write. A timeout takes the bounded
+    broker-termination/media-off path. Voice failure never blocks touch,
+    immediate blanking, or power policy.
   - Output: use the outputs in ~~Lexinet Steps 7–8~~ Lexinet Step 7b and Step 8.
   - Verify: every exact verification clause in ~~Lexinet Steps 7–8~~ Lexinet
     Step 7b and Step 8 passes. The combined host matrix covers touch/voice
@@ -369,7 +376,12 @@ behavior.
     submit an exportable recording. During capture, no general command grammar
     is active; the same stream may feed only a purpose-internal stop set
     containing `agenda.stop_wish_recording`, which may halt capture but cannot
-    route another intent or submit.
+    route another intent or submit. Its detector returns only a boolean and
+    monotonic observation time. Keep recording, tail, detector features, and
+    scratch in one purpose arena with swap/core dumps disabled. On a valid stop,
+    trim and copy only finalized bounded bytes into a separate purpose-bound
+    draft buffer before wiping the arena; failure, cancellation, lifecycle
+    closure, expiry, or quiesce wipes both and promotes nothing.
   - Implement the one-shot broker lease contract: successful touch-observation
     claim consumes the observation and creates an immutable uniquely identified
     `armed` lease. The UI receives only its opaque `lease_id`; `capture_start`
@@ -523,8 +535,11 @@ behavior.
     projections/policies, nearest-neighbor phrase pairs, frozen development,
     single-use selection, and untouched confirmation splits, speakers,
     distances, orientations, room noise,
-    negative-audio duration, lifecycle transitions, and resource/power
-    measurements. Preserve touch as the always-available fallback.
+    negative-audio duration, separately labeled loudspeaker replay, crafted
+    audible, ultrasonic/near-ultrasonic carrier, and structure-borne injection
+    classes, lifecycle transitions, independently observed quiescence, and
+    resource/power measurements. Preserve touch as the always-available
+    fallback.
   - Select an engine only through an ADR backed by per-command accuracy,
     a directional command-confusion matrix, wrong-command substitutions, false
     accepts and applied false actions as separate metrics with denominators and
@@ -651,11 +666,15 @@ The software head start is complete when:
 - panel data remains useful, bounded, and honest through network failure;
 - the agenda feasibility ADR exists and its permitted production slice is
   host-tested against a fake companion;
-- touch paths work independently of voice; the shared catalog produces reviewed
+- ~~touch paths work independently of voice; the shared catalog produces reviewed
   pronunciation/confusability reports, canonical active command sets, and
-  deterministic backend projections; and
-  the fake broker proves lifecycle shutdown, replay rejection, and buffer
-  erasure;
+  deterministic backend projections; and the fake broker proves lifecycle
+  shutdown, replay rejection, and buffer erasure;~~ touch paths work
+  independently of voice; the shared catalog produces reviewed
+  pronunciation/confusability reports, canonical active command sets, and
+  deterministic backend projections; and the fake broker proves lifecycle
+  shutdown, replay rejection, buffer erasure, and supervisor-observed
+  quiescence without trusting broker self-report;
 - system simulations cover time, storage, process, Tailnet, server, and
   companion faults;
 - cross-build and deployment tooling can produce content-identified artifacts
@@ -670,14 +689,21 @@ The software head start is complete when:
 - The screen stays physically off while absent, presents measured dim red after
   hours, and presents the correct daytime surface without exposing stale or
   bright frames.
-- Lexinet works through the Tailnet with varied, resumable study sessions,
+- ~~Lexinet works through the Tailnet with varied, resumable study sessions,
   bounded offline behavior, equivalent touch/voice navigation and ratings, a
-  touch correction path, and replaceable schedulers over replayable evidence.
+  touch correction path, and replaceable schedulers over replayable evidence.~~
+  Lexinet works through the Tailnet with varied, resumable study sessions,
+  bounded offline behavior, equivalent touch/voice navigation and rating
+  meanings with source-qualified evidence durability, a touch correction path,
+  and replaceable schedulers over replayable evidence.
 - Birthdays and today's meetings use minimized provider-neutral data. Birthday
   wishes require visible recording and touch confirmation, use only provisioned
   recipients, and never retry an ambiguous Messages handoff.
-- Microphone capture is purpose-scoped, visibly active, promptly quiesced, and
-  optional; loss of voice never breaks touch or power behavior.
+- ~~Microphone capture is purpose-scoped, visibly active, promptly quiesced, and
+  optional; loss of voice never breaks touch or power behavior.~~ Microphone
+  capture is purpose-scoped, visibly active, promptly and independently
+  observed as quiesced, and optional; broker self-report is not
+  proof, and loss of voice never breaks touch or power behavior.
 - Power, wake latency, network recovery, thermals, battery behavior, and
   reliability are measured at named boundaries on the final assembly.
 - Releases are reproducible, recoverable, safely provisioned, and diagnosable
@@ -726,3 +752,12 @@ conditional panel-local zone-data packaging remains a Step 11 plan/Step 12
 execution concern. Roadmap Step 3 now explicitly consumes and verifies Lexinet
 Step 6's Shared HTTP runtime sub-step. No checkbox, product-decision status, or
 hardware claim changed.
+
+**Amended 2026-08-08:** propagated review-amendments Step 14 into the executable
+roadmap. Semantic touch/voice equivalence no longer implies identical evidence
+durability; broker self-report no longer proves quiescence; and target speech
+qualification includes crafted audible and out-of-band injection classes.
+Immediate blanking now precedes bounded supervisor verification before the
+suspend-state write, and `wish_recording` now has an explicit arena-to-draft
+handoff. No roadmap checkbox, pending product-decision status, production
+default, or hardware claim changed.

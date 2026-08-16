@@ -398,10 +398,29 @@ as the production default.
     slot even after the rating is acknowledged. Undo consumes the reservation;
     the next accepted non-Undo study intent, a replacement lease, explicit
     routing to another product surface, or study-session termination releases
-    it. A terminal server rejection marks the rating visibly unsaved, removes
-    the affordance, and releases the reservation without emitting a void.
+    it. ~~A terminal server rejection marks the rating visibly unsaved, removes
+    the affordance, and releases the reservation without emitting a void.~~ A
+    grouped rating transaction records every current-item promotion, `rated`,
+    and touch-successor `presented` constituent. Local commit failure changes
+    nothing. Stable terminal batch rejection marks every constituent visibly
+    rejected together, preserves already-rendered face/history/successor state,
+    excludes the rejected facts from exhaustion and identity-changing reissue,
+    and releases Undo without emitting a void; a voice-successor marker outside
+    the group remains provisional.
     Network loss, absence, and suspend retain it.
     Corruption or incompatible schema fails visibly rather than becoming empty.
+    Preserve the existing canonical event rule for non-voice session entry and
+    touch-originated presentation. A first item reached only through voice gets
+    a bounded session-local provisional `presented` marker and any dependent
+    first `revealed` marker; neither receives an outbox entry or client-stream
+    sequence, and both disappear at session termination or restart. Restart
+    discards the provisional render and enters a non-card resume gate rather
+    than redisplaying an issued item with no canonical `presented`; touch resume
+    creates it before display, while voice resume recreates provisional state. A
+    study touch bound to the active session, session item, immutable content
+    revision, and render generation, or an accepted rating for that item,
+    atomically promotes the prerequisites. No caller supplies a promotion flag
+    or event UUID.
   - Make item count, byte count, prefetch low-water mark, pending-event count,
     and maximum offline retention explicit validated configuration. Never evict
     an unacknowledged event; flush it before evicting its referenced card
@@ -411,18 +430,29 @@ as the production default.
     background, and expose explicit `queued locally`, `syncing`, `saved`, and
     `rejected` delivery states plus cache exhausted, offline with history,
     service empty, contract invalid, and retryable error. If the outbox is full,
-    any transition needing a new fact fails visibly under the documented
-    “tracking paused” policy. Navigation may continue only through already
-    presented/revealed history; it cannot silently show an unseen cached item or
-    reveal a back without queue capacity. Validate and retain scheduler name/version,
+    ~~any transition needing a new fact fails visibly under the documented
+    “tracking paused” policy.~~ Any transition needing a new canonical fact
+    fails visibly under that policy. ~~Navigation may continue only through
+    already presented/revealed history; it cannot silently show an unseen cached
+    item or reveal a back without queue capacity.~~ Voice navigation may show an
+    unseen cached item or first reveal only as visibly provisional
+    `voice — confirmation required` state; it cannot sync, satisfy cycle
+    exhaustion, or masquerade as queued/saved evidence. Validate and retain scheduler name/version,
     cycle seed, and selection-reason provenance with each cached issued item.
     When a rated card has no prefetched successor, advance to a durable
     completion/refill-required snapshot that retains Undo; background refill
     cannot replace it while the lease remains live. Preflight the entire rating
-    transition: rating plus Undo reservation needs two slots; showing a
+    transition: ~~rating plus Undo reservation needs two slots; showing a
     never-presented successor needs a third and atomically commits its
     `presented` event before render. With only two, use a tracking-paused
-    non-card successor and leave the cached unseen item unshown.
+    non-card successor and leave the cached unseen item unshown.~~ reserve the
+    rating, Undo correction, and every current-item provisional prerequisite
+    promotion. A touch rating that shows a never-presented successor also needs
+    and atomically commits that successor's `presented` slot before render; a
+    voice rating leaves its newly shown successor provisional. If the base and
+    prerequisite slots fit but the touch successor slot does not, use the
+    tracking-paused non-card successor. Missing any base or prerequisite slot
+    rejects the rating and leaves the current card unchanged.
   - Before requesting a successor cycle, serialize against local event creation,
     flush and acknowledge every pending predecessor event, persist the returned
     stream/profile flush receipt, and include it in create. Never materialize a
@@ -449,13 +479,23 @@ as the production default.
     boundary, corrupted cache, duplicate acknowledgement, idempotency conflict,
     ordered retry, same-batch presented/reveal/rating/void replay, stream
     sequence/receipt persistence and reprovisioning, pending-event
-    non-eviction, acknowledgement while Undo remains available, permanent
-    rejection release without a void, final-card completion with Undo,
-    rating behavior with two versus three available slots and with an
-    already-presented forward successor, reservation consume/release, no
+    non-eviction, acknowledgement while Undo remains available, ~~permanent
+    rejection release without a void,~~ grouped permanent-rejection disposition
+    for all promotion/rating/successor constituents with preserved visible state
+    plus exhaustion exclusion plus Undo release without a void, final-card
+    completion with Undo,
+    ~~rating behavior with two versus three available slots and with an
+    already-presented forward successor,~~ rating behavior across rating/Undo capacity plus provisional-prerequisite
+    promotion capacity plus touch-successor durability versus voice-successor
+    provisional handling and an already-presented forward successor,
+    reservation consume/release, no
     reservation leakage across restart, and
-    full-outbox presented/revealed/rated action rejection versus fact-free
-    history navigation, final-rating flush-before-successor ordering including
+    ~~full-outbox presented/revealed/rated action rejection versus fact-free
+    history navigation,~~ full-outbox touch fact/promotion/rating rejection versus visibly provisional
+    voice presentation/reveal and fact-free history navigation plus exact-bound
+    promotion with restart/session-end discard plus a non-card restart gate,
+    final-rating
+    flush-before-successor ordering including
     an Undo racing the barrier, server rejection of locally exhausted but
     authoritatively incomplete cycles, one stable empty sentinel, retained late
     correction, and bounded card eviction; live
@@ -538,6 +578,11 @@ as the production default.
     `rating_voided` for the exact current durable rating UUID. Undo carries no
     caller-supplied target, resolves the UUID exclusively from the current
     durable lease, and is forbidden for voice.
+    Preserve one semantic reducer path while making evidence durability
+    source-qualified: voice-only first presentation/dependent reveal is
+    provisional, a bound study touch or accepted rating promotes only the
+    current item's prerequisites, and a successor newly shown by a voice rating
+    remains provisional.
   - Connect the vocabulary controller to the shell's cancellable study worker,
     cache/outbox, and subordinate LVGL surface. Add touch targets for
     flip/next/back, Again/Hard/Good/Easy, and rating Undo; render through the
@@ -571,6 +616,9 @@ as the production default.
     correctable ratings may qualify only with their distinct safeguards;
     `capture_stop` is restricted to the recording purpose's stop-only set; and
     capture start, external submission, power, and illumination are forbidden.
+    Voice admission never makes `presented` or `revealed` correctable: a
+    voice-only first observation stays provisional until the exact active item
+    is confirmed by touch or an accepted rating.
     Pair review cannot waive this matrix. Add a reproducible two-phase
     acceptance gate. Phase A source-independently inspects every registered
     `intent_id`, including touch-only IDs, traverses all registered handlers,
@@ -614,9 +662,16 @@ as the production default.
     active Lexinet surface, asserted presence, a connected intent consumer, and
     any available physical mute state. The supervisor need not know application
     purpose semantics. Any surface change, night, absence, suspend, mute,
-    disconnect, or fault must close ALSA, wipe volatile audio, and acknowledge
-    quiescence by a deadline. Record a software-only limitation when prototype
-    hardware cannot prove microphone rail-off. Voice never blocks power.
+    disconnect, or fault must close ALSA and wipe volatile audio. ~~The broker
+    acknowledges quiescence by a deadline.~~ Its closure reply is telemetry,
+    not proof. ~~Before blank/suspend the supervisor independently verifies the
+    kernel-visible capture owner/device closure and, where exposed, microphone
+    rail-off state.~~ The supervisor blanks immediately, then verifies that
+    evidence before the suspend-state write. Missing independent observation
+    fails the media-enablement evidence gate; broker failure or timeout takes
+    the bounded fail-closed termination/media-off path. Record a software-only
+    limitation when prototype hardware cannot prove microphone rail-off. Voice
+    never blocks touch, immediate blanking, or power policy.
   - Freeze one broker lease state machine. For a future touch-gated purpose, a
     successful observation claim separately creates a uniquely identified
     immutable `armed` lease. The UI receives only its opaque `lease_id`; start
@@ -650,11 +705,23 @@ as the production default.
     any decision-affecting recognition setting changes the policy digest; exact
     overlapping collisions fail; golden normalization and
     near-neighbor/candidate fixtures report independently reproducible vectors;
-    host tests prove touch/voice transition equivalence including all
-    four ratings, one intent per utterance, front-side rating rejection, visible
+    ~~host tests prove touch/voice transition equivalence including all four
+    ratings, one intent per utterance, front-side rating rejection, visible
     acknowledgement/Undo, no stale/replayed action, shutdown at every gating
     transition, volatile-buffer erasure, malformed-client isolation, and
-    continued touch operation; repository search and captured network tests find
+    continued touch operation;~~ host tests prove touch/voice
+    semantic-transition equivalence including all
+    four ratings while voice-only first presentation/dependent reveal remains
+    provisional, exact-bound touch/rating promotion is atomic, a voice-rating
+    successor remains provisional, unpromoted state cannot sync or satisfy
+    exhaustion and disappears at session end/restart, restart enters a non-card
+    resume gate, grouped terminal rejection dispositions every constituent, one
+    intent per utterance, front-side rating rejection, visible
+    acknowledgement/Undo, no stale/replayed action, shutdown at every gating
+    transition, volatile-buffer erasure, supervisor-observed capture closure
+    without trusting broker self-report, malformed-client isolation, and
+    continued touch operation; repository
+    search and captured network tests find
     no raw audio or transcripts outside the in-memory broker test boundary.
     Phase A reports every intent's endpoint-to-effect pairs and deduplicated
     effect set; Phase B proves that every voice projection excludes touch-only
@@ -722,14 +789,20 @@ as the production default.
     least 100 held-out confirmation utterances per active command and closest
     catalog neighbors across intended speakers, distances, orientations, and
     representative room noise, plus at least 24 held-out confirmation hours of
-    active-listening negative audio. Retain consented/redacted raw corpus
+    active-listening negative audio. Include separately labeled loudspeaker
+    replay, crafted/psychoacoustic audible inputs, ultrasonic or near-ultrasonic
+    modulated carriers, and structure-borne out-of-band injection against the
+    exact microphone, analog front end, ADC, and enclosure; human inaudibility
+    is never rejection evidence. Retain consented/redacted raw corpus
     material outside Git and commit only content-free manifests/measurements.
   - Measure command success, a directional command-by-command confusion matrix,
     wrong-command substitution, broker-level false accepts, UI-applied false
     actions, p50/p95
     visible-action latency, RSS, peak memory, CPU, image delta, thermal behavior,
-    active power, quiesce latency, and 100 suspend/resume cycles with stale-event
-    detection.
+    ~~active power, quiesce latency, and 100 suspend/resume cycles with
+    stale-event detection.~~ active power, independently observed
+    capture-owner/device and available rail-off quiesce latency, and 100
+    suspend/resume cycles with stale-event detection.
   - Compare results with the provisional gates in the architecture document and
     requalify the entire active catalog whenever an engine/model, microphone,
     pronunciation lock, phrase, active set, backend projection, or recognition policy
@@ -756,18 +829,27 @@ as the production default.
 - Lexinet returns complete, topic-filtered, nonrepeating, rating-aware coverage
   cycles with scheduler provenance and accepts idempotent rating/correction
   reconciliation while append-only events remain authoritative.
-- The panel renders cached cards promptly, exposes honest offline/sync state,
+- ~~The panel renders cached cards promptly, exposes honest offline/sync state,
   and implements equivalent `flip`, `next`, `back`, and four-rating behavior for
-  touch and semantic voice intents, including a touch correction path.
+  touch and semantic voice intents, including a touch correction path.~~ The
+  panel renders cached cards promptly, exposes honest offline/sync state, and
+  implements equivalent `flip`, `next`, `back`, and four-rating semantic
+  behavior for touch and voice, while voice-only first presentation/dependent
+  reveal remains visibly provisional until exact-bound touch/rating promotion;
+  touch Undo remains the correction path.
 - ~~One neutral `panel_ui` owns display/touch and routes namespaced intents.~~
   One neutral `panel_ui` owns display and application touch routing; the
   supervisor alone observes raw touch and issues single-use provenance; and
   vocabulary remains a feature reducer rather than the appliance shell.
 - The panel's Tailnet identity can use only study capabilities; compromise does
   not grant vocabulary mutation, and transport/authentication fail closed.
-- Raw command-listening audio remains confined to the shared media broker;
+- ~~Raw command-listening audio remains confined to the shared media broker;
   `wish_recording` is not enabled by this plan, the broker cannot control or
-  delay suspend, and the PIR remains the wake path.
+  delay suspend, and the PIR remains the wake path.~~ Raw command-listening
+  audio remains confined to the shared media broker; `wish_recording` is not
+  enabled by this plan, the broker cannot control or delay suspend,
+  supervisor-observed capture closure—not broker self-report—is
+  the quiescence proof, and the PIR remains the wake path.
 - One reviewed command catalog produces canonical active command sets,
   deterministic backend projections, and reproducible confusability reports;
   the deterministic two-phase gate derives source-independent endpoint effects
@@ -835,3 +917,13 @@ of `vocabulary_panel/`. Its intended host tests and tracked-source assertion are
 explicitly gated on the review-amendments Step 12 work that makes the currently
 omitted HTTP adapter/runtime reachable. No checkbox or product-decision status
 changed.
+
+**Amended 2026-08-08:** applied the review-amendments Step 14 decisions. A
+voice-only first `presented` fact and dependent reveal are bounded provisional
+session state until exact-bound touch or rating promotion; a non-card restart
+gate and grouped terminal-rejection disposition close the recovery branches,
+and executable capacity/test clauses cover them. Broker self-report is telemetry
+rather than quiescence proof; immediate blanking precedes bounded supervisor
+verification before the suspend-state write. The on-target acoustic corpus
+includes crafted audible and out-of-band injection classes. No `LEXI-*` or
+`VOICE-*` status, checkbox, production default, or hardware claim changed.

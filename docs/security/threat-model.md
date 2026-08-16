@@ -14,7 +14,9 @@ Tailscale supplies private routing and device identity, while Lexinet
 independently authorizes its API. Provisioning credentials enter through an
 operator-controlled action and are never baked into production images or
 logged. Physical theft is treated as device compromise and handled by revoking
-both identities; this design does not claim tamper resistance.
+~~both identities~~ the Tailscale node, Lexinet credential, and companion
+signing-key grant; this
+design does not claim tamper resistance.
 
 Microphone and camera support is proposed but not implemented. Their future
 default is physically unpowered, with controls that do not depend solely on a
@@ -37,14 +39,21 @@ and Messages automation. See the
 
 ## Assets and boundaries
 
+~~`PHYSICAL["Untrusted physical access"] -->|"touch / sensor / storage theft"|
+DEVICE["Panel"]`~~
+
+~~`ROOM["Untrusted room audio / video"] --> MEDIA["Proposed power-gated
+media"]`~~
+
 ```mermaid
 flowchart LR
-    PHYSICAL["Untrusted physical access"] -->|"touch / sensor / storage theft"| DEVICE["Panel"]
+    ROOM_PERSON["Any person with room access"] -->|"view + touch authority"| DEVICE["Panel"]
+    PHYSICAL["Sustained physical attacker"] -->|"sensor / storage / debug access"| DEVICE
     UI["Unprivileged UI"] -->|"validated local mode protocol"| SUP["Privileged supervisor"]
     SUP --> KERNEL["Kernel hardware interfaces"]
     SUP <-->|"versioned but untrusted messages"| MCU["Proposed always-on controller"]
     MCU --> POWER["Application-domain power"]
-    ROOM["Untrusted room audio / video"] --> MEDIA["Proposed power-gated media"]
+    ROOM["Untrusted live, replayed, or crafted room audio / video"] --> MEDIA["Proposed power-gated media"]
     TOUCH["Exactly configured touch evdev"] -->|"future direct observation"| SUP
     SUP -->|"lifecycle window + touch observation"| BROKER["Proposed media-session broker"]
     BROKER -->|"exact-peer one-time provenance claim"| SUP
@@ -61,18 +70,31 @@ flowchart LR
     PROVISIONER["Trusted operator"] -->|"one-time auth material"| DEVICE
 ```
 
+### Local and physical principals
+
+| Principal | Capability at the boundary | Control or accepted limitation |
+|---|---|---|
+| Any person with room access | Can read the visible panel and supply physical touch, including Record and hold-to-submit for an already prepared, allowlisted birthday wish | **Accepted limitation:** room access plus a fresh operation-bound touch is sufficient human authorization. The panel does not identify the person and adds no second factor or extra touch friction. Recipient allowlisting, exact prepared-content preview, bounded attempts, and single-use touch provenance limit scope but do not distinguish a household member from a visitor or bystander. |
+| Acoustic source able to reach the microphone | Can supply live speech, playback, crafted audible signals, or out-of-band injection that the microphone/front end may demodulate into an in-context command | Treat all acoustic input as unauthenticated. Voice cannot start capture, submit externally, control power, or illuminate the display; a voice-only first presentation stays provisional until a touch or rating bound to its active session, session item, immutable content revision, and render generation promotes it. A false rating remains append-only correctable. Real microphone/front-end resistance remains unproven until adversarial on-device qualification. |
+| Attacker with sustained physical access and root-capable tools | Can read storage, replace software, use debug interfaces, or extract/exercise the panel-to-companion signing key | **Accepted prototype limitation:** no tamper resistance is claimed. Recovery revokes the Tailscale node, Lexinet credential, and companion public-key capability mapping. The companion still limits a stolen key to its provisioned typed capabilities; it does not make the key non-extractable. |
+
 | Asset | Threat | Control | Accepted limitation |
 |---|---|---|---|
 | Tailscale node state | Image leak or diagnostic collection | Separate writable directory, `0600`, excluded from images/logs | Root or physical storage access can extract it |
 | Lexinet credential | Commit, CLI/process-list, URL, or log exposure | Provisioned file, redaction, HTTPS, narrow service permission | No hardware-backed secret storage assumed |
-| Lexinet learning state | Unauthorized mutation/replay | Application auth, idempotency keys, server validation | Exact control waits for real API contract |
-| System power interfaces | UI compromise causing suspend loops | Privileged supervisor is sole writer; rate limits and state guards | Root compromise bypasses this boundary |
+| ~~Lexinet learning state~~ | ~~Unauthorized mutation/replay~~ | ~~Application auth, idempotency keys, server validation~~ | ~~Exact control waits for real API contract~~ |
+| Lexinet learning state | Unauthorized mutation/replay | Application auth, idempotency keys, server validation; a voice-only first `presented` observation is session-local and provisional until a touch or accepted rating bound to the active session, session item, immutable content revision, and render generation promotes it into the durable outbox | Exact control waits for real API contract; a voice rating accepts bounded false-recognition risk because the rating is visibly acknowledged and append-only correctable |
+| ~~System power interfaces~~ | ~~UI compromise causing suspend loops~~ | ~~Privileged supervisor is sole writer; rate limits and state guards~~ | ~~Root compromise bypasses this boundary~~ |
+| System power interfaces | UI compromise, PIR chatter, or repeated wake/suspend loops | Privileged supervisor is sole policy writer; it owns evidence-configured monotonic PIR debounce, attributed wake-rate ceilings/backoff, and suspend state guards while the presence provider reports only raw state/events and wake capability | Root compromise bypasses this boundary; the current Black driver calls `pm_wakeup_event` on every edge, and userspace cannot recover energy already spent on the edge that woke Linux; no production debounce/rate value exists before target evidence |
 | Presentation readiness | Stale, replayed, cross-release, or forged page-flip acknowledgement exposes an old/bright frame | Planned protocol v2 binds appliance release, unpredictable supervisor session and connection challenge, sequence, snapshot digest, mode, render generation, and exact Unix peer UID; one latest acknowledgement is consumed once and failures stay dark | A compromised authorized `panel_ui` can lie about its own frame; target commit correlation and process isolation bound but cannot eliminate this limitation |
 | Household presence inference | Excessive logs, UI compromise, or remote disclosure | Store only current/transition diagnostics locally; exact unique touch grant; both project PIR names stay root-only | Device identity is not cryptographic, physical/root compromise bypasses it, and any new presence-provider name must extend the tested deny list |
 | Calendar titles, locations, birthdays, and names | Screen disclosure, excessive synchronization, or storage theft | Planned: content-free capability discovery before consent; local opt-in and grants; selected calendars/provisioned contacts only; daytime display; bounded Today projection/cache; private-event policy; visible freshness | macOS grants remain broad and a compromised companion or logged-in user can read beyond the adapter's logical boundary; intended room occupants can see a lit panel |
 | Provider OAuth tokens and full contact/message routes | Theft from the physically accessible panel | Planned: Mac Keychain and companion-only routing; panel receives opaque people and masked destinations | Compromise of the logged-in Mac user bypasses this boundary |
-| Raw audio, images, and unrestricted transcripts | Silent collection, accidental logging, or tailnet exfiltration | Planned: media rails default off; purpose-bound broker sessions; command audio is never transmitted; a voice wish command only opens the composer; `bounded_learning_observation` navigation may append idempotent non-mastery `presented`/`revealed` facts, while ratings are visibly acknowledged and append-only correctable by touch Undo; the broker opens capture only from single-use supervisor-observed touch provenance bound to its exact lease request; hardware indicator/mute | No media broker, touch-provenance flow, or rail control is implemented; ~~compromised UI can simulate allowed capture while its lease is active~~ a compromised UI cannot mint provenance but can misuse a genuine touch on a misrepresented frame; root/physical compromise bypasses policy |
+| Panel-to-companion signing key | Sustained physical/root access extracts or exercises the key and impersonates the panel to the Mac companion | Planned: root-provisioned owner-only key readable only by `personal_context_client`; fixed typed local operations; companion-issued single-use challenges; capability-mapped public key; explicit revocation | No encrypted or hardware-bound key storage is assumed. Physical loss requires revoking the companion key grant as well as the Tailscale and Lexinet identities |
+| ~~Raw audio, images, and unrestricted transcripts~~ | ~~Silent collection, accidental logging, or tailnet exfiltration~~ | ~~Planned: media rails default off; purpose-bound broker sessions; command audio is never transmitted; a voice wish command only opens the composer; `bounded_learning_observation` navigation may append idempotent non-mastery `presented`/`revealed` facts, while ratings are visibly acknowledged and append-only correctable by touch Undo; the broker opens capture only from single-use supervisor-observed touch provenance bound to its exact lease request; hardware indicator/mute~~ | ~~No media broker, touch-provenance flow, or rail control is implemented;~~ ~~compromised UI can simulate allowed capture while its lease is active~~ ~~a compromised UI cannot mint provenance but can misuse a genuine touch on a misrepresented frame; root/physical compromise bypasses policy~~ |
+| Raw audio, images, and unrestricted transcripts | Silent collection, accidental logging, crash-dump retention, or tailnet exfiltration | Planned: media rails default off; purpose-bound broker sessions and memory arenas; command audio is never transmitted; a voice wish command only opens the composer; `bounded_learning_observation` voice-only first presentation/reveal state remains local and provisional, while ratings are visibly acknowledged and append-only correctable by touch Undo; the broker opens capture only from single-use supervisor-observed touch provenance bound to its exact lease request; hardware indicator/mute; swap and core dumps disabled | No media broker, touch-provenance flow, or rail control is implemented; ~~compromised UI can simulate allowed capture while its lease is active~~ a compromised UI cannot mint provenance but can misuse a genuine touch on a misrepresented frame; root/physical compromise bypasses policy |
 | Spoken-command vocabulary and recognizer output | Near-homophones, phrase containment, context leakage, artifact/policy mismatch, or acoustic substitution triggers the wrong semantic action | Planned: one reviewed language-tagged catalog; pronunciation provenance; deterministic pair analysis; hard effect-class admission excluding capture start/submission/power/illumination; content-addressed active command sets and backend projections; schema-validated canonical recognition-policy artifacts bound to backend/model identities and verified by the broker; the complete identity chain in each voice intent; abstention; visible acknowledgement; touch fallback and append-only rating correction; single-use held-out selection plus untouched confirmation evidence before enabling a real engine | Static phonetic distance is not a probability or a safety proof; actual microphones, speakers, noise, accents, and recognizer builds remain unproven until on-device evidence exists |
+| Adversarial acoustic command integrity | Replay or loudspeaker injection, crafted/psychoacoustic audible audio, ultrasonic or near-ultrasonic carrier injection, or structure-borne out-of-band energy induces a valid-looking command | Treat microphone input as unauthenticated; enforce effect-class limits after recognition; keep voice-originated first `presented`/dependent `revealed` state provisional; qualify the exact microphone, analog front end, ADC, enclosure, recognizer, and policy against each class; use input filtering only after measured evidence | No speaker identity or liveness proof is claimed. Inaudibility to a nearby person is not rejection evidence, and the current prototype has no adversarial-acoustic qualification |
 | Birthday-wish body/audio and Messages authority | False activation, wrong recipient, replay, duplicate submission, or hidden retention | Planned: allowlisted current-birthday route; broker-validated supervisor touch before capture; personal-context-client validation of supervisor-authored provenance and observer-measured qualifying hold before submit; single-use signed request; atomic dispatch barrier; daily attempt bound; local STT; playback-gated audio; 30-minute Mac content ceiling; deterministic terminal deletion; and 30-day non-content attempt-metadata ceiling | Messages semantics are unproven; ~~compromised `panel_ui` can fabricate touch-level allowed requests~~ a compromised UI can misrepresent pixels around a genuine bound touch but cannot author provenance; root can use the device key |
 | Microphone/camera activation state | Compromised UI falsifies software indicator or mute | Planned: physical mic mute removes bias/clock/power; camera indicator is tied to its rail; mechanical shutter preferred | Prototype USB devices may not expose a separately switchable rail; controls remain unproven |
 | Always-on controller availability and authority | Wake storm drains battery, stale Linux state controls output, or controller fault prevents boot | Planned: bounded sequenced protocol, independent safety ceilings, watchdog, boot backoff, reset reconciliation, authenticated A/B update | No controller, protocol, bootloader, or secure update path is implemented |
@@ -114,9 +136,29 @@ flowchart LR
   outcome (including `delivery_unknown`), expiry, or crash recovery.
 - During `wish_recording`, do not lease the general command-recognition
   projection.
-  A purpose-internal, content-addressed stop-only projection may consume the
+  ~~A purpose-internal, content-addressed stop-only projection may consume the
   same stream solely to halt capture; it cannot activate another intent or
-  submit the artifact.
+  submit the artifact.~~
+  A purpose-internal, content-addressed stop-only projection may consume the
+  same stream solely to halt capture. Its detector emits only a boolean plus
+  monotonic observation timestamp to broker-local logic—no transcript, token,
+  score, embedding, or audio excerpt—and the broker alone maps `true` to
+  `agenda.stop_wish_recording`. Recording and detector scratch share one
+  `wish_recording`-scoped arena that is never shared with command recognition
+  and is explicitly wiped on every quiesce path. A valid stop trims and copies
+  only the bounded finalized artifact into a distinct purpose-bound draft buffer
+  before that wipe; cancellation, failure, lifecycle closure, expiry, or
+  quiesce wipes both buffers and promotes nothing. The broker and any capture
+  worker run with swap and core dumps disabled.
+- A broker quiesce acknowledgement is telemetry, not proof. The supervisor
+  blanks immediately when lifecycle policy requires it; blanking never waits
+  for media. Before writing the suspend state, the supervisor independently
+  verifies a kernel-observable capture owner/device closure and, where present,
+  microphone-rail-off state. If the selected platform exposes no independent
+  observation, media enablement fails its evidence gate. A runtime mismatch or
+  deadline expiry takes the bounded broker-termination/media-off path; the
+  supervisor never accepts broker self-report as quiescence or lets media delay
+  the suspend request indefinitely.
 
 See [proposed power-domain architecture](../architecture/power-domain-architecture.md)
 for the rail-level enforcement model.
@@ -142,6 +184,16 @@ maximum awake/energy lease, fault detection, degraded display/media-off state,
 and physical recovery path. These controls are not present in the Black
 prototype.
 
+On the current Black path, `panel_supervisor` owns the configured monotonic
+debounce interval, attributed wake-rate ceiling, and backoff response. The
+presence source reports ordered evidence and wake capability only; it neither
+chooses nor applies product-policy parameters. The current custom driver has no
+ceiling and calls `pm_wakeup_event` on every edge. Supervisor
+filtering after resume can prevent repeated product actions and resuspend churn,
+but it cannot undo the energy cost of the kernel edge that already woke Linux.
+Production values and any pre-suspend kernel/hardware gate require on-target
+evidence and have no default here.
+
 ## Tailnet policy intention
 
 - Give the panel a dedicated tag, not a reusable human identity.
@@ -149,7 +201,9 @@ prototype.
   companion hosts/ports needed.
 - Use a short-lived, ephemeral, or one-time provisioning key as supported by the deployment; never commit it.
 - Prefer normal kernel TUN mode. Userspace proxy mode is an experiment only if `/dev/net/tun` cannot be supported.
-- Revoke the Tailscale node and Lexinet credential after loss or re-imaging.
+- ~~Revoke the Tailscale node and Lexinet credential after loss or re-imaging.~~
+  Revoke the Tailscale node, Lexinet credential, and companion public-key
+  capability mapping after loss or re-imaging.
 
 | Principal | Permitted egress | Explicitly absent by default |
 |---|---|---|
@@ -178,13 +232,22 @@ what it displayed around a genuine touch.
 
 | State | Sensitive material still exposed | Required posture |
 |---|---|---|
-| Active / dark idle | Credentials, UI state, bounded agenda cache, and any active media buffer in RAM and storage | Least-privilege processes, minimum personal-data projection, bounded buffers, no raw-media logs |
-| Suspend-to-RAM | The same RAM material is retained even though networking/media rails are off | Wipe media buffers before suspend; disable swap/core dumps for credential/media processes |
-| Application-domain-off | RAM residency ends, but Wi-Fi, Tailscale, Lexinet, cached cards, bounded agenda snapshot, and queued reviews remain on storage | Narrow revocable credentials; hard agenda expiry; test node revocation; do not describe power-off as erasure |
+| ~~Active / dark idle~~ | ~~Credentials, UI state, bounded agenda cache, and any active media buffer in RAM and storage~~ | ~~Least-privilege processes, minimum personal-data projection, bounded buffers, no raw-media logs~~ |
+| Active / dark idle | Credentials including the companion signing key, UI state, bounded agenda cache, and any active media buffer in RAM and storage | Least-privilege processes, minimum personal-data projection, bounded purpose arenas, no raw-media logs or core dumps |
+| ~~Suspend-to-RAM~~ | ~~The same RAM material is retained even though networking/media rails are off~~ | ~~Wipe media buffers before suspend; disable swap/core dumps for credential/media processes~~ |
+| Suspend-to-RAM | The same RAM material is retained even though networking/media rails are off | Supervisor-verifiable capture closure; wipe purpose-scoped media arenas before suspend; disable swap/core dumps for credential/media processes |
+| ~~Application-domain-off~~ | ~~RAM residency ends, but Wi-Fi, Tailscale, Lexinet, cached cards, bounded agenda snapshot, and queued reviews remain on storage~~ | ~~Narrow revocable credentials; hard agenda expiry; test node revocation; do not describe power-off as erasure~~ |
+| Application-domain-off | RAM residency ends, but Wi-Fi, Tailscale, Lexinet, companion signing key, cached cards, bounded agenda snapshot, and queued reviews remain on storage | Narrow revocable credentials; hard agenda expiry; test all three identity-revocation paths; do not describe power-off as erasure |
 
-The prototype accepts physical theft as device compromise. A later requirement
+~~The prototype accepts physical theft as device compromise. A later requirement
 to resist opportunistic storage theft implies verified boot plus encrypted
-sensitive storage or hardware-bound credentials.
+sensitive storage or hardware-bound credentials.~~
+
+The prototype accepts physical theft as compromise of the node, Lexinet client,
+and companion-signing principal. Loss response must revoke all three; revoking
+only the vocabulary-panel identities leaves the stolen companion key useful. A
+later requirement to resist opportunistic storage theft implies verified boot
+plus encrypted sensitive storage or hardware-bound credentials.
 
 ## Update interruption posture
 
@@ -219,7 +282,11 @@ scripts list every included path and redact before archive creation.
 
 ## Explicitly out of scope
 
-- Protection from an attacker with sustained physical access and root-capable hardware tools.
+- ~~Protection from an attacker with sustained physical access and root-capable
+  hardware tools.~~ Resistance to an attacker with sustained physical access and root-capable
+  hardware tools. This attacker can extract or exercise the companion signing
+  key as well as the Tailscale and Lexinet credentials; explicit revocation and
+  companion capability bounds are recovery controls, not tamper resistance.
 - Secure boot, encrypted root filesystem, remote attestation, or a hardware secure element in the first prototype.
 - Protecting public application binaries or non-sensitive display configuration.
 
@@ -232,3 +299,11 @@ capture and Messages dispatch with ADR 0005's supervisor-observed,
 capability-holder-validated provenance boundary. The text explicitly preserves
 the current raw-touch scaffold as not yet migrated, makes no hardware claim,
 and does not preempt the broader threat-model review planned for Step 14.
+
+**Amended 2026-08-08:** added room occupants, adversarial acoustic sources, and
+sustained physical attackers as principals; recorded room access plus touch and
+the absence of a second factor as an accepted limitation; made voice-only first
+presentation provisional; included the companion signing key in physical-loss
+scope; tightened the `wish_recording` arena-to-draft handoff and quiescence
+requirements; and assigned unmeasured PIR debounce and wake-rate policy to the
+supervisor. No pending product-decision status or roadmap step changed.

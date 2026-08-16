@@ -79,8 +79,28 @@ consumer update.
 - Make an event durable in the bounded local outbox before displaying it as
   queued. An acknowledgement, not a successful socket write, removes it.
   Rating admission reserves capacity for its append-only Undo correction.
-- Expose queued, syncing, saved, rejected, offline, and tracking-paused states;
-  never imply that an unsynchronized event was saved.
+- Do not assign a client-stream sequence or outbox entry to a voice-only first
+  `presented` observation or a dependent first reveal. Keep it bounded and
+  session-local, label it provisional, and discard it at session termination or
+  restart. A study touch or accepted rating matching the active session,
+  session item, immutable content revision, and render generation may atomically
+  promote the prerequisite observations before any dependent canonical event;
+  callers cannot request promotion directly. Restart recovery must enter a
+  non-card resume gate rather than automatically render an issued item lacking
+  canonical `presented` evidence; touch resume creates the fact before display,
+  while voice resume recreates provisional state.
+- Persist the complete constituent set of a grouped rating transition. A local
+  commit failure leaves prior provisional/render state unchanged. A stable
+  terminal batch rejection marks every promotion, rating, and included
+  touch-successor fact rejected together, preserves already-visible navigation
+  state, releases Undo without a void, and forbids those facts from satisfying
+  exhaustion or being reissued under new identities. A voice-successor marker
+  outside the batch remains provisional.
+- ~~Expose queued, syncing, saved, rejected, offline, and tracking-paused states;
+  never imply that an unsynchronized event was saved.~~ Expose queued, syncing,
+  saved, rejected, offline, and tracking-paused states;
+  expose provisional voice evidence separately and never imply that an
+  unsynchronized or provisional event was saved.
 
 ## Current scaffold limitation
 
@@ -99,3 +119,8 @@ tests replace it together.
 - Dedicated Tailnet tag/grants and Lexinet study-capability mapping.
 - Explicit learner-profile reference, topic set, and bounded cache/outbox values.
 - Credential provisioning/revocation procedure for any fallback token.
+
+**Amended 2026-08-08:** made voice-only first presentation and dependent reveal
+bounded session-local provisional evidence until a matching study touch or
+accepted rating promotes them, with a non-card restart gate and explicit grouped
+terminal-rejection disposition. No `LEXI-*` status changed.

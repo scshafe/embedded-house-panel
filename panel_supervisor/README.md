@@ -42,6 +42,22 @@ The exact grace deadline is absent. A wall clock moving backward relative to a
 remembered presence instant is an explicit error. An error from the presence
 device is never interpreted as absence.
 
+The production supervisor also owns PIR debounce and wake-rate policy. It will
+apply an explicitly configured monotonic debounce rule to raw ordered presence
+evidence and an explicitly configured attributed-wake ceiling/backoff before
+allowing repeated product actions or suspend requests. The exact intervals,
+window, ceiling, and degraded response have no production defaults; on-target
+evidence must select them. `PresenceSource` continues to report state/events and
+wake capability only. It does not select or apply product-policy parameters.
+
+These controls are not implemented by the current host scaffold. The custom
+Black experiment calls `pm_wakeup_event` on every GPIO edge. A supervisor rule
+can reject chatter and rate-limit the next action after Linux resumes, but
+userspace cannot prevent or recover the energy cost of the kernel edge that
+already woke Linux. Any pre-wake debounce or gate requires a separately reviewed
+kernel/hardware mechanism and target evidence; no experimental overlay value is
+a production default.
+
 Output order is direction-safe. Every cycle writes exact logical brightness
 zero, publishes the complete UI mode snapshot, and awaits an explicit
 presentation outcome. Only `committed` permits the requested nonzero brightness
@@ -179,6 +195,8 @@ The backoff controls a new suspend request after a successful suspend write has
 returned and resume recomputation still finds the room absent. A failed suspend
 write is not retried: retryable and nonretryable suspend adapter errors both
 remain fatal so an unproven power transition cannot become an implicit loop.
+This implemented resuspend backoff is one state guard, not the complete planned
+PIR debounce and attributed wake-rate policy described above.
 
 Except for the explicitly classified initial clock-readiness wait and the
 explicit degraded presentation outcomes above, the daemon exits on every
@@ -228,3 +246,8 @@ validation is intentionally exact; no host test claims target hardware evidence.
 The deterministic `panel_supervisor_simulation` still exercises present/day,
 grace, absent/suspend, and present/night resume without Linux hardware. Its
 values are test examples, not discovered panel settings.
+
+**Amended 2026-08-08:** assigned future evidence-selected PIR debounce and
+attributed wake-rate policy to the supervisor while recording that the current
+host scaffold does not implement it and that no unmeasured value is a
+production default.

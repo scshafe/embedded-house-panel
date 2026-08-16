@@ -57,17 +57,36 @@ stateDiagram-v2
 For an eligible cached item, offline rating admission is one all-or-nothing
 local transition:
 
+~~1. The item is revealed, its rating affordance is active, and the complete
+transition preflight proves that the crash-consistent outbox is writable and
+has one slot for `rated` plus one reserved slot for a possible `rating_voided`
+Undo. Showing a never-presented successor also requires a third slot for its
+`presented` fact.~~
+
 1. The item is revealed, its rating affordance is active, and the complete
    transition preflight proves that the crash-consistent outbox is writable and
    has one slot for `rated` plus one reserved slot for a possible
-   `rating_voided` Undo. Showing a never-presented successor also requires a
-   third slot for its `presented` fact.
+   `rating_voided` Undo, plus ordinary slots for any provisional current-item
+   prerequisites the rating promotes. A touch rating that shows a
+   never-presented successor also requires a slot for that successor's
+   `presented` fact. A voice rating leaves the newly shown successor provisional
+   instead.
+~~2. The rating, idempotency data, and any required successor fact become
+durable before the UI leaves the current item. The UI then advances through the
+same canonical session-ordering primitive as `next`; it never invents or
+reorders a cached card. With only the two base slots, it may instead advance to
+the explicit tracking-paused completion/refill snapshot and leave a
+never-presented cached successor unshown.~~
+
 2. The rating, idempotency data, and any required successor fact become durable
    before the UI leaves the current item. The UI then advances through the same
    canonical session-ordering primitive as `next`; it never invents or reorders
-   a cached card. With only the two base slots, it may instead advance to the
-   explicit tracking-paused completion/refill snapshot and leave a
-   never-presented cached successor unshown.
+   a cached card. If the rating, Undo reservation, and every current-item
+   prerequisite-promotion slot fit but a touch-originated successor's additional
+   `presented` slot does not, it instead advances to the explicit
+   tracking-paused non-card completion/refill snapshot and leaves that cached
+   successor unshown. A voice-originated successor remains provisional and does
+   not need that additional durable slot.
 3. The successor or completion snapshot remains visibly offline/degraded and
    labels the rating `queued locally`, never `saved`. A live one-tap **Undo**
    appends the exact `rating_voided` correction durably, consumes its reserved
@@ -77,6 +96,26 @@ local transition:
    unrated, and reports `study tracking paused`. Only a Lexinet acknowledgement
    may change an event from `queued locally` or `syncing` to `saved`; neither a
    retry nor a successful socket write fabricates synchronization.
+
+Touch and voice retain the same navigation and rating meanings, but not the
+same evidence-durability side effect. A voice-only first presentation and any
+dependent first reveal display `voice — confirmation required`, use no durable
+outbox slot, and cannot sync or satisfy session exhaustion. A study touch bound
+to the active session, session item, immutable content revision, and render
+generation, or an accepted rating matching that tuple, promotes the current
+item's provisional prerequisites atomically. Session termination or restart
+drops unpromoted markers and their card render. Restart opens a non-card resume
+gate instead of redisplaying an issued item with no canonical `presented` fact;
+touch resume records the fact before showing the item, while voice resume
+recreates the provisional marker.
+
+A grouped rating transition either makes every current-item promotion, the
+rating, and any touch-successor presentation durable locally or changes
+nothing. If Lexinet terminally rejects that batch, every constituent is visibly
+`rejected`, Undo is released without a void, and the already-shown successor and
+face/history state remain because the exposure cannot be undone. Rejected facts
+cannot satisfy exhaustion or be silently reissued; a voice-successor marker
+outside the batch remains `voice — confirmation required`.
 
 ## Current scaffold supervisor-driven flow
 
@@ -147,3 +186,8 @@ Night mode is not a dimmed daytime UI. It is a separate solid-red rendering path
 **Amended 2026-08-07:** superseded the categorical no-offline-rating branch
 with the intended bounded, durable outbox UX without approving any pending
 `LEXI-*` decision or claiming the safeguards are implemented.
+
+**Amended 2026-08-08:** documented the provisional UI state for voice-only
+first presentation/reveal, the non-card restart gate, the source-qualified
+rating preflight, and grouped terminal-rejection state. No pending `LEXI-*`
+decision status changed.

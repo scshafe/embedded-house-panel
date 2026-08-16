@@ -25,8 +25,10 @@ implementation instead of creating a peer.
 
 | Capability | Runtime authority / canonical location | First delivery authority | Implementation status | Extension rule |
 |---|---|---|---|---|
-| Presence state and Linux wake event | `presence_sensor/` | BeagleBone hardware baseline plan | Prototype implementations present — target compilation and wake evidence pending | Implementations emit the same persistent input ABI; no presence implementation owns product policy |
-| Presence, solar, brightness, and suspend policy | `panel_supervisor/` | Implemented scaffold; protocol-v2 work continues in Lexinet plan Step 7a | Implemented host scaffold — target hardware evidence pending | No UI, feature, broker, or kernel module may write policy or power state |
+| ~~Presence state and Linux wake event~~ | ~~`presence_sensor/`~~ | ~~BeagleBone hardware baseline plan~~ | ~~Prototype implementations present — target compilation and wake evidence pending~~ | ~~Implementations emit the same persistent input ABI; no presence implementation owns product policy~~ |
+| Presence state and Linux wake event | `presence_sensor/` | BeagleBone hardware baseline plan | Prototype implementations present — target compilation and wake evidence pending | Implementations emit the same persistent input ABI and report wake capability only; no presence implementation chooses or applies product policy |
+| ~~Presence, solar, brightness, and suspend policy~~ | ~~`panel_supervisor/`~~ | ~~Implemented scaffold; protocol-v2 work continues in Lexinet plan Step 7a~~ | ~~Implemented host scaffold — target hardware evidence pending~~ | ~~No UI, feature, broker, or kernel module may write policy or power state~~ |
+| Presence, solar, brightness, and suspend policy | `panel_supervisor/` | Implemented scaffold; protocol-v2 work continues in Lexinet plan Step 7a; evidence-selected PIR-policy work continues in later roadmap steps | Host scaffold implemented; PIR debounce/wake-rate controls and target hardware evidence pending | This authority includes PIR debounce and attributed wake-rate policy. No UI, feature, broker, kernel module, or presence provider may choose policy values or write power state; production values have no unmeasured defaults |
 | Supervisor/UI lifecycle contract | `docs/interfaces/panel-mode-protocol.md`; supervisor publishes and `panel_ui` acknowledges | Lexinet plan Step 7a | Partially implemented — version 1 publication exists; version 2 acknowledgement is not implemented | Version the one contract; never introduce a feature-specific lifecycle channel |
 | Display, ~~touch,~~ application touch interpretation, LVGL lifetime, surface routing, and modal precedence | planned `panel_ui/` | Lexinet plan Step 7a | Not implemented — declared path absent | New features add a reducer/surface and namespaced intents beneath the one shell; the UI consumes normalized touch observations but cannot author touch provenance |
 | Physical-touch observation and single-use provenance | planned narrow capability inside `panel_supervisor/`, governed by [ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md) | Roadmap Step 2 / Lexinet plan Step 7a for host implementation; roadmap Step 8 / Lexinet plan Step 9 for the packaging cutover | Not implemented — accepted ADR; host ports and packaging cutover pending | The supervisor is the only direct touch-evdev reader and provenance issuer; cutover revokes raw UI access, forwards normalized observations including observer-measured contact duration without interpreting feature semantics, and admits the broker and personal-context client under distinct exact service UIDs to claim one observation for one operation |
@@ -36,7 +38,8 @@ implementation instead of creating a peer.
 | Process-wide HTTP initialization, cancellation primitives, and common transport budgets | planned `shared/http_runtime/` | Lexinet plan Step 6 | Not implemented — declared path absent | Domain clients retain their schemas, authorization, cache, and retry semantics while sharing one runtime |
 | Vocabulary content, eligibility, session order, and durable learning state | Lexinet server in the separately configured source checkout | Lexinet plan Step 1b, then Steps 2–5 | External authority — the `study.v1` service and panel contract integration are pending | The panel consumes Lexinet-owned versioned contracts and keeps only bounded degraded state |
 | Vocabulary cache and idempotent event outbox | `vocabulary_panel/` | Lexinet plan Step 6 | Not implemented — the current vocabulary scaffold has no resilient cache or outbox | Persistence rules remain study-specific; do not hide them in a generic store |
-| Raw microphone capture and purpose-scoped media leases | planned shared `media_broker/` process | Lexinet plan Step 8 first delivers the host broker; Roadmap Step 7 extends it for agenda by executing the separately reviewed roadmap Step 6 agenda production plan | Not implemented — declared path absent | Add purposes to the one broker; `command_recognition` and `wish_recording` never become separate device owners |
+| ~~Raw microphone capture and purpose-scoped media leases~~ | ~~planned shared `media_broker/` process~~ | ~~Lexinet plan Step 8 first delivers the host broker; Roadmap Step 7 extends it for agenda by executing the separately reviewed roadmap Step 6 agenda production plan~~ | ~~Not implemented — declared path absent~~ | ~~Add purposes to the one broker; `command_recognition` and `wish_recording` never become separate device owners~~ |
+| Raw microphone capture and purpose-scoped media leases | planned shared `media_broker/` process; `panel_supervisor/` independently verifies quiescence at the lifecycle boundary | Lexinet plan Step 8 first delivers the host broker; Roadmap Step 7 extends it for agenda by executing the separately reviewed roadmap Step 6 agenda production plan | Not implemented — declared path absent | Add purposes to the one broker; `command_recognition` and `wish_recording` never become separate device owners; broker closure self-report is telemetry; lifecycle blanking is immediate, then the supervisor requires bounded independent kernel/device and available rail-off evidence before the suspend-state write |
 | Spoken-command vocabulary, pronunciation provenance, confusability analysis, active command sets, and backend recognizer projections | planned `shared/spoken_command_catalog/`, governed by `docs/interfaces/spoken-command-catalog.json` | Lexinet plan Step 8 | Not implemented — declared path absent | Every application registers namespaced semantic intents in the one versioned catalog; no feature owns a private phrase list or handwritten peer recognizer configuration |
 | Recognition decision policy and its content identity | validated artifacts under `config/voice/recognition-policies/`, governed by `docs/interfaces/schemas/recognition-policy.schema.json`; `media_broker/` verifies the selected artifact at runtime | Lexinet plan Step 8 | Not implemented — declared path absent | The shared builder canonically serializes and binds every policy to its backend artifact and recognizer build/model; callers never assert a free-standing digest or bypass policy validation |
 | Panel-to-Mac signing key and typed companion transport | planned `personal_context_client/` | Roadmap Step 7, executing the separately reviewed roadmap Step 6 agenda production plan | Not implemented — declared path absent | UI and broker call typed capabilities and never receive the private key or a general companion socket |
@@ -54,6 +57,10 @@ implementation instead of creating a peer.
 - The supervisor exposes lifecycle and generic media-safety facts only. It does
   not learn feature routes, birthdays, vocabulary sessions, recording content,
   recipient identity, or provider state.
+- The supervisor owns evidence-selected PIR debounce and attributed wake-rate
+  policy. The presence provider remains evidence-only. On the Black, supervisor
+  filtering begins after resume and cannot undo the kernel edge's already-spent
+  wake energy.
 - The supervisor's proposed touch-provenance capability observes and attests a
   completed physical contact without deciding what the touch means. The UI
   cannot claim an observation from the supervisor; the broker or
@@ -65,7 +72,12 @@ implementation instead of creating a peer.
   observation stream is enabled; this documentation amendment does not change
   packaging.
 - The media broker owns raw capture but not display, message submission, or
-  suspend. A failure or quiescence timeout fails the media purpose closed and
+  suspend. ~~A failure or quiescence timeout fails the media purpose closed and
+  cannot hold power policy hostage.~~ Its closure report is telemetry. The
+  supervisor blanks immediately,
+  then independently verifies kernel-visible capture-owner/device closure and
+  available rail-off evidence before the suspend-state write; a failure or
+  quiescence timeout takes the bounded broker-termination/media-off path and
   cannot hold power policy hostage.
 - The media broker consumes only the content-addressed backend projection for
   its canonical active command set and its matching validated,
@@ -94,3 +106,8 @@ pending product decision is approved by this amendment.
 ownership, reconciled the accepted ADR 0005 delivery sequence, and registered
 the still-undecided household civil-time projection without assigning timezone
 arithmetic to the supervisor.
+
+**Amended 2026-08-08:** registered supervisor-owned, evidence-selected PIR
+debounce/attributed wake-rate policy and supervisor-verifiable broker
+quiescence. The presence provider remains evidence-only, broker self-report is
+telemetry, and no unmeasured hardware value became a default.

@@ -98,6 +98,14 @@ therefore open a screen, but cannot capture or transmit room audio and cannot
 message a friend. Voice-only recording start is deferred unless later evidence
 and an explicit privacy decision accept acoustic replay and false-trigger risk.
 
+Touch provenance proves fresh physical contact on the committed frame, not a
+household identity. The accepted human-authorization model treats any person
+with room access who can perform the required touch or hold as authorized; it
+adds no second factor. Starting Record and submitting remain two distinct,
+single-use contacts bound to their exact operations. Recipient allowlisting,
+prepared-content preview, and attempt bounds limit that authority but do not
+distinguish a household member from a visitor or bystander.
+
 The requested `Lexi, end birthday wish` stop phrase remains pending rather than
 silently becoming an alias. The shared command-catalog analysis flags `send
 birthday wish` and `end birthday wish` as close phone-sequence neighbors. The
@@ -505,6 +513,10 @@ be changed after audio capture begins.
 
 ## Voice and media flow
 
+~~The prior recording sequence closed directly at
+`B->>B: stop-only detector trims tail; active -> closed`.~~ The amended sequence
+shows the bounded artifact handoff before the capture arena is wiped.
+
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -537,7 +549,9 @@ sequenceDiagram
     UI-->>U: prominent mic indicator + timer + Stop
     U->>B: spoken wish
     U->>B: “Lexi, finish recording”
-    B->>B: stop-only detector trims tail; active -> closed
+    B->>B: stop-only detector trims tail
+    B->>B: finalize bounded bytes into separate draft buffer
+    B->>B: wipe capture/detector arena; active -> closed
     B-->>UI: agenda.stop_wish_recording + artifact ready
     alt send as text
         B->>P: bounded audio + content hash
@@ -575,7 +589,10 @@ needs two explicit capture purposes:
   readiness is verified, and the user touches Record; exports exactly one
   bounded, consented artifact to the draft endpoint. While active, it owns a
   purpose-internal stop-only detector whose `ActiveCommandSet` contains only
-  `agenda.stop_wish_recording`.
+  ~~`agenda.stop_wish_recording`.~~
+  `agenda.stop_wish_recording`. The detector returns only
+  `{detected: boolean, observed_monotonic_time}` to broker-local logic; it never
+  exports a transcript, token sequence, score, embedding, or audio excerpt.
 
 This purpose split is the explicit exception to the repository's default
 no-raw-media network posture. A command-listening buffer must never be promoted
@@ -612,7 +629,7 @@ already-started, closed, and no-active-capture outcomes remain distinct.
 
 During recording, `command_recognition` is not separately leased and no study,
 agenda-prepare, or other application command set is active. The stop-only
-detector consumes the same microphone stream and a small uncommitted tail; it
+~~detector consumes the same microphone stream and a small uncommitted tail; it
 may halt capture and emit `agenda.stop_wish_recording`, but it cannot start a
 new capture, route another intent, upload, or submit. Its detected tail is
 removed before the artifact is finalized and can never be promoted from a
@@ -620,11 +637,48 @@ general command-listening buffer. Touch stop must always work, and a hard
 maximum must auto-stop. The initial proposed maximum is 60 seconds, subject to
 hardware and Messages testing. Absence, mute, night transition, suspend
 preparation, broker failure, or lease expiry closes capture and can never
-trigger submission.
+trigger submission.~~
 
-For version 1, require the companion to be reachable before starting. Keep the
+detector consumes the same microphone stream and a small uncommitted tail. The
+broker maps only `detected: true` to `agenda.stop_wish_recording`; the detector
+cannot emit an application intent, start a new capture, upload, or submit. The
+recording accumulator, uncommitted tail, detector features, and detector scratch
+share one lease-owned `wish_recording` arena. Nothing in that arena aliases the
+general command-listening ring. On a valid explicit or maximum-duration stop,
+the broker first removes the detected tail, validates the fixed size/duration
+bounds, and copies only the finalized encoded bytes into a distinct
+purpose-bound `wish_draft` RAM buffer. That copy is bound to the lease and
+prepared-content revision and contains no detector state or uncommitted tail.
+Only after the copy succeeds does the broker wipe the complete capture/detector
+arena, close the device, and report the artifact ready. Finalization or copy
+failure wipes both buffers and returns a structured failure. Cancellation,
+re-record, expiry, lifecycle closure, mute, broker failure, or quiesce promotes
+nothing and wipes both the arena and any draft buffer before release. The broker
+and any capture worker disable swap and core dumps for their lifetime. Touch
+stop must always work, and a hard maximum must auto-stop. The initial proposed
+maximum is 60 seconds, subject to hardware and Messages testing. Absence, mute,
+night transition, suspend preparation, broker failure, or lease expiry closes
+capture, wipes any panel draft, and can never trigger submission.
+
+The broker's `closed`/quiesce reply is telemetry, not the supervisor's proof.
+The supervisor blanks immediately when lifecycle policy requires it; blanking
+never waits for media. Before writing the suspend state, the supervisor
+independently observes that the kernel-visible capture owner no longer holds the
+audio device and, when the selected hardware exposes it, that the microphone
+rail is off. A missing independent observation fails the media enablement
+evidence gate. A runtime mismatch or deadline expiry takes the bounded
+fail-closed broker-termination/media-off path; the supervisor never treats
+broker self-report as verified quiescence, lets media delay the suspend request
+indefinitely, or lets the broker choose power policy.
+
+For version 1, require the companion to be reachable before starting. ~~Keep the
 panel artifact in bounded RAM and erase it after acknowledged upload or
 cancellation. Reboot-surviving drafts require a separate encrypted-storage,
+retention, deletion, and recovery design.~~ Keep the
+finalized panel artifact only in the distinct bounded `wish_draft` RAM buffer
+and erase it after acknowledged upload, cancellation, re-record, lifecycle
+closure, failure, or its bounded lease/draft expiry. It never survives broker or
+panel restart. Reboot-surviving drafts require a separate encrypted-storage,
 retention, deletion, and recovery design.
 
 Mac-side draft content has a proposed hard expiry of 30 minutes from draft
@@ -759,8 +813,13 @@ DELETE /api/v1/birthday-wish-drafts/{draft_ref}
   the broker, which opens it only from an unexpired supervisor-observed touch
   bound to that canonical request and within the supervisor-published lifecycle
   ceiling.
-- Suspend preparation revokes capture, waits only a bounded quiesce interval,
-  blanks the UI, and never submits a draft.
+- ~~Suspend preparation revokes capture, waits only a bounded quiesce interval,
+  blanks the UI, and never submits a draft.~~ Suspend preparation blanks the UI immediately, revokes capture, waits only a
+  bounded quiesce interval, independently verifies capture-owner/device closure
+  and available rail-off evidence before the suspend-state write rather than
+  trusting the broker acknowledgement, and never submits a draft. A timeout
+  takes the bounded broker-termination/media-off path rather than delaying the
+  suspend request indefinitely.
 - Mac offline means only a same-day, within-retention degraded agenda may remain
   visible, while recording and submission are unavailable in version 1.
 - Do not queue a “send later” operation. A stale birthday wish must never be
@@ -921,7 +980,15 @@ Production implementation is incomplete until evidence proves:
 - command-listening audio never becomes a wish artifact;
 - while `wish_recording` is active, only `agenda.stop_wish_recording` can enter
   its purpose-internal command set; no general command-recognition lease or
-  other application grammar is active, and stop recognition cannot submit;
+  ~~other application grammar is active, and stop recognition cannot submit;~~
+  other application grammar is active; its detector output is exactly a boolean
+  and monotonic timestamp, and stop recognition cannot submit;
+- recording and stop-detector state share one purpose-scoped arena; a valid stop
+  trims and copies only finalized bounded bytes into a distinct purpose-bound
+  draft buffer before wiping the arena, while every failure/cancel/lifecycle
+  path wipes both; broker/capture-worker core dumps and swap are disabled; and
+  the supervisor proves kernel-visible capture closure plus available rail-off
+  state instead of accepting broker self-report;
 - capture visibly starts and stops, touch stop always works, maximum duration
   is enforced, and every exit path closes the microphone and applies retention;
 - audio submission is impossible until complete playback succeeds; a duration
@@ -988,6 +1055,10 @@ later review gate must make the choice before implementation.
   opaque route, immutable prepared content, sender/transport revision, expiry,
   and single-use supervisor-authored touch confirmation with an
   observer-measured qualifying hold.
+- Touch provenance is intentionally not person authentication. Any person with
+  room access who performs the separate Record touch and later qualifying
+  submit hold is authorized without a second factor; the two observations
+  cannot be reused or collapsed into one.
 - ~~Approving the touch-authority safety boundary accepts that a compromised
   `panel_ui` can exercise the narrowly allowlisted message authority exposed to
   it. A dedicated physical confirmation input is required if that limitation is
@@ -1053,3 +1124,11 @@ authority, Step 7 implements the reviewed choice, and any panel-local packaging
 belongs to roadmap Step 11's reviewed target-integration plan and Step 12
 execution after evidence. Neither alternative was selected and no existing
 `AGENDA-*` status changed.
+
+**Amended 2026-08-08:** bounded the stop detector to a boolean/timestamp result,
+placed all `wish_recording` capture/detector state in one wiped purpose arena,
+defined its one-way handoff into a distinct bounded draft buffer, disabled core
+dumps and swap for the capture owner, and required supervisor-verified rather
+than broker-self-reported quiescence. It also records room access plus separate
+Record/submit touch as sufficient human authorization without a second factor.
+`AGENDA-*` statuses and roadmap Step 1 remain unchanged.

@@ -42,6 +42,8 @@ flowchart LR
     SUP --> BROKER["Bounded media-session broker"]
     AP --> WIFI["Wi-Fi + Tailscale"]
     BROKER --> MIC["Power-gated microphone"]
+    MIC -.-> MEDIASTATE["Kernel-visible capture/device state\n+ rail state when exposed"]
+    MEDIASTATE -->|"read-only quiescence evidence"| SUP
     BROKER --> CAMERA["Power-gated camera"]
     SUP --> SPEAKER["Optional power-gated amplifier"]
     WIFI --> LEXINET["Lexinet on the tailnet"]
@@ -53,6 +55,16 @@ Linux boot, and applies wake-rate backoff. It may execute a previously issued,
 bounded night-light lease, but it never calculates solar state or invents
 product policy. An M4/M7/R5 inside a candidate SoC can help during suspend, but
 cannot replace the external controller while the complete SOM rail is off.
+
+Before that controller exists, the Black's supervisor owns PIR debounce and
+attributed wake-rate policy after resume. The presence provider reports raw
+ordered state/events and wake capability only; it does not choose or apply
+product-policy parameters. Exact monotonic debounce and wake-window/backoff
+values require target evidence and have no production defaults. Because the
+experimental driver calls `pm_wakeup_event` for every edge, userspace filtering
+cannot prevent the triggering edge's wake energy. Preventing that first cost
+requires a separately reviewed kernel/hardware gate with its own on-target
+evidence.
 
 The analog charger and cell-protection hardware—not MCU firmware—enforce
 battery safety.
@@ -79,6 +91,11 @@ host tests:
   supervisor-authorized purpose and duration and yields only the bounded stream
   required by a recognizer. The unprivileged UI never opens raw media devices or
   rail-enable controls.
+- `MediaQuiescenceObservation`: a read-only supervisor boundary over
+  kernel-visible capture-owner/device state and, when the selected platform
+  exposes it, media-rail state. Broker self-report is not an implementation of
+  this seam. Independent capture/device observability is a media-enablement
+  gate; absent rail visibility is recorded as a limitation rather than inferred.
 - `FlashCardView`: rendering independent of DRM, LVGL, or display connector.
 - `LexinetClient`: authoritative remote vocabulary operations independent of a
   bounded local degraded cache.
@@ -384,3 +401,9 @@ future MCU-era state in this proposed two-domain architecture, while the current
 grace contract defers to the authoritative panel-policy document. No product
 decision changed status, roadmap Step 1 remains unapproved, and no hardware
 observation was promoted into a default.
+
+**Amended 2026-08-08:** assigned unmeasured Black-era PIR debounce and
+attributed wake-rate policy to the supervisor while preserving the presence
+provider as evidence-only, recorded that post-resume userspace policy cannot
+avoid the kernel edge's already-incurred wake energy, and added the independent
+supervisor media-quiescence observation seam without claiming a hardware rail.

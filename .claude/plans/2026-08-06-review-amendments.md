@@ -7,7 +7,7 @@
 Two amendment buckets from the review are deliberately **not** steps here, because they are gated on evidence this plan cannot produce. They are recorded in the register at the bottom so they are not lost:
 
 - **Defer until hardware is available:** wireless implementation, trial-count reconciliation, power-schema versioning, tzdata packaging, touch calibration, Buildroot LTS-vs-stable switch, Tailscale version override.
-- **Future-product concerns:** always-on MCU registry rows and ADR, read-only root plus bounded writable partition, OTA/update-and-rollback ADR, encrypted or hardware-bound storage, display burn-in, ambient brightness, bystander authentication.
+- **Future-product concerns:** always-on MCU registry rows and ADR, read-only root plus bounded writable partition, OTA/update-and-rollback ADR, encrypted or hardware-bound storage, display burn-in, ambient brightness, ~~bystander authentication~~ stronger person authentication only if the Step 14 room-access decision is later reopened.
 
 ## Context
 
@@ -30,7 +30,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
     4. Accept the reduced protocol-v2 binding set, or keep all eight fields? (Blocks Step 7.)
     5. Will anything other than the panel ever submit Lexinet study events? (Recorded here; consumed by a later Lexinet plan amendment, not by this plan.)
     6. Grace period: dim or dark, and what duration? (Blocks Step 9.)
-  - Notes: these are decisions 2, 3, 4, 5, 6, and 13 from the review's decision slate. The remaining slate items (bystander authority, battery requirement, wireless approach, Buildroot line, Linux build host, PIR part, `mac_companion/` location, voice-qualification scale) are not prerequisites for any step in this plan and stay open.
+  - Notes: these are decisions 2, 3, 4, 5, 6, and 13 from the review's decision slate. The remaining slate items (~~bystander authority,~~ battery requirement, wireless approach, Buildroot line, Linux build host, PIR part, `mac_companion/` location, voice-qualification scale) are not prerequisites for any step in this plan and stay open. Step 14 separately resolved bystander authority by accepting room access plus touch as sufficient authorization without a second factor.
   - Verify: human review — the executor stops here and does not continue until every answer above is written down.
 
 - [x] **Step 2: Correct the protocol-v1 consumer claim before it misinforms a review**
@@ -116,14 +116,14 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
   - Specialist: `testineer`
   - Verify: `make verify` passes with the new checks; the classifier correctly rejects an aborted and a wrong-source trial fixture.
 
-- [ ] **Step 14: Amend the threat model for the principals it does not currently have**
-  - Add "any person with room access" as a first-class principal. `docs/security/threat-model.md:33` models physical access as theft only, while touch is the human-intent proof for both capture start and irreversible submission (`docs/architecture/personal-agenda-and-birthday-wishes.md:464`). Record the user's decision as either an accepted limitation in the asset table or a requirement for a factor a bystander lacks. Do not resolve it silently.
-  - Add an adversarial-acoustic row covering crafted audio and inaudible-injection classes, and decide whether a voice-originated `presented` fact — currently voice-admitted at `docs/architecture/spoken-command-distinctiveness.md:105` and uncorrectable, unlike ratings — should be local-only until a touch or rating promotes it.
+- [x] **Step 14: Amend the threat model for the principals it does not currently have**
+  - Add "any person with room access" as a first-class principal. `docs/security/threat-model.md:33` models physical access as theft only, while touch is the human-intent proof for both capture start and irreversible submission (`docs/architecture/personal-agenda-and-birthday-wishes.md:464`). ~~Record the user's decision as either an accepted limitation in the asset table or a requirement for a factor a bystander lacks. Do not resolve it silently.~~ Record the accepted limitation that room access plus a fresh operation-bound touch is sufficient authorization without a second factor.
+  - Add an adversarial-acoustic row covering crafted audio and inaudible-injection classes, and ~~decide whether a voice-originated `presented` fact — currently voice-admitted at `docs/architecture/spoken-command-distinctiveness.md:105` and uncorrectable, unlike ratings — should be local-only until a touch or rating promotes it.~~ record that a voice-originated first `presented` fact and dependent reveal remain session-local and provisional until a matching study touch or accepted rating promotes them. Restart must enter a non-card resume gate rather than silently canonicalize the item, and grouped terminal rejection must disposition every promotion/rating/successor constituent explicitly.
   - Re-scope the physical-access boundary now that the asset behind it includes the companion signing key: `docs/security/threat-model.md:160-162` places sustained physical access out of scope, but the loss is no longer a vocabulary panel.
-  - Specify that the `wish_recording` stop detector emits only a boolean and timestamp, shares a purpose-scoped arena wiped at quiesce, and runs with core dumps disabled; and that quiesce is verified by the supervisor rather than self-reported by the broker.
+  - Specify that the `wish_recording` stop detector emits only a boolean and timestamp, ~~shares a purpose-scoped arena wiped at quiesce,~~ shares one purpose-scoped capture/detector arena whose valid-stop path copies only finalized bounded bytes into a distinct draft buffer before wiping it and whose failure/cancel/lifecycle paths wipe both, and runs with core dumps disabled; and that the supervisor blanks immediately, then verifies quiescence independently rather than trusting broker self-report before the suspend-state write.
   - Add PIR wake-rate limiting and debounce to the supervisor's responsibilities: `beagle_house_pir_input_driver.c:57-59` calls `pm_wakeup_event` on every edge with no ceiling, and `docs/architecture/power-domain-architecture.md:50-55` already names wake-rate backoff for the future MCU.
   - Specialist: `doddy`
-  - Verify: human review confirms each new principal has either a control or a written accepted limitation; `make verify-docs` passes.
+  - Verify: human review confirms room access plus touch is recorded as sufficient authorization without a second factor; human review confirms adversarial acoustic classes plus provisional voice evidence plus restart and grouped-rejection disposition; human review confirms physical-loss scope includes the companion signing key and all three revocations; human review confirms the boolean/timestamp detector plus arena-to-draft handoff plus immediate-blank/bounded-independent-quiescence ordering; human review confirms supervisor-owned evidence-selected PIR debounce/wake-rate policy without an unmeasured default; `make verify-docs` passes.
 
 - [ ] **Step 15: Reframe Lexinet Step 5 as remediation of a live exposure**
   - `requireBearer` returns the handler unchanged when the token is empty (`/Users/coleshaffer/lexinet/internal/server/server.go:155-158`), every mutation route sits inside that group (`:53-58`, `internal/server/api.go:89-98`), the shipped deploy config sets `auth_token = ""` (`deploy/docker/config.toml:18`), and `docker-compose.yml` documents that tailnet exposure is bridged by a TCP-mode `tailscale serve`, which carries no identity and applies no authentication.
@@ -164,7 +164,7 @@ and before the agenda design's Serve app-capability dependency on 1.92 can be
 satisfied against the pinned 1.78.1; the kernel point-release refresh policy
 (6.18.21 pinned, 6.18.43 current).
 
-**Future-product concerns:** always-on MCU registry rows and its ADR; read-only root with a bounded writable partition; an OTA update-and-rollback ADR, which must land before enclosure CAD; encrypted or hardware-bound storage if the companion signing key remains on the panel; display burn-in policy for a near-static surface; daytime ambient brightness; bystander authentication if Step 14 does not accept the limitation.
+**Future-product concerns:** always-on MCU registry rows and its ADR; read-only root with a bounded writable partition; an OTA update-and-rollback ADR, which must land before enclosure CAD; encrypted or hardware-bound storage if the companion signing key remains on the panel; display burn-in policy for a near-static surface; daytime ambient brightness; ~~bystander authentication if Step 14 does not accept the limitation~~ stronger person authentication only if the accepted Step 14 room-access model is later reopened.
 
 **Simplification candidates raised by the review, not adopted here** — each would reduce scope but is a product decision: dropping gap-free ingestion ordinals, the client-stream receipt ledger, and the request-hash conflict path for a single-writer reality; dropping the predecessor flush-receipt barrier in favor of the server-side exhaustion predicate; deferring content-addressed recognition-policy artifacts while keeping the effect-admission matrix; scaling the voice qualification protocol down from roughly a thousand utterances and 24 hours of negative audio; cutting `scripts/verification/verify_documentation.sh` from 437 lines of phrase-count assertions to link validity, secret absence, and placeholder detection.
 
@@ -182,3 +182,21 @@ product selection remains deferred to roadmap Step 14, and tzdata packaging is
 now conditional on the still-pending `AGENDA-011` choice, with roadmap Step 11's
 reviewed plan and Step 12 target execution as its evidence owners. No product
 decision was approved.
+
+**Amended 2026-08-08:** recorded the Step 14 human decisions in the plan's open
+issue register. Any person with room access who supplies the separately
+required operation-bound touch is intentionally authorized without a second
+factor, and a voice-only first `presented` fact remains provisional until a
+matching study touch or accepted rating promotes it. The recovery contract now
+has a non-card restart gate, grouped-rejection disposition, and an explicit
+capture-arena-to-draft-buffer handoff. Media-related lifecycle text preserves
+immediate blanking before bounded supervisor verification at the suspend
+boundary. Step 14 remains unchecked until its required human review; no pending
+product-decision status or roadmap checkbox changed.
+
+**Amended 2026-08-16:** the user explicitly approved Step 14 as written after
+the five security clauses received an adversarial review. The ADR registry was
+re-scanned without a collision, `make verify-docs` and `git diff --check`
+passed, and Step 14 is now complete. This approval does not itself complete
+Step 15 or claim that any proposed media, provenance, PIR, or hardware control
+has been implemented.

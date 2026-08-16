@@ -102,8 +102,10 @@ alias flag:
 | Effect class | Version 1 voice admission |
 |---|---|
 | `reversible_local` | Allowed only in an active generated context with visible acknowledgement and touch fallback |
-| `bounded_learning_observation` | Allowed only in the active study context; may append idempotent `presented`/`revealed` evidence but cannot imply mastery, select a rating, or create an external effect |
-| `correctable_learning` | Allowed only after reveal with durable correction capacity, visible acknowledgement, and touch Undo; it may include subordinate local navigation and a successor's idempotent `presented` observation in the same guarded transition |
+| ~~`bounded_learning_observation`~~ | ~~Allowed only in the active study context; may append idempotent `presented`/`revealed` evidence but cannot imply mastery, select a rating, or create an external effect~~ |
+| `bounded_learning_observation` | Allowed only in the active study context; may append idempotent `revealed` evidence only when its `presented` prerequisite is already canonical. A voice-only first presentation and any dependent first reveal remain session-local and provisional until a study touch or accepted rating bound to the active session, session item, immutable content revision, and render generation promotes them; voice alone cannot create the durable uncorrectable `presented` fact, imply mastery, select a rating, or create an external effect |
+| ~~`correctable_learning`~~ | ~~Allowed only after reveal with durable correction capacity, visible acknowledgement, and touch Undo; it may include subordinate local navigation and a successor's idempotent `presented` observation in the same guarded transition~~ |
+| `correctable_learning` | Allowed only after reveal with durable correction capacity, visible acknowledgement, and touch Undo. An accepted rating atomically promotes any provisional prerequisite observations for its item; a successor first shown by that voice rating remains provisional, while a touch-originated successor may commit its idempotent `presented` observation in the same guarded transition |
 | `capture_stop` | Allowed only inside the active `wish_recording` purpose's stop-only command set; it may stop local capture but cannot submit |
 | `capture_start` | Forbidden |
 | `external_submission` | Forbidden |
@@ -202,7 +204,8 @@ Exact spoken forms remain proposed until the first catalog report is reviewed:
 | Intent | Candidate spoken payload | Active context | Effect boundary |
 |---|---|---|---|
 | `study.flip` | `flip` | Stable study card | Bounded learning observation on first reveal; otherwise local navigation |
-| `study.next` | `next` | Stable study card | Bounded `presented` observation plus local navigation; never a rating |
+| ~~`study.next`~~ | ~~`next`~~ | ~~Stable study card~~ | ~~Bounded `presented` observation plus local navigation; never a rating~~ |
+| `study.next` | `next` | Stable study card | Local navigation plus either an already-canonical observation or a session-local provisional `presented` marker; never a rating |
 | `study.back` | `back` | Study history available | Reversible local navigation |
 | `study.rate.again` | `again` | Back revealed and rating affordance active | Correctable learning event, then advance |
 | `study.rate.hard` | `hard` | Back revealed and rating affordance active | Correctable learning event, then advance |
@@ -324,6 +327,15 @@ birthday-wish capture, submit a message, control power, or illuminate the
 screen, regardless of phrase distinctiveness. Touch remains independently
 available for every voice-controlled application action.
 
+Input-source equivalence applies to semantic intent validation and navigation,
+not evidence durability. A voice-only first presentation cannot enter the
+durable outbox. A subsequent study touch or accepted touch/voice rating bound to
+the same active session, session item, immutable content revision, and render
+generation promotes the provisional `presented` and any dependent provisional
+`revealed` observation in the same atomic transition as its dependent event. An
+unpromoted marker is dropped at session termination or restart and never reaches
+Lexinet.
+
 ## Acoustic evidence
 
 The host analyzer is only the first gate. Before tuning, freeze a development
@@ -339,7 +351,11 @@ untouched confirmation set. For every selected microphone and recognizer, use
 consented positive and negative corpora covering distance,
 orientation, representative room noise, clipped/prefix-only speech, commands
 inside longer speech, nearest-neighbor phrases, disabled cross-application
-commands, and context changes mid-utterance.
+commands, and context changes mid-utterance. A separate adversarial set covers
+speaker replay, crafted/psychoacoustic audible inputs, ultrasonic or
+near-ultrasonic modulated carriers, and structure-borne out-of-band injection
+against the exact microphone, analog front end, ADC, and enclosure. Human
+inaudibility is never counted as rejection evidence.
 
 Record content-free per-command recall/precision, abstention, directional
 substitution matrix, broker-level false accepts per active-listening hour,
@@ -382,6 +398,13 @@ static review waiver never selects a production engine.
   unchanged matrix to every effect in the corresponding Phase-A set. Any one
   forbidden effect rejects the projection. No admitted voice projection reaches
   `capture_start`, external submission, or power/illumination.
+- Reducer tests prove that a voice-only first presentation and dependent reveal
+  remain provisional, never enter the durable outbox, promote atomically only
+  after a study touch or accepted rating matching the active session, session
+  item, immutable content revision, and render generation, and disappear on
+  session termination/restart without reaching Lexinet. Restart enters a
+  non-card resume gate; touch resume canonicalizes before display, while voice
+  resume recreates provisional state.
 - Negative runtime cases prove that the media broker refuses `capture_start`
   unless its only payload is the opaque `lease_id` on the same authenticated UI
   connection and the broker's stored binding still matches the current peer,
@@ -420,3 +443,11 @@ static review waiver never selects a production engine.
 claims to the media broker, personal-context client, and a reachable-call-graph
 acceptance gate under proposed ADR 0005. The admission matrix and product
 decision status are unchanged; this amendment does not approve roadmap Step 1.
+
+**Amended 2026-08-08:** separated semantic voice/touch equivalence from
+evidence durability. Voice-only first presentation and its dependent reveal now
+remain provisional until an active-session/item/revision/render-bound study
+touch or accepted rating promotes them, and restart cannot silently
+canonicalize them. Adversarial acoustic qualification now includes crafted
+audible and out-of-band injection classes. The spoken-command decision remains
+proposed and roadmap Step 1 remains pending.
