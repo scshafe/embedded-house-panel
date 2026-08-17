@@ -173,10 +173,23 @@ as the production default.
     item plus its source identity and revision/hash. This is historical session
     evidence, not a second editable vocabulary model. Preserve source identity
     if a live idea foreign key is cleared by hard deletion.
+  - Make the transaction's locked eligible-source read the cycle-corpus
+    linearization point. Record that exact source set and projection in the
+    storage transaction, require it before any active plan insert, and have
+    storage bind/materialize each immutable item snapshot from those captured
+    bytes rather than trusting caller-supplied front/back/example or
+    revision/hash fields. Every vocabulary mutation that can change eligibility
+    or issued content must take the same deterministic idea-row lock; a change
+    ordered after the locked read belongs to the next cycle.
   - Extend and test idea merge/delete behavior so issued item snapshots and
     historical events remain intact, new sessions choose only eligible live
     ideas/the merge survivor, and every named/versioned derived scheduler
-    projection has an explicit consolidation path.
+    projection has an explicit consolidation path. Because projection payloads
+    are opaque to storage, merge must atomically invalidate both source and
+    survivor projection rows; the owning named/versioned projector then rebuilds
+    the survivor from canonical accepted events through the chosen prefix.
+    Storage must never fabricate or generically merge algorithm-owned payload
+    bytes.
   - Add a disposable-PostgreSQL migration/storage suite; string-only SQL tests
     are insufficient for unique constraints, transaction replay, rollback, and
     merge behavior.
@@ -1050,3 +1063,12 @@ opaque principal seam and normalized hashes, distinguishes replay prefixes from
 one atomic new suffix, keeps creation receipts immutable, and bounds the exact
 CLI/pagination surface. Both steps remain unchecked pending implementation and
 their mapped executable evidence.
+
+**Amended 2026-08-16:** Step 2 execution review fixed the live-vocabulary
+linearization and opaque-projection merge boundaries. The locked eligible-source
+read is the current cycle's corpus point; storage captures and binds issued
+snapshot bytes while all eligibility/content mutators share deterministic idea
+locks. Idea merge invalidates disposable source/survivor scheduler projections
+for namespace-owned canonical replay instead of synthesizing unknown payload
+fields. Step 2 remains unchecked pending the full event-receipt, ordinal,
+successor-barrier, migration, concurrency, and repository evidence.

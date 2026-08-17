@@ -375,11 +375,26 @@ must reproduce the same scheduler input. Changing policy creates a new
 namespace and folds history into it; it does not overwrite the prior projection
 or rewrite an event.
 
+The eligible-corpus read is a transaction-owned linearization point, not an
+advisory preflight. Lexinet locks the deterministically ordered eligible idea
+rows, captures their selected canonical name/definition/example projection, and
+holds those locks through plan insertion. An active insert is invalid without
+that captured set. Storage binds the issued front/back/example and source
+revision/hash to the captured projection; a scheduler cannot substitute its own
+content bytes. Every mutation that changes eligibility or selected content
+takes the same idea-row lock. A mutation ordered after this read affects the
+next cycle, which makes concurrent additions, edits, topic changes, and merges
+deterministic without pretending that a later commit preceded the snapshot.
+
 Lexinet's idea-merge operation must leave issued item snapshots and historical
 events intact. New sessions select only the surviving active idea. Every
-named/versioned derived per-card scheduler state must consolidate onto the
-survivor without rewriting the historical item identity. Adding study tables
-without testing merge behavior is incomplete.
+named/versioned derived per-card scheduler state must have an explicit
+consolidation path onto the survivor without rewriting the historical item
+identity. Projection payloads are opaque to generic storage, so merge atomically
+invalidates both source and survivor projection rows. The owning projector must
+then replay canonical accepted events through the chosen prefix and write the
+survivor namespace anew; storage never invents a generic merged payload.
+Adding study tables without testing merge behavior is incomplete.
 
 `client_stream_id` is a persisted random UUID owned by one installed study data
 plane, not the local interaction source-instance ID. Its sequence survives
@@ -1033,6 +1048,13 @@ status or roadmap checkbox changed.
 Lexinet decisions. The accepted semantics supersede the scaffold for future
 production work without claiming that `study.v1`, the resilient client, voice
 activation, or any hardware-dependent path is implemented.
+
+**Amended 2026-08-16:** froze the Step 2 execution boundaries found by
+adversarial persistence review. A locked eligible-source read now linearizes a
+cycle and supplies storage-owned immutable item bytes; all relevant vocabulary
+mutators share that idea-lock protocol. Idea merge invalidates opaque derived
+rows for canonical namespace-owned replay rather than fabricating projection
+state. This clarifies persistence behavior without claiming Step 2 completion.
 
 ## Additional primary scheduler references
 
