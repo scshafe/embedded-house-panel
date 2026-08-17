@@ -202,6 +202,14 @@ as the production default.
     StudyPlan` as the documented `@extension-point`; inject clock and seed rather
     than reading global time/randomness. Retain `shuffle_bag_v1` only as a test
     baseline, not the active product scheduler.
+  - Freeze scheduler hashing as `lexinet-study-digest-v1`: SHA-256 over that
+    ASCII domain plus NUL, followed by a purpose and every typed part as a
+    four-byte big-endian length and raw bytes. Never hash map iteration or
+    ambient JSON. Give configuration, tie, card-content, card-source, and corpus
+    inputs distinct purposes; store lowercase hex and golden vectors. Source
+    revisions include the chosen source row identities and UTC revisions, while
+    the corpus digest includes the resolved sorted topic UUID union, card kind,
+    and identity-sorted immutable card source/content revisions.
   - Select only active ideas in the requested topic union with a canonical name
     and usable back text. Use primary definition, first sorted definition, then
     summary as the explicit fallback chain; include at most one sorted example.
@@ -216,6 +224,12 @@ as the production default.
     prior-last/successor-first repeat by rotating only within the leading rating
     rank. If no same-rank alternative exists, preserve strict priority and emit
     `boundary_repeat_due_to_priority` provenance.
+    Seeded ties apply only between never-presented cards and fall back to the
+    lowercase card UUID on digest collision. Duplicate non-null latest-presented
+    ordinals across different cards are corruption. If the merge-canonicalized
+    predecessor tail equals the first card, left-rotate the maximal leading
+    same-rank block exactly once and mark only its new head
+    `boundary_repeat_rotated`; never rotate across a rating rank.
   - Keep an issued cycle immutable. Ratings and corrections influence only the
     next unmaterialized cycle; additions, topic edits, archive, and merge changes
     also enter at that boundary. Handle empty and singleton corpora without
@@ -228,6 +242,11 @@ as the production default.
     after its input mapping and evidence threshold are reviewed; shadow output
     can never select production order or imply due dates, optimal frequency, or
     calibrated retention.
+    Validate and commit the authoritative plan before invoking any shadow
+    adapter. The post-commit runner receives deep copies and no store or
+    transaction; reverse-order output, mutation, error, timeout, or panic can
+    produce only a structured non-authoritative report and cannot change the
+    plan, HTTP result, rollback, or retry behavior.
   - Output (Lexinet): scheduler interface, active variety-first implementation,
     shuffle baseline, card projection builder, event projector, mandatory
     authority-isolated shadow runner with a fake adapter, persistence
@@ -241,6 +260,12 @@ as the production default.
     cannot change any production plan.
 
 - [ ] **Step 4: Expose the Lexinet study API and operator CLI**
+  - Requires completed Steps 2 and 3. One canonical `StudySessionService` owns
+    create/resume, get, and sync. It owns the outer transaction and calls the
+    Step 3 materializer through the Step 2 transaction-bound store; handlers do
+    not orchestrate repository calls. The common lock order is profile
+    ingestion row, active-scope anchor, stable-UUID session rows, client stream,
+    then idempotency/receipt rows. Never expose raw `pgx.Tx` outside storage.
   - Implement idempotent `POST /api/v1/study/sessions`, resumable
     `GET /api/v1/study/sessions/{id}`, and atomic
     `POST /api/v1/study/sessions/{id}/sync` from the frozen contract.
@@ -262,6 +287,13 @@ as the production default.
     per-profile ingestion ordinal in submitted order, and returns an identical
     bounded page of already issued items. A duplicate retains its original
     ordinal; retryable failures adjudicate no sequence.
+    Reconcile an immutable replay prefix before one new contiguous suffix. A
+    valid suffix may mix accepted and semantic-duplicate receipts. If any new
+    suffix event has a terminal domain failure, every new suffix sequence gets
+    the first failure's stable terminal-rejection code and no new event,
+    ordinal, or projection is committed. Retryable/request-level failures write
+    no receipt. Increment session state once for newly written terminal
+    receipts, not for pure replay or an empty flush.
   - Scope every idempotency key to its authorized session/principal and bind it
     to a normalized request hash. An identical replay returns the original
     receipt; changed input returns `409 IDEMPOTENCY_CONFLICT`. Accept ordered
@@ -274,6 +306,27 @@ as the production default.
     Continue accepting valid retained rating/correction events for completed
     predecessors; once a successor exists, those late facts affect only the
     next unmaterialized cycle.
+    Introduce an opaque `StudyPrincipalID`/`StudyAuthorizer`; Step 4 maps the
+    existing authenticated operator path to one stable operator principal and
+    never derives or persists bearer bytes. Step 5 replaces only principal
+    derivation. Scope create keys by principal/profile/scope/request UUID and
+    sync keys by principal/session/sync UUID.
+  - Canonicalize normalized request hashes with RFC 8785 JSON after domain
+    normalization. Exclude the idempotency UUID from its content hash and keep
+    principal in the key namespace; include the operation, versions, canonical
+    profile and resolved sorted topic UUIDs, card kind, predecessor or null,
+    page, and, for sync, path session, stream, expected version, ordered events,
+    and page. Normalize UUIDs to lowercase and times to UTC RFC3339Nano; reject
+    duplicate resolved topics. Event hashes include every normalized event
+    field including event UUID and sequence.
+  - Creation receipts are immutable. `created` means that request materialized
+    a new root; `converged_to_existing` means its first adjudication found the
+    unfinished cycle; `successor` binds a predecessor request to the newly made
+    or already-linked successor. Reserve `resumed` and `replayed` in v1;
+    identical-key replay returns the original receipt. Return 201 only when the
+    current transaction materialized the returned session, otherwise 200.
+    GET/nested session resources have a null creation receipt. Empty-sentinel
+    activation creates and links one successor without a flush receipt.
   - Distinguish empty corpus, exhausted local prefetch, stale content/state,
     malformed input, authorization denial, and transient service failure with
     stable codes. Apply strict decoding, body/count/text bounds, request
@@ -281,6 +334,13 @@ as the production default.
   - Add `lexinet study session`, `lexinet study sync`, and `lexinet study state`
     operator commands through the existing Go client; do not couple the Linux
     panel to the macOS Swift client or its drifting fixtures.
+    Freeze grammar as `study session --request FILE|-`, `study sync SESSION_ID
+    --request FILE|-`, and `study state SESSION_ID [--after-position N] [--limit
+    N]`; do not accept inline JSON. Bound stdin/file input to the protocol body
+    ceiling and preserve request/retry metadata in structured errors. Page by a
+    deterministic immutable-item prefix under both the requested count and a
+    983,040-byte page budget, then marshal and enforce the one-MiB whole-response
+    ceiling before writing.
   - Output (Lexinet): handlers, focused store interfaces, CLI/client commands,
     fake-store unit tests, live database handler tests, and contract examples
     emitted from real types.
@@ -979,3 +1039,14 @@ entry point under the distinct unprivileged UID and leaves its service disabled.
 Mapped host shell, supervisor, packaging, all-slice, and repository proofs pass.
 No physical renderer, production normalized-touch transport, ARM package build,
 on-target evidence, vocabulary surface, or Step 7b completion is claimed.
+
+**Amended 2026-08-16:** completed pre-implementation inventories for Steps 3
+and 4 and resolved their underspecified technical boundaries without changing
+`study.v1` product semantics. Step 3 now freezes typed length-framed scheduler
+digests, total ordering and same-rank boundary rotation, corruption behavior,
+and post-commit-only shadow isolation. Step 4 now explicitly requires Steps 2
+and 3, gives one service the outer transaction and lock order, freezes the
+opaque principal seam and normalized hashes, distinguishes replay prefixes from
+one atomic new suffix, keeps creation receipts immutable, and bounds the exact
+CLI/pagination surface. Both steps remain unchecked pending implementation and
+their mapped executable evidence.
