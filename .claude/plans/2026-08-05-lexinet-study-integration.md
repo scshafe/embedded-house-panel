@@ -305,7 +305,23 @@ as the production default.
     content after session creation and prove its issued projection is unchanged;
     run CLI round trips against a disposable server and PostgreSQL instance.
 
-- [ ] **Step 5: Establish least-privilege HTTPS Tailnet access**
+- [ ] **Step 5: ~~Establish least-privilege HTTPS Tailnet access~~ Remediate the
+  live unauthenticated Tailnet path and establish least-privilege HTTPS access**
+  - Treat this as remediation, not greenfield authorization work. At the
+    reviewed baseline, an empty service bearer makes `requireBearer` return the
+    protected route group unchanged; the shipped Docker configuration leaves
+    `auth_token` empty; and the documented TCP-mode `tailscale serve` bridge
+    supplies neither caller identity nor application authentication. All
+    vocabulary mutation routes share that group, so the nontagged-node negative
+    test below does not currently hold.
+  - Review-amendments Step 15a's fail-fast empty-token/Tailnet startup guard was
+    completed in Lexinet commit `178d9ea` and is only a narrow interim
+    mitigation. It neither scopes capabilities nor supplies Tailnet identity or
+    certificate-validated HTTPS, and it cannot observe a host-side TCP proxy.
+    Until those final controls land,
+    a separately provisioned nonempty service bearer remains a prerequisite for
+    enabling the Tailnet listener; the broad bearer must not be provisioned onto
+    the physically accessible panel.
   - Split listener authentication from capability authorization. A tailnet
     listener wrapper derives a principal with `tsnet`/local-client `WhoIs` and
     marks the transport in request context; loopback/operator bearer behavior
@@ -927,3 +943,11 @@ rather than quiescence proof; immediate blanking precedes bounded supervisor
 verification before the suspend-state write. The on-target acoustic corpus
 includes crafted audible and out-of-band injection classes. No `LEXI-*` or
 `VOICE-*` status, checkbox, production default, or hardware claim changed.
+
+**Amended 2026-08-16:** reframed Step 5 as remediation of the reviewed live
+empty-bearer Tailnet exposure, recorded that its nontagged-node negative test
+does not currently hold, and separated the narrow Step 15a fail-fast guard from
+the final scoped identity/TLS design. The guard is complete in sibling Lexinet
+commit `178d9ea`, but a separately provisioned nonempty service bearer remains
+a native-listener or external-proxy prerequisite in the interim. No checkbox,
+`LEXI-*` status, or other pending product-decision status changed.

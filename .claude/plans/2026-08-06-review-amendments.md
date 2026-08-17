@@ -145,7 +145,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
     observe.
   - Verify: in `/Users/coleshaffer/lexinet`, `go test ./internal/config/... ./internal/server/... ./internal/cli/...`; `go build ./... && go vet ./...`.
 
-- [ ] **Step 15b: Reframe Lexinet Step 5 as remediation of a live exposure**
+- [x] **Step 15b: Reframe Lexinet Step 5 as remediation of a live exposure**
   - `requireBearer` returns the handler unchanged when the token is empty (`/Users/coleshaffer/lexinet/internal/server/server.go:155-158`), every mutation route sits inside that group (`:53-58`, `internal/server/api.go:89-98`), the shipped deploy config sets `auth_token = ""` (`deploy/docker/config.toml:18`), and `docker-compose.yml` documents that tailnet exposure is bridged by a TCP-mode `tailscale serve`, which carries no identity and applies no authentication.
   - Amend `docs/architecture/lexinet-study-integration.md:665` and Lexinet plan Step 5 to state that the study work must *close* an existing unauthenticated path, not merely add a scoped one, and that the Step 5 negative test ("a nontagged node cannot reach or authorize to the study service") does not currently hold.
   - Notes: ~~the Lexinet repository is a separate checkout and this plan does not change it. The interim mitigations — setting a token, and making an empty token with the tailnet listener enabled a startup error rather than an auth bypass — belong to that repository and to the user. Record them here as prerequisites, not as executed work.~~ The sibling Lexinet repository remains a separate authority, but the user explicitly authorized Step 15a to implement the startup guard there. Record the completed guard and the still-required provisioned token as prerequisites; do not imply that this narrow mitigation delivers the later scoped Tailnet identity design.
@@ -233,3 +233,9 @@ after focused CLI/config/server tests, full build/vet, and adversarial review.
 The review kept host-side TCP proxy exposure explicit: the native-listener
 guard cannot observe that topology, so a nonempty bearer remains mandatory
 before enabling such a proxy.
+
+**Amended 2026-08-16:** the user explicitly approved Step 15b as written after
+the panel documents recorded the live exposure, the completed native-listener
+guard, the failing current nontagged-node claim, and the residual external-proxy
+bearer prerequisite. Step 15b is now complete; scoped Tailnet identity and TLS
+remain owned by the Lexinet integration plan.

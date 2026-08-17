@@ -759,9 +759,27 @@ Relevant primary references:
 
 ## Tailnet authentication and authorization
 
-Tailnet routing is not sufficient application authorization. The existing
+~~Tailnet routing is not sufficient application authorization. The existing
 Lexinet bearer, when configured, grants broad mutation authority and should not
-be copied onto a physically accessible panel.
+be copied onto a physically accessible panel.~~ Tailnet routing is not
+sufficient application authorization. At the reviewed baseline, current
+Lexinet has a live unauthenticated Tailnet path whenever its service bearer is
+empty: `requireBearer` returns the protected route group unchanged, the shipped
+Docker configuration leaves `auth_token` empty, and the documented TCP-mode
+`tailscale serve` bridge supplies neither caller identity nor application
+authentication. Every vocabulary mutation route is registered inside that
+group. Step 5 must therefore close an existing exposure rather than add a
+greenfield scoped path.
+
+The Step 5 negative test that a nontagged node cannot reach or authorize to the
+study service does not currently hold. Review-amendments Step 15a defines a
+fail-fast empty-token/Tailnet startup guard, completed in sibling Lexinet commit
+`178d9ea`. That guard is only a narrow interim mitigation: it does not derive a
+Tailnet principal, restrict capabilities, provide certificate-validated HTTPS,
+or observe a host-side TCP proxy. Until scoped Tailnet identity and TLS land,
+enabling the native listener or an external proxy requires both the completed
+guard and a separately provisioned nonempty service bearer. That broad bearer
+remains unsuitable for provisioning onto the physically accessible panel.
 
 The preferred production path is:
 
@@ -999,6 +1017,14 @@ grouped terminal rejection has an explicit all-constituent disposition. The
 amendment also makes immediate blanking precede bounded supervisor-verified
 media quiescence before the suspend-state write. This does not change any
 `LEXI-*` status or approve roadmap Step 1.
+
+**Amended 2026-08-16:** documented that Step 5 remediates the reviewed live
+empty-bearer Tailnet exposure and that its nontagged-node negative test does not
+yet hold. The Step 15a fail-fast guard is a narrow interim mitigation whose
+implementation and tests completed in sibling Lexinet commit `178d9ea`; a
+separately provisioned nonempty service bearer remains a native-listener or
+external-proxy prerequisite until scoped identity and TLS land. No `LEXI-*`
+status or roadmap checkbox changed.
 
 ## Additional primary scheduler references
 

@@ -2538,7 +2538,7 @@
       "item_index": 1,
       "clause_item": "in `/Users/coleshaffer/lexinet`, `go test ./internal/config/... ./internal/server/... ./internal/cli/...`",
       "test_symbol": "plan.review-amendments.step-15a.verify-1.item-1.lexinet-focused-auth-startup-tests",
-      "command": "cd /Users/coleshaffer/lexinet && go test ./internal/config/... ./internal/server/... ./internal/cli/...",
+      "command": "sh -c 'cd /Users/coleshaffer/lexinet && go test ./internal/config/... ./internal/server/... ./internal/cli/...'",
       "proof_kind": "automated",
       "proof_status": "recorded"
     },
@@ -2549,7 +2549,7 @@
       "item_index": 2,
       "clause_item": "`go build ./... && go vet ./...`.",
       "test_symbol": "plan.review-amendments.step-15a.verify-1.item-2.lexinet-build-and-vet",
-      "command": "cd /Users/coleshaffer/lexinet && go build ./... && go vet ./...",
+      "command": "sh -c 'cd /Users/coleshaffer/lexinet && go build ./... && go vet ./...'",
       "proof_kind": "automated",
       "proof_status": "recorded"
     },
@@ -2562,7 +2562,7 @@
       "test_symbol": "plan.review-amendments.step-15b.verify-1.item-1.human-review-confirms-the-panel-side-documents-no-longer",
       "command": "human review procedure: .claude/plans/2026-08-06-review-amendments.md Step 15b [plan.review-amendments.step-15b.verify-1.item-1.human-review-confirms-the-panel-side-documents-no-longer]",
       "proof_kind": "human",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     }
   ]
 }
