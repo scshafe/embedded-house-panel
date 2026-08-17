@@ -386,11 +386,10 @@ def check_map(
             raise MapError(
                 "PROOF_STATUS_INVALID", f"entry {index} has invalid proof_status"
             )
-        expected_status = "recorded" if expected[key].step_complete else "planned"
-        if proof_status != expected_status:
+        if expected[key].step_complete and proof_status != "recorded":
             raise MapError(
                 "PROOF_STATUS_MISMATCH",
-                f"entry {index} must be {expected_status} for its current checkbox",
+                f"entry {index} must be recorded because its step checkbox is complete",
             )
         if proof_status == "recorded" and command.lstrip().startswith("PLANNED:"):
             raise MapError(

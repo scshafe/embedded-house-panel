@@ -24,7 +24,7 @@ This is an executable scaffold, not a hardware-complete product.
 | Presence/wake | Custom input-driver experiment plus stock `gpio-keys` comparison | PIR electrical behavior, cape pin conflicts, DeepSleep0 wake proof |
 | Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, protocol-v2 presentation gate, and touch-provenance seams | Actual nodes, brightness, clock recovery, suspend behavior, raw-touch adapter, and display-commit correlation on the target |
 | Panel UI | Host-tested neutral shell/controller, intent registry, Unicode policy, headless renderer, protocol-v2 Unix client, and disabled fail-dark Buildroot entry point | Evidence-backed physical renderer, normalized-touch transport adapter, target service enablement, and calibrated display/touch |
-| Vocabulary panel | Host-tested flash-card scaffold and provenance-stamped `study.v1` consumer contract; Lexinet canonical study service/routes/CLI are implemented at the pinned source revision | Resilient panel data plane, final scoped Tailnet authorization, integration beneath the neutral shell, target renderer, and calibrated touch |
+| Vocabulary panel | Host-tested flash-card scaffold and provenance-stamped `study.v1` consumer contract; Lexinet canonical study service/routes/CLI plus its local native-TLS scoped Tailnet boundary are implemented | Resilient panel data plane, real Tailnet identity/policy/revocation/certificate evidence, panel Tailscale packaging choice, integration beneath the neutral shell, target renderer, and calibrated touch |
 | Personal agenda | `AGENDA-001` through `AGENDA-010` accepted; provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan documented; `AGENDA-011` deferred | Agenda feasibility Step 1 review; EventKit/Contacts, Google, Tailnet, local STT, Messages measurements, and all feature implementation |
 | System image | Pinned Buildroot external tree, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | Full release image build, cape driver/device tree, and measured package/resource budget |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
@@ -203,8 +203,9 @@ The current scaffold and every hardware-evidence gate remain unchanged.
 - LVGL direct DRM versus its fbdev fallback; Qt 6 Widgets remains the measured fallback if LVGL fails a target gate.
 - DeepSleep0 versus a shallower always-networked mode on Black; a future product
   may add an always-on MCU and full application-domain power-off.
-- Final scoped Lexinet Tailnet authorization and the resilient panel study data
-  plane, integration, and packaging work in its
+- Real Lexinet Tailnet deployment evidence, the panel Tailscale packaging
+  choice, and the resilient panel study data plane, integration, and packaging
+  work in its
   [cross-repository plan](.claude/plans/2026-08-05-lexinet-study-integration.md).
 - Personal-agenda feasibility Step 1 review, feasibility measurement, and
   implementation of the accepted personal-agenda/Mac-companion boundary under
@@ -232,3 +233,15 @@ strict routes, operator CLI/client, and post-commit shadow composition at pinned
 revision `e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`. The resilient panel data plane,
 final scoped Tailnet authorization, packaging, and every hardware evidence gate
 remain pending.
+
+**Amended 2026-08-17:** recorded clean Lexinet HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff`, where the local native TLS,
+fresh-`WhoIs`, scoped node-capability/token authorization, separate
+create/resume-and-sync router, and redacted deployment boundary are implemented.
+Step 5 Verification Item 1 is recorded; its synthetic `ListenTLS` failure proof
+is wrapper cleanup evidence, not real certificate evidence. Real tagged,
+untagged, wrong/extra-tag, revocation, native certificate/MagicDNS/hostname/TLS
+handshake and invalid-certificate behavior, destructive/cross-profile denial,
+and the panel Tailscale packaging choice remain pending. The `study.v1`
+contract provenance and roadmap checkboxes are unchanged; Step 5 stays
+unchecked.

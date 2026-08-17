@@ -3,9 +3,10 @@
 **Status:** the first three diagrams document the implemented but disabled
 scaffold, including the version 1 publisher ending at an unconsumed socket.
 They do not describe the accepted planned production owner or claim that a
-Lexinet study API exists. The planned on-panel and Lexinet successor slice is
-shown separately; agenda-to-Mac provider and message flows remain in the
-personal-agenda architecture.
+production panel study client exists. Lexinet's server-side `study.v1` API and
+local native-TLS scoped Tailnet boundary are implemented in its repository; the
+planned on-panel successor slice is shown separately. Agenda-to-Mac provider
+and message flows remain in the personal-agenda architecture.
 
 ## Current scaffold runtime topology
 
@@ -110,14 +111,16 @@ flowchart LR
     PROJ --> BROKER
     BROKER -->|"artifact-bound semantic intent"| SHELL
     SHELL --> DISPLAY["DRM/fbdev + application touch routing"]
-    STUDY -->|"HTTPS study.v1"| TAIL["tailscaled / kernel TUN"]
-    TAIL --> LEX["Lexinet study service"]
+    STUDY -->|"HTTPS study.v1"| TAIL["panel tailscaled / kernel TUN"]
+    TAIL -->|"native TLS :443"| LEX["Lexinet create + sync router"]
 ```
 
 ADR 0006 accepts this local-runtime ownership and product-semantics slice, which
-remains disabled pending protocol-v2 work, the server-owned `study.v1` contract,
-shared shell, catalog pipeline, and cross-repository tests. It intentionally
-stops at the agenda reducer; the signed personal-context client,
+remains disabled pending the resilient study client, shared shell integration,
+panel Tailscale packaging, real Tailnet deployment evidence, catalog pipeline,
+and cross-repository tests. The server-owned `study.v1` contract, canonical
+service, and local native-TLS scoped Tailnet boundary are implemented. The slice
+intentionally stops at the agenda reducer; the signed personal-context client,
 recording-artifact transfer, Tailnet route, and Mac companion are documented in
 [Personal Agenda and Birthday Wishes](personal-agenda-and-birthday-wishes.md).
 
@@ -145,9 +148,15 @@ socket.
 
 ## Lexinet boundary
 
-Tailscale supplies routing and node identity. Lexinet must still apply narrow
-study authorization. API data is untrusted until the server-owned schema and
-panel validation both succeed. See the [Lexinet consumer transition
+Tailscale supplies routing and native peer evidence. Lexinet independently
+applies narrow study authorization. Its implemented Tailnet handler uses native
+TLS on fixed port 443, fresh per-request `WhoIs`, and exposes only
+create/resume and sync; GET, operator, health/version, and vocabulary routes
+stay loopback-only. Node-capability and scoped-token modes are mutually
+exclusive and retain a local operation/profile ceiling. API data remains
+untrusted until the server-owned schema and panel validation both succeed.
+Real policy, tagged/negative/revocation/certificate evidence and the panel
+package choice remain deployment gates. See the [Lexinet consumer transition
 contract](../interfaces/lexinet-contract.md) and [threat
 model](../security/threat-model.md).
 
@@ -164,3 +173,13 @@ code, hardware evidence, roadmap approval, or product-decision approval.
 acceptance of its product semantics, shared ownership, and atomic protocol-v2
 cutover. Every depicted successor component remains disabled or absent pending
 its implementation and evidence gate.
+
+**Amended 2026-08-17:** recorded clean Lexinet HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff`, where native
+`tsnet.ListenTLS`, a separate create/resume-and-sync router, fresh `WhoIs`, and
+scoped node-capability/token authorization are implemented locally.
+Verification Item 1 is recorded; the synthetic listener-failure proof is not
+real certificate evidence. Tagged, untagged, wrong/extra-tag, live-revocation,
+destructive/cross-profile, MagicDNS/hostname/handshake/invalid-certificate
+evidence and the panel Tailscale packaging choice remain pending. Contract
+provenance and roadmap checkboxes are unchanged, and Step 5 stays unchecked.

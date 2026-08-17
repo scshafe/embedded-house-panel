@@ -28,10 +28,14 @@ Lexinet's persistence repository, atomic event adjudicator, merge rules, and
 successor boundary are implemented, as are its rating-aware scheduler,
 projectors, cycle materializer, canonical study service, strict routes, operator
 CLI, and post-commit-only shadow composition. This domain's resilient panel
-client and Lexinet's final scoped Tailnet authorization are still pending. The
-Buildroot package compiles the historical adapter with certificate-verified TLS,
-but no target service may send real study requests until those later runtime and
-packaging steps replace the scaffold.
+client is still pending. Lexinet's local native-TLS study-only router, fresh
+Tailnet identity, and scoped node-capability/token authorization are implemented
+at clean HEAD `ce42272df315f357e10998dd48e9ffd1a935c2ff`; real Tailnet policy,
+identity/revocation/certificate evidence and the panel Tailscale packaging
+choice remain Step 5 deployment gates. The Buildroot package compiles the
+historical adapter with certificate-verified TLS, but no target service may send
+real study requests until those later runtime, evidence, and packaging steps
+replace the scaffold.
 
 All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
 
@@ -84,5 +88,18 @@ decision changed.
 bundle to that final Step 4 source. The canonical service, strict study routes,
 operator CLI/client, transitional operator authorization, and post-commit-only
 shadow path now have exact mapped normal, live-PostgreSQL, and race evidence.
-Step 5 final scoped Tailnet authorization, this domain's Step 6 resilient data
-plane, packaging, and every target integration gate remain pending.
+Step 5's real Tailnet deployment evidence and panel packaging choice, this
+domain's Step 6 resilient data plane, packaging, and every target integration
+gate remain pending.
+
+**Amended 2026-08-17:** recorded clean Lexinet HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff`, where native
+`tsnet.ListenTLS`, a separate create/resume-and-sync router, fresh per-request
+`WhoIs`, and mutually exclusive scoped node-capability/token authorization have
+landed locally. Verification Item 1 is recorded. The synthetic `ListenTLS`
+failure test proves wrapper cleanup only, not real certificate issuance or
+validation. Real tagged, untagged, wrong/extra-tag, live-revocation,
+MagicDNS/hostname/handshake/invalid-certificate, destructive-denial, and
+cross-profile evidence plus the panel Tailscale package selection remain
+pending. The exported `study.v1` provenance is not repinned, and Step 5 stays
+unchecked.

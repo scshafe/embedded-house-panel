@@ -22,14 +22,17 @@ as the production default.
   originally supplied directory was empty. Cross-repository scripts must fail
   when the input is absent or invalid and must not infer either workstation
   path.
-- The executed Lexinet source is clean on `main` at final Step 4 revision
-  `e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`. It is a Go 1.23.4 service and CLI
-  backed by PostgreSQL. Its canonical contract, persistence model,
-  rating-aware scheduler, projector, materializer, `StudySessionService`,
-  strict public study routes, operator CLI, and post-commit shadow composition
-  are implemented. The dedicated bearer and `OperatorStudyAuthorizer` remain
-  the explicit transitional Step 4 policy; final scoped Tailnet authorization,
-  the resilient panel client, and target packaging remain later steps.
+- The executed Lexinet source is clean on `main` at Step 5 local-boundary HEAD
+  `ce42272df315f357e10998dd48e9ffd1a935c2ff`. It is a Go 1.26.5 service and CLI
+  backed by PostgreSQL and pins Tailscale `v1.102.2`. In addition to the frozen
+  contract, persistence, scheduler, service, routes, CLI, and shadow
+  composition, Lexinet now implements native TLS on fixed Tailnet port 443,
+  fresh per-request `WhoIs`, mutually exclusive node-capability/scoped-token
+  authentication, scoped study authorization, and a structurally separate
+  create/resume-and-sync router. Step 5 remains unchecked because real Tailnet
+  policy/identity/revocation/certificate evidence and the panel Tailscale
+  packaging choice remain external deployment gates; the resilient panel
+  client is still Step 6.
 - The panel currently has a forward-only fixture-backed `FlashCardSession`, a
   provisional synchronous ~~HTTP~~ HTTPS adapter, and a presentation-only LVGL
   renderer.
@@ -74,9 +77,11 @@ as the production default.
   production authority; a later explicit experiment may add a pinned FSRS
   implementation after its input mapping and evidence threshold are reviewed.
 - The preferred device credential is a tagged Tailnet node identity derived at
-  the Lexinet listener with `WhoIs`, authorized only for study routes. A
-  root-provisioned scoped token is a documented fallback, never the existing
-  broad operator bearer.
+  the Lexinet listener with fresh `WhoIs`, authorized only for study
+  create/resume and sync on configured profiles. Lexinet implements an
+  owner-only scoped-token alternative behind the same native transport and
+  local ceiling; it is a mutually exclusive startup mode, not a request-time
+  fallback and never the broad loopback operator bearer.
 - Tailnet identity identifies an authorized appliance; a Lexinet study profile
   identifies the learner. Re-provisioning the appliance must not reset or fork
   the learner's history.
@@ -472,57 +477,63 @@ as the production default.
 - [ ] **Step 5: ~~Establish least-privilege HTTPS Tailnet access~~ Remediate the
   live unauthenticated Tailnet path and establish least-privilege HTTPS access**
   - Treat this as remediation, not greenfield authorization work. At the
-    reviewed baseline, an empty service bearer makes `requireBearer` return the
+    reviewed baseline, an empty service bearer made `requireBearer` return the
     protected route group unchanged; the shipped Docker configuration leaves
-    `auth_token` empty; and the documented TCP-mode `tailscale serve` bridge
+    `auth_token` empty; and the then-documented TCP-mode `tailscale serve` bridge
     supplies neither caller identity nor application authentication. All
-    vocabulary mutation routes share that group, so the nontagged-node negative
-    test below does not currently hold.
+    vocabulary mutation routes shared that group, so the nontagged-node
+    negative test did not hold. Lexinet HEAD
+    `ce42272df315f357e10998dd48e9ffd1a935c2ff` now closes that local code and
+    documentation exposure with a separate native-TLS study boundary. This is
+    implemented local behavior, not real Tailnet deployment evidence.
   - Review-amendments Step 15a's fail-fast empty-token/Tailnet startup guard was
     completed in Lexinet commit `178d9ea` and is only a narrow interim
-    mitigation. It neither scopes capabilities nor supplies Tailnet identity or
-    certificate-validated HTTPS, and it cannot observe a host-side TCP proxy.
-    Until those final controls land,
-    a separately provisioned nonempty service bearer remains a prerequisite for
-    enabling the Tailnet listener; the broad bearer must not be provisioned onto
-    the physically accessible panel.
+    mitigation in the historical sequence. The final local boundary supersedes
+    it for native Tailnet service: the broad bearer remains loopback/operator
+    authority, is not accepted as Tailnet-node identity, and must not be
+    provisioned onto the physically accessible panel. A host-side raw TCP or
+    reverse-proxy exposure is not a supported alternative.
   - Split listener authentication from capability authorization. A tailnet
-    listener wrapper derives a principal with `tsnet`/local-client `WhoIs` and
+    listener wrapper derives a principal with `tsnet`/LocalAPI `WhoIs` and
     marks the transport in request context; loopback/operator bearer behavior
     remains available and cannot forge that marker.
-    The Tailnet listener is native `tsnet` `ListenTLS` on port 443, calls
-    `WhoIs` for every request, and serves a separate study-only router. It does
-    not accept forwarded identity/capability headers, raw TCP, Funnel, or a
-    reverse-proxy fallback. The router exposes only create/resume and sync;
+    The implemented Tailnet listener is native `tsnet` `ListenTLS` on port 443,
+    calls `WhoIs` for every request, and serves a separate study-only router. It
+    does not accept forwarded identity/capability headers, raw TCP, Funnel, or
+    a reverse-proxy fallback. The router exposes only create/resume and sync;
     operator GET/state and every vocabulary route remain loopback-only.
   - Require a dedicated appliance tag and authorize it only for study
     create/resume/sync on configured learner-profile references. Add a negative
     test proving the same principal cannot access another profile or create,
     edit, merge, archive, or delete vocabulary content.
     Require an exact configured caller tag plus a configured custom application
-    capability under a domain the operator controls. Capability objects are
-    closed, bounded operation/profile sets and are intersected with Lexinet's
-    local create/resume-and-sync/profile ceiling. Tailscale's union of matching
-    grants never overrides that local ceiling. Derive the persisted
+    capability under a domain the operator controls. Implemented capability
+    objects are closed, bounded operation/profile sets and are intersected with
+    Lexinet's local create/resume-and-sync/profile ceiling. Tailscale's union of
+    matching grants never overrides that local ceiling. Derive the persisted
     `tailnet-node:<uuid>` principal deterministically from the opaque stable node
-    ID using one frozen domain-separated UUIDv5 mapping; never persist the raw
-    stable ID, node name, address, user, or tag as identity.
-  - Move the tailnet service to certificate-validated HTTPS with `ListenTLS`, or
-    document and test a Tailscale HTTPS reverse-proxy fallback if the deployment
-    cannot issue the required certificate. Never silently downgrade the panel
-    client to cleartext application HTTP.
-  - Review and pin supported Tailscale versions in both repositories before
-    relying on current TLS/identity behavior. Add a narrowly scoped token-file
-    fallback only behind the same study capabilities.
+    ID using the frozen two-stage domain-separated UUIDv5 mapping; never persist
+    the raw stable ID, node name, address, user, or tag as identity.
+  - Use certificate-validated native `ListenTLS` only. If the real Tailnet
+    cannot issue and validate the required MagicDNS hostname certificate, fail
+    the deployment gate. There is no Tailscale HTTPS reverse-proxy fallback and
+    the panel client never silently downgrades to cleartext application HTTP.
+  - Review and pin supported Tailscale versions before relying on current
+    TLS/identity behavior. Lexinet now pins Go `1.26.5`, Tailscale `v1.102.2`,
+    and its Docker builder together. Keep the narrowly scoped token-file mode
+    behind the same native transport and study capabilities.
     Node-capability mode and scoped-token mode are mutually exclusive startup
     configurations, never request-time fallbacks. Scoped-token mode still
     requires native Tailnet TLS plus a successful per-request `WhoIs`, uses an
     independently provisioned nonsecret subject UUID and owner-only token file,
     and grants only the configured profiles and create/resume-and-sync surface.
     It never derives identity from token bytes.
-  - Provide example Tailnet grants and provisioning variables with placeholder
-    host/tag values. Keep auth keys, node state, certificates, and tokens out of
-    Git, image overlays, arguments, URLs, logs, and diagnostic archives.
+  - Lexinet now provides redacted Tailnet grant/config shapes and revocation
+    guidance. Deployment must replace every placeholder with reviewed
+    host/tag/domain/profile values, provision an already enrolled owner-only
+    mode-`0700` state directory, and keep auth keys, node state, certificates,
+    and tokens out of Git, image overlays, arguments, URLs, logs, and diagnostic
+    archives.
   - Output: Lexinet principal/authorizer boundary and listener tests; panel and
     Lexinet deployment documentation; redacted grant/config examples; explicit
     credential-revocation procedure.
@@ -530,12 +541,19 @@ as the production default.
     tagged test node can call study endpoints over validated HTTPS but receives
     denial on destructive routes; a nontagged node cannot reach or authorize to
     the study service; certificate failure is fail-closed.
+  - Verification scope clarification: Item 4 requires real native certificate
+    issuance for the configured MagicDNS hostname, client hostname validation,
+    a completed TLS handshake, and fail-closed invalid-certificate/hostname
+    behavior. A synthetic injected `ListenTLS` wrapper failure proves local
+    cleanup only and is not Item 4 evidence. The additional real wrong/extra-tag,
+    live-revocation, and cross-profile cases remain Step 5 evidence gates
+    without changing the four mapped verification clauses above.
   - Version review on 2026-08-17 selected current stable Tailscale `v1.102.2`,
-    whose module requires Go `1.26.5`; Lexinet must pin both and its Docker
-    builder together. The verified Buildroot `2026.05.1` input supplies Go
-    `1.26.3` and Tailscale `1.78.1`, so the panel runtime cannot be called
-    complete until the user selects either a SHA-256-pinned official ARM binary
-    package or an approved source-build toolchain upgrade. Do not substitute
+    whose module requires Go `1.26.5`; Lexinet pins both and its Docker builder
+    together at the recorded HEAD. The verified Buildroot `2026.05.1` input
+    supplies Go `1.26.3` and Tailscale `1.78.1`, so the panel runtime cannot be
+    called complete until the user selects either a SHA-256-pinned official ARM
+    binary package or an approved source-build toolchain upgrade. Do not substitute
     the newest old-toolchain-compatible Tailscale release and do not check this
     step without sanitized real tagged, nontagged, wrong-tag, revocation, and
     certificate evidence.
@@ -1244,3 +1262,21 @@ operation ceiling. Current stable Tailscale `v1.102.2` requires Go `1.26.5`.
 Lexinet can pin that boundary, but panel packaging and real Tailnet policy,
 identity, certificate, and revocation evidence remain explicit user/external
 gates; Step 5 stays unchecked.
+
+**Amended 2026-08-17:** recorded clean sibling Lexinet HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff`. The local native
+`tsnet.ListenTLS` transport, separate create/resume-and-sync router, fresh
+per-request `WhoIs`, frozen stable-node principal mapping, mutually exclusive
+node-capability/scoped-token authentication, local operation/profile ceiling,
+redacted deployment shapes, and revocation guidance have landed. Verification
+Item 1 is recorded. Separate focused suites also cover bounded/closed grant
+parsing, mode mixing, owner-only token/state validation, lifecycle cleanup, and
+scoped operation/profile enforcement without widening that mapped item. The
+passing synthetic `ListenTLS` failure test proves the wrapper closes and
+exposes no fallback; it is not Verification Item 4 proof.
+Real correctly tagged, untagged, wrong/extra-tag, live-revocation,
+certificate-issuance/MagicDNS/hostname/handshake/invalid-certificate,
+destructive-denial, and cross-profile evidence remain pending, as does the
+panel choice between the SHA-256-pinned official ARM package and an approved
+source-build toolchain. The frozen `study.v1` fixture provenance is unchanged,
+no roadmap checkbox changed, and Step 5 stays unchecked.

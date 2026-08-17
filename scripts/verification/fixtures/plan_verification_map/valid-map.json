@@ -19,9 +19,9 @@
       "item_index": 1,
       "clause_item": "first automated proof",
       "test_symbol": "fixture.first_automated_proof",
-      "command": "fixture-command --case first",
+      "command": "bin/fixture-check --case unchecked-partial-recorded",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": "plans/sample.md",

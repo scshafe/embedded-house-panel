@@ -4,9 +4,12 @@
 consumption. Lexinet's migration, repository, event-adjudication, merge, and
 successor persistence layer, rating-aware scheduler/projectors, cycle
 materializer, canonical study service, strict public routes, operator CLI, and
-post-commit-only shadow composition are implemented. Final scoped Tailnet
-authorization and the panel's resilient study client remain later steps; the
-historical next-card adapter is not a `study.v1` implementation.
+post-commit-only shadow composition are implemented. Lexinet's separate native
+TLS Tailnet study router and scoped node-capability/token authorization are also
+implemented locally; real Tailnet policy/identity/revocation/certificate
+evidence, the panel Tailscale packaging choice, and the panel's resilient study
+client remain later gates. The historical next-card adapter is not a `study.v1`
+implementation.
 
 The product behavior is defined in the
 [Lexinet study architecture](../architecture/lexinet-study-integration.md).
@@ -152,9 +155,15 @@ with malformed data is `LEXINET.RESPONSE_SCHEMA_INVALID`, never an empty corpus.
 - Production endpoints require certificate-validated HTTPS, JSON media types,
   and no redirects. Tailnet reachability does not replace narrow Lexinet study
   authorization.
-- Prefer an authorized tagged-node identity. If a scoped token fallback is
-  required, read it from a root-provisioned, owner-only file. Credentials never
-  enter arguments, URLs, environment diagnostics, logs, fixtures, or images.
+- Lexinet's implemented Tailnet endpoint is native `tsnet.ListenTLS` on fixed
+  port 443 with a separate create/resume-and-sync-only router and fresh
+  per-request `WhoIs`. GET, operator, health/version, and vocabulary routes are
+  loopback-only; forwarded identity/capability headers, raw TCP, Funnel, and
+  reverse-proxy fallback are not transport alternatives.
+- Prefer an authorized tagged-node identity. If the mutually exclusive
+  scoped-token deployment mode is selected, read its bearer from a
+  root-provisioned, owner-only file. Credentials never enter arguments, URLs,
+  environment diagnostics, logs, fixtures, or images.
 - Connect and whole-request deadlines are explicit positive finite
   configuration values. The whole-request deadline must be at least the
   connect deadline. DNS, connection, TLS, upload, response streaming, and
@@ -213,21 +222,26 @@ implements the deterministic `StudyScheduler` seam, `variety_first_v1`,
 rebuildable card/event projections, transaction-bound cycle materialization,
 the canonical `StudySessionService`, strict bounded handlers/routes, the
 operator CLI/client, and authority-checked post-commit-only shadow invocation.
-The dedicated bearer and `OperatorStudyAuthorizer` are an explicit transitional
-operator policy; Step 5 still owns scoped Tailnet identity, TLS, and appliance
-authorization.
+The dedicated bearer and `OperatorStudyAuthorizer` remain the loopback operator
+policy. Lexinet HEAD `ce42272df315f357e10998dd48e9ffd1a935c2ff`
+implements the local native-TLS Tailnet boundary, fresh transport identity,
+mutually exclusive node-capability/scoped-token modes, and local
+create/resume-and-sync/profile authorization ceiling. Step 5 still owns the real
+deployment evidence and panel packaging decision.
 
 The panel's existing `fetch_next_card` / single-review adapter predates the
 Lexinet source audit. It has no issued session identity, correction stream,
 scheduler provenance, or safe reconciliation and remains a test scaffold.
 Production panel study requests stay disabled until the resilient client,
-outbox/cache, cross-repository live tests, final scoped authorization, and
-packaging steps are implemented and verified together.
+outbox/cache, cross-repository live tests, real scoped Tailnet deployment
+evidence, and packaging steps are implemented and verified together.
 
-Still-required deployment inputs are the explicit Lexinet endpoint and TLS
-arrangement, learner profile and normalized topic set, deadline/freshness/cache
-bounds, Tailnet authorization mapping, and any fallback credential provisioning
-and revocation procedure.
+Still-required deployment inputs are the explicit Lexinet MagicDNS endpoint and
+native TLS certificate evidence, learner profile and normalized topic set,
+deadline/freshness/cache bounds, exact Tailnet tag/app-capability policy, and
+mode-specific credential provisioning/revocation procedure. The panel must also
+select either the SHA-256-pinned official ARM Tailscale package or an approved
+pinned source-build toolchain.
 
 **Amended 2026-08-16:** replaced the provisional next-card transition document
 with the Lexinet-owned `study.v1` authority, deterministic provenance export,
@@ -261,3 +275,14 @@ operator authorization, immutable response composition, and post-commit-only
 shadow invocation now have exact mapped normal, live-PostgreSQL, and race
 evidence. The resilient panel client, final scoped Tailnet authorization, and
 packaging remain pending; no wire semantic or accepted decision changed.
+
+**Amended 2026-08-17:** recorded clean Lexinet implementation HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff` without repinning the unchanged
+`study.v1` contract provenance above. Native `ListenTLS`, the separate
+create/resume-and-sync router, fresh `WhoIs`, and scoped node-capability/token
+authorization are implemented locally, and Verification Item 1 is recorded.
+The synthetic `ListenTLS` failure test is wrapper-cleanup evidence only, not
+real certificate issuance/MagicDNS/hostname/handshake/invalid-certificate
+proof. Real tagged, untagged, wrong/extra-tag, live-revocation,
+destructive/cross-profile, and certificate evidence plus the panel packaging
+choice remain pending; Step 5 stays unchecked.

@@ -65,6 +65,16 @@ def main() -> int:
         )
 
     source = json.loads(valid_path.read_text(encoding="utf-8"))
+    unchecked_step_statuses = {
+        entry["proof_status"]
+        for entry in source["entries"]
+        if entry["step"] == "Step 2"
+    }
+    if unchecked_step_statuses != {"planned", "recorded"}:
+        raise AssertionError(
+            "valid fixture must prove mixed recorded/planned evidence "
+            "on an unchecked step"
+        )
     with tempfile.TemporaryDirectory(prefix="bhp-plan-map-") as temporary_name:
         temporary = Path(temporary_name)
 
@@ -86,9 +96,11 @@ def main() -> int:
         stale_text["entries"][0]["clause_item"] = "changed plan text"
         expect_failure(stale_text, "CLAUSE_TEXT_MISMATCH", temporary)
 
-        stale_status = json.loads(json.dumps(source))
-        stale_status["entries"][0]["proof_status"] = "planned"
-        expect_failure(stale_status, "PROOF_STATUS_MISMATCH", temporary)
+        checked_step_with_planned_proof = json.loads(json.dumps(source))
+        checked_step_with_planned_proof["entries"][0]["proof_status"] = "planned"
+        expect_failure(
+            checked_step_with_planned_proof, "PROOF_STATUS_MISMATCH", temporary
+        )
 
         recorded_planned = json.loads(json.dumps(source))
         recorded_planned["entries"][0]["command"] = "PLANNED: test -n fixture"

@@ -4,9 +4,9 @@
 
 **Status:** all seven version 1 Lexinet decisions accepted by
 [ADR 0006](../decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md);
-the Lexinet Step 4 service/API/CLI boundary is implemented and evidenced, while
-the panel data plane, final scoped authorization, packaging, and hardware gates
-remain pending
+the Lexinet service/API/CLI and local native-TLS scoped Tailnet boundary are
+implemented, while real Tailnet deployment evidence, the panel packaging
+choice, the panel data plane, and hardware gates remain pending
 **Scope:** Lexinet-backed concept cards, varied selection, offline behavior,
 touch navigation, and local constrained-catalog voice commands
 **Not selected here:** a final microphone, speech engine, battery-powered board,
@@ -52,19 +52,22 @@ Host-side automation locates the populated Lexinet repository only through
 `BHP_LEXINET_BASE_REVISION`. The original audit found the source checkout clean
 at full revision `3e15ef60e1970757e756d74622846edba166757c`; approved contract,
 persistence, scheduling, and service/API work is now committed through final
-Step 4 revision `e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`. The originally supplied
-directory was empty. No script may encode or infer either workstation path. The
-validator resolves the physical Git root and requires the audited base commit
-in the selected checkout's ancestry rather than trusting `go.mod` alone.
-Runtime endpoint and credential configuration remain separate from these
-development-source inputs.
+Step 5 local-boundary HEAD `ce42272df315f357e10998dd48e9ffd1a935c2ff`.
+The originally supplied directory was empty. No script may encode or infer
+either workstation path. The validator resolves the physical Git root and
+requires the audited base commit in the selected checkout's ancestry rather
+than trusting `go.mod` alone. Runtime endpoint and credential configuration
+remain separate from these development-source inputs. The consumer's frozen
+`study.v1` export remains pinned to its unchanged contract provenance rather
+than being repinned merely because transport code advanced.
 
 Lexinet already provides useful foundations:
 
 - a Go service and CLI backed by PostgreSQL;
 - ideas with canonical names, definitions, examples, aliases, and acronyms;
 - topics and idea-topic membership;
-- an embedded `tsnet` listener;
+- a native `tsnet.ListenTLS` listener fixed to Tailnet port 443, with bounded
+  startup and owner-only state validation;
 - strict JSON request decoding and a consistent structured error shape;
 - the canonical `study.v1` contract and deterministic golden resources;
 - the Step 2 study schema, repository, atomic event adjudicator, merge
@@ -74,13 +77,19 @@ Lexinet already provides useful foundations:
 - the authority-isolated shadow-runner seam and fake isolation evidence; and
 - the Step 4 canonical `StudySessionService`, strict public study routes,
   bounded operator CLI/client, dedicated transitional operator authorization,
-  and post-commit-only shadow composition.
+  and post-commit-only shadow composition; and
+- the Step 5 local Tailnet boundary: a separate create/resume-and-sync router,
+  fresh per-request `WhoIs`, frozen opaque-principal derivation, mutually
+  exclusive node-capability/scoped-token authentication, and a local
+  operation/profile ceiling.
 
 The versioned study routes preserve Lexinet's raw typed-resource success
 convention and structured error boundary without redefining its older
-unversioned routes. Step 5 still must replace only the transitional operator
-principal derivation and policy with scoped Tailnet identity, TLS, and appliance
-authorization; it does not change the service or storage signatures.
+unversioned routes. Step 5's local implementation replaces the transitional
+Tailnet exposure without changing service or storage signatures, while
+preserving the loopback operator policy. The step remains unchecked until its
+real policy/identity/revocation/certificate evidence and panel packaging choice
+are complete.
 
 The panel repository already has a deterministic `FlashCardSession`, a guarded
 but provisional HTTP adapter, fixture-driven host tests, and an LVGL renderer.
@@ -806,50 +815,59 @@ Relevant primary references:
 
 ## Tailnet authentication and authorization
 
-~~Tailnet routing is not sufficient application authorization. The existing
-Lexinet bearer, when configured, grants broad mutation authority and should not
-be copied onto a physically accessible panel.~~ Tailnet routing is not
-sufficient application authorization. At the reviewed baseline, current
-Lexinet has a live unauthenticated Tailnet path whenever its service bearer is
-empty: `requireBearer` returns the protected route group unchanged, the shipped
-Docker configuration leaves `auth_token` empty, and the documented TCP-mode
-`tailscale serve` bridge supplies neither caller identity nor application
-authentication. Every vocabulary mutation route is registered inside that
-group. Step 5 must therefore close an existing exposure rather than add a
-greenfield scoped path.
+Tailnet routing is not sufficient application authorization. At the reviewed
+baseline, Lexinet's empty bearer and documented raw-TCP proxy path exposed the
+ordinary route group without native peer identity. Step 15a's fail-fast guard
+was an interim mitigation. Clean Lexinet HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff` now implements the final local
+boundary, while the real deployment evidence remains pending.
 
-The Step 5 negative test that a nontagged node cannot reach or authorize to the
-study service does not currently hold. Review-amendments Step 15a defines a
-fail-fast empty-token/Tailnet startup guard, completed in sibling Lexinet commit
-`178d9ea`. That guard is only a narrow interim mitigation: it does not derive a
-Tailnet principal, restrict capabilities, provide certificate-validated HTTPS,
-or observe a host-side TCP proxy. Until scoped Tailnet identity and TLS land,
-enabling the native listener or an external proxy requires both the completed
-guard and a separately provisioned nonempty service bearer. That broad bearer
-remains unsuitable for provisioning onto the physically accessible panel.
+The server surfaces are deliberately different:
 
-The preferred production path is:
+1. The loopback listener retains vocabulary/operator routes and all three
+   `study.v1` operations under the existing dedicated operator policy.
+2. The Tailnet listener is native `tsnet.ListenTLS("tcp", ":443")` and has its
+   own handler. Its service interface and route table contain only
+   create/resume and sync; GET, health/version, operator state, and every
+   vocabulary route are absent.
+3. Every Tailnet request calls LocalAPI `WhoIs` with the exact native
+   connection `RemoteAddr` before route selection or body decoding. Forwarded
+   identity, tag, capability, and proxy headers never establish authority.
+4. Raw TCP, Funnel, Tailscale Serve, cleartext, and reverse-proxy/certificate
+   fallback paths are absent. Failure to obtain native TLS fails closed.
 
-1. Give the appliance a dedicated Tailscale tag such as
-   `tag:embedded-house-panel`.
-2. Restrict that tag to the exact Lexinet host and port with Tailnet grants.
-3. Serve the tsnet listener over certificate-validated HTTPS.
-4. At the tailnet listener boundary, derive a principal with Tailscale `WhoIs`;
-   never trust forwarded identity headers.
-5. Authorize the panel principal only for study read/sync capabilities. Preserve
-   bearer-authenticated loopback/operator access for the existing CLI and
-   mutation routes.
+Authorization has one immutable local operation/profile ceiling and exactly
+one startup mode:
 
-The device principal is additionally limited to configured learner-profile
-references. It is authorization metadata, not the learner identity itself.
-Revoking or re-provisioning a node must remove device access without deleting or
-forking the learner profile.
+- `tailnet_node` requires the peer to have exactly one tag equal to the
+  configured deployment tag and the configured connection-scoped custom app
+  capability under a domain the operator controls. Each closed, bounded
+  capability object is intersected separately with `create_or_resume`, `sync`,
+  and configured profile references, so grant unions cannot create an
+  operation/profile cross-product. A bearer is rejected in this mode.
+- `scoped_token` still requires successful fresh native `WhoIs`, then compares
+  exactly one bearer with the digest loaded once from an absolute regular
+  effective-user-owned mode-`0400` or `0600` file. A separately provisioned
+  nonsecret subject UUID supplies persistent identity; token bytes never do.
+  Node tag/app-capability fields are forbidden in this mode.
 
-The listener must mark the transport source in request context so a loopback
-request cannot masquerade as a tailnet principal. A scoped token file is the
-fallback if node identity cannot meet the deployment constraints; it must grant
-only study capabilities, be provisioned outside the image, and never appear in
-arguments, URLs, logs, or Git.
+Node mode persists only `tailnet-node:<uuid>`, derived from the opaque stable
+node ID by the frozen two-stage domain-separated UUIDv5 mapping. It never
+persists raw stable ID, node name, address, user, tags, or capability documents.
+The appliance principal remains authorization metadata, not learner identity;
+revoking or re-provisioning it must not delete or fork the learner profile.
+
+The embedded Lexinet identity directory is pre-enrolled outside the repository,
+is a real persistent directory owned by the service's effective user with mode
+`0700`, and is never created from ambient auth keys or control-plane variables
+at service startup. Node state, certificates, tokens, and enrollment secrets do
+not enter Git, image overlays, arguments, URLs, logs, or diagnostics.
+
+Node-mode revocation removes the source tag or app grant and verifies denial on
+the next fresh request after policy propagation. Scoped-token revocation stops
+or isolates the service, atomically installs a replacement owner-only file (and
+new subject UUID if a new persistent principal is intended), then restarts;
+deleting the file after startup does not erase the in-memory digest.
 
 Current Tailscale APIs document both tsnet TLS listeners and local caller
 identity:
@@ -859,9 +877,19 @@ identity:
 - [Tailnet grants syntax](https://tailscale.com/docs/reference/syntax/grants)
 - [Tailscale identity concepts](https://tailscale.com/docs/concepts/tailscale-identity)
 
-Both repositories currently pin an old 1.78-era Tailscale integration. The
-implementation must review, update, and pin a supported compatible version
-before relying on current identity or TLS behavior.
+Lexinet pins Go `1.26.5`, Tailscale `v1.102.2`, and its Docker builder together.
+The panel's verified Buildroot input still supplies Go `1.26.3` and Tailscale
+`1.78.1`, so production packaging remains a user decision between a
+SHA-256-pinned official ARM static package and an approved pinned source-build
+toolchain upgrade.
+
+Local unit/race/vet evidence records Verification Item 1. The synthetic
+injected `ListenTLS` failure test proves that the wrapper closes without
+exposing a listener or fallback; it is not real certificate proof. Step 5 stays
+unchecked until real correctly tagged, untagged, wrong/extra-tag, live
+revocation, destructive/cross-profile denial, native certificate issuance,
+MagicDNS hostname validation, TLS handshake, and invalid-certificate behavior
+are captured, and the panel packaging choice is made.
 
 ## Alternatives considered
 
@@ -1117,6 +1145,21 @@ path now have all 22 mapped normal, live-PostgreSQL, aggregate, and race proofs.
 The frozen contract bundle is unchanged. Step 5 final scoped Tailnet identity
 and TLS, Step 6 panel data plane, packaging, and every hardware gate remain
 pending; no `LEXI-*` disposition or accepted product meaning changed.
+
+**Amended 2026-08-17:** recorded clean sibling Lexinet HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff`. Its local native
+`tsnet.ListenTLS` transport, separate create/resume-and-sync router, fresh
+per-request `WhoIs`, stable-node/scoped-token principal boundaries, and local
+operation/profile authorization ceiling are implemented; Verification Item 1
+is recorded. The focused suite also covers bounded capability parsing,
+mode/file/state validation, and fail-closed transport lifecycle, but the
+synthetic `ListenTLS` error proves wrapper cleanup only and is not real Item 4
+certificate evidence. Correctly tagged, untagged, wrong/extra-tag,
+live-revocation, destructive/cross-profile, native certificate issuance,
+MagicDNS/hostname/handshake, and invalid-certificate evidence plus the panel
+Tailscale packaging choice remain pending. The frozen `study.v1` fixture
+provenance is unchanged, no roadmap checkbox changed, and Step 5 stays
+unchecked.
 
 ## Additional primary scheduler references
 

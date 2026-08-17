@@ -11,9 +11,12 @@ Both implemented PIR identities are hard-denied, and the UI is never placed in
 the generic `input` group. A future presence implementation with another input
 identity must extend and test that deny contract before deployment.
 Tailscale supplies private routing and device identity, while Lexinet
-independently authorizes its API. Provisioning credentials enter through an
-operator-controlled action and are never baked into production images or
-logged. Physical theft is treated as device compromise and handled by revoking
+independently authorizes its API. Lexinet implements that local native-TLS,
+fresh-identity, scoped-authorization boundary; real Tailnet policy,
+revocation/certificate evidence and panel packaging are still pending.
+Provisioning credentials enter through an operator-controlled action and are
+never baked into production images or logged. Physical theft is treated as
+device compromise and handled by revoking
 ~~both identities~~ the Tailscale node, Lexinet credential, and companion
 signing-key grant; this
 design does not claim tamper resistance.
@@ -83,10 +86,10 @@ flowchart LR
 
 | Asset | Threat | Control | Accepted limitation |
 |---|---|---|---|
-| Tailscale node state | Image leak or diagnostic collection | Separate writable directory, `0600`, excluded from images/logs | Root or physical storage access can extract it |
-| Lexinet credential | Commit, CLI/process-list, URL, or log exposure | Provisioned file, redaction, HTTPS, narrow service permission | No hardware-backed secret storage assumed |
+| Tailscale node state | Image leak or diagnostic collection | Panel daemon state stays in a root-owned persistent location; Lexinet embedded-node state is pre-enrolled outside Git in a real effective-user-owned mode-`0700` directory; both are excluded from images/logs | Root or physical storage access can extract either identity |
+| Lexinet authorization identity/credential | Tag/app-grant overreach or scoped-token exposure through a commit, CLI/process list, URL, or log | Preferred exact-singleton tagged-node identity plus connection-scoped app capability and Lexinet's local operation/profile ceiling; mutually exclusive scoped token uses an owner-only file and independent nonsecret subject UUID; native HTTPS, redaction, and per-request `WhoIs` | No hardware-backed identity or secret storage is assumed; real policy, revocation, and certificate evidence is pending |
 | ~~Lexinet learning state~~ | ~~Unauthorized mutation/replay~~ | ~~Application auth, idempotency keys, server validation~~ | ~~Exact control waits for real API contract~~ |
-| Lexinet learning state | Unauthorized mutation/replay | Application auth, idempotency keys, server validation; a voice-only first `presented` observation is session-local and provisional until a touch or accepted rating bound to the active session, session item, immutable content revision, and render generation promotes it into the durable outbox | Exact control waits for real API contract; a voice rating accepts bounded false-recognition risk because the rating is visibly acknowledged and append-only correctable |
+| Lexinet learning state | Unauthorized mutation/replay | Implemented server application authorization, idempotency keys, strict validation, and a Tailnet route table limited to create/resume and sync; a voice-only first `presented` observation is session-local and provisional until a touch or accepted rating bound to the active session, session item, immutable content revision, and render generation promotes it into the durable outbox | Real Tailnet deployment evidence and the resilient panel outbox are pending; a voice rating accepts bounded false-recognition risk because the rating is visibly acknowledged and append-only correctable |
 | ~~System power interfaces~~ | ~~UI compromise causing suspend loops~~ | ~~Privileged supervisor is sole writer; rate limits and state guards~~ | ~~Root compromise bypasses this boundary~~ |
 | System power interfaces | UI compromise, PIR chatter, or repeated wake/suspend loops | Privileged supervisor is sole policy writer; it owns evidence-configured monotonic PIR debounce, attributed wake-rate ceilings/backoff, and suspend state guards while the presence provider reports only raw state/events and wake capability | Root compromise bypasses this boundary; the current Black driver calls `pm_wakeup_event` on every edge, and userspace cannot recover energy already spent on the edge that woke Linux; no production debounce/rate value exists before target evidence |
 | Presentation readiness | Stale, replayed, cross-release, or forged page-flip acknowledgement exposes an old/bright frame | Implemented host protocol v2 and ADR 0007 bind appliance release, unpredictable supervisor session and connection challenge, sequence, snapshot digest, mode, render generation, and exact Unix peer UID; the privileged canonical socket adapter freezes one publish-time expectation, consumes one latest acknowledgement, and the final power owner revalidates the immutable tuple and generation continuity | The canonical adapter is inside the power-path TCB. A display-commit backend and target correlation evidence do not yet exist, so services remain disabled; a future compromised authorized `panel_ui` could lie about its own frame, which process isolation can bound but not eliminate |
@@ -199,14 +202,20 @@ evidence and have no default here.
 
 ## Tailnet policy intention
 
-- Give the panel a dedicated tag, not a reusable human identity.
+- Give the panel one deployment-selected dedicated singleton tag, not a reusable
+  human identity or a guessed repository default.
+- For Lexinet, grant that exact source only TCP 443 to the exact Lexinet node and
+  attach the controlled-domain study app capability for only
+  `create_or_resume`/`sync` and configured profile references. Lexinet enforces
+  the same operation/profile ceiling locally and exposes no Tailnet GET,
+  operator, health/version, or vocabulary route.
 - Permit only DNS/time dependencies and the exact Lexinet and approved Mac
   companion hosts/ports needed.
 - Use a short-lived, ephemeral, or one-time provisioning key as supported by the deployment; never commit it.
 - Prefer normal kernel TUN mode. Userspace proxy mode is an experiment only if `/dev/net/tun` cannot be supported.
 - ~~Revoke the Tailscale node and Lexinet credential after loss or re-imaging.~~
-  Revoke the Tailscale node, Lexinet credential, and companion public-key
-  capability mapping after loss or re-imaging.
+  Revoke the Tailscale node, Lexinet tag/app grant or scoped-token authority,
+  and companion public-key capability mapping after loss or re-imaging.
 
 | Principal | Permitted egress | Explicitly absent by default |
 |---|---|---|
@@ -218,6 +227,17 @@ evidence and have no default here.
 | Remote STT (disabled) | None | Raw-audio network access; enabling requires a separate decision, capture indication, allowlist, size bound, and retention contract |
 
 Tailscale supplies private transport, not complete application authorization.
+At Lexinet HEAD `ce42272df315f357e10998dd48e9ffd1a935c2ff`, the server-side
+local boundary uses native `ListenTLS` on fixed port 443, fresh per-request
+`WhoIs`, a separate create/resume-and-sync router, exact node-capability or
+mutually exclusive scoped-token mode, and structured fail-closed errors. The
+passing synthetic `ListenTLS` failure proves wrapper cleanup, not real
+certificate issuance or validation. Real tagged/untagged/wrong-extra-tag,
+live-revocation, destructive/cross-profile, MagicDNS/hostname/handshake and
+invalid-certificate evidence remain pending, along with the panel choice of a
+SHA-256-pinned official ARM Tailscale package or approved pinned source-build
+toolchain.
+
 The companion must reject forged Serve headers and require a provisioned panel
 signature over a single-use server challenge and canonical request. The UI and
 broker use a narrow typed local client rather than a general-purpose companion
@@ -315,3 +335,14 @@ supervisor. No pending product-decision status or roadmap step changed.
 Lexinet, voice, and agenda product/safety semantics. Every listed planned
 control, agenda-feasibility stop, live external-effect approval, and hardware
 evidence gate remains unimplemented or pending as stated.
+
+**Amended 2026-08-17:** recorded clean Lexinet HEAD
+`ce42272df315f357e10998dd48e9ffd1a935c2ff`. Its local native-TLS,
+fresh-`WhoIs`, separate create/resume-and-sync route boundary and scoped
+node-capability/token authorization are implemented, and Verification Item 1 is
+recorded. Synthetic listener-failure cleanup is not real Item 4 certificate
+proof. Tagged, untagged, wrong/extra-tag, live-revocation,
+destructive/cross-profile, certificate issuance, MagicDNS/hostname/handshake,
+invalid-certificate behavior, and panel Tailscale packaging remain pending.
+The `study.v1` contract provenance and roadmap checkboxes are unchanged; Step 5
+stays unchecked.
