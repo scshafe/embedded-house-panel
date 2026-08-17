@@ -1,0 +1,82 @@
+{
+  "export_schema_version": 1,
+  "contract": {
+    "id": "study.v1",
+    "schema_version": 1,
+    "required_semantics": [
+      "active_scope_create_or_resume",
+      "immutable_complete_card_projection",
+      "scheduler_provenance",
+      "singular_presented_revealed",
+      "append_only_rated_rating_voided",
+      "durable_client_stream_terminal_receipts",
+      "server_authoritative_cycle_exhaustion",
+      "atomic_predecessor_successor_linking",
+      "predecessor_flush_receipt_barrier",
+      "waiting_for_corpus_convergence",
+      "normalized_hash_idempotency",
+      "late_completed_predecessor_correction"
+    ]
+  },
+  "source": {
+    "repository": "lexinet",
+    "repository_base_revision": "3a15a087b27a2407d6e765010b9c1f1c0e4968f6",
+    "contract_root": "contracts/study.v1",
+    "manifest_path": "contracts/study.v1/manifest.json",
+    "manifest_sha256": "542901b77b4aea6a0f5c97e8ab8c3c44c1bfd6cbd155eee3409b0c5464f28b33",
+    "openapi_path": "contracts/study.v1/openapi.json",
+    "openapi_sha256": "30385ca5b05eb18954a4c68c0efbc4e3bbc55fec46066f06c2eef2af5464069d",
+    "contract_bundle_sha256": "2b58b02ba543bac297763a3d8a2008645dcf18f18d221ac20c596580cf7be096"
+  },
+  "fixtures": [
+    {
+      "source_path": "examples/session-created.json",
+      "export_path": "examples/session-created.json",
+      "schema": "CreateSessionResource",
+      "expected": "valid",
+      "sha256": "5eaf6a2cfe4e2176abad785e9ef48e23134c7115e50c07491afa6b8b4e88c28f"
+    },
+    {
+      "source_path": "examples/session-active-page-exhausted.json",
+      "export_path": "examples/session-active-page-exhausted.json",
+      "schema": "SessionResource",
+      "expected": "valid",
+      "sha256": "9ca00a872fc70cce98e9d319f2938b9e58ac649a06fc72d2aaef0d4269bebe8e"
+    },
+    {
+      "source_path": "examples/session-waiting-for-corpus.json",
+      "export_path": "examples/session-waiting-for-corpus.json",
+      "schema": "CreateSessionResource",
+      "expected": "valid",
+      "sha256": "09b00fd4bb4d03cd1816a23254ecbaf5be7f6f86bee55d51d9aa1167ae4da8af"
+    },
+    {
+      "source_path": "examples/sync-rated-and-voided.json",
+      "export_path": "examples/sync-rated-and-voided.json",
+      "schema": "SyncResource",
+      "expected": "valid",
+      "sha256": "4b1cdd97a129eb5a8aaebc930d4c932b722133bb5e7aba52082c34c6679e1570"
+    },
+    {
+      "source_path": "examples/error-cycle-not-exhausted.json",
+      "export_path": "examples/error-cycle-not-exhausted.json",
+      "schema": "ErrorEnvelope",
+      "expected": "valid",
+      "sha256": "a0dcb7142a7f6e47dd28686c5bcb6db9afa5b82c24653ac9b6dea781ec468792"
+    },
+    {
+      "source_path": "examples/error-idempotency-conflict.json",
+      "export_path": "examples/error-idempotency-conflict.json",
+      "schema": "ErrorEnvelope",
+      "expected": "valid",
+      "sha256": "7f7f69f225eae0af42981a2d0713b63024e52fbd5bbecf5c8cdaedc459fba832"
+    },
+    {
+      "source_path": "examples/invalid/session-unknown-required-semantic.json",
+      "export_path": "examples/invalid/session-unknown-required-semantic.json",
+      "schema": "SessionResource",
+      "expected": "invalid",
+      "sha256": "d1e4e90c7c9b1a4ea03f45ebd89ec293691b5493643cf0b099a9a2aa96cafc3d"
+    }
+  ]
+}

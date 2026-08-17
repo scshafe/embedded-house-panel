@@ -20,12 +20,14 @@ made that migration.
 The current terminal executable uses `FixtureLexinetClient` so the interaction
 can be exercised without the network. `HttpLexinetClient` is a guarded,
 optional adapter for the historical scaffold contract in
-`docs/interfaces/lexinet-contract.md`. The Lexinet source audit confirmed that
-no study API exists yet; ADR 0006 accepts the `study.v1` product semantics, but
-the server-owned schema and implementation remain pending. The Buildroot
-package compiles the adapter with certificate-verified TLS, but no target
-service may send real requests until that server-owned contract and its
-cross-repository tests replace the scaffold.
+`docs/interfaces/lexinet-contract.md`. ADR 0006 accepts the product semantics;
+Lexinet now owns a frozen machine-readable `study.v1` contract, decision,
+validator, and golden examples. This domain consumes a provenance-stamped
+export and verifies the exact protocol/schema identity and required semantics.
+The study handlers and resilient panel client are still pending. The Buildroot
+package compiles the historical adapter with certificate-verified TLS, but no
+target service may send real study requests until those later runtime and
+packaging steps replace the scaffold.
 
 All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
 
@@ -56,5 +58,6 @@ service, package, permissions, or hardware claims.
 
 **Amended 2026-08-16:** reconciled this domain boundary with ADR 0006 acceptance
 of the Lexinet study semantics and neutral shared-capability ownership. The
-`study.v1` API, resilient adapter, neutral-shell integration, and packaging
-migration remain unimplemented.
+Lexinet-owned `study.v1` wire contract and provenance-stamped panel fixtures are
+now frozen and verified. The server API implementation, resilient adapter,
+neutral-shell integration, and packaging migration remain unimplemented.

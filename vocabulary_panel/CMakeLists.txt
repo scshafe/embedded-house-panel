@@ -54,7 +54,13 @@ endif()
 install(TARGETS vocabulary_panel_terminal RUNTIME DESTINATION bin)
 
 if(BHP_BUILD_TESTS)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_executable(vocabulary_panel_flash_card_session_test tests/flash_card_session_test.cpp)
   target_link_libraries(vocabulary_panel_flash_card_session_test PRIVATE vocabulary_panel_core)
   add_test(NAME vocabulary_panel_flash_card_session_test COMMAND vocabulary_panel_flash_card_session_test)
+  add_test(
+    NAME vocabulary_panel_study_v1_contract_fixture_test
+    COMMAND
+      "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/study_v1_contract_fixture_test.py")
 endif()

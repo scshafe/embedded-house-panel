@@ -1,19 +1,52 @@
 # Lexinet Consumer Contract Boundary
 
-**Status:** transition document. ADR 0006 accepts the `study.v1` product
-semantics; the current panel adapter is a scaffold and the successor API does
-not yet exist in Lexinet.
+**Status:** `study.v1` is frozen by Lexinet and pinned here for panel
+consumption. The Lexinet server handlers and the panel's resilient study client
+remain later implementation steps; the historical next-card adapter is not a
+`study.v1` implementation.
 
-The product semantics, event model, scheduler provenance, and executable work
-are defined in the
-[Lexinet study architecture](../architecture/lexinet-study-integration.md) and
-its linked implementation plan. The canonical machine-readable API contract
-will live in Lexinet. This repository will consume generated or
-provenance-stamped fixtures rather than maintain a second schema.
+The product behavior is defined in the
+[Lexinet study architecture](../architecture/lexinet-study-integration.md).
+The machine-readable wire authority is the Lexinet-owned
+`${BHP_LEXINET_SOURCE_DIR}/contracts/study.v1/openapi.json`, accompanied by its
+`contracts/study.v1/manifest.json` and Lexinet decision
+`docs/decisions/0001-freeze-study-v1-contract.md`. The panel does not maintain a
+second schema.
 
-## Planned `study.v1` boundary
+## Pinned authority and exported evidence
 
-The planned panel integration needs three idempotent capabilities:
+The checked-in fixture provenance pins:
+
+- protocol `study.v1` and schema version `1`;
+- Lexinet repository base revision
+  `3a15a087b27a2407d6e765010b9c1f1c0e4968f6`;
+- OpenAPI SHA-256
+  `30385ca5b05eb18954a4c68c0efbc4e3bbc55fec46066f06c2eef2af5464069d`;
+- manifest SHA-256
+  `542901b77b4aea6a0f5c97e8ab8c3c44c1bfd6cbd155eee3409b0c5464f28b33`;
+- full contract/example bundle SHA-256
+  `2b58b02ba543bac297763a3d8a2008645dcf18f18d221ac20c596580cf7be096`.
+
+The panel's
+[`contract-provenance.json`](../../vocabulary_panel/tests/fixtures/study_v1/contract-provenance.json)
+records those values and a digest for every byte-for-byte exported example.
+Refresh and verify the bounded export from an explicit checkout; never infer a
+sibling path:
+
+```sh
+python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py \
+  --lexinet-source-dir "$BHP_LEXINET_SOURCE_DIR"
+python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py \
+  --lexinet-source-dir "$BHP_LEXINET_SOURCE_DIR" --check
+```
+
+The repository base revision locates the committed audited source tree. The
+contract bundle digest independently identifies the exact contract content and
+is the content-integrity pin.
+
+## Frozen `study.v1` operations
+
+The contract exposes raw success resources at three capabilities:
 
 ```text
 POST /api/v1/study/sessions
@@ -21,111 +54,160 @@ GET  /api/v1/study/sessions/{session_id}
 POST /api/v1/study/sessions/{session_id}/sync
 ```
 
-- Atomically create or resume the one nonterminal immutable finite coverage cycle
-  for an explicitly configured learner/profile, normalized corpus/card kind,
-  regardless of scheduler configuration; distinct concurrent creation UUIDs
-  converge on it and a policy change applies only to its successor unless an
-  audited migration terminates it.
-- Return bounded complete card projections plus scheduler name/version,
-  configuration digest, server-assigned per-profile ingestion high-water ordinal,
-  seed, and per-item selection reason. The panel never reproduces server
-  selection.
-- Accept ordered, client-generated, idempotent `presented`, `revealed`, `rated`,
-  and `rating_voided` events under a durable client-stream UUID and contiguous
-  sequence. A separate terminal receipt ledger consumes accepted,
-  semantic-duplicate, and stable rejected sequences without treating rejection
-  as scheduler evidence. A rating uses exactly one of `again`, `hard`,
-  `good`, or `easy`; a void names the exact rating UUID it corrects. A causal
-  reveal/rating target may already be stored or precede its dependent event in
-  the same ordered atomic batch.
-- Return an authoritative cursor and byte-equivalent pages for an idempotent
-  replay. Reuse of an idempotency key with changed normalized input is an
-  explicit conflict.
-- Before a successor cycle is materialized, require a predecessor sync/flush
-  receipt and record an exact profile ingestion high-water at or after it. In
-  one active-scope transaction, require a canonical `presented` fact for every
-  predecessor item, mark that predecessor completed, and link exactly one
-  successor; local prefetch exhaustion is insufficient, concurrent creation
-  UUIDs converge, and replays return the linked successor. The panel must have
-  no earlier locally pending predecessor event at that barrier.
-- Represent an unchanged empty corpus with one `waiting_for_corpus` sentinel;
-  repeated create calls return it until a changed eligibility snapshot can
-  atomically supersede it with one active cycle.
-- Continue accepting valid retained `rated`/`rating_voided` evidence against a
-  completed predecessor; a correction after successor materialization affects
-  only the next unmaterialized cycle.
-- Distinguish an empty corpus, exhausted prefetch, stale state, invalid schema,
-  authorization denial, and transient service failure with stable typed codes.
+- Create atomically returns the existing active scope or creates one immutable,
+  finite coverage cycle for an authorized profile, normalized topic set, and
+  card kind. Scheduler configuration is provenance, not part of active-scope
+  uniqueness. Distinct creation UUIDs converge on the same nonterminal cycle.
+- Resume returns the exact issued session and bounded page. Every item contains
+  a complete immutable card projection, live source identity and content
+  revision, position, card identity, and selection reason. The session carries
+  scheduler name/version, configuration digest, seed, planning time, and exact
+  per-profile ingestion high-water.
+- Sync accepts at most 64 ordered events under one durable
+  `client_stream_id` and contiguous `client_sequence`. `presented` and
+  `revealed` are singular transitions. `rated` and `rating_voided` are
+  append-only; a rating is exactly one of `again`, `hard`, `good`, or `easy`,
+  and a void targets the exact rating UUID being corrected.
+- Sync returns one terminal receipt for every adjudicated sequence. Only an
+  `accepted` receipt enters scheduler evidence; `semantic_duplicate` and
+  `terminal_rejected` advance the terminal ledger without becoming learning
+  facts. Replays are idempotent and byte-equivalent for the same normalized
+  input hash.
+- Local page exhaustion is never authoritative. Successor creation requires a
+  fresh predecessor flush receipt and no earlier local pending event. In one
+  active-scope transaction Lexinet proves a canonical `presented` fact for
+  every predecessor item, completes the predecessor, and links exactly one
+  successor. Replays and concurrent creation UUIDs return that successor.
+- An unchanged empty eligible corpus converges on one `waiting_for_corpus`
+  session. A changed eligibility snapshot may atomically supersede that
+  sentinel with one active cycle.
+- Valid retained ratings and voids may arrive after predecessor completion. A
+  correction after successor materialization affects only the next
+  unmaterialized cycle.
 
-The accepted product semantics constrain the exact request/response fields,
-bounds, error envelope, and compatibility rules that Lexinet must freeze during
-implementation. Required semantic changes then require a new protocol version
-and a coordinated consumer update.
+Create idempotency is keyed by `creation_request_id`; sync idempotency is keyed
+by `sync_id`. Reuse with a different normalized SHA-256 input returns
+`IDEMPOTENCY_CONFLICT`. All success resources carry `protocol_version`,
+`schema_version`, `required_semantics`, and `generated_at`; every HTTP response
+carries bounded `X-Request-ID` correlation. Errors preserve Lexinet's existing
+raw envelope:
 
-## Panel validation boundary
+```json
+{
+  "error": {
+    "protocol_version": "study.v1",
+    "schema_version": 1,
+    "code": "STUDY_STATE_STALE",
+    "message": "the expected session state version is stale"
+  }
+}
+```
 
-- Require certificate-validated HTTPS even on the Tailnet. Tailnet reachability
-  does not replace narrow Lexinet study authorization.
-- Prefer an authorized tagged node identity; if a scoped token fallback is
-  required, read it from a root-provisioned owner-only file, never an argument,
-  URL, image overlay, log, or checked-in environment value.
-- Validate protocol version, size/count bounds, UTF-8, every required JSON type,
-  identities, positions, event ordering, scheduler provenance, and complete
-  structured errors before producing a domain object.
-- Treat HTTP success with malformed data as
-  `LEXINET.RESPONSE_SCHEMA_INVALID`, never as an empty corpus.
-- Retry only declared transient failures with bounded delay, cancellation, and
-  the original idempotency identity.
+## Compatibility and semantic validation
+
+The panel requires protocol `study.v1`, schema version `1`, and the exact
+ordered required-semantics set exported in the provenance file. It rejects an
+unknown, missing, duplicated, or reordered required semantic as
+`LEXINET.RESPONSE_SCHEMA_INVALID`. It also rejects missing required fields,
+wrong types, invalid UUIDs/digests/timestamps, inconsistent identities or
+positions, out-of-order sequences, invalid transition cardinality, incomplete
+scheduler/source provenance, malformed errors, and bodies outside contract
+bounds before producing a domain object.
+
+Lexinet may add optional response fields within `study.v1`; consumers must
+ignore additions they do not need after validating all known required fields.
+An added required field, added required semantic, cardinality or meaning
+change, or removal requires a new protocol version and coordinated atomic
+consumer cutover. Requests remain closed objects and Lexinet rejects unknown
+request fields.
+
+The contract bounds are:
+
+- request body: 262,144 bytes;
+- response body: 1,048,576 bytes;
+- normalized topic references: 32;
+- events per sync: 64;
+- items per page: 64;
+- profile/topic reference: 128 Unicode code points;
+- card front: 512 Unicode code points;
+- definition and example: 16,384 Unicode code points each.
+
+Check `Content-Length` when present and enforce the response ceiling while
+streaming; an absent or dishonest header never bypasses the limit. HTTP success
+with malformed data is `LEXINET.RESPONSE_SCHEMA_INVALID`, never an empty corpus.
+
+## Transport, deadlines, and cancellation
+
+- Production endpoints require certificate-validated HTTPS, JSON media types,
+  and no redirects. Tailnet reachability does not replace narrow Lexinet study
+  authorization.
+- Prefer an authorized tagged-node identity. If a scoped token fallback is
+  required, read it from a root-provisioned, owner-only file. Credentials never
+  enter arguments, URLs, environment diagnostics, logs, fixtures, or images.
+- Connect and whole-request deadlines are explicit positive finite
+  configuration values. The whole-request deadline must be at least the
+  connect deadline. DNS, connection, TLS, upload, response streaming, and
+  bounded retries all consume the caller's one whole-request budget; no hidden
+  library default may extend it.
+- A shared cancellation signal interrupts connection, transfer, retry delay,
+  and response parsing. Cancellation returns a typed cancelled outcome, is not
+  retried, and cannot publish a partially parsed response.
+- Retry only connection failures, timeouts, `429`, and `5xx`, using bounded
+  delay, the original creation/sync identity, and remaining caller budget.
+  Stable schema, authorization, conflict, and receipt rejections stay visible.
+
+## Freshness validation
+
+Every response's `generated_at` must parse as an RFC 3339 UTC timestamp.
+Deployment must supply a positive finite maximum snapshot age and a finite
+nonnegative allowed clock skew; no production default is inferred from an
+unmeasured board clock or network. When wall time is trusted, reject responses
+older than the maximum age or farther in the future than the permitted skew.
+When wall time is untrusted, mark wall-clock freshness unknown and use the
+monotonic request age plus the server's `state_version` and
+`profile_ingestion_high_water` ordering; never silently label the result fresh.
+
+For one session, a response may repeat the same state version for an idempotent
+replay but must not regress below an already accepted version. The ingestion
+high-water must likewise not regress within the same authorized profile.
+Conflicting content at the same identity/version is
+`LEXINET.RESPONSE_SCHEMA_INVALID`. Cached content older than the configured
+maximum offline interval remains explicitly degraded rather than authoritative.
+
+## Panel delivery boundary
+
+- Network operations run on cancellable workers; render and event threads never
+  perform synchronous HTTP.
 - Make an event durable in the bounded local outbox before displaying it as
-  queued. An acknowledgement, not a successful socket write, removes it.
-  Rating admission reserves capacity for its append-only Undo correction.
-- Do not assign a client-stream sequence or outbox entry to a voice-only first
-  `presented` observation or a dependent first reveal. Keep it bounded and
-  session-local, label it provisional, and discard it at session termination or
-  restart. A study touch or accepted rating matching the active session,
-  session item, immutable content revision, and render generation may atomically
-  promote the prerequisite observations before any dependent canonical event;
-  callers cannot request promotion directly. Restart recovery must enter a
-  non-card resume gate rather than automatically render an issued item lacking
-  canonical `presented` evidence; touch resume creates the fact before display,
-  while voice resume recreates provisional state.
-- Persist the complete constituent set of a grouped rating transition. A local
-  commit failure leaves prior provisional/render state unchanged. A stable
-  terminal batch rejection marks every promotion, rating, and included
-  touch-successor fact rejected together, preserves already-visible navigation
-  state, releases Undo without a void, and forbids those facts from satisfying
-  exhaustion or being reissued under new identities. A voice-successor marker
-  outside the batch remains provisional.
-- ~~Expose queued, syncing, saved, rejected, offline, and tracking-paused states;
-  never imply that an unsynchronized event was saved.~~ Expose queued, syncing,
-  saved, rejected, offline, and tracking-paused states;
-  expose provisional voice evidence separately and never imply that an
-  unsynchronized or provisional event was saved.
+  queued. Only a terminal acknowledgement removes it. Rating admission reserves
+  capacity for its append-only Undo correction.
+- Voice-only first presentation and its dependent reveal remain bounded,
+  session-local provisional evidence. A matching study touch or accepted
+  rating may atomically promote prerequisite observations before any dependent
+  canonical event. Restart enters a non-card resume gate.
+- A stable terminal grouped-batch rejection marks every included promotion,
+  rating, and touch-successor fact rejected together. Rejected facts cannot
+  satisfy exhaustion or be reissued under new identities.
+- Queued, syncing, saved, rejected, offline, tracking-paused, and provisional
+  states remain distinct; the UI never implies that unsynchronized or
+  provisional evidence was saved.
 
-## Current scaffold limitation
+## Current implementation boundary
 
-The implemented `fetch_next_card` / single-review proposal predates the Lexinet
-source audit and is not an implementation contract. It has no session identity,
-immutable issued order, correction event, scheduler provenance, or safe offline
-reconciliation. Keep production services disabled until the approved
-`study.v1` contract, generated fixtures, resilient client, and cross-repository
-tests replace it together.
+The existing `fetch_next_card` / single-review adapter predates the Lexinet
+source audit. It has no issued session identity, correction stream, scheduler
+provenance, or safe reconciliation and remains a test scaffold. Production
+Lexinet study requests stay disabled until the later server, resilient client,
+outbox/cache, cross-repository live tests, authorization, and packaging steps
+are implemented and verified together.
 
-## Deployment inputs still required
+Still-required deployment inputs are the explicit Lexinet endpoint and TLS
+arrangement, learner profile and normalized topic set, deadline/freshness/cache
+bounds, Tailnet authorization mapping, and any fallback credential provisioning
+and revocation procedure.
 
-- Explicit `BHP_LEXINET_SOURCE_DIR` for host contract work; no inferred checkout
-  path.
-- Actual MagicDNS/base endpoint and validated TLS arrangement.
-- Dedicated Tailnet tag/grants and Lexinet study-capability mapping.
-- Explicit learner-profile reference, topic set, and bounded cache/outbox values.
-- Credential provisioning/revocation procedure for any fallback token.
-
-**Amended 2026-08-08:** made voice-only first presentation and dependent reveal
-bounded session-local provisional evidence until a matching study touch or
-accepted rating promotes them, with a non-card restart gate and explicit grouped
-terminal-rejection disposition. No `LEXI-*` status changed.
-
-**Amended 2026-08-16:** reconciled this transition boundary with ADR 0006. The
-`study.v1` product semantics are accepted, while its Lexinet-owned schema,
-server implementation, generated fixtures, panel consumer, and contract tests
-remain pending. `BHP_LEXINET_SOURCE_DIR` remains the sole checkout input.
+**Amended 2026-08-16:** replaced the provisional next-card transition document
+with the Lexinet-owned `study.v1` authority, deterministic provenance export,
+exact compatibility rules, and panel-side contract tests. This freezes the
+cross-repository wire contract without claiming that either runtime data plane
+has been implemented.

@@ -104,7 +104,7 @@ as the production default.
   - Verify: human review confirms every decision has an explicit disposition
     and that no blank or deferred decision was treated as approval.
 
-- [ ] **Step 1b: Author the cross-repository study contract**
+- [x] **Step 1b: Author the cross-repository study contract**
   - Requires Step 1a.
   - In Lexinet, add a decision note and a canonical machine-readable
     `study.v1` contract for session create/resume/sync, complete card
@@ -956,5 +956,13 @@ a native-listener or external-proxy prerequisite in the interim. No checkbox,
 `VOICE-001` without blanks or deferrals. ADR 0006 records the exact
 dispositions and the shared spoken-command-catalog choice. Step 1a was
 completed after its human proof row and repository documentation verification
-were recorded; Step 1b remains the next cross-repository contract-authoring
-boundary.
+were recorded.
+
+**Amended 2026-08-16:** completed Step 1b at sibling Lexinet commit `3a15a08`
+and the matching panel consumer boundary. Lexinet now owns the canonical
+`study.v1` OpenAPI/schema, manifest, decision record, golden resources, and
+negative validator. The panel export is provenance-stamped from that committed
+authority and reproduces contract bundle SHA-256
+`2b58b02ba543bac297763a3d8a2008645dcf18f18d221ac20c596580cf7be096`;
+its test rejects an unknown required semantic. Both automated proof rows are
+recorded without claiming any Step 2 persistence or service implementation.
