@@ -163,6 +163,11 @@ as the production default.
     code, and optional canonical event/ordinal. Accepted events alone enter the
     scheduler ledger; semantic duplicates and stable terminal batch rejections
     consume stream sequences through receipts, while retryable failures do not.
+    Bind each newly adjudicated receipt to the immutable flush receipt that
+    originated its exact closed new-suffix range; later sync replay preserves
+    that origin rather than rebatching old receipts. A terminal batch has one
+    self-causative receipt and one shared failure code even when the first
+    failing input follows earlier collateral inputs in the suffix.
   - Enforce one `presented` and one `revealed` fact per session item. Require the
     transition order `presented -> revealed -> rated -> rating_voided`, allowing
     each prerequisite from storage or earlier in one ordered atomic batch; a
@@ -190,6 +195,14 @@ as the production default.
     the survivor from canonical accepted events through the chosen prefix.
     Storage must never fabricate or generically merge algorithm-owned payload
     bytes.
+  - Store an immutable final per-profile ingestion high-water on every
+    terminal session, distinct from the scheduler input prefix. Complete an
+    active predecessor only through the purpose-specific atomic successor
+    operation after validating its exact flush barrier and canonical
+    `presented` facts. When a previously empty corpus becomes nonempty, the
+    same operation atomically marks the locked `waiting_for_corpus` sentinel
+    `superseded_empty` and links exactly one active replacement without a flush;
+    an unchanged empty corpus continues to return the existing sentinel.
   - Add a disposable-PostgreSQL migration/storage suite; string-only SQL tests
     are insufficient for unique constraints, transaction replay, rollback, and
     merge behavior.
@@ -1072,3 +1085,14 @@ locks. Idea merge invalidates disposable source/survivor scheduler projections
 for namespace-owned canonical replay instead of synthesizing unknown payload
 fields. Step 2 remains unchecked pending the full event-receipt, ordinal,
 successor-barrier, migration, concurrency, and repository evidence.
+
+**Amended 2026-08-17:** Step 2 execution review made receipt-batch provenance
+and terminal lifecycle evidence explicit. Every first-adjudication batch is a
+closed new-suffix range owned by its immutable flush receipt; later replay does
+not rewrite receipt origin, and grouped terminal rejection permits a later
+causative input while preserving one cause and code for the whole suffix. Each
+terminal session records its final accepted-event high-water. The atomic
+successor operation also owns the no-flush transition from a locked empty
+sentinel to one linked active replacement when eligibility becomes nonempty.
+Step 2 remains unchecked until the production event adjudicator, ordinal race,
+successor/waiting replacement, and their exact mapped proofs pass.
