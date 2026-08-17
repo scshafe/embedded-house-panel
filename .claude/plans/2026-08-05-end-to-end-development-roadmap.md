@@ -427,6 +427,11 @@ behavior.
     boot, untrusted clock, sunrise/sunset rollover, absence during work,
     suspend preparation, crash/restart, offline queues, stale data, corrupted
     state, disk full, TLS failure, and credential/capability denial.
+  - Before the supported-host image build, resolve and record the deferred
+    Buildroot stable-versus-LTS choice, the Tailscale external-tree override,
+    and the kernel point-release pin. Record the selected versions, support
+    windows, rollback inputs, and why any newer available version was not
+    selected; version drift is a failed gate, never an implicit upgrade.
   - Build the fresh pinned Buildroot candidate on supported Linux x86_64 and
     record artifact hashes and size/resource budgets. A successful image build
     is build evidence, not boot or hardware evidence.
@@ -463,6 +468,11 @@ behavior.
     wake-source/IRQ attribution, Linux input event, and negative control.
     Aborted, wrong-source, timed-out, and unobserved attempts never count as
     successes.
+  - Before suspend/wake execution, reconcile the previously divergent trial
+    populations into one reviewed matrix and amend the hardware plan to that
+    single count. Confirm the target is running the Step 8 kernel pin; any
+    proposed refresh returns to Step 8 for a reproducible image and then earns
+    new target evidence rather than inheriting results from another kernel.
   - Execute the Debian Tailnet runbook only after the preservation and
     pre-install baseline gates allow package installation.
   - Output: use every artifact in the hardware plan and publish its ADR using
@@ -792,3 +802,11 @@ hash-verified Buildroot 2026.05.1 Kconfig evaluation also passed on this Darwin
 host, while Linux-x86_64 ARM toolchain resolution, a physical display-commit
 backend, raw-touch transport, on-target correlation, and every hardware claim
 remain unperformed; target services stay disabled.
+
+**Amended 2026-08-16:** assigned the review plan's previously ownerless release
+and hardware decisions to existing gates. Roadmap Step 8 now owns the
+Buildroot support-track, Tailscale external-tree override, and kernel
+point-release pin before the supported-host build. Step 10 owns reconciliation
+of the suspend-trial populations and target confirmation of that kernel; kernel
+drift returns to Step 8 instead of inheriting evidence. No version was selected,
+no checkbox changed, and no hardware result is claimed.

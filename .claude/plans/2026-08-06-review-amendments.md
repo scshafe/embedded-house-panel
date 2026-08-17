@@ -173,18 +173,21 @@ evidence; reconciling the four divergent suspend-trial populations (20 /
 50-per-cell / 100-per-cell-plus-1,000-soak / unnumbered) across
 `docs/research/gui-strategies.md`,
 `.claude/plans/2026-08-05-beaglebone-hardware-baseline.md:111`, `:144`,
-`docs/research/compute-platform-assessment.md:323-325`, and roadmap `:488`;
+`docs/research/compute-platform-assessment.md:323-325`, and roadmap `:488`
+(owned by roadmap Step 10 before suspend/wake execution);
 extending the power schema for transition traces and battery boundaries;
 ~~tzdata packaging~~ tzdata packaging only if `AGENDA-011` selects panel-local
 IANA resolution, then owned by roadmap Step 11's reviewed plan and Step 12
 target execution; touch calibration;
 decomposing `FlashCardStage` and retyping the renderer on a neutral frame — do
 this *with* the shell, not after; Buildroot stable-versus-LTS (2026.05.1 reaches
-end of life in September 2026, LTS 2025.02.16 runs to March 2028); the Tailscale
+end of life in September 2026, LTS 2025.02.16 runs to March 2028; owned by
+roadmap Step 8 before the supported-host build); the Tailscale
 external-tree version override, needed before the first Buildroot tailnet test
 and before the agenda design's Serve app-capability dependency on 1.92 can be
-satisfied against the pinned 1.78.1; the kernel point-release refresh policy
-(6.18.21 pinned, 6.18.43 current).
+satisfied against the pinned 1.78.1 (owned by Lexinet Step 9 and roadmap Step
+8); the kernel point-release refresh policy (6.18.21 pinned, 6.18.43 current;
+the release pin is owned by roadmap Step 8 and target confirmation by Step 10).
 
 **Future-product concerns:** always-on MCU registry rows and its ADR; read-only root with a bounded writable partition; an OTA update-and-rollback ADR, which must land before enclosure CAD; encrypted or hardware-bound storage if the companion signing key remains on the panel; display burn-in policy for a near-static surface; daytime ambient brightness; ~~bystander authentication if Step 14 does not accept the limitation~~ stronger person authentication only if the accepted Step 14 room-access model is later reopened.
 
@@ -246,3 +249,9 @@ remain owned by the Lexinet integration plan.
 path with the sole configured source input, `BHP_LEXINET_SOURCE_DIR`, including
 the retained Step 15a verification evidence. The checkout and commit are
 unchanged; this is configuration hygiene, not a new implementation claim.
+
+**Amended 2026-08-16:** attached the deferred suspend-trial reconciliation,
+Buildroot support-track, Tailscale override, and kernel refresh choices to
+roadmap Steps 8 and 10 (with Lexinet Step 9 sharing the Tailscale package
+boundary). This preserves every deferred decision while giving it an executable
+checkbox owner; it selects no version and claims no target evidence.
