@@ -158,7 +158,7 @@ behavior.
   - Verify: both linked completed plans have every checklist item checked and
     `make verify` was recorded as passing at their completion boundary.
 
-- [ ] **Step 1: Freeze product decisions and shared contract ownership**
+- [x] **Step 1: Freeze product decisions and shared contract ownership**
   - ~~Review the five Lexinet semantics in its architecture document.~~
     ~~Review the seven Lexinet semantics, the shared spoken-command-catalog
     decision, and the ten personal-agenda/safety decisions in their architecture
@@ -172,6 +172,10 @@ behavior.
     decision as accepted, changed, or deliberately deferred,
     including the proposed `finish recording` replacement for the confusable
     requested stop phrase.
+    The decision-review portion of personal-agenda feasibility Step 1 joins
+    this gate; roadmap Step 5 still owns that step's experiment README, probe
+    matrix, bounded limits, redaction evidence, and experiment-specific safety
+    review before the feasibility probes begin.
   - Resolve the Lexinet checkout path in configuration; never hard-code an
     incidental sibling layout into cross-repository tests.
   - Record that the Lexinet plan supplies the first neutral shell, shared HTTP
@@ -713,11 +717,13 @@ The software head start is complete when:
 
 ## Immediate next action
 
-Begin Step 1. It is the only join required before the neutral platform,
-Lexinet, and Mac feasibility lanes can proceed independently. If implementation
-starts before the board returns, prefer the platform/Lexinet lane first because
-it removes the current single-client/synchronous/UI-owner limitations and gives
-the agenda feature a stable shell to extend.
+~~Begin Step 1. It is the only join required before the neutral platform,
+Lexinet, and Mac feasibility lanes can proceed independently.~~ Begin the
+board-independent Step 2, Step 3, and Step 5 lanes under the gate table. Prefer
+the platform/Lexinet lane first because it removes the current
+single-client/synchronous/UI-owner limitations and gives the agenda feature a
+stable shell to extend; personal-agenda feasibility Step 1 remains incomplete
+until Step 5 produces and reviews its experiment contract and safety matrix.
 
 **Amended 2026-08-06:** the user expanded the Step 1 Lexinet review to include
 touch and voice ratings, modular rating-aware next-card selection, replayable
@@ -761,3 +767,15 @@ Immediate blanking now precedes bounded supervisor verification before the
 suspend-state write, and `wish_recording` now has an explicit arena-to-draft
 handoff. No roadmap checkbox, pending product-decision status, production
 default, or hardware claim changed.
+
+**Amended 2026-08-16:** the user accepted `LEXI-001`–`LEXI-007`, `VOICE-001`,
+and `AGENDA-001`–`AGENDA-010`, deliberately deferred `AGENDA-011` to roadmap
+Step 6, and selected an atomic protocol-v2 cutover. ADR 0006 records those
+dispositions and the shared capability ownership. The Lexinet checkout is
+selected only through `BHP_LEXINET_SOURCE_DIR`; its workstation value lives in
+ignored `config/device.env`, not tracked documentation or automation. Lexinet
+Step 1a and this roadmap gate were completed after their mapped human proof,
+`make verify-docs`, and `make verify` passed. The personal-agenda feasibility
+Step 1 decision-review subpart is complete, but its experiment README, matrix,
+limits, redaction proof, and safety review remain unchecked work owned by
+roadmap Step 5.

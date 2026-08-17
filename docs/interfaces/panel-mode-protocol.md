@@ -21,8 +21,8 @@ Version 1 has no consumer or reverse message direction to migrate. Version 2 is
 therefore a greenfield replacement of the publisher-only scaffold, not an
 upgrade negotiated with an existing UI client.
 
-The proposed roadmap Step 1 decision is an atomic appliance-release cutover,
-not a runtime compatibility window:
+ADR 0006 accepts an atomic appliance-release cutover, not a runtime
+compatibility window:
 
 - supervisor, `panel_ui`, and their Buildroot service/configuration changes
   deploy and roll back as one content-identified appliance release;
@@ -111,8 +111,8 @@ version 2. Reconsider compatibility only if supervisor and UI acquire genuinely
 independent deployment lifecycles.~~ Version 1 is unconsumed, so there is no
 consumer compatibility window to preserve. Reconsider dual-version support
 only if the replacement supervisor and `panel_ui` later acquire genuinely
-independent deployment lifecycles. This greenfield-replacement choice remains
-proposed until the roadmap Step 1 human-review gate passes.
+independent deployment lifecycles. ADR 0006 accepts this greenfield replacement;
+implementation remains pending.
 
 ## Snapshot/event envelope
 
@@ -204,3 +204,7 @@ one-time handshake, made the reverse direction acknowledgement-only, and
 enumerated the feature-neutral version-2 lifecycle modes. This amendment does
 not approve roadmap Step 1 or any pending `LEXI-*`, `VOICE-*`, or `AGENDA-*`
 decision.
+
+**Amended 2026-08-16:** ADR 0006 accepted the atomic protocol-v2 appliance
+cutover with no version-1 compatibility window. Version 2 remains unimplemented,
+services remain disabled, and no display or brightness behavior is claimed.

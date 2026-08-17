@@ -11,7 +11,7 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
 
 ## Context
 
-- Source of these amendments: the 2026-08-06 adversarial review of `3aa12b0`. Every item below traces to a finding whose evidence was read directly in this repository, in `/Users/coleshaffer/lexinet`, or in a current primary source.
+- Source of these amendments: the 2026-08-06 adversarial review of `3aa12b0`. Every item below traces to a finding whose evidence was read directly in this repository, in the configured Lexinet checkout selected by `BHP_LEXINET_SOURCE_DIR`, or in a current primary source.
 - The review changed nothing. This repository is unmodified at the time of writing.
 - **This plan is written to be reviewed before it is executed.** Roadmap Steps 6 and 11 already establish that convention (`.claude/plans/2026-08-05-end-to-end-development-roadmap.md:293`, `:387`); it applies here too.
 - Step 1 is a human decision gate. Steps 5, 7, and 8 cannot be executed correctly until it is answered, because each encodes a choice that is the user's to make, not the executor's.
@@ -127,9 +127,9 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
 
 - [x] **Step 15a: Close the empty-token Tailnet authentication bypass in Lexinet**
   - The user explicitly authorized changes in the sibling checkout at
-    `/Users/coleshaffer/lexinet` on 2026-08-16. Preserve loopback-only operation
-    without a bearer when Tailnet is disabled, but reject any effective startup
-    configuration that enables the Tailnet listener with an empty or
+    `$BHP_LEXINET_SOURCE_DIR` on 2026-08-16. Preserve loopback-only operation
+    without a bearer when Tailnet is disabled, but reject any effective
+    startup configuration that enables the Tailnet listener with an empty or
     whitespace-only service bearer.
   - Put one canonical validation function at the server boundary, call it before
     migrations or listener/database startup from the CLI, and retain defensive
@@ -143,10 +143,10 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
     covers Lexinet's native Tailnet listener; a host-side TCP proxy remains a
     separately documented bearer-provisioning boundary that the process cannot
     observe.
-  - Verify: in `/Users/coleshaffer/lexinet`, `go test ./internal/config/... ./internal/server/... ./internal/cli/...`; `go build ./... && go vet ./...`.
+  - Verify: in the checkout selected by `$BHP_LEXINET_SOURCE_DIR`, `go test ./internal/config/... ./internal/server/... ./internal/cli/...`; `go build ./... && go vet ./...`.
 
 - [x] **Step 15b: Reframe Lexinet Step 5 as remediation of a live exposure**
-  - `requireBearer` returns the handler unchanged when the token is empty (`/Users/coleshaffer/lexinet/internal/server/server.go:155-158`), every mutation route sits inside that group (`:53-58`, `internal/server/api.go:89-98`), the shipped deploy config sets `auth_token = ""` (`deploy/docker/config.toml:18`), and `docker-compose.yml` documents that tailnet exposure is bridged by a TCP-mode `tailscale serve`, which carries no identity and applies no authentication.
+  - `requireBearer` returns the handler unchanged when the token is empty (`$BHP_LEXINET_SOURCE_DIR/internal/server/server.go:155-158`), every mutation route sits inside that group (`:53-58`, `internal/server/api.go:89-98`), the shipped deploy config sets `auth_token = ""` (`deploy/docker/config.toml:18`), and `docker-compose.yml` documents that tailnet exposure is bridged by a TCP-mode `tailscale serve`, which carries no identity and applies no authentication.
   - Amend `docs/architecture/lexinet-study-integration.md:665` and Lexinet plan Step 5 to state that the study work must *close* an existing unauthenticated path, not merely add a scoped one, and that the Step 5 negative test ("a nontagged node cannot reach or authorize to the study service") does not currently hold.
   - Notes: ~~the Lexinet repository is a separate checkout and this plan does not change it. The interim mitigations — setting a token, and making an empty token with the tailnet listener enabled a startup error rather than an auth bypass — belong to that repository and to the user. Record them here as prerequisites, not as executed work.~~ The sibling Lexinet repository remains a separate authority, but the user explicitly authorized Step 15a to implement the startup guard there. Record the completed guard and the still-required provisioned token as prerequisites; do not imply that this narrow mitigation delivers the later scoped Tailnet identity design.
   - Verify: human review confirms the panel-side documents no longer assume a configured bearer, and that the interim mitigation is either done or explicitly accepted as an open risk with a date.
@@ -155,7 +155,9 @@ Two amendment buckets from the review are deliberately **not** steps here, becau
 
 - Steps 1–15b are checked, or an unchecked step carries a written reason and an owner.
 - `make verify` passes on the development host and on the Linux runner introduced in Step 12.
-- No pending product decision has changed status, and roadmap Step 1 remains unapproved.
+- At this plan's completion boundary, no pending product decision had changed
+  status and roadmap Step 1 remained unapproved. Later, separately recorded
+  roadmap decisions do not retroactively change this plan's completion claim.
 - Each amended plan or document carries its ~~`**Amended 2026-08-06:**`~~ `**Amended <actual YYYY-MM-DD>:**` footer, and the amendments are visible in `git diff`.
 - The deferred register below is intact, with nothing quietly dropped.
 - The work is committed on a branch and left for review; this plan does not authorize a merge.
@@ -239,3 +241,8 @@ the panel documents recorded the live exposure, the completed native-listener
 guard, the failing current nontagged-node claim, and the residual external-proxy
 bearer prerequisite. Step 15b is now complete; scoped Tailnet identity and TLS
 remain owned by the Lexinet integration plan.
+
+**Amended 2026-08-16:** replaced the review-time workstation-specific Lexinet
+path with the sole configured source input, `BHP_LEXINET_SOURCE_DIR`, including
+the retained Step 15a verification evidence. The checkout and commit are
+unchanged; this is configuration hygiene, not a new implementation claim.

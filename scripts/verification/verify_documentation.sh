@@ -32,6 +32,7 @@ docs/interfaces/panel-mode-protocol.md
 docs/legacy/recovery-summary.md
 docs/decisions/README.md
 docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md
+docs/decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
@@ -72,12 +73,29 @@ require_fixed_count() {
   fi
 }
 
+require_exact_line_count() {
+  relative_path=$1
+  required_line=$2
+  expected_count=$3
+  error_code=$4
+  actual_count=$(awk -v required_line="$required_line" '
+    $0 == required_line { count += 1 }
+    END { print count + 0 }
+  ' "$PROJECT_ROOT/$relative_path")
+  if [ "$actual_count" -ne "$expected_count" ]; then
+    bhp_fail "$error_code" \
+      "$relative_path expected $expected_count exact line(s) of $required_line; found $actual_count" \
+      "$TRACE_ID"
+    exit 1
+  fi
+}
+
 require_decision_status() {
   relative_path=$1
   decision_id=$2
-  required_status_prefix=$3
+  required_status=$3
   awk -F '|' -v decision_id="$decision_id" \
-    -v required_status_prefix="$required_status_prefix" '
+    -v required_status="$required_status" '
     function trim(value) {
       sub(/^[[:space:]]+/, "", value)
       sub(/[[:space:]]+$/, "", value)
@@ -85,22 +103,21 @@ require_decision_status() {
     }
     trim($2) == "`" decision_id "`" {
       decision_rows += 1
-      if (index(trim($4), required_status_prefix) == 1) {
+      if (trim($4) == required_status) {
         matching_rows += 1
       }
     }
     END { exit(decision_rows == 1 && matching_rows == 1 ? 0 : 1) }
   ' "$PROJECT_ROOT/$relative_path" || {
     bhp_fail VERIFY_DOCS.DECISION_STATUS_INVALID \
-      "$decision_id must occur once as a $required_status_prefix table row in $relative_path" \
+      "$decision_id must occur once with exact status $required_status in $relative_path" \
       "$TRACE_ID"
     exit 1
   }
 }
 
-require_proposed_decision() {
-  require_fixed_count "$1" "$2" 1 VERIFY_DOCS.DECISION_ID_COUNT_INVALID
-  require_decision_status "$1" "$2" Proposed
+require_accepted_decision() {
+  require_decision_status "$1" "$2" 'Accepted — ADR 0006'
 }
 
 lexinet_control_pattern() {
@@ -206,11 +223,22 @@ require_single_tracked_lexinet_control "$lexinet_source_variable" \
 require_single_tracked_lexinet_control "$lexinet_revision_variable" \
   "$lexinet_revision_assignment" VERIFY_DOCS.LEXINET_REVISION_CONTROL_INVALID
 
-require_fixed_count docs/architecture/application-capability-ownership.md \
+product_semantics_adr=docs/decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md
+require_exact_line_count "$product_semantics_adr" \
+  '<!-- @canonical product-semantics-and-protocol-v2-cutover -->' 1 \
+  VERIFY_DOCS.PRODUCT_SEMANTICS_ADR_CANONICAL_MARKER_INVALID
+require_exact_line_count "$product_semantics_adr" \
+  '# ADR 0006: Accept Product Semantics and Atomic Protocol v2 Cutover' 1 \
+  VERIFY_DOCS.PRODUCT_SEMANTICS_ADR_TITLE_INVALID
+require_fixed_count docs/decisions/README.md \
+  '[0006](0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md)' 1 \
+  VERIFY_DOCS.PRODUCT_SEMANTICS_ADR_REGISTRY_ENTRY_INVALID
+
+require_exact_line_count docs/architecture/application-capability-ownership.md \
   '<!-- @canonical application-capability-ownership -->' 1 \
   VERIFY_DOCS.OWNERSHIP_CANONICAL_MARKER_INVALID
-require_fixed_count docs/architecture/application-capability-ownership.md \
-  '**Status:** proposed for roadmap Step 1 human review' 1 \
+require_exact_line_count docs/architecture/application-capability-ownership.md \
+  '**Status:** accepted by ADR 0006; implementation status remains per capability' 1 \
   VERIFY_DOCS.OWNERSHIP_REVIEW_STATUS_INVALID
 require_fixed_count docs/architecture/application-capability-ownership.md \
   '## Registry' 1 VERIFY_DOCS.OWNERSHIP_REGISTRY_MISSING
@@ -348,20 +376,20 @@ done
 
 for decision_id in \
   LEXI-001 LEXI-002 LEXI-003 LEXI-004 LEXI-005 LEXI-006 LEXI-007; do
-  require_proposed_decision docs/architecture/lexinet-study-integration.md \
+  require_accepted_decision docs/architecture/lexinet-study-integration.md \
     "$decision_id"
 done
-require_fixed_count docs/architecture/lexinet-study-integration.md \
-  '## Version 1 product decisions pending human review' 1 \
+require_exact_line_count docs/architecture/lexinet-study-integration.md \
+  '## Version 1 product decisions' 1 \
   VERIFY_DOCS.LEXINET_DECISION_REVIEW_MISSING
 
-require_fixed_count docs/architecture/spoken-command-distinctiveness.md \
+require_exact_line_count docs/architecture/spoken-command-distinctiveness.md \
   '<!-- @canonical spoken-command-distinctiveness -->' 1 \
   VERIFY_DOCS.SPOKEN_COMMAND_CANONICAL_MARKER_INVALID
-require_fixed_count docs/architecture/spoken-command-distinctiveness.md \
-  '## Shared decision pending human review' 1 \
+require_exact_line_count docs/architecture/spoken-command-distinctiveness.md \
+  '## Shared decision' 1 \
   VERIFY_DOCS.SPOKEN_COMMAND_DECISION_REVIEW_MISSING
-require_proposed_decision docs/architecture/spoken-command-distinctiveness.md \
+require_accepted_decision docs/architecture/spoken-command-distinctiveness.md \
   VOICE-001
 for command_design_phrase in \
   'phonetic distinctiveness' \
@@ -526,13 +554,14 @@ rg --fixed-strings -- 'subordinate render' \
 for decision_id in \
   AGENDA-001 AGENDA-002 AGENDA-003 AGENDA-004 AGENDA-005 \
   AGENDA-006 AGENDA-007 AGENDA-008 AGENDA-009 AGENDA-010; do
-  require_proposed_decision \
+  require_accepted_decision \
     docs/architecture/personal-agenda-and-birthday-wishes.md "$decision_id"
 done
 require_decision_status \
-  docs/architecture/personal-agenda-and-birthday-wishes.md AGENDA-011 Pending
-require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
-  '## Version 1 product decisions pending human review' 1 \
+  docs/architecture/personal-agenda-and-birthday-wishes.md AGENDA-011 \
+  'Pending — deliberately deferred to roadmap Step 6 after feasibility evidence and its ADR'
+require_exact_line_count docs/architecture/personal-agenda-and-birthday-wishes.md \
+  '## Version 1 product decisions' 1 \
   VERIFY_DOCS.AGENDA_DECISION_REVIEW_MISSING
 require_fixed_count docs/architecture/personal-agenda-and-birthday-wishes.md \
   '### Safety stop points included in this review' 1 \

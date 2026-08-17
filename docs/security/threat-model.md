@@ -23,19 +23,22 @@ default is physically unpowered, with controls that do not depend solely on a
 compromiseable UI process.
 
 The current Buildroot scaffold still grants the vocabulary service raw access
-to the exactly classified `bhp-touch` device. Proposed
+to the exactly classified `bhp-touch` device. Accepted
 [ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md)
 requires a future atomic cutover: the supervisor becomes the sole direct touch
 reader and provenance issuer, forwards normalized input to `panel_ui`, and the
 UI's raw node/group access is revoked. Until that packaging change and
-on-target evidence exist, capability-holder touch validation is a proposed
-contract, not an implemented control.
+on-target evidence exist, capability-holder touch validation is an accepted
+target contract, not an implemented control.
 
-Personal agenda and birthday-wish support is also proposed, not implemented.
+ADR 0006 accepts the personal-agenda, spoken-command, and Lexinet product/safety
+semantics described below, but those capabilities remain unimplemented.
 Its additional trust boundary is a signed, logged-in-user Mac companion that
 owns Apple/Google authorization, full recipient routes, local transcription,
 and Messages automation. See the
 [personal-agenda architecture](../architecture/personal-agenda-and-birthday-wishes.md).
+The agenda feasibility plan's experiment-contract review and every live
+Messages approval remain separate pending gates.
 
 ## Assets and boundaries
 
@@ -107,7 +110,7 @@ flowchart LR
 - The unprivileged UI never owns raw ALSA/V4L2 nodes, microphone/camera rail
   GPIOs, or a general media group. A narrow broker grants a purpose, duration,
   and bounded semantic result under supervisor authorization.
-- Under proposed ADR 0005, the UI also loses raw touch-evdev access at cutover.
+- Under accepted ADR 0005, the UI also loses raw touch-evdev access at cutover.
   The supervisor forwards normalized events and observer-measured contact
   duration, while the broker and personal-context client claim one observation
   under two distinct exact service UIDs checked with `SO_PEERCRED`. Each holder
@@ -307,3 +310,8 @@ presentation provisional; included the companion signing key in physical-loss
 scope; tightened the `wish_recording` arena-to-draft handoff and quiescence
 requirements; and assigned unmeasured PIR debounce and wake-rate policy to the
 supervisor. No pending product-decision status or roadmap step changed.
+
+**Amended 2026-08-16:** reconciled the trust map with ADR 0006 acceptance of the
+Lexinet, voice, and agenda product/safety semantics. Every listed planned
+control, agenda-feasibility stop, live external-effect approval, and hardware
+evidence gate remains unimplemented or pending as stated.

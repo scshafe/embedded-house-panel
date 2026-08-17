@@ -2,8 +2,9 @@
 
 <!-- @canonical lexinet-study-integration -->
 
-**Status:** proposed; roadmap Step 1 decision bundle prepared 2026-08-06 and
-pending human confirmation
+**Status:** all seven version 1 Lexinet decisions accepted by
+[ADR 0006](../decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md);
+implementation and evidence gates remain pending
 **Scope:** Lexinet-backed concept cards, varied selection, offline behavior,
 touch navigation, and local constrained-catalog voice commands
 **Not selected here:** a final microphone, speech engine, battery-powered board,
@@ -34,10 +35,11 @@ The initial semantic command inventory is:
   event is durably queued.
 
 Touch controls emit the same semantic intents and remain available when the
-microphone or recognizer is unavailable. These exact spoken forms are
-candidates until the panel-wide
-[spoken-command distinctiveness](spoken-command-distinctiveness.md) report is
-reviewed; semantic intent IDs do not change when a spoken alias changes. The
+microphone or recognizer is unavailable. These spoken forms are accepted
+semantic candidates, while production activation remains gated by the
+panel-wide [spoken-command distinctiveness](spoken-command-distinctiveness.md)
+catalog report and measured evidence; semantic intent IDs do not change when a
+spoken alias changes. The
 touch-only `study.rating.undo` intent has no spoken alias and targets the exact
 rating event exposed by the current Undo lease.
 
@@ -974,23 +976,24 @@ hardware comparison must retain raw, redacted evidence and amend them if the
 physical environment shows that another threshold better represents a usable,
 safe product.
 
-## Version 1 product decisions pending human review
+## Version 1 product decisions
 
-These stable IDs are the review bundle for roadmap Step 1. `Proposed` means the
-recommendation is implementation-ready but is not an accepted product decision
-until the user confirms it.
+These stable IDs were accepted for version 1 by
+[ADR 0006](../decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md).
+Acceptance freezes their product meaning; it does not claim implementation,
+service availability, recognizer qualification, or hardware evidence.
 
-| ID | Proposed version 1 decision | Status | Consequence |
+| ID | Version 1 decision | Status | Consequence |
 |---|---|---|---|
-| `LEXI-001` | `flip` is a true two-sided front/back toggle | Proposed | Supersedes the scaffold's word/definition/example/rating progression after approval |
-| `LEXI-002` | `next` advances without a rating and records exposure only | Proposed | Navigation never implies mastery |
-| `LEXI-003` | `back` restores the previous card's last visible face | Proposed | Bounded history is presentation history, not an undo of synchronized events |
-| `LEXI-004` | Configured existing topics define the corpus; selecting multiple topics forms their union | Proposed | Lexinet gains no competing deck taxonomy |
-| `LEXI-005` | Version 1 uses one explicitly configured learner profile; after the back is revealed, `again`, `hard`, `good`, and `easy` are available through equivalent touch and voice intents, durably record then advance, and expose touch Undo as an append-only correction | Proposed in response to user review | Re-provisioning does not fork history; voice accepts bounded false-rating risk but remains correctable and hardware-gated |
-| `LEXI-006` | Canonical append-only learning events retain rating, timing/clock quality, item/content identity, idempotency, and corrections; every scheduler state is a named/versioned rebuildable projection | Proposed | Algorithms can be replayed, compared, and replaced without rewriting history or coupling input modality to learning data |
-| `LEXI-007` | Select deterministic `variety_first_v1` for the first active policy: ratings reprioritize the next unmaterialized coverage cycle but do not change frequency or claim optimized retention; deliver an authority-isolated shadow runner in version 1 and evaluate a separately pinned FSRS adapter there before any later cutover | Proposed | Small-corpus variety remains predictable while the project gathers the time-separated data needed for a stronger scheduler |
+| `LEXI-001` | `flip` is a true two-sided front/back toggle | Accepted — ADR 0006 | Supersedes the scaffold's word/definition/example/rating progression for production work |
+| `LEXI-002` | `next` advances without a rating and records exposure only | Accepted — ADR 0006 | Navigation never implies mastery |
+| `LEXI-003` | `back` restores the previous card's last visible face | Accepted — ADR 0006 | Bounded history is presentation history, not an undo of synchronized events |
+| `LEXI-004` | Configured existing topics define the corpus; selecting multiple topics forms their union | Accepted — ADR 0006 | Lexinet gains no competing deck taxonomy |
+| `LEXI-005` | Version 1 uses one explicitly configured learner profile; after the back is revealed, `again`, `hard`, `good`, and `easy` are available through equivalent touch and voice intents, durably record then advance, and expose touch Undo as an append-only correction | Accepted — ADR 0006 | Re-provisioning does not fork history; voice accepts bounded false-rating risk but remains correctable and hardware-gated |
+| `LEXI-006` | Canonical append-only learning events retain rating, timing/clock quality, item/content identity, idempotency, and corrections; every scheduler state is a named/versioned rebuildable projection | Accepted — ADR 0006 | Algorithms can be replayed, compared, and replaced without rewriting history or coupling input modality to learning data |
+| `LEXI-007` | Select deterministic `variety_first_v1` for the first active policy: ratings reprioritize the next unmaterialized coverage cycle but do not change frequency or claim optimized retention; deliver an authority-isolated shadow runner in version 1 and evaluate a separately pinned FSRS adapter there before any later cutover | Accepted — ADR 0006 | Small-corpus variety remains predictable while the project gathers the time-separated data needed for a stronger scheduler |
 
-After approval, semantic changes to these decisions require an explicit
+After acceptance, semantic changes to these decisions require an explicit
 product-contract amendment. A change that alters required `study.v1` fields or
 meaning requires a new protocol version and coordinated consumer update.
 
@@ -1025,6 +1028,11 @@ implementation and tests completed in sibling Lexinet commit `178d9ea`; a
 separately provisioned nonempty service bearer remains a native-listener or
 external-proxy prerequisite until scoped identity and TLS land. No `LEXI-*`
 status or roadmap checkbox changed.
+
+**Amended 2026-08-16:** recorded ADR 0006 acceptance of all seven version 1
+Lexinet decisions. The accepted semantics supersede the scaffold for future
+production work without claiming that `study.v1`, the resilient client, voice
+activation, or any hardware-dependent path is implemented.
 
 ## Additional primary scheduler references
 

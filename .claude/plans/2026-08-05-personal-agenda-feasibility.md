@@ -84,6 +84,12 @@ conditional roadmap in the architecture document.
     recording`; the requested `Lexi, end birthday wish` remains pending a
     reviewed context-separated acoustic exception because it is a near neighbor
     of `send birthday wish`.
+  - Decision-review subpart status (2026-08-16): complete. The user accepted
+    `AGENDA-001`–`AGENDA-010` and deliberately deferred `AGENDA-011` to roadmap
+    Step 6 after feasibility evidence and its ADR. This does not complete this
+    step or authorize a probe: the experiment README, outcome model, matrix,
+    limits, redaction evidence, test-recipient class, maximum side effects, and
+    manual stop-point review below remain roadmap Step 5 work.
   - Define stable experiment outcomes for every probe:
     `available`, `permission_denied`, `unsupported`,
     `failed_before_submission`, `submitted`, and `delivery_unknown`. Do not use
@@ -365,3 +371,9 @@ not run the general command projection over exportable recording audio.
 including the deliberately pending timezone-data and ownership choice. It does
 not select an alternative or complete the still-unchecked review step; roadmap
 Step 6 owns the post-evidence decision.
+
+**Amended 2026-08-16:** recorded the completed decision-review subpart without
+checking Step 1. The user accepted `AGENDA-001`–`AGENDA-010` and kept
+`AGENDA-011` deferred; roadmap Step 5 still must author and review the bounded
+experiment contract, matrix, redaction evidence, limits, recipient class,
+maximum side effects, and manual stop points before any feasibility probe.

@@ -2,9 +2,9 @@
 
 **Status:** the first three diagrams document the implemented but disabled
 scaffold, including the version 1 publisher ending at an unconsumed socket.
-They do not describe the proposed production owner or claim that a Lexinet
-study API exists. The planned on-panel and Lexinet successor slice is shown
-separately; agenda-to-Mac provider and message flows remain in the
+They do not describe the accepted planned production owner or claim that a
+Lexinet study API exists. The planned on-panel and Lexinet successor slice is
+shown separately; agenda-to-Mac provider and message flows remain in the
 personal-agenda architecture.
 
 ## Current scaffold runtime topology
@@ -114,15 +114,15 @@ flowchart LR
     TAIL --> LEX["Lexinet study service"]
 ```
 
-This local-runtime and Lexinet slice is proposed and remains disabled pending
-the Step 1 decisions, protocol-v2 work, server-owned `study.v1` contract, shared
-shell, catalog pipeline, and cross-repository tests. It intentionally stops at
-the agenda reducer; the signed personal-context client, recording-artifact
-transfer, Tailnet route, and Mac companion are documented in
+ADR 0006 accepts this local-runtime ownership and product-semantics slice, which
+remains disabled pending protocol-v2 work, the server-owned `study.v1` contract,
+shared shell, catalog pipeline, and cross-repository tests. It intentionally
+stops at the agenda reducer; the signed personal-context client,
+recording-artifact transfer, Tailnet route, and Mac companion are documented in
 [Personal Agenda and Birthday Wishes](personal-agenda-and-birthday-wishes.md).
 
 ~~The diagram's former `panel_ui`-owned touch edge left the UI able to author
-the same touch claim consumed by a capability holder.~~ Under proposed
+the same touch claim consumed by a capability holder.~~ Under accepted
 [ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md),
 the supervisor observes the exact configured touch device and forwards
 normalized events on a separate one-way stream. The UI maps those events to
@@ -159,3 +159,8 @@ unconsumed; the future neutral `panel_ui` remains the first planned consumer.
 direct UI-to-broker lease request, supervisor lifecycle publication, and
 capability-holder claim boundary. These are future contracts, not implemented
 code, hardware evidence, roadmap approval, or product-decision approval.
+
+**Amended 2026-08-16:** reconciled the planned convergence slice with ADR 0006
+acceptance of its product semantics, shared ownership, and atomic protocol-v2
+cutover. Every depicted successor component remains disabled or absent pending
+its implementation and evidence gate.

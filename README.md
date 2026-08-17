@@ -24,7 +24,7 @@ This is an executable scaffold, not a hardware-complete product.
 | Presence/wake | Custom input-driver experiment plus stock `gpio-keys` comparison | PIR electrical behavior, cape pin conflicts, DeepSleep0 wake proof |
 | Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, clock-readiness, and local IPC adapters | Actual nodes, brightness, clock recovery, and suspend behavior on the target |
 | Vocabulary panel | Host-tested flash-card flow; Linux x86_64 verification reaches the provisional HTTPS Lexinet client and strict-compiled LVGL DRM/fbdev renderer | Integrated graphical controller executable, actual Lexinet contract, cape nodes, and calibrated touch |
-| Personal agenda | Proposed provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan | Neutral shared UI shell; EventKit/Contacts, Google, Tailnet, local STT, and Messages measurements; all implementation |
+| Personal agenda | `AGENDA-001` through `AGENDA-010` accepted; provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan documented; `AGENDA-011` deferred | Agenda feasibility Step 1 review; neutral shared UI shell; EventKit/Contacts, Google, Tailnet, local STT, and Messages measurements; all implementation |
 | System image | Pinned Buildroot external tree, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | Full release image build, cape driver/device tree, and measured package/resource budget |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
 | Enclosure | Requirements and measurement checklist | Physical dimensions, thermals, connectors, and CAD |
@@ -42,12 +42,12 @@ and
 [BeagleBone hardware baseline](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md)
 plans remain authoritative inside their work streams.
 
-The immediate sequence is to review the shared product contracts, build the
-neutral host UI/protocol spine, implement Lexinet study and offline behavior,
-run Mac feasibility in parallel, and produce a disabled-by-default Buildroot
-release candidate. GPIO, display, suspend/wake, microphone, battery, and final
-platform claims remain measured hardware gates rather than blockers to that
-software head start.
+With the shared product contracts accepted by ADR 0006, the immediate sequence
+is to build the neutral host UI/protocol spine, implement Lexinet study and
+offline behavior, run Mac feasibility in parallel, and produce a
+disabled-by-default Buildroot release candidate. GPIO, display, suspend/wake,
+microphone, battery, and final platform claims remain measured hardware gates
+rather than blockers to that software head start.
 
 No document or test result in this repository claims the saved legacy pin map is electrically safe or that suspend wake works on the actual assembly.
 
@@ -94,8 +94,9 @@ flowchart LR
     TAILSCALE --> LEXINET
 ```
 
-The proposed application convergence replaces that future UI owner with one
-neutral shell; it does not add agenda or vocabulary decisions to the supervisor:
+The accepted planned application convergence replaces that future UI owner with
+one neutral shell; it does not add agenda or vocabulary decisions to the
+supervisor:
 
 ```mermaid
 flowchart LR
@@ -118,20 +119,20 @@ flowchart LR
 
 ~~The earlier convergence sketch assigned the raw touch device to `panel_ui`
 and left touch provenance inside the process asking capability holders to
-act.~~ Proposed [ADR 0005](docs/decisions/0005-validate-touch-provenance-at-capability-holders.md)
+act.~~ Accepted [ADR 0005](docs/decisions/0005-validate-touch-provenance-at-capability-holders.md)
 makes the supervisor the future raw-touch observer while leaving application
 hit testing in the UI. The packaging cutover must revoke the current UI service's
 raw `bhp-touch` access and use distinct exact service principals for broker and
-personal-context provenance claims. This is a proposed contract, not current
-code or hardware evidence.
+personal-context provenance claims. This is an accepted target contract, not
+current code or hardware evidence.
 
 See [system architecture](docs/architecture/system-architecture.md),
 [application capability ownership](docs/architecture/application-capability-ownership.md),
 [proposed power-domain architecture](docs/architecture/power-domain-architecture.md),
 [process interconnectivity](docs/architecture/process-interconnectivity.md),
-[proposed Lexinet study integration](docs/architecture/lexinet-study-integration.md),
-[proposed spoken-command distinctiveness](docs/architecture/spoken-command-distinctiveness.md),
-[proposed personal agenda and birthday wishes](docs/architecture/personal-agenda-and-birthday-wishes.md),
+[Lexinet study integration](docs/architecture/lexinet-study-integration.md),
+[spoken-command distinctiveness](docs/architecture/spoken-command-distinctiveness.md),
+[personal agenda and birthday wishes](docs/architecture/personal-agenda-and-birthday-wishes.md),
 [panel policy](docs/behavior/panel-policy.md), and
 [flash-card UX](docs/behavior/flash-card-ux.md).
 
@@ -199,18 +200,26 @@ The current scaffold and every hardware-evidence gate remain unchanged.
 - LVGL direct DRM versus its fbdev fallback; Qt 6 Widgets remains the measured fallback if LVGL fails a target gate.
 - DeepSleep0 versus a shallower always-networked mode on Black; a future product
   may add an always-on MCU and full application-domain power-off.
-- Approval and implementation of the proposed Lexinet study/API/authentication
-  contract and its [cross-repository plan](.claude/plans/2026-08-05-lexinet-study-integration.md).
-- Approval and measurement of the proposed personal-agenda/Mac-companion
-  boundary and its
+- Implementation and verification of the accepted Lexinet study semantics and
+  planned API/authentication contract in its
+  [cross-repository plan](.claude/plans/2026-08-05-lexinet-study-integration.md).
+- Personal-agenda feasibility Step 1 review, feasibility measurement, and
+  implementation of the accepted personal-agenda/Mac-companion boundary under
+  its
   [feasibility plan](.claude/plans/2026-08-05-personal-agenda-feasibility.md);
-  especially Messages automation, local transcription, recipient confirmation,
-  and the neutral shared UI shell.
+  especially `AGENDA-011`, Messages automation, local transcription, recipient
+  confirmation, and the neutral shared UI shell.
 - Local STT/gesture scope, microphone/camera hardware privacy controls,
   production update/rollback, and enclosure geometry.
 
-The current preferred directions are recorded as experiments, not irreversible architecture.
+Remaining unaccepted directions are recorded as experiments, not irreversible
+architecture.
 
 **Amended 2026-08-07:** added the existing `shared/` and `config/` ownership
 rows to the repository map; no implementation, decision status, or hardware
 claim changed.
+
+**Amended 2026-08-16:** recorded ADR 0006 acceptance of the named Lexinet,
+spoken-command, and agenda semantics, shared capability ownership, and atomic
+protocol-v2 cutover. `AGENDA-011`, agenda feasibility Step 1, all successor
+implementation, and every hardware evidence gate remain pending.

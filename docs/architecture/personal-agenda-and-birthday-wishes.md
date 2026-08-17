@@ -2,9 +2,10 @@
 
 # Personal Agenda and Birthday Wishes
 
-**Status:** proposed architecture; roadmap Step 1 decision bundle prepared
-2026-08-06 and pending human confirmation; no Calendar, Contacts, recording,
-transcription, or Messages integration is implemented
+**Status:** the first ten version 1 agenda decisions accepted by
+[ADR 0006](../decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md);
+`AGENDA-011` and personal-agenda feasibility Step 1 remain pending; no Calendar,
+Contacts, recording, transcription, or Messages integration is implemented
 
 **Outcome:** make birthdays and today's meetings a privacy-bounded panel
 application, and make a birthday wish a reviewable draft that can be submitted
@@ -401,8 +402,9 @@ default.
 - A birthday is month and day with an optional year. Never invent an age.
 - Compute occurrences in one explicitly configured IANA household timezone.
   Latitude/longitude used for solar calculation is not a timezone.
-- Make the February 29 policy explicit. The proposed default is the last day of
-  February in non-leap years, subject to user confirmation.
+- Observe February 29 birthdays on the last day of February in non-leap years,
+  as accepted by `AGENDA-003`. Exact local-date projection remains pending under
+  `AGENDA-011`.
 - Choose one authoritative birthday source for an overlapping account. Calendar
   birthday events may supplement contacts only when a stable provider link
   proves identity.
@@ -491,7 +493,7 @@ authority and bounds that exposure on the Mac by current birthday, provisioned
 route, draft expiry, rate limits, and one attempted submission per route per
 household date. This limitation remains pending with the Step 1 safety review.
 A stronger requirement needs a dedicated physical confirmation input owned
-outside the UI process.~~ Under proposed
+outside the UI process.~~ Under accepted
 [ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md),
 the personal-context client creates that token only after it validates the
 prepared immutable dispatch revision and claims a fresh physical-touch
@@ -634,8 +636,8 @@ may halt capture and emit `agenda.stop_wish_recording`, but it cannot start a
 new capture, route another intent, upload, or submit. Its detected tail is
 removed before the artifact is finalized and can never be promoted from a
 general command-listening buffer. Touch stop must always work, and a hard
-maximum must auto-stop. The initial proposed maximum is 60 seconds, subject to
-hardware and Messages testing. Absence, mute, night transition, suspend
+maximum must auto-stop. The accepted maximum is 60 seconds; evidence may
+tighten but not silently raise it. Absence, mute, night transition, suspend
 preparation, broker failure, or lease expiry closes capture and can never
 trigger submission.~~
 
@@ -681,7 +683,7 @@ closure, failure, or its bounded lease/draft expiry. It never survives broker or
 panel restart. Reboot-surviving drafts require a separate encrypted-storage,
 retention, deletion, and recovery design.
 
-Mac-side draft content has a proposed hard expiry of 30 minutes from draft
+Mac-side draft content has an accepted hard expiry of 30 minutes from draft
 creation. Audio, transcript text, and message body are stored only in a
 mode-`0600` draft area and are deleted sooner on cancellation/re-record,
 terminal `failed_before_submission`, successful adapter return, or
@@ -762,9 +764,10 @@ requests, local device permissions, or prepared-summary confirmation. The
 personal-context client now also requires a supervisor-authored single-use
 touch-provenance envelope for dispatch. Root can still exercise the device key,
 and a compromised UI can still misrepresent what it displayed around a genuine
-touch; those limitations remain pending human review.
+touch; ADR 0005 and ADR 0006 accept those prototype limitations.
 
-Proposed capabilities are deliberately separate:
+The accepted capability partition is deliberately separate; its implementation
+remains pending:
 
 | Capability | Allows | Does not allow |
 |---|---|---|
@@ -1014,28 +1017,26 @@ Production implementation is incomplete until evidence proves:
 - services remain disabled by default until the on-target privacy, power, and
   suspend matrices pass.
 
-## Version 1 product decisions pending human review
+## Version 1 product decisions
 
-These stable IDs are the review bundle for roadmap Step 1. `Proposed` means the
-recommendation is implementation-ready but is not an accepted product decision
-until the user confirms it. ~~An evidence-gated choice remains deliberately open
-even after the user approves the decision to defer it.~~ An evidence-gated
-`Proposed` choice remains deliberately open even after the user approves the
-decision to defer it. `Pending` means no alternative is selected and the named
-later review gate must make the choice before implementation.
+ADR 0006 accepts the first ten stable decisions and deliberately leaves
+`AGENDA-011` unresolved. Acceptance preserves every named feasibility,
+privacy, external-effect, and hardware gate. `Pending` means no civil-time
+alternative is selected and the named later review must make the choice before
+implementation.
 
-| ID | Proposed version 1 decision | Status | Consequence |
+| ID | Version 1 decision | Status | Consequence |
 |---|---|---|---|
-| `AGENDA-001` | Start with content-free macOS adapter/authorization discovery; only after local opt-in and OS grants may onboarding select calendars and provision recipients before bounded content reads; retain independently selectable direct Google adapters | Proposed | Broad macOS grants never authorize an implicit content probe or panel-side account credential |
-| `AGENDA-002` | Show birthdays today plus the next seven local calendar days | Proposed household preference | The Today surface stays bounded while offering useful notice |
-| `AGENDA-003` | Observe February 29 birthdays on February 28 in non-leap years | Proposed household preference | The normalized model never invents a birth year or age |
-| `AGENDA-004` | Accept `Lexi, send birthday wish` as a prepare alias, but display **Ready to record a draft** and perform no capture or external effect | Proposed from the requested phrase | Product language remains convenient while the state transition stays reversible |
-| `AGENDA-005` | Touch starts recording and touch-hold submits; prefer `Lexi, finish recording` to stop active recording; admit the requested `Lexi, end birthday wish` alias only after a reviewed context-separated acoustic exception; voice alone cannot start capture or submit; ~~accept that a compromised authorized `panel_ui` can fabricate those touch-equivalent requests within the Mac allowlist~~ require the media broker and personal-context client to claim fresh, operation-bound supervisor-observed touch provenance independently of `panel_ui`, with the client validating observer-measured hold duration | Proposed safety and command-distinctiveness boundary | Ambient speech can at most open or stop a visible local workflow; ~~stronger proof of physical touch needs a separately owned input~~ the proposed supervisor observer supplies physical-touch provenance, while trusted-rendering semantics remain outside the prototype; static phonetic distance cannot replace measured recognition evidence |
-| `AGENDA-006` | Use 60 seconds as the recording ceiling, keep no persistent offline panel drafts, cap Mac draft content at 30 minutes, and cap non-content duplicate-suppression metadata at 30 days with deterministic early deletion | Proposed | Evidence may tighten the bounds; raising them or adding persistent drafts requires review |
-| `AGENDA-007` | Permit an ordinary reviewed audio-file attachment when the special Messages audio-note form is unavailable; choose the exact encoded format from feasibility evidence | Proposed with evidence-gated format | Audio remains disabled until complete local playback succeeds |
-| `AGENDA-008` | Require the signed, logged-in Mac companion to be reachable before recording begins | Proposed | Version 1 does not retain a panel draft waiting for a Mac |
-| `AGENDA-009` | A panel without measured playback is text-only; adding a speaker/playback path is deferred to hardware and product-platform evidence | Proposed policy with hardware decision deferred | Recording may still support local transcription without enabling audio submission |
-| `AGENDA-010` | Keep `DraftOnlyTransport` until the feasibility matrix selects a Messages adapter; keep the feasibility probe here and promote a successful production companion to a top-level `mac_companion/` domain in this repository | Proposed adapter deferment and repository boundary | Shared contracts and release sequencing stay discoverable; reconsider separation only if independent ownership or cadence emerges |
+| `AGENDA-001` | Start with content-free macOS adapter/authorization discovery; only after local opt-in and OS grants may onboarding select calendars and provision recipients before bounded content reads; retain independently selectable direct Google adapters | Accepted — ADR 0006 | Broad macOS grants never authorize an implicit content probe or panel-side account credential |
+| `AGENDA-002` | Show birthdays today plus the next seven local calendar days | Accepted — ADR 0006 | The Today surface stays bounded while offering useful notice |
+| `AGENDA-003` | Observe February 29 birthdays on February 28 in non-leap years | Accepted — ADR 0006 | The normalized model never invents a birth year or age |
+| `AGENDA-004` | Accept `Lexi, send birthday wish` as a prepare alias, but display **Ready to record a draft** and perform no capture or external effect | Accepted — ADR 0006 | Product language remains convenient while the state transition stays reversible |
+| `AGENDA-005` | Touch starts recording and touch-hold submits; prefer `Lexi, finish recording` to stop active recording; admit the requested `Lexi, end birthday wish` alias only after a reviewed context-separated acoustic exception; voice alone cannot start capture or submit; ~~accept that a compromised authorized `panel_ui` can fabricate those touch-equivalent requests within the Mac allowlist~~ require the media broker and personal-context client to claim fresh, operation-bound supervisor-observed touch provenance independently of `panel_ui`, with the client validating observer-measured hold duration | Accepted — ADR 0006 | Ambient speech can at most open or stop a visible local workflow; ~~stronger proof of physical touch needs a separately owned input~~ the accepted planned supervisor observer supplies physical-touch provenance, while trusted-rendering semantics remain outside the prototype; static phonetic distance cannot replace measured recognition evidence |
+| `AGENDA-006` | Use 60 seconds as the recording ceiling, keep no persistent offline panel drafts, cap Mac draft content at 30 minutes, and cap non-content duplicate-suppression metadata at 30 days with deterministic early deletion | Accepted — ADR 0006 | Evidence may tighten the bounds; raising them or adding persistent drafts requires review |
+| `AGENDA-007` | Permit an ordinary reviewed audio-file attachment when the special Messages audio-note form is unavailable; choose the exact encoded format from feasibility evidence | Accepted — ADR 0006 | Audio remains disabled until complete local playback succeeds |
+| `AGENDA-008` | Require the signed, logged-in Mac companion to be reachable before recording begins | Accepted — ADR 0006 | Version 1 does not retain a panel draft waiting for a Mac |
+| `AGENDA-009` | A panel without measured playback is text-only; adding a speaker/playback path is deferred to hardware and product-platform evidence | Accepted — ADR 0006 | Recording may still support local transcription without enabling audio submission |
+| `AGENDA-010` | Keep `DraftOnlyTransport` until the feasibility matrix selects a Messages adapter; keep the feasibility probe here and promote a successful production companion to a top-level `mac_companion/` domain in this repository | Accepted — ADR 0006 | Shared contracts and release sequencing stay discoverable; reconsider separation only if independent ownership or cadence emerges |
 | `AGENDA-011` | Choose exactly one reviewed timezone path: bounded panel-local IANA zone data or companion-resolved local dates and offsets; the household timezone is explicit configuration, never inferred from coordinates | Pending — deliberately deferred to roadmap Step 6 after feasibility evidence and its ADR | Roadmap Step 6 names the household-timezone configuration authority and local-date projection owner; Step 7 implements the reviewed choice; if panel-local data is selected, packaging belongs to roadmap Step 11's reviewed target-integration plan and Step 12 execution after evidence |
 
 ### Safety stop points included in this review
@@ -1062,7 +1063,7 @@ later review gate must make the choice before implementation.
 - ~~Approving the touch-authority safety boundary accepts that a compromised
   `panel_ui` can exercise the narrowly allowlisted message authority exposed to
   it. A dedicated physical confirmation input is required if that limitation is
-  unacceptable.~~ Proposed ADR 0005 prevents `panel_ui` from authoring or
+  unacceptable.~~ Accepted ADR 0005 prevents `panel_ui` from authoring or
   redeeming touch provenance. It does not prove that the pixels surrounding a
   genuine touch were honest; eliminating that limitation requires a trusted
   renderer or independently verified hit map.
@@ -1132,3 +1133,8 @@ dumps and swap for the capture owner, and required supervisor-verified rather
 than broker-self-reported quiescence. It also records room access plus separate
 Record/submit touch as sufficient human authorization without a second factor.
 `AGENDA-*` statuses and roadmap Step 1 remain unchanged.
+
+**Amended 2026-08-16:** recorded ADR 0006 acceptance of the first ten version 1
+agenda decisions while preserving every safety and evidence gate. `AGENDA-011`,
+the feasibility plan's experiment-contract review, every live Messages
+approval, and all implementation remain pending.

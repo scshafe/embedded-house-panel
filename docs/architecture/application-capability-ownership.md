@@ -2,7 +2,7 @@
 
 # Application Capability Ownership
 
-**Status:** proposed for roadmap Step 1 human review
+**Status:** accepted by ADR 0006; implementation status remains per capability
 
 This registry is the authority for which runtime component owns each shared
 house-panel capability and which executable plan first delivers it. A plan may
@@ -36,7 +36,7 @@ implementation instead of creating a peer.
 | Personal-agenda presentation and birthday-wish composer | planned agenda feature beneath `panel_ui` | Roadmap Step 7, executing the separately reviewed roadmap Step 6 agenda production plan | Not implemented — roadmap Step 6 planning and Step 7 execution pending | Extend the shell and media contracts selected by the earlier Lexinet steps |
 | Household civil-time projection for agenda and neutral clock display | planned shared household civil-time projection; canonical path not selected | AGENDA-011 under roadmap Step 6; conditional target packaging and validation follow roadmap Step 11's reviewed target-integration plan and Step 12 execution | Pending — no canonical implementation path selected | Agenda and neutral clock display consume the one projection; timezone arithmetic stays out of `panel_supervisor` and never affects solar, brightness, or suspend policy |
 | Process-wide HTTP initialization, cancellation primitives, and common transport budgets | planned `shared/http_runtime/` | Lexinet plan Step 6 | Not implemented — declared path absent | Domain clients retain their schemas, authorization, cache, and retry semantics while sharing one runtime |
-| Vocabulary content, eligibility, session order, and durable learning state | Lexinet server in the separately configured source checkout | Lexinet plan Step 1b, then Steps 2–5 | External authority — the `study.v1` service and panel contract integration are pending | The panel consumes Lexinet-owned versioned contracts and keeps only bounded degraded state |
+| Vocabulary content, eligibility, session order, and durable learning state | Lexinet server in the source checkout selected only by `BHP_LEXINET_SOURCE_DIR` | Lexinet plan Step 1b, then Steps 2–5 | External authority — the `study.v1` service and panel contract integration are pending | The panel consumes Lexinet-owned versioned contracts and keeps only bounded degraded state; no tool infers a sibling checkout |
 | Vocabulary cache and idempotent event outbox | `vocabulary_panel/` | Lexinet plan Step 6 | Not implemented — the current vocabulary scaffold has no resilient cache or outbox | Persistence rules remain study-specific; do not hide them in a generic store |
 | ~~Raw microphone capture and purpose-scoped media leases~~ | ~~planned shared `media_broker/` process~~ | ~~Lexinet plan Step 8 first delivers the host broker; Roadmap Step 7 extends it for agenda by executing the separately reviewed roadmap Step 6 agenda production plan~~ | ~~Not implemented — declared path absent~~ | ~~Add purposes to the one broker; `command_recognition` and `wish_recording` never become separate device owners~~ |
 | Raw microphone capture and purpose-scoped media leases | planned shared `media_broker/` process; `panel_supervisor/` independently verifies quiescence at the lifecycle boundary | Lexinet plan Step 8 first delivers the host broker; Roadmap Step 7 extends it for agenda by executing the separately reviewed roadmap Step 6 agenda production plan | Not implemented — declared path absent | Add purposes to the one broker; `command_recognition` and `wish_recording` never become separate device owners; broker closure self-report is telemetry; lifecycle blanking is immediate, then the supervisor requires bounded independent kernel/device and available rail-off evidence before the suspend-state write |
@@ -48,12 +48,14 @@ implementation instead of creating a peer.
 
 ## Shared-boundary consequences
 
-- The Lexinet plan may create `panel_ui`, `shared/http_runtime`, and the media
-  broker because it reaches them first. Their names, interfaces, permissions,
-  and tests must be panel-wide from their first commit.
+- The Lexinet plan is the accepted first delivery authority for `panel_ui`,
+  `shared/http_runtime`, the media broker, and the Buildroot neutral-service
+  migration because it reaches them first. Their names, interfaces,
+  permissions, and tests must be panel-wide from their first commit.
 - The personal-agenda feasibility plan stops at evidence and an ADR. Its later
   production plan consumes the existing shell/runtime/broker instead of
-  creating agenda-owned equivalents.
+  creating agenda-owned equivalents. ADR 0006 does not complete that plan's
+  Step 1 experiment-contract review or authorize a live external effect.
 - The supervisor exposes lifecycle and generic media-safety facts only. It does
   not learn feature routes, birthdays, vocabulary sessions, recording content,
   recipient identity, or provider state.
@@ -111,3 +113,8 @@ arithmetic to the supervisor.
 debounce/attributed wake-rate policy and supervisor-verifiable broker
 quiescence. The presence provider remains evidence-only, broker self-report is
 telemetry, and no unmeasured hardware value became a default.
+
+**Amended 2026-08-16:** ADR 0006 accepted this registry and assigned the Lexinet
+work stream first delivery of the neutral shell, shared HTTP runtime, media
+broker, and Buildroot migration. This freezes ownership and extension rules,
+not implementation or hardware status; agenda feasibility Step 1 remains open.

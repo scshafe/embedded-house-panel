@@ -2,8 +2,10 @@
 
 # Spoken Command Distinctiveness
 
-**Status:** proposed for roadmap Step 1 human review; no catalog, analyzer,
-active-set builder, or backend projector is implemented
+**Status:** shared spoken-command decision accepted by
+[ADR 0006](../decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md);
+no catalog, analyzer, active-set builder, backend projector, or recognizer is
+implemented
 
 **Initial language profile:** proposed `en-US`
 
@@ -193,13 +195,15 @@ tighten or invalidate these provisional triggers.
 
 The current requested pair illustrates the value of the tool: `send birthday
 wish` and `end birthday wish` share almost their entire phone sequence and
-differ at the beginning of `send`. The proposed safer stop form is `Lexi finish
-recording`. Retaining `Lexi end birthday wish` as an alias requires an explicit
-context-separated review and cross-command acoustic evidence.
+differ at the beginning of `send`. The accepted preferred stop form is `Lexi
+finish recording`. Retaining `Lexi end birthday wish` as an alias requires an
+explicit context-separated review and cross-command acoustic evidence.
 
 ## Initial semantic inventory
 
-Exact spoken forms remain proposed until the first catalog report is reviewed:
+The forms below are accepted semantic candidates. Their inclusion in a
+production active set remains gated by the first catalog report and measured
+recognizer evidence:
 
 | Intent | Candidate spoken payload | Active context | Effect boundary |
 |---|---|---|---|
@@ -424,11 +428,11 @@ static review waiver never selects a production engine.
   denominators/intervals, and never reports static scores as empirical
   recognition accuracy.
 
-## Shared decision pending human review
+## Shared decision
 
-| ID | Proposed decision | Status | Consequence |
+| ID | Decision | Status | Consequence |
 |---|---|---|---|
-| `VOICE-001` | Create one versioned, language-tagged spoken-command catalog with reviewed phoneme variants, hard effect-admission rules, context metadata, reproducible confusability/candidate analysis, a canonical active-command set with content-addressed backend projections and recognition-policy artifacts, and held-out acoustic confusion evidence | Proposed | All applications share one evolving command vocabulary; phonetic scores guide naming but never authorize an action or replace on-device measurements |
+| `VOICE-001` | Create one versioned, language-tagged spoken-command catalog with reviewed phoneme variants, hard effect-admission rules, context metadata, reproducible confusability/candidate analysis, a canonical active-command set with content-addressed backend projections and recognition-policy artifacts, and held-out acoustic confusion evidence | Accepted — ADR 0006 | All applications share one evolving command vocabulary; phonetic scores guide naming but never authorize an action or replace on-device measurements |
 
 ## Primary references
 
@@ -451,3 +455,8 @@ touch or accepted rating promotes them, and restart cannot silently
 canonicalize them. Adversarial acoustic qualification now includes crafted
 audible and out-of-band injection classes. The spoken-command decision remains
 proposed and roadmap Step 1 remains pending.
+
+**Amended 2026-08-16:** recorded ADR 0006 acceptance of the shared
+spoken-command decision and the preferred `Lexi, finish recording` stop
+semantics. Catalog construction, backend projection, acoustic qualification,
+and real-engine activation remain unimplemented evidence gates.

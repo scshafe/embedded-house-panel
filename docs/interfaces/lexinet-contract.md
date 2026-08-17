@@ -1,7 +1,7 @@
 # Lexinet Consumer Contract Boundary
 
-**Status:** transition document. The current panel adapter is a scaffold; the
-proposed `study.v1` successor is pending roadmap Step 1 human review and does
+**Status:** transition document. ADR 0006 accepts the `study.v1` product
+semantics; the current panel adapter is a scaffold and the successor API does
 not yet exist in Lexinet.
 
 The product semantics, event model, scheduler provenance, and executable work
@@ -11,7 +11,7 @@ its linked implementation plan. The canonical machine-readable API contract
 will live in Lexinet. This repository will consume generated or
 provenance-stamped fixtures rather than maintain a second schema.
 
-## Proposed `study.v1` boundary
+## Planned `study.v1` boundary
 
 The planned panel integration needs three idempotent capabilities:
 
@@ -57,10 +57,10 @@ POST /api/v1/study/sessions/{session_id}/sync
 - Distinguish an empty corpus, exhausted prefetch, stale state, invalid schema,
   authorization denial, and transient service failure with stable typed codes.
 
-The exact request/response fields, bounds, error envelope, and compatibility
-rules are frozen in Lexinet only after the pending decision bundle is approved.
-Required semantic changes then require a new protocol version and a coordinated
-consumer update.
+The accepted product semantics constrain the exact request/response fields,
+bounds, error envelope, and compatibility rules that Lexinet must freeze during
+implementation. Required semantic changes then require a new protocol version
+and a coordinated consumer update.
 
 ## Panel validation boundary
 
@@ -124,3 +124,8 @@ tests replace it together.
 bounded session-local provisional evidence until a matching study touch or
 accepted rating promotes them, with a non-card restart gate and explicit grouped
 terminal-rejection disposition. No `LEXI-*` status changed.
+
+**Amended 2026-08-16:** reconciled this transition boundary with ADR 0006. The
+`study.v1` product semantics are accepted, while its Lexinet-owned schema,
+server implementation, generated fixtures, panel consumer, and contract tests
+remain pending. `BHP_LEXINET_SOURCE_DIR` remains the sole checkout input.

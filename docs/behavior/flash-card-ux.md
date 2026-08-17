@@ -1,11 +1,11 @@
 # Lexinet Flash-Card UX
 
-**Status:** implemented scaffold behavior. The pending `LEXI-001` through
-`LEXI-007` review in the
-[Lexinet study architecture](../architecture/lexinet-study-integration.md)
-proposes a two-sided card with explicit flip/next/back semantics. If approved,
-that decision supersedes this progression before production controller work;
-the project must not implement both interaction models.
+**Status:** implemented scaffold behavior. ADR 0006 accepts `LEXI-001` through
+`LEXI-007` in the
+[Lexinet study architecture](../architecture/lexinet-study-integration.md),
+including the two-sided card with explicit flip/next/back semantics. Those
+decisions supersede this progression before production controller work; the
+project must not implement both interaction models.
 
 ~~The implemented cached-card progression ends after the example and never offers a rating.~~
 For the intended product UX, that branch is superseded by the bounded outbox
@@ -18,7 +18,7 @@ sync status are implemented together.
 
 - Work at a likely 480×272 resolution with large touch targets.
 - Document the implemented legacy progression: word → definition → example
-  → rating → next. It is evidence for the rewrite, not the proposed version 1
+  → rating → next. It is evidence for the rewrite, not the accepted version 1
   product contract.
 - Never flash a white surface while entering or leaving after-hours mode.
 - Make loading, offline, empty, and failed states visibly different.
@@ -162,7 +162,7 @@ flowchart LR
 ```
 
 This scaffold's four rating buttons may be too narrow for reliable touch at 480
-pixels. The proposed `LEXI-005` contract makes ratings available through
+pixels. The accepted `LEXI-005` contract makes ratings available through
 equivalent touch and voice actions after the back is revealed. On-target
 measurement still decides the touch geometry and whether a real voice engine
 qualifies for production.
@@ -191,3 +191,8 @@ with the intended bounded, durable outbox UX without approving any pending
 first presentation/reveal, the non-card restart gate, the source-qualified
 rating preflight, and grouped terminal-rejection state. No pending `LEXI-*`
 decision status changed.
+
+**Amended 2026-08-16:** reconciled the scaffold UX with ADR 0006 acceptance of
+`LEXI-001` through `LEXI-007`. The accepted production semantics supersede the
+legacy progression, but the replacement controller and hardware-dependent
+touch/voice paths remain unimplemented.

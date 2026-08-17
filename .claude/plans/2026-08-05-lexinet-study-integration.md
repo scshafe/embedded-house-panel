@@ -89,7 +89,7 @@ as the production default.
     authoring.~~ Superseded by Steps 1a and 1b; every requirement is
     redistributed below.
 
-- [ ] **Step 1a: Review product semantics and the shared command-catalog decision**
+- [x] **Step 1a: Review product semantics and the shared command-catalog decision**
   - Obtain human review of the seven Lexinet decisions in the architecture
     document: two-sided `flip`, unrated `next`, face-preserving `back`,
     topic-union corpus, one initial profile with touch/voice ratings,
@@ -951,3 +951,10 @@ the final scoped identity/TLS design. The guard is complete in sibling Lexinet
 commit `178d9ea`, but a separately provisioned nonempty service bearer remains
 a native-listener or external-proxy prerequisite in the interim. No checkbox,
 `LEXI-*` status, or other pending product-decision status changed.
+
+**Amended 2026-08-16:** the user accepted `LEXI-001`–`LEXI-007` and
+`VOICE-001` without blanks or deferrals. ADR 0006 records the exact
+dispositions and the shared spoken-command-catalog choice. Step 1a was
+completed after its human proof row and repository documentation verification
+were recorded; Step 1b remains the next cross-repository contract-authoring
+boundary.

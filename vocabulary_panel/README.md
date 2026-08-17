@@ -3,7 +3,7 @@
 Owns the unprivileged Lexinet-backed study feature and its subordinate render
 surface. ~~The planned neutral `panel_ui` remains the sole display/touch
 owner.~~ The planned neutral `panel_ui` remains the sole display, application
-hit-testing, and touch-routing owner. Under proposed
+hit-testing, and touch-routing owner. Under accepted
 [ADR 0005](../docs/decisions/0005-validate-touch-provenance-at-capability-holders.md),
 the supervisor becomes the sole raw touch-device observer and provenance issuer
 at a later atomic packaging cutover; that cutover revokes the current
@@ -21,10 +21,11 @@ The current terminal executable uses `FixtureLexinetClient` so the interaction
 can be exercised without the network. `HttpLexinetClient` is a guarded,
 optional adapter for the historical scaffold contract in
 `docs/interfaces/lexinet-contract.md`. The Lexinet source audit confirmed that
-no study API exists yet; the proposed `study.v1` session/event contract remains
-pending human review. The Buildroot package compiles the adapter with
-certificate-verified TLS, but no target service may send real requests until
-that server-owned contract and its cross-repository tests replace the scaffold.
+no study API exists yet; ADR 0006 accepts the `study.v1` product semantics, but
+the server-owned schema and implementation remain pending. The Buildroot
+package compiles the adapter with certificate-verified TLS, but no target
+service may send real requests until that server-owned contract and its
+cross-repository tests replace the scaffold.
 
 All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
 
@@ -52,3 +53,8 @@ See [flash-card UX](../docs/behavior/flash-card-ux.md) and [GUI research](../doc
 **Amended 2026-08-07:** separated proposed application touch routing from raw
 touch observation/provenance under ADR 0005 without changing the current
 service, package, permissions, or hardware claims.
+
+**Amended 2026-08-16:** reconciled this domain boundary with ADR 0006 acceptance
+of the Lexinet study semantics and neutral shared-capability ownership. The
+`study.v1` API, resilient adapter, neutral-shell integration, and packaging
+migration remain unimplemented.
