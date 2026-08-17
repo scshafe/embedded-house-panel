@@ -124,6 +124,15 @@ def decompose_verify(plan: str, step: str, body: str) -> list[str]:
             elif " and that changed receipt replay conflicts" in item:
                 left, right = item.split(" and that ", 1)
                 granular.extend((normalize(left), normalize(right)))
+            elif ". Also prove " in item:
+                primary, _, remaining = item.partition(". Also prove ")
+                additional, race_marker, race = remaining.partition(
+                    ". Run focused "
+                )
+                granular.append(normalize(primary + "."))
+                granular.append(normalize("Also prove " + additional + "."))
+                if race_marker:
+                    granular.append(normalize("Run focused " + race))
             else:
                 granular.append(item)
         return granular

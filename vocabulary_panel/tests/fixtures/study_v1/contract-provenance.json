@@ -20,7 +20,7 @@
   },
   "source": {
     "repository": "lexinet",
-    "repository_base_revision": "517da8a3823fbaa0d70018831be75ed734c2f96d",
+    "repository_base_revision": "e8a9d52e35bdd55aa7451f4413c781f8371ebb8f",
     "contract_root": "contracts/study.v1",
     "manifest_path": "contracts/study.v1/manifest.json",
     "manifest_sha256": "c0a0c5e731704978fe0beee88c790762c1cb2cbc2f96fa22749978eff113079e",

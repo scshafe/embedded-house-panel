@@ -62,9 +62,10 @@ proves that struck-through text is ignored while a completed step remains
 active, accepts the legacy no-colon form, rejects malformed verification syntax,
 rejects a proof status that disagrees with the step checkbox, rejects
 `PLANNED:` on a recorded proof, and rejects an unresolved executable in a
-compound recorded command. The
-repository map additionally requires granular decomposition counts for Lexinet
-Steps 4 and 6.
+compound recorded command. The repository map additionally requires granular
+decomposition counts for Lexinet Steps 4 and 6. Step 4 treats its CLI round
+trip, trailing focused proof bundle, and focused race suites as three distinct
+obligations so none can hide inside a terminal sentence.
 
 ## Oracle gap
 
@@ -75,3 +76,7 @@ must still execute its command and retain the evidence required by that plan.
 
 **Amended 2026-08-07:** created the fail-closed per-plan-step verification map
 required by review-amendments Step 13; no hardware or product claim changed.
+
+**Amended 2026-08-17:** made Lexinet Step 4's trailing focused proof bundle and
+race invocation explicit mapped obligations; no implementation or completion
+claim changed.

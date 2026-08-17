@@ -22,13 +22,14 @@ as the production default.
   originally supplied directory was empty. Cross-repository scripts must fail
   when the input is absent or invalid and must not infer either workstation
   path.
-- The executed Lexinet source is clean on `main` at final revision
-  `517da8a3823fbaa0d70018831be75ed734c2f96d`. It is a Go 1.23.4 service and CLI
+- The executed Lexinet source is clean on `main` at final Step 4 revision
+  `e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`. It is a Go 1.23.4 service and CLI
   backed by PostgreSQL. Its canonical contract, persistence model,
-  rating-aware scheduler, projector, materializer, and authority-isolated
-  shadow-runner seam are implemented. The public study service/routes/CLI,
-  final scoped authorization, and production post-commit shadow composition do
-  not exist yet.
+  rating-aware scheduler, projector, materializer, `StudySessionService`,
+  strict public study routes, operator CLI, and post-commit shadow composition
+  are implemented. The dedicated bearer and `OperatorStudyAuthorizer` remain
+  the explicit transitional Step 4 policy; final scoped Tailnet authorization,
+  the resilient panel client, and target packaging remain later steps.
 - The panel currently has a forward-only fixture-backed `FlashCardSession`, a
   provisional synchronous ~~HTTP~~ HTTPS adapter, and a presentation-only LVGL
   renderer.
@@ -289,7 +290,7 @@ as the production default.
     cross-rank repeat provenance, and successor-cycle linking; shadow output
     cannot change any production plan.
 
-- [ ] **Step 4: Expose the Lexinet study API and operator CLI**
+- [x] **Step 4: Expose the Lexinet study API and operator CLI**
   - Requires completed Steps 2 and 3. One canonical `StudySessionService` owns
     create/resume, get, and sync. It owns the outer transaction and calls the
     Step 3 materializer through the Step 2 transaction-bound store; handlers do
@@ -1192,3 +1193,14 @@ The public `StudySessionService`, study routes and CLI, and production
 composition that invokes shadow work only after authoritative commit remain
 Step 4 work; Step 4 and every later incomplete step stay unchecked. No accepted
 product decision changed.
+
+**Amended 2026-08-17:** completed Step 4 at sibling Lexinet commit
+`e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`. The canonical
+`StudySessionService`, strict study HTTP routes, dedicated transitional operator
+authorization, bounded CLI/client, immutable replay/page composition, and
+post-commit-only shadow invocation are implemented. All 22 mapped obligations
+passed with uncached exact, focused, live-PostgreSQL, aggregate, and race
+evidence; the disposable harness left no containers. The panel export is
+repinned to this committed source without changing the frozen contract bundle.
+Step 5 scoped Tailnet identity/TLS, Step 6 resilient panel data plane, packaging,
+and every hardware gate remain pending. No accepted product decision changed.

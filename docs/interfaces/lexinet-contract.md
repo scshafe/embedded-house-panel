@@ -3,9 +3,9 @@
 **Status:** `study.v1` is frozen by Lexinet and pinned here for panel
 consumption. Lexinet's migration, repository, event-adjudication, merge, and
 successor persistence layer, rating-aware scheduler/projectors, cycle
-materializer, and authority-isolated shadow-runner seam are implemented. The
-public study service/routes/CLI, production post-commit shadow composition, and
-the panel's resilient study client remain later implementation steps; the
+materializer, canonical study service, strict public routes, operator CLI, and
+post-commit-only shadow composition are implemented. Final scoped Tailnet
+authorization and the panel's resilient study client remain later steps; the
 historical next-card adapter is not a `study.v1` implementation.
 
 The product behavior is defined in the
@@ -22,7 +22,7 @@ The checked-in fixture provenance pins:
 
 - protocol `study.v1` and schema version `1`;
 - Lexinet repository base revision
-  `517da8a3823fbaa0d70018831be75ed734c2f96d`;
+  `e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`;
 - OpenAPI SHA-256
   `422b4ed6e9336b642bd32b923c8d9989ee0d7e0d624883ae4593a8266d8eaa19`;
 - manifest SHA-256
@@ -211,18 +211,18 @@ append-only events and terminal receipts, gap-free profile ordinals, merge
 invalidation, and atomic successor/waiting replacement boundaries. It also
 implements the deterministic `StudyScheduler` seam, `variety_first_v1`,
 rebuildable card/event projections, transaction-bound cycle materialization,
-and an authority-isolated shadow runner. These internals are not yet a public
-`study.v1` data plane: the canonical `StudySessionService`, handlers/routes,
-CLI, and production composition that invokes shadow work only after the
-authoritative commit remain Step 4.
+the canonical `StudySessionService`, strict bounded handlers/routes, the
+operator CLI/client, and authority-checked post-commit-only shadow invocation.
+The dedicated bearer and `OperatorStudyAuthorizer` are an explicit transitional
+operator policy; Step 5 still owns scoped Tailnet identity, TLS, and appliance
+authorization.
 
 The panel's existing `fetch_next_card` / single-review adapter predates the
 Lexinet source audit. It has no issued session identity, correction stream,
 scheduler provenance, or safe reconciliation and remains a test scaffold.
-Production Lexinet study requests stay disabled until the later public service,
-routes/CLI, post-commit shadow composition, resilient client, outbox/cache,
-cross-repository live tests,
-authorization, and packaging steps are implemented and verified together.
+Production panel study requests stay disabled until the resilient client,
+outbox/cache, cross-repository live tests, final scoped authorization, and
+packaging steps are implemented and verified together.
 
 Still-required deployment inputs are the explicit Lexinet endpoint and TLS
 arrangement, learner profile and normalized topic set, deadline/freshness/cache
@@ -253,3 +253,11 @@ shadow-runner isolation seam now have exact mapped evidence. Public service
 composition, routes, CLI, production post-commit shadow invocation, the
 resilient panel client, authorization, and packaging remain pending. No frozen
 wire semantic or accepted product decision changed.
+
+**Amended 2026-08-17:** repinned the unchanged `study.v1` contract bundle to
+final Step 4 Lexinet revision `e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`.
+The canonical service, strict routes, bounded operator CLI/client, transitional
+operator authorization, immutable response composition, and post-commit-only
+shadow invocation now have exact mapped normal, live-PostgreSQL, and race
+evidence. The resilient panel client, final scoped Tailnet authorization, and
+packaging remain pending; no wire semantic or accepted decision changed.

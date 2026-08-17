@@ -129,12 +129,34 @@ def main() -> int:
         )
         for step in ("Step 4", "Step 6")
     }
-    if granular_counts != {"Step 4": 20, "Step 6": 41}:
+    if granular_counts != {"Step 4": 22, "Step 6": 41}:
         raise AssertionError(f"Lexinet granular decomposition drift: {granular_counts}")
+
+    step_4_terminal_items = [
+        item["clause_item"]
+        for item in discovered
+        if item["plan"] == lexinet_plan
+        and item["step"] == "Step 4"
+        and item["item_index"] >= 20
+    ]
+    if step_4_terminal_items != [
+        "run CLI round trips against a disposable server and PostgreSQL instance.",
+        "Also prove topic deletion cannot become empty success, exact-limit versus "
+        "over-limit raw bodies, duplicate/ambiguous JSON rejection, normalized JCS "
+        "equivalence and semantic mutation, all stable error mappings/redaction, "
+        "auth/authorizer short-circuiting, admission/cancellation, committed-readback "
+        "mismatch suppressing shadow, sync-page byte stability across merge/delete, "
+        "response/page budgets without partial writes, endpoint/redirect/TLS policy, "
+        "and CLI request/response overflow handling.",
+        "Run focused service/server/CLI and live-PostgreSQL suites under `go test -race`.",
+    ]:
+        raise AssertionError(
+            f"Lexinet Step 4 terminal verification drift: {step_4_terminal_items}"
+        )
 
     print(
         "PLAN_VERIFICATION_MAP_TESTS.COMPLETE positive=3 negative=8 "
-        "lexinet_step_4_items=20 lexinet_step_6_items=41"
+        "lexinet_step_4_items=22 lexinet_step_6_items=41"
     )
     return 0
 

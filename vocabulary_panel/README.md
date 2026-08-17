@@ -26,11 +26,11 @@ validator, and golden examples. This domain consumes a provenance-stamped
 export and verifies the exact protocol/schema identity and required semantics.
 Lexinet's persistence repository, atomic event adjudicator, merge rules, and
 successor boundary are implemented, as are its rating-aware scheduler,
-projectors, cycle materializer, and authority-isolated shadow-runner seam. Its
-public study service/routes/CLI and production post-commit shadow composition,
-plus this domain's resilient panel client, are still pending. The Buildroot
-package compiles the historical adapter with certificate-verified TLS, but no
-target service may send real study requests until those later runtime and
+projectors, cycle materializer, canonical study service, strict routes, operator
+CLI, and post-commit-only shadow composition. This domain's resilient panel
+client and Lexinet's final scoped Tailnet authorization are still pending. The
+Buildroot package compiles the historical adapter with certificate-verified TLS,
+but no target service may send real study requests until those later runtime and
 packaging steps replace the scaffold.
 
 All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
@@ -78,3 +78,11 @@ the isolated shadow-runner seam are implemented; Step 4 public service/routes/
 CLI and production post-commit shadow composition, Step 6 resilient panel
 client, and every target integration gate remain pending. No accepted product
 decision changed.
+
+**Amended 2026-08-17:** recorded completed Lexinet Step 4 at revision
+`e8a9d52e35bdd55aa7451f4413c781f8371ebb8f` and repinned the unchanged contract
+bundle to that final Step 4 source. The canonical service, strict study routes,
+operator CLI/client, transitional operator authorization, and post-commit-only
+shadow path now have exact mapped normal, live-PostgreSQL, and race evidence.
+Step 5 final scoped Tailnet authorization, this domain's Step 6 resilient data
+plane, packaging, and every target integration gate remain pending.
