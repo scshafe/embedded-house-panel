@@ -263,6 +263,9 @@ for agenda_contract_text in \
   "\`delivery_unknown\`" \
   'Zero by default. One later explicit approval may authorize at most 12 total handoff attempts' \
   'never a feasibility target.' \
+  'Audio-file submission remains disabled unless complete local playback succeeds;' \
+  "Voice recognition may only open the reversible \`agenda.prepare_wish\` composer." \
+  "set containing \`agenda.stop_wish_recording\`; the general command grammar cannot" \
   '## Redaction and evidence policy' \
   '## Manual stop points' \
   '## Step 1 completion gate'; do

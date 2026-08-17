@@ -386,6 +386,8 @@ authored the canonical proposed experiment contract at
 full Xcode remains unavailable under the selected Command Line Tools path. The
 contract freezes the outcome taxonomy, fixture/live matrix, zero-by-default
 external-effect boundary, proposed 12-handoff/two-audio ceiling, self/test-only
-recipient class, redaction allowlist, and eight manual stop points. Step 1 stays
+recipient class, complete-playback audio gate, voice-prepare-only and
+touch-started-recording boundary, redaction allowlist, and eight manual stop
+points. Step 1 stays
 unchecked until explicit human safety review; no provider access, capture,
 Tailnet change, login-item change, or Messages handoff occurred.

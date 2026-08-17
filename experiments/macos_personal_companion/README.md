@@ -25,6 +25,16 @@ configuration, login-item enablement, or a production default. `DraftOnlyTranspo
 is the only enabled transport until the later live-transport stop point is
 separately approved.
 
+Audio-file submission remains disabled unless complete local playback succeeds;
+a duration, waveform, partial playback, or successful encoding is not a review.
+Voice recognition may only open the reversible `agenda.prepare_wish` composer.
+It cannot create or activate a `wish_recording` lease, begin capture, confirm
+content, or submit. Any future recording starts only from an affirmative,
+provenance-checked touch after the composer is visible. While that purpose is
+active, the media broker may expose only its purpose-internal stop-only command
+set containing `agenda.stop_wish_recording`; the general command grammar cannot
+stop capture, and the stop intent can never submit.
+
 Production shell, media-broker, HTTP-runtime, intent-catalog, personal-context,
 and Buildroot capabilities remain owned by their canonical domains. Nothing in
 this experiment may create a peer implementation.
