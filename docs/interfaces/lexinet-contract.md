@@ -1,9 +1,10 @@
 # Lexinet Consumer Contract Boundary
 
 **Status:** `study.v1` is frozen by Lexinet and pinned here for panel
-consumption. The Lexinet server handlers and the panel's resilient study client
-remain later implementation steps; the historical next-card adapter is not a
-`study.v1` implementation.
+consumption. Lexinet's migration, repository, event-adjudication, merge, and
+successor persistence layer is implemented. The rating-aware scheduler, server
+handlers/CLI, and the panel's resilient study client remain later implementation
+steps; the historical next-card adapter is not a `study.v1` implementation.
 
 The product behavior is defined in the
 [Lexinet study architecture](../architecture/lexinet-study-integration.md).
@@ -19,13 +20,13 @@ The checked-in fixture provenance pins:
 
 - protocol `study.v1` and schema version `1`;
 - Lexinet repository base revision
-  `3a15a087b27a2407d6e765010b9c1f1c0e4968f6`;
+  `158dea68bffb2b77321d20738afb1ddf99b19ad9`;
 - OpenAPI SHA-256
-  `30385ca5b05eb18954a4c68c0efbc4e3bbc55fec46066f06c2eef2af5464069d`;
+  `422b4ed6e9336b642bd32b923c8d9989ee0d7e0d624883ae4593a8266d8eaa19`;
 - manifest SHA-256
-  `542901b77b4aea6a0f5c97e8ab8c3c44c1bfd6cbd155eee3409b0c5464f28b33`;
+  `c0a0c5e731704978fe0beee88c790762c1cb2cbc2f96fa22749978eff113079e`;
 - full contract/example bundle SHA-256
-  `2b58b02ba543bac297763a3d8a2008645dcf18f18d221ac20c596580cf7be096`.
+  `b90be0dd4a1054b7de065aee125561a927a5faf19e2f2451090426c0488f4242`.
 
 The panel's
 [`contract-provenance.json`](../../vocabulary_panel/tests/fixtures/study_v1/contract-provenance.json)
@@ -68,11 +69,16 @@ POST /api/v1/study/sessions/{session_id}/sync
   `revealed` are singular transitions. `rated` and `rating_voided` are
   append-only; a rating is exactly one of `again`, `hard`, `good`, or `easy`,
   and a void targets the exact rating UUID being corrected.
-- Sync returns one terminal receipt for every adjudicated sequence. Only an
-  `accepted` receipt enters scheduler evidence; `semantic_duplicate` and
-  `terminal_rejected` advance the terminal ledger without becoming learning
-  facts. Replays are idempotent and byte-equivalent for the same normalized
-  input hash.
+- Sync reconciles an immutable already-adjudicated replay prefix, then at most
+  one new contiguous suffix. Either partition may be empty. A valid new suffix
+  may mix `accepted` and `semantic_duplicate` receipts. Only an `accepted`
+  receipt creates scheduler evidence; a semantic duplicate identifies its
+  existing canonical fact and ordinal.
+- If any new event has a stable terminal domain failure, every event in that
+  new suffix receives `terminal_rejected` with the first failure code. Those
+  receipts consume the stream positions together, but no new-suffix canonical
+  event or per-profile ingestion ordinal is committed. The immutable replay
+  prefix is unchanged. Retryable request failures adjudicate no new sequence.
 - Local page exhaustion is never authoritative. Successor creation requires a
   fresh predecessor flush receipt and no earlier local pending event. In one
   active-scope transaction Lexinet proves a canonical `presented` fact for
@@ -87,10 +93,13 @@ POST /api/v1/study/sessions/{session_id}/sync
 
 Create idempotency is keyed by `creation_request_id`; sync idempotency is keyed
 by `sync_id`. Reuse with a different normalized SHA-256 input returns
-`IDEMPOTENCY_CONFLICT`. All success resources carry `protocol_version`,
-`schema_version`, `required_semantics`, and `generated_at`; every HTTP response
-carries bounded `X-Request-ID` correlation. Errors preserve Lexinet's existing
-raw envelope:
+`IDEMPOTENCY_CONFLICT`. Replaying an identical `sync_id` preserves the
+original event receipts, flush receipt, and immutable issued page bytes. The
+surrounding session envelope remains live and may report later authoritative
+lifecycle or state, so the complete sync response is not promised byte-stable.
+All success resources carry `protocol_version`, `schema_version`,
+`required_semantics`, and `generated_at`; every HTTP response carries bounded
+`X-Request-ID` correlation. Errors preserve Lexinet's existing raw envelope:
 
 ```json
 {
@@ -185,8 +194,9 @@ maximum offline interval remains explicitly degraded rather than authoritative.
   session-local provisional evidence. A matching study touch or accepted
   rating may atomically promote prerequisite observations before any dependent
   canonical event. Restart enters a non-card resume gate.
-- A stable terminal grouped-batch rejection marks every included promotion,
-  rating, and touch-successor fact rejected together. Rejected facts cannot
+- A stable terminal grouped-batch rejection leaves any immutable replay prefix
+  intact and marks every fact in the one new suffix rejected with the first
+  failure code. Rejected promotion, rating, and touch-successor facts cannot
   satisfy exhaustion or be reissued under new identities.
 - Queued, syncing, saved, rejected, offline, tracking-paused, and provisional
   states remain distinct; the UI never implies that unsynchronized or
@@ -194,12 +204,19 @@ maximum offline interval remains explicitly degraded rather than authoritative.
 
 ## Current implementation boundary
 
-The existing `fetch_next_card` / single-review adapter predates the Lexinet
-source audit. It has no issued session identity, correction stream, scheduler
-provenance, or safe reconciliation and remains a test scaffold. Production
-Lexinet study requests stay disabled until the later server, resilient client,
-outbox/cache, cross-repository live tests, authorization, and packaging steps
-are implemented and verified together.
+Lexinet now persists the accepted study lifecycle, immutable issued snapshots,
+append-only events and terminal receipts, gap-free profile ordinals, merge
+invalidation, and atomic successor/waiting replacement boundaries. That storage
+layer is not yet a public `study.v1` data plane: the rating-aware scheduler and
+materializer remain Step 3, and the canonical service handlers and CLI remain
+Step 4.
+
+The panel's existing `fetch_next_card` / single-review adapter predates the
+Lexinet source audit. It has no issued session identity, correction stream,
+scheduler provenance, or safe reconciliation and remains a test scaffold.
+Production Lexinet study requests stay disabled until the later scheduler,
+server, resilient client, outbox/cache, cross-repository live tests,
+authorization, and packaging steps are implemented and verified together.
 
 Still-required deployment inputs are the explicit Lexinet endpoint and TLS
 arrangement, learner profile and normalized topic set, deadline/freshness/cache
@@ -211,3 +228,14 @@ with the Lexinet-owned `study.v1` authority, deterministic provenance export,
 exact compatibility rules, and panel-side contract tests. This freezes the
 cross-repository wire contract without claiming that either runtime data plane
 has been implemented.
+
+**Clarified 2026-08-16:** made the already-approved atomic sync boundary
+explicit as immutable replay prefix plus one new contiguous suffix, scoped
+identical-sync replay stability to receipts, flush receipt, and issued page,
+and refreshed executable fixtures. This changes no `study.v1` wire shape,
+required semantic, schema version, or protocol version.
+
+**Amended 2026-08-17:** pinned the fixture export to committed Lexinet revision
+`158dea68bffb2b77321d20738afb1ddf99b19ad9` and recorded completion of the
+Step 2 persistence layer. The scheduler, public study service/CLI, resilient
+panel client, authorization, and packaging gates remain pending.

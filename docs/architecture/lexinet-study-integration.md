@@ -47,11 +47,13 @@ rating event exposed by the current Undo lease.
 
 Host-side automation locates the populated Lexinet repository only through
 `BHP_LEXINET_SOURCE_DIR` and verifies its history against
-`BHP_LEXINET_BASE_REVISION`. The audit found the source checkout clean at full
-revision `3e15ef60e1970757e756d74622846edba166757c`; the originally supplied
-directory was empty. No script may encode or infer either workstation path. The
-validator resolves the physical Git root and requires that audited commit in
-the selected checkout's ancestry rather than trusting `go.mod` alone. Runtime
+`BHP_LEXINET_BASE_REVISION`. The original audit found the source checkout clean
+at full revision `3e15ef60e1970757e756d74622846edba166757c`; approved contract and
+persistence work is now committed through revision
+`158dea68bffb2b77321d20738afb1ddf99b19ad9`. The originally supplied directory
+was empty. No script may encode or infer either workstation path. The validator
+resolves the physical Git root and requires the audited base commit in the
+selected checkout's ancestry rather than trusting `go.mod` alone. Runtime
 endpoint and credential configuration remain separate from these
 development-source inputs.
 
@@ -61,12 +63,16 @@ Lexinet already provides useful foundations:
 - ideas with canonical names, definitions, examples, aliases, and acronyms;
 - topics and idea-topic membership;
 - an embedded `tsnet` listener;
-- strict JSON request decoding and a consistent structured error shape.
+- strict JSON request decoding and a consistent structured error shape;
+- the canonical `study.v1` contract and deterministic golden resources; and
+- the Step 2 study schema, repository, atomic event adjudicator, merge
+  invalidation, and successor/waiting replacement persistence operations.
 
-It does not yet provide study sessions, random or scheduled selection, exposure
-history, reviews, or a flash-card API. Its substantive routes are currently
-unversioned and successful responses are raw JSON resources. New study routes
-must not accidentally redefine the existing API conventions.
+It does not yet provide the rating-aware scheduler/materializer, canonical
+study service handlers and CLI, or a public flash-card API. Its substantive
+existing HTTP routes are currently unversioned and successful responses are raw
+JSON resources. New study routes must not accidentally redefine the existing
+API conventions; implemented storage primitives do not make those routes live.
 
 The panel repository already has a deterministic `FlashCardSession`, a guarded
 but provisional HTTP adapter, fixture-driven host tests, and an LVGL renderer.
@@ -1072,6 +1078,13 @@ grouped terminal suffix has one cause and code even when the failing input is
 not first. Terminal high-water remains distinct from scheduler input
 provenance. This clarifies Step 2 storage and successor behavior without
 claiming its production adjudicator or mapped proof complete.
+
+**Amended 2026-08-17:** recorded Step 2 completion at sibling Lexinet revision
+`158dea68bffb2b77321d20738afb1ddf99b19ad9`. The migration, transaction-bound
+repository, event-receipt/ordinal adjudication, merge invalidation, and atomic
+successor/waiting replacement paths now have exact mapped PostgreSQL evidence.
+The Step 3 scheduler, Step 4 service/API, Step 6 panel data plane, and all target
+gates remain pending.
 
 ## Additional primary scheduler references
 

@@ -21,3 +21,22 @@ The host test consumes only this bounded export. It checks exact `study.v1`
 identity, verifies every example digest, accepts optional response additions,
 and rejects an uncoordinated required semantic as
 `LEXINET.RESPONSE_SCHEMA_INVALID`.
+
+The sync examples make the atomic adjudication boundary visible without adding
+a panel-owned wire field:
+
+- `sync-rated-and-voided.json` retains its established exported path while its
+  manifest scenario makes the previously invisible boundary explicit:
+  sequences 1–4 are immutable replay receipts and sequence 5 is the sole newly
+  terminally rejected suffix event;
+- `sync-new-suffix-mixed-success.json` proves that one valid new suffix may mix
+  accepted and semantic-duplicate receipts; and
+- `sync-replay-prefix-then-grouped-terminal-suffix.json` proves that a terminal
+  domain failure preserves the replay prefix while every new-suffix receipt
+  carries `terminal_rejected`, the first failure code, and no canonical event
+  or ingestion ordinal.
+
+On an identical `sync_id` replay, event receipts, the flush receipt, and issued
+page bytes are immutable. The live session envelope may advance to current
+authoritative lifecycle or state; consumers must not require byte equality for
+the whole sync response.

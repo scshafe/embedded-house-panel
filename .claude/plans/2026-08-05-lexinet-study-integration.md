@@ -131,7 +131,7 @@ as the production default.
     test identifies the exact pinned `study.v1` protocol/version and rejects
     unknown required semantics.
 
-- [ ] **Step 2: Add the Lexinet study persistence model and merge rules**
+- [x] **Step 2: Add the Lexinet study persistence model and merge rules**
   - Add paired `0007_study.up.sql`/`.down.sql` migrations following existing
     naming, checks, timestamps, and reverse-dependency conventions.
   - Model one-to-many learner-profile/session/event relationships, ordered
@@ -1096,3 +1096,11 @@ successor operation also owns the no-flush transition from a locked empty
 sentinel to one linked active replacement when eligibility becomes nonempty.
 Step 2 remains unchecked until the production event adjudicator, ordinal race,
 successor/waiting replacement, and their exact mapped proofs pass.
+
+**Amended 2026-08-17:** completed Step 2 at sibling Lexinet commit
+`158dea68bffb2b77321d20738afb1ddf99b19ad9`. The paired migration, study
+models, transaction-bound repository, atomic event adjudicator, deterministic
+merge invalidation, and successor/waiting replacement operations now enforce
+the accepted persistence contract. All four exact mapped PostgreSQL/model
+proofs passed and are recorded. Step 3 scheduling and Step 4 service/API work
+remain unchecked and pending.

@@ -20,13 +20,13 @@
   },
   "source": {
     "repository": "lexinet",
-    "repository_base_revision": "3a15a087b27a2407d6e765010b9c1f1c0e4968f6",
+    "repository_base_revision": "158dea68bffb2b77321d20738afb1ddf99b19ad9",
     "contract_root": "contracts/study.v1",
     "manifest_path": "contracts/study.v1/manifest.json",
-    "manifest_sha256": "542901b77b4aea6a0f5c97e8ab8c3c44c1bfd6cbd155eee3409b0c5464f28b33",
+    "manifest_sha256": "c0a0c5e731704978fe0beee88c790762c1cb2cbc2f96fa22749978eff113079e",
     "openapi_path": "contracts/study.v1/openapi.json",
-    "openapi_sha256": "30385ca5b05eb18954a4c68c0efbc4e3bbc55fec46066f06c2eef2af5464069d",
-    "contract_bundle_sha256": "2b58b02ba543bac297763a3d8a2008645dcf18f18d221ac20c596580cf7be096"
+    "openapi_sha256": "422b4ed6e9336b642bd32b923c8d9989ee0d7e0d624883ae4593a8266d8eaa19",
+    "contract_bundle_sha256": "b90be0dd4a1054b7de065aee125561a927a5faf19e2f2451090426c0488f4242"
   },
   "fixtures": [
     {
@@ -56,6 +56,20 @@
       "schema": "SyncResource",
       "expected": "valid",
       "sha256": "4b1cdd97a129eb5a8aaebc930d4c932b722133bb5e7aba52082c34c6679e1570"
+    },
+    {
+      "source_path": "examples/sync-new-suffix-mixed-success.json",
+      "export_path": "examples/sync-new-suffix-mixed-success.json",
+      "schema": "SyncResource",
+      "expected": "valid",
+      "sha256": "2f49be3d2c756d9db31fcc11bca3986babe7d3bcd4edcfdd033a6fd2fcc35dd9"
+    },
+    {
+      "source_path": "examples/sync-replay-prefix-then-grouped-terminal-suffix.json",
+      "export_path": "examples/sync-replay-prefix-then-grouped-terminal-suffix.json",
+      "schema": "SyncResource",
+      "expected": "valid",
+      "sha256": "66b862ac4f32505a3ae227c0189bd7622838347d55e7cfb6b949285c627b667f"
     },
     {
       "source_path": "examples/error-cycle-not-exhausted.json",

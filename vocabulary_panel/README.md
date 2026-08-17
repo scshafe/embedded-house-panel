@@ -24,10 +24,12 @@ optional adapter for the historical scaffold contract in
 Lexinet now owns a frozen machine-readable `study.v1` contract, decision,
 validator, and golden examples. This domain consumes a provenance-stamped
 export and verifies the exact protocol/schema identity and required semantics.
-The study handlers and resilient panel client are still pending. The Buildroot
-package compiles the historical adapter with certificate-verified TLS, but no
-target service may send real study requests until those later runtime and
-packaging steps replace the scaffold.
+Lexinet's persistence repository, atomic event adjudicator, merge rules, and
+successor boundary are implemented; its rating-aware scheduler and study
+handlers/CLI, plus this domain's resilient panel client, are still pending. The
+Buildroot package compiles the historical adapter with certificate-verified TLS,
+but no target service may send real study requests until those later runtime
+and packaging steps replace the scaffold.
 
 All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
 
@@ -61,3 +63,8 @@ of the Lexinet study semantics and neutral shared-capability ownership. The
 Lexinet-owned `study.v1` wire contract and provenance-stamped panel fixtures are
 now frozen and verified. The server API implementation, resilient adapter,
 neutral-shell integration, and packaging migration remain unimplemented.
+
+**Amended 2026-08-17:** recorded the completed Lexinet Step 2 persistence layer
+at revision `158dea68bffb2b77321d20738afb1ddf99b19ad9`. This does not complete
+the Step 3 scheduler, Step 4 service/API, Step 6 resilient panel client, or any
+target integration gate.
