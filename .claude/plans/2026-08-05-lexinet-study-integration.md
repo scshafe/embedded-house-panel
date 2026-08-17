@@ -22,9 +22,13 @@ as the production default.
   originally supplied directory was empty. Cross-repository scripts must fail
   when the input is absent or invalid and must not infer either workstation
   path.
-- Lexinet is currently clean on `main` at `3e15ef6`. It is a Go 1.23.4 service
-  and CLI backed by PostgreSQL. Its study API, schema, selection policy, scoped
-  authorization, and HTTPS tsnet listener do not exist yet.
+- The executed Lexinet source is clean on `main` at final revision
+  `517da8a3823fbaa0d70018831be75ed734c2f96d`. It is a Go 1.23.4 service and CLI
+  backed by PostgreSQL. Its canonical contract, persistence model,
+  rating-aware scheduler, projector, materializer, and authority-isolated
+  shadow-runner seam are implemented. The public study service/routes/CLI,
+  final scoped authorization, and production post-commit shadow composition do
+  not exist yet.
 - The panel currently has a forward-only fixture-backed `FlashCardSession`, a
   provisional synchronous ~~HTTP~~ HTTPS adapter, and a presentation-only LVGL
   renderer.
@@ -223,7 +227,7 @@ as the production default.
     inert data.~~ This no longer satisfies the requested rating-aware selection
     behavior; keep it only as a deterministic comparison fixture.
 
-- [ ] **Step 3: Implement and prove versioned rating-aware scheduling**
+- [x] **Step 3: Implement and prove versioned rating-aware scheduling**
   - Add `internal/study` with `StudyScheduler.plan(StudySchedulingSnapshot) ->
     StudyPlan` as the documented `@extension-point`; inject clock and seed rather
     than reading global time/randomness. Retain `shuffle_bag_v1` only as a test
@@ -1104,3 +1108,14 @@ merge invalidation, and successor/waiting replacement operations now enforce
 the accepted persistence contract. All four exact mapped PostgreSQL/model
 proofs passed and are recorded. Step 3 scheduling and Step 4 service/API work
 remain unchecked and pending.
+
+**Amended 2026-08-17:** completed Step 3 at sibling Lexinet commit
+`517da8a3823fbaa0d70018831be75ed734c2f96d`. The `StudyScheduler` extension
+point, active `variety_first_v1`, shuffle baseline, card/event projectors,
+transaction-bound cycle materializer, and authority-isolated shadow-runner seam
+now have exact mapped unit and PostgreSQL evidence. The panel fixture provenance
+is repinned to that final committed source without changing the contract bundle.
+The public `StudySessionService`, study routes and CLI, and production
+composition that invokes shadow work only after authoritative commit remain
+Step 4 work; Step 4 and every later incomplete step stay unchecked. No accepted
+product decision changed.

@@ -4,7 +4,8 @@
 
 **Status:** all seven version 1 Lexinet decisions accepted by
 [ADR 0006](../decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md);
-implementation and evidence gates remain pending
+the Lexinet Step 3 scheduler seam is implemented and evidenced, while later
+service, panel, authorization, packaging, and hardware gates remain pending
 **Scope:** Lexinet-backed concept cards, varied selection, offline behavior,
 touch navigation, and local constrained-catalog voice commands
 **Not selected here:** a final microphone, speech engine, battery-powered board,
@@ -49,8 +50,8 @@ Host-side automation locates the populated Lexinet repository only through
 `BHP_LEXINET_SOURCE_DIR` and verifies its history against
 `BHP_LEXINET_BASE_REVISION`. The original audit found the source checkout clean
 at full revision `3e15ef60e1970757e756d74622846edba166757c`; approved contract and
-persistence work is now committed through revision
-`158dea68bffb2b77321d20738afb1ddf99b19ad9`. The originally supplied directory
+persistence/scheduling work is now committed through final revision
+`517da8a3823fbaa0d70018831be75ed734c2f96d`. The originally supplied directory
 was empty. No script may encode or infer either workstation path. The validator
 resolves the physical Git root and requires the audited base commit in the
 selected checkout's ancestry rather than trusting `go.mod` alone. Runtime
@@ -64,15 +65,20 @@ Lexinet already provides useful foundations:
 - topics and idea-topic membership;
 - an embedded `tsnet` listener;
 - strict JSON request decoding and a consistent structured error shape;
-- the canonical `study.v1` contract and deterministic golden resources; and
+- the canonical `study.v1` contract and deterministic golden resources;
 - the Step 2 study schema, repository, atomic event adjudicator, merge
-  invalidation, and successor/waiting replacement persistence operations.
+  invalidation, and successor/waiting replacement persistence operations;
+- the Step 3 `StudyScheduler` extension point, `variety_first_v1`, shuffle
+  baseline, card/event projectors, and transaction-bound cycle materializer;
+  and
+- the authority-isolated shadow-runner seam and fake isolation evidence.
 
-It does not yet provide the rating-aware scheduler/materializer, canonical
-study service handlers and CLI, or a public flash-card API. Its substantive
-existing HTTP routes are currently unversioned and successful responses are raw
-JSON resources. New study routes must not accidentally redefine the existing
-API conventions; implemented storage primitives do not make those routes live.
+It does not yet provide the canonical `StudySessionService`, study routes/CLI,
+public flash-card API, or production composition that invokes shadow work only
+after the authoritative commit. Its substantive existing HTTP routes are
+currently unversioned and successful responses are raw JSON resources. New
+study routes must not accidentally redefine the existing API conventions;
+implemented storage and scheduling primitives do not make those routes live.
 
 The panel repository already has a deterministic `FlashCardSession`, a guarded
 but provisional HTTP adapter, fixture-driven host tests, and an LVGL renderer.
@@ -285,6 +291,12 @@ compare its predictions and workload. Version 1 delivers that runner boundary
 and a fake isolation test, not an FSRS implementation. Adding a pinned FSRS
 adapter is a later explicit scheduler experiment. Switching the active policy
 is an explicit versioned decision and rebuild, never a mutation of raw history.
+
+Lexinet Step 3 now implements and proves the scheduler, projector, materializer,
+and isolated runner seam described above. The runner has no production caller
+yet. Step 4 must compose it only after committed authoritative state is visible;
+until that service boundary lands, the evidence proves isolation behavior but
+does not claim a live post-commit shadow evaluation path.
 
 ## Ownership and trust boundaries
 
@@ -1085,6 +1097,14 @@ repository, event-receipt/ordinal adjudication, merge invalidation, and atomic
 successor/waiting replacement paths now have exact mapped PostgreSQL evidence.
 The Step 3 scheduler, Step 4 service/API, Step 6 panel data plane, and all target
 gates remain pending.
+
+**Amended 2026-08-17:** recorded Step 3 completion at sibling Lexinet revision
+`517da8a3823fbaa0d70018831be75ed734c2f96d`. The deterministic scheduler,
+projectors, transaction-bound materializer, and authority-isolated shadow-runner
+seam now have exact mapped unit and PostgreSQL evidence. The public study
+service/routes/CLI and production post-commit shadow composition remain Step 4;
+the panel data plane, authorization, packaging, and every hardware gate remain
+pending. No `LEXI-*` disposition or accepted product meaning changed.
 
 ## Additional primary scheduler references
 

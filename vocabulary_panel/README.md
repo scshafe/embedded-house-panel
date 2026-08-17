@@ -25,11 +25,13 @@ Lexinet now owns a frozen machine-readable `study.v1` contract, decision,
 validator, and golden examples. This domain consumes a provenance-stamped
 export and verifies the exact protocol/schema identity and required semantics.
 Lexinet's persistence repository, atomic event adjudicator, merge rules, and
-successor boundary are implemented; its rating-aware scheduler and study
-handlers/CLI, plus this domain's resilient panel client, are still pending. The
-Buildroot package compiles the historical adapter with certificate-verified TLS,
-but no target service may send real study requests until those later runtime
-and packaging steps replace the scaffold.
+successor boundary are implemented, as are its rating-aware scheduler,
+projectors, cycle materializer, and authority-isolated shadow-runner seam. Its
+public study service/routes/CLI and production post-commit shadow composition,
+plus this domain's resilient panel client, are still pending. The Buildroot
+package compiles the historical adapter with certificate-verified TLS, but no
+target service may send real study requests until those later runtime and
+packaging steps replace the scaffold.
 
 All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
 
@@ -68,3 +70,11 @@ neutral-shell integration, and packaging migration remain unimplemented.
 at revision `158dea68bffb2b77321d20738afb1ddf99b19ad9`. This does not complete
 the Step 3 scheduler, Step 4 service/API, Step 6 resilient panel client, or any
 target integration gate.
+
+**Amended 2026-08-17:** recorded completed Lexinet Step 3 scheduling at revision
+`517da8a3823fbaa0d70018831be75ed734c2f96d` and repinned the exported contract
+provenance to that final source. Scheduler/projector/materializer behavior and
+the isolated shadow-runner seam are implemented; Step 4 public service/routes/
+CLI and production post-commit shadow composition, Step 6 resilient panel
+client, and every target integration gate remain pending. No accepted product
+decision changed.
