@@ -1911,7 +1911,7 @@
       "item_index": 2,
       "clause_item": "repository search finds no real identifier or content fixture.",
       "test_symbol": "plan.personal-agenda-feasibility.step-1.verify-1.item-2.repository-search-finds-no-real-identifier-or-content-fixture",
-      "command": "PLANNED: exact feasibility command to be assigned in .claude/plans/2026-08-05-personal-agenda-feasibility.md Step 1 [plan.personal-agenda-feasibility.step-1.verify-1.item-2.repository-search-finds-no-real-identifier-or-content-fixture]",
+      "command": "make verify-docs",
       "proof_kind": "automated",
       "proof_status": "planned"
     },

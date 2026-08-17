@@ -45,11 +45,12 @@ conditional roadmap in the architecture document.
   6.3.1, but not a selectable full Xcode installation. Step 2 must make full
   Xcode availability an explicit environment prerequisite before creating or
   signing the native app probe.
-- The current development host is macOS 26.5.2 build 25F84 with Messages 26.0
-  build 1450.600.61.1.5. Its Messages scripting dictionary accepts text and
+- ~~The current development host is macOS 26.5.2 build 25F84 with Messages 26.0
+  build 1450.600.61.1.5.~~ Step 1 execution observes macOS 26.6.1 build 25G76
+  with Messages 26.0 build 1450.700.71. Its Messages scripting dictionary accepts text and
   file inputs, but that observation does not prove unattended reliability,
   recipient resolution, attachment presentation, or delivery semantics.
-- The Mac currently runs Tailscale 1.98.9, while the Buildroot baseline packages
+- The Mac currently runs Tailscale 1.98.10, while the Buildroot baseline packages
   1.78.1. The Tailnet experiment can use the Mac's current Serve capabilities,
   but production compatibility requires a coordinated, reviewed panel pin.
 - All live Messages tests require a separately approved self/test recipient.
@@ -377,3 +378,14 @@ checking Step 1. The user accepted `AGENDA-001`–`AGENDA-010` and kept
 `AGENDA-011` deferred; roadmap Step 5 still must author and review the bounded
 experiment contract, matrix, redaction evidence, limits, recipient class,
 maximum side effects, and manual stop points before any feasibility probe.
+
+**Amended 2026-08-16:** recorded the Step 1 execution environment drift and
+authored the canonical proposed experiment contract at
+`experiments/macos_personal_companion/README.md`. The current host is macOS
+26.6.1 build 25G76 with Messages 26.0 build 1450.700.71 and Tailscale 1.98.10;
+full Xcode remains unavailable under the selected Command Line Tools path. The
+contract freezes the outcome taxonomy, fixture/live matrix, zero-by-default
+external-effect boundary, proposed 12-handoff/two-audio ceiling, self/test-only
+recipient class, redaction allowlist, and eight manual stop points. Step 1 stays
+unchecked until explicit human safety review; no provider access, capture,
+Tailnet change, login-item change, or Messages handoff occurred.

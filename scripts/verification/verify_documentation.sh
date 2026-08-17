@@ -44,6 +44,7 @@ docs/research/compute-platform-assessment.md
 docs/security/threat-model.md
 docs/hardware/enclosure-plan.md
 hardware_tests/README.md
+experiments/macos_personal_companion/README.md
 vocabulary_panel/README.md
 "
 
@@ -245,6 +246,51 @@ require_exact_line_count "$protocol_commitment_adr" \
 require_fixed_count docs/decisions/README.md \
   '[0007](0007-validate-complete-protocol-v2-commitments.md)' 1 \
   VERIFY_DOCS.PROTOCOL_COMMITMENT_ADR_REGISTRY_ENTRY_INVALID
+
+agenda_feasibility_contract=experiments/macos_personal_companion/README.md
+require_exact_line_count "$agenda_feasibility_contract" \
+  '<!-- @canonical macos-personal-companion-feasibility-contract -->' 1 \
+  VERIFY_DOCS.AGENDA_FEASIBILITY_CANONICAL_MARKER_INVALID
+require_exact_line_count "$agenda_feasibility_contract" \
+  '**Status:** proposed for human safety review; no probe or external effect is' 1 \
+  VERIFY_DOCS.AGENDA_FEASIBILITY_REVIEW_STATUS_INVALID
+for agenda_contract_text in \
+  "\`available\`" \
+  "\`permission_denied\`" \
+  "\`unsupported\`" \
+  "\`failed_before_submission\`" \
+  "\`submitted\`" \
+  "\`delivery_unknown\`" \
+  'Zero by default. One later explicit approval may authorize at most 12 total handoff attempts' \
+  'never a feasibility target.' \
+  '## Redaction and evidence policy' \
+  '## Manual stop points' \
+  '## Step 1 completion gate'; do
+  grep -F "$agenda_contract_text" "$PROJECT_ROOT/$agenda_feasibility_contract" \
+    >/dev/null || {
+    bhp_fail VERIFY_DOCS.AGENDA_FEASIBILITY_CONTRACT_INCOMPLETE \
+      "$agenda_contract_text" "$TRACE_ID"
+    exit 1
+  }
+done
+
+agenda_experiment_root=$PROJECT_ROOT/experiments/macos_personal_companion
+agenda_forbidden_artifact=$(find "$agenda_experiment_root" -type f \
+  \( -name '*.wav' -o -name '*.m4a' -o -name '*.aac' -o -name '*.mp3' \
+     -o -name '*.caf' -o -name '*.mobileprovision' -o -name '*.p12' \
+     -o -name '*.cer' -o -name '*.xcuserstate' \) -print -quit)
+if [ -n "$agenda_forbidden_artifact" ]; then
+  bhp_fail VERIFY_DOCS.AGENDA_FEASIBILITY_PRIVATE_ARTIFACT_TRACKED \
+    "$(basename "$agenda_forbidden_artifact")" "$TRACE_ID"
+  exit 1
+fi
+if rg -n --hidden --glob '!README.md' \
+  '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|Authorization:[[:space:]]*Bearer|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})' \
+  "$agenda_experiment_root" >/dev/null; then
+  bhp_fail VERIFY_DOCS.AGENDA_FEASIBILITY_IDENTIFIER_OR_SECRET_PRESENT \
+    "Experiment source contains a credential or address-shaped value" "$TRACE_ID"
+  exit 1
+fi
 
 require_exact_line_count docs/architecture/application-capability-ownership.md \
   '<!-- @canonical application-capability-ownership -->' 1 \
