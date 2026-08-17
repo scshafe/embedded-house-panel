@@ -490,10 +490,23 @@ as the production default.
     listener wrapper derives a principal with `tsnet`/local-client `WhoIs` and
     marks the transport in request context; loopback/operator bearer behavior
     remains available and cannot forge that marker.
+    The Tailnet listener is native `tsnet` `ListenTLS` on port 443, calls
+    `WhoIs` for every request, and serves a separate study-only router. It does
+    not accept forwarded identity/capability headers, raw TCP, Funnel, or a
+    reverse-proxy fallback. The router exposes only create/resume and sync;
+    operator GET/state and every vocabulary route remain loopback-only.
   - Require a dedicated appliance tag and authorize it only for study
     create/resume/sync on configured learner-profile references. Add a negative
     test proving the same principal cannot access another profile or create,
     edit, merge, archive, or delete vocabulary content.
+    Require an exact configured caller tag plus a configured custom application
+    capability under a domain the operator controls. Capability objects are
+    closed, bounded operation/profile sets and are intersected with Lexinet's
+    local create/resume-and-sync/profile ceiling. Tailscale's union of matching
+    grants never overrides that local ceiling. Derive the persisted
+    `tailnet-node:<uuid>` principal deterministically from the opaque stable node
+    ID using one frozen domain-separated UUIDv5 mapping; never persist the raw
+    stable ID, node name, address, user, or tag as identity.
   - Move the tailnet service to certificate-validated HTTPS with `ListenTLS`, or
     document and test a Tailscale HTTPS reverse-proxy fallback if the deployment
     cannot issue the required certificate. Never silently downgrade the panel
@@ -501,6 +514,12 @@ as the production default.
   - Review and pin supported Tailscale versions in both repositories before
     relying on current TLS/identity behavior. Add a narrowly scoped token-file
     fallback only behind the same study capabilities.
+    Node-capability mode and scoped-token mode are mutually exclusive startup
+    configurations, never request-time fallbacks. Scoped-token mode still
+    requires native Tailnet TLS plus a successful per-request `WhoIs`, uses an
+    independently provisioned nonsecret subject UUID and owner-only token file,
+    and grants only the configured profiles and create/resume-and-sync surface.
+    It never derives identity from token bytes.
   - Provide example Tailnet grants and provisioning variables with placeholder
     host/tag values. Keep auth keys, node state, certificates, and tokens out of
     Git, image overlays, arguments, URLs, logs, and diagnostic archives.
@@ -511,6 +530,15 @@ as the production default.
     tagged test node can call study endpoints over validated HTTPS but receives
     denial on destructive routes; a nontagged node cannot reach or authorize to
     the study service; certificate failure is fail-closed.
+  - Version review on 2026-08-17 selected current stable Tailscale `v1.102.2`,
+    whose module requires Go `1.26.5`; Lexinet must pin both and its Docker
+    builder together. The verified Buildroot `2026.05.1` input supplies Go
+    `1.26.3` and Tailscale `1.78.1`, so the panel runtime cannot be called
+    complete until the user selects either a SHA-256-pinned official ARM binary
+    package or an approved source-build toolchain upgrade. Do not substitute
+    the newest old-toolchain-compatible Tailscale release and do not check this
+    step without sanitized real tagged, nontagged, wrong-tag, revocation, and
+    certificate evidence.
 
 - [ ] **Step 6: Replace the panel's provisional client with a resilient study data plane**
   - Replace `fetch_next_card` assumptions with typed create/resume/sync models
@@ -1204,3 +1232,15 @@ evidence; the disposable harness left no containers. The panel export is
 repinned to this committed source without changing the frozen contract bundle.
 Step 5 scoped Tailnet identity/TLS, Step 6 resilient panel data plane, packaging,
 and every hardware gate remain pending. No accepted product decision changed.
+
+**Amended 2026-08-17:** converted Step 5's reviewed trust boundary into an
+executable native-tsnet design before implementation. Tailnet node-capability
+and scoped-token modes are mutually exclusive; both require native
+certificate-validated TLS and fresh per-request `WhoIs`, and only the former
+accepts the exact configured caller tag plus custom application capability.
+The Tailnet router is structurally limited to create/resume and sync, with a
+frozen domain-separated stable-node principal mapping and a local profile/
+operation ceiling. Current stable Tailscale `v1.102.2` requires Go `1.26.5`.
+Lexinet can pin that boundary, but panel packaging and real Tailnet policy,
+identity, certificate, and revocation evidence remain explicit user/external
+gates; Step 5 stays unchecked.
