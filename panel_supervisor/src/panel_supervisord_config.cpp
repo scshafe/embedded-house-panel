@@ -29,6 +29,9 @@ constexpr const char *kPresenceInputName = "BHP_PANEL_SUPERVISOR_PRESENCE_INPUT_
 constexpr const char *kBacklightPath = "BHP_PANEL_SUPERVISOR_BACKLIGHT_PATH";
 constexpr const char *kBacklightMaximumPath = "BHP_PANEL_SUPERVISOR_BACKLIGHT_MAX_PATH";
 constexpr const char *kModeSocket = "BHP_PANEL_SUPERVISOR_MODE_SOCKET";
+constexpr const char *kPanelUiUid = "BHP_PANEL_SUPERVISOR_PANEL_UI_UID";
+constexpr const char *kPresentationTimeoutMilliseconds =
+	"BHP_PANEL_SUPERVISOR_PRESENTATION_TIMEOUT_MILLISECONDS";
 constexpr const char *kDayBrightness = "BHP_PANEL_SUPERVISOR_DAY_BRIGHTNESS";
 constexpr const char *kNightBrightness = "BHP_PANEL_SUPERVISOR_NIGHT_BRIGHTNESS";
 constexpr const char *kGraceDayBrightness = "BHP_PANEL_SUPERVISOR_GRACE_DAY_BRIGHTNESS";
@@ -45,7 +48,10 @@ constexpr long long kMaximumPollIntervalMilliseconds = 5'000;
 constexpr long long kMinimumSuspendRetryBackoffMilliseconds = 1'000;
 constexpr long long kMaximumSuspendRetryBackoffMilliseconds = 300'000;
 
-constexpr std::array<const char *, 17> kKnownEnvironmentVariables{
+constexpr long long kMinimumPresentationTimeoutMilliseconds = 1;
+constexpr long long kMaximumPresentationTimeoutMilliseconds = 60'000;
+
+constexpr std::array<const char *, 19> kKnownEnvironmentVariables{
 	kLatitude,
 	kLongitude,
 	kPresenceGraceSeconds,
@@ -54,6 +60,8 @@ constexpr std::array<const char *, 17> kKnownEnvironmentVariables{
 	kBacklightPath,
 	kBacklightMaximumPath,
 	kModeSocket,
+	kPanelUiUid,
+	kPresentationTimeoutMilliseconds,
 	kDayBrightness,
 	kNightBrightness,
 	kGraceDayBrightness,
@@ -157,6 +165,11 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		require_field(configuration_fields, kBacklightMaximumPath, invalid_fields);
 	const std::string *mode_socket_path =
 		require_field(configuration_fields, kModeSocket, invalid_fields);
+	const std::string *panel_ui_uid_text =
+		require_field(configuration_fields, kPanelUiUid, invalid_fields);
+	const std::string *presentation_timeout_text =
+		require_field(configuration_fields, kPresentationTimeoutMilliseconds,
+			      invalid_fields);
 	const std::string *day_brightness_text =
 		require_field(configuration_fields, kDayBrightness, invalid_fields);
 	const std::string *night_brightness_text =
@@ -197,6 +210,22 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 	     poll_interval_milliseconds > kMaximumPollIntervalMilliseconds)) {
 		invalid_fields[kPollIntervalMilliseconds] =
 			"must_be_decimal_milliseconds_between_50_and_5000";
+	}
+	long long panel_ui_uid = 0;
+	if (panel_ui_uid_text != nullptr &&
+	    (!parse_decimal_integer(*panel_ui_uid_text, panel_ui_uid) || panel_ui_uid < 1 ||
+	     static_cast<unsigned long long>(panel_ui_uid) >
+		     std::numeric_limits<std::uint32_t>::max())) {
+		invalid_fields[kPanelUiUid] = "must_be_decimal_uid_between_1_and_4294967295";
+	}
+	long long presentation_timeout_milliseconds = 0;
+	if (presentation_timeout_text != nullptr &&
+	    (!parse_decimal_integer(*presentation_timeout_text,
+				    presentation_timeout_milliseconds) ||
+	     presentation_timeout_milliseconds < kMinimumPresentationTimeoutMilliseconds ||
+	     presentation_timeout_milliseconds > kMaximumPresentationTimeoutMilliseconds)) {
+		invalid_fields[kPresentationTimeoutMilliseconds] =
+			"must_be_decimal_milliseconds_between_1_and_60000";
 	}
 
 	auto parse_brightness = [&invalid_fields](const char *field_name,
@@ -329,7 +358,8 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 	const auto supervisor_config_result = SupervisorConfig::create(
 		std::chrono::milliseconds(grace_seconds * 1000),
 		BrightnessLevels{day_brightness, night_brightness, grace_day_brightness,
-				 grace_night_brightness, off_brightness});
+				 grace_night_brightness, off_brightness},
+		std::chrono::milliseconds(presentation_timeout_milliseconds));
 	if (!supervisor_config_result) {
 		return Result<PanelSupervisordConfig>::failure(SupervisorError::wrap(
 			ErrorCode::DaemonConfigurationInvalid,
@@ -342,6 +372,7 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		has_presence_path ? *presence_path : std::string{},
 		has_presence_name ? *presence_name : std::string{}, *backlight_path,
 		*backlight_maximum_path, *mode_socket_path,
+		static_cast<std::uint32_t>(panel_ui_uid),
 		suspend_mode, power_state_path == nullptr ? std::string{} : *power_state_path,
 		std::chrono::milliseconds(poll_interval_milliseconds),
 		std::chrono::milliseconds(suspend_retry_backoff_milliseconds)));
@@ -352,7 +383,7 @@ PanelSupervisordConfig::PanelSupervisordConfig(
 	const double longitude_degrees, std::string presence_input_path,
 	std::string presence_input_name, std::string backlight_path,
 	std::string backlight_maximum_path,
-	std::string mode_socket_path,
+	std::string mode_socket_path, const std::uint32_t panel_ui_uid,
 	const SuspendMode suspend_mode, std::string power_state_path,
 	const std::chrono::milliseconds poll_interval,
 	const std::chrono::milliseconds suspend_retry_backoff)
@@ -361,7 +392,8 @@ PanelSupervisordConfig::PanelSupervisordConfig(
 	  presence_input_name_(std::move(presence_input_name)),
 	  backlight_path_(std::move(backlight_path)),
       backlight_maximum_path_(std::move(backlight_maximum_path)),
-      mode_socket_path_(std::move(mode_socket_path)), suspend_mode_(suspend_mode),
+	  mode_socket_path_(std::move(mode_socket_path)), panel_ui_uid_(panel_ui_uid),
+	  suspend_mode_(suspend_mode),
 	  power_state_path_(std::move(power_state_path)), poll_interval_(poll_interval),
 	  suspend_retry_backoff_(suspend_retry_backoff)
 {
@@ -400,6 +432,8 @@ const std::string &PanelSupervisordConfig::mode_socket_path() const noexcept
 {
 	return mode_socket_path_;
 }
+
+std::uint32_t PanelSupervisordConfig::panel_ui_uid() const noexcept { return panel_ui_uid_; }
 
 SuspendMode PanelSupervisordConfig::suspend_mode() const noexcept { return suspend_mode_; }
 

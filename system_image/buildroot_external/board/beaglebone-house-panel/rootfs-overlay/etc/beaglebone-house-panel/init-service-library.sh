@@ -111,17 +111,17 @@ bhp_init_boolean_is_valid()
 }
 
 # canonical: bhp_panel_runtime_directory -- prepares the supervisor-owned IPC
-# directory so vocabulary-panel can traverse/connect but cannot create, unlink,
-# or replace the supervisor socket. Setgid gives root-created sockets the
-# vocabulary-panel group.
+# directory so panel-ui can traverse/connect but cannot create, unlink, or
+# replace the supervisor socket. Setgid gives root-created sockets the exact
+# panel-ui group selected by the atomic protocol-v2 image cutover.
 bhp_init_prepare_panel_runtime_directory()
 {
 	[ -r /etc/group ] || return 1
-	grep -q '^vocabulary-panel:' /etc/group || return 1
+	grep -q '^panel-ui:' /etc/group || return 1
 	mkdir -p /run/beaglebone-house-panel || return 1
 	[ -d /run/beaglebone-house-panel ] || return 1
 	[ ! -L /run/beaglebone-house-panel ] || return 1
-	chown root:vocabulary-panel /run/beaglebone-house-panel || return 1
+	chown root:panel-ui /run/beaglebone-house-panel || return 1
 	chmod 2750 /run/beaglebone-house-panel || return 1
 }
 

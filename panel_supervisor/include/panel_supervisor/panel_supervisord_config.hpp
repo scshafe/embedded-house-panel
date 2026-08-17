@@ -5,6 +5,7 @@
 #include "panel_supervisor/suspend_mode.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -40,6 +41,7 @@ public:
 	[[nodiscard]] const std::string &backlight_path() const noexcept;
 	[[nodiscard]] const std::string &backlight_maximum_path() const noexcept;
 	[[nodiscard]] const std::string &mode_socket_path() const noexcept;
+	[[nodiscard]] std::uint32_t panel_ui_uid() const noexcept;
 	[[nodiscard]] SuspendMode suspend_mode() const noexcept;
 	[[nodiscard]] const std::string &power_state_path() const noexcept;
 	[[nodiscard]] std::chrono::milliseconds poll_interval() const noexcept;
@@ -50,7 +52,8 @@ private:
 			       double longitude_degrees, std::string presence_input_path,
 			       std::string presence_input_name,
 			       std::string backlight_path, std::string backlight_maximum_path,
-			       std::string mode_socket_path, SuspendMode suspend_mode,
+			       std::string mode_socket_path, std::uint32_t panel_ui_uid,
+			       SuspendMode suspend_mode,
 			       std::string power_state_path,
 			       std::chrono::milliseconds poll_interval,
 			       std::chrono::milliseconds suspend_retry_backoff);
@@ -63,6 +66,7 @@ private:
 	std::string backlight_path_;
 	std::string backlight_maximum_path_;
 	std::string mode_socket_path_;
+	std::uint32_t panel_ui_uid_;
 	SuspendMode suspend_mode_;
 	std::string power_state_path_;
 	std::chrono::milliseconds poll_interval_;

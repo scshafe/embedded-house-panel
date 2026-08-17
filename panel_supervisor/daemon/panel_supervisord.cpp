@@ -13,6 +13,8 @@
 #include "panel_supervisor/system_clock.hpp"
 #include "panel_supervisor/unix_socket_ui_mode_notifier.hpp"
 
+#include "bhp/application_identity.h"
+
 #include "bhp/structured_log_level.h"
 #include "bhp/structured_logger.h"
 
@@ -210,7 +212,9 @@ int run_daemon(bhp::StructuredLogger &logger)
 			logger, backlight, "solar_adapter_creation_failed",
 			"panel-supervisord-startup", solar_result.error());
 	}
-	auto notifier_result = UnixSocketUiModeNotifier::create(config.mode_socket_path());
+	auto notifier_result = UnixSocketUiModeNotifier::create(
+		config.mode_socket_path(), config.panel_ui_uid(),
+		std::string(bhp::kApplianceReleaseId));
 	if (!notifier_result) {
 		return fail_after_backlight_construction(
 			logger, backlight, "ui_socket_creation_failed",
@@ -362,12 +366,14 @@ int main(const int argument_count, char **argument_values)
 		return 0;
 	}
 	if (argument_count != 1) {
-		const std::string argument = argument_count > 1 ? argument_values[1] : "missing";
 		logger.log_error("daemon_argument_validation_failed", "panel-supervisord-arguments",
 				 std::string(to_string(ErrorCode::DaemonConfigurationInvalid)),
 				 "panel_supervisord accepts no arguments except --help",
 				 "not_available_explicit_validation_failure",
-				 {{"argument", argument}});
+				 {{"argument_content", "redacted"},
+				  {"argument_count", std::to_string(argument_count > 0
+									 ? argument_count - 1
+									 : 0)}});
 		return 2;
 	}
 

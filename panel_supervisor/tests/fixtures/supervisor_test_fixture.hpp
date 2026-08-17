@@ -14,6 +14,7 @@ inline constexpr int kGraceDayBrightnessPercent = 50;
 inline constexpr int kGraceNightBrightnessPercent = 20;
 inline constexpr int kSuspendedBrightnessPercent = 0;
 inline constexpr std::chrono::milliseconds kGracePeriod{10'000};
+inline constexpr std::chrono::milliseconds kPresentationTimeout{250};
 inline const std::chrono::system_clock::time_point kInitialTime{
 	std::chrono::milliseconds(1'700'000'000'000LL)};
 
@@ -25,7 +26,8 @@ inline Result<SupervisorConfig> valid_config()
 							      kGraceDayBrightnessPercent,
 							      kGraceNightBrightnessPercent,
 							      kSuspendedBrightnessPercent,
-						      });
+						      },
+					kPresentationTimeout);
 }
 
 } // namespace house_panel::supervisor::test_fixture

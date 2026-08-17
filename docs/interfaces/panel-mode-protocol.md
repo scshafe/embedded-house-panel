@@ -1,19 +1,20 @@
 # Panel Mode Protocol
 
-**Status:** ~~version 1 scaffold; supervisor-to-UI delivery is implemented, but
-a render-ready acknowledgement is not~~ version 1 publisher scaffold; the
-supervisor publishes snapshots, but no repository process consumes them and no
-render-ready acknowledgement exists
+**Status:** protocol v2 host peers and defensive power-owner validation are
+implemented and host-tested; target services remain disabled because no
+physical display-commit backend or on-target evidence exists
 
 **Transport:** local Unix-domain stream socket, newline-delimited UTF-8 JSON
 
-**Current authority:** `panel_supervisor` publishes version 1;
-~~`vocabulary_panel` consumes it in the scaffold.~~ Version 1 is published but
-unconsumed. `vocabulary_panel` implements no Unix-socket protocol client.
+**Current authority:** `panel_supervisor` publishes and validates protocol v2;
+neutral `panel_ui` authenticates the supervisor and consumes v2. The current UI
+entry point deliberately sends no committed acknowledgement because it has no
+physical display-commit backend. `vocabulary_panel` is not a protocol peer.
 
-**Version 2 target:** `panel_supervisor` publishes lifecycle state and accepts
-presentation acknowledgements; neutral `panel_ui` consumes and acknowledges.
-Neither message direction grants the UI power authority.
+**Version 2 boundary:** `panel_supervisor` publishes lifecycle state and accepts
+only validated presentation acknowledgements; neutral `panel_ui` consumes the
+snapshot and may acknowledge only an explicit display-commit result. Neither
+message direction grants the UI power authority.
 
 ## Version 2 ~~migration~~ greenfield replacement: ~~field set pending human review~~ frozen Step 7 field set
 
@@ -41,7 +42,8 @@ Version 2 makes presentation readiness a request-bound exchange. ~~It upgrades
 a bare version 1 sequence acknowledgement.~~ Version 1 has no acknowledgement
 to preserve or upgrade. ~~Each enabled release must independently validate all
 of the following fields.~~ The accepted review-gate decisions freeze the fields
-and validation roles below (`docs/decisions/0004-freeze-review-gate-integration-contracts.md`).
+and validation roles below. ADR 0007 supersedes ADR 0004's reduced validation
+set and freezes the complete per-acknowledgement commitment.
 
 | ~~Field~~ | ~~Source~~ | ~~Binding rule~~ |
 |---|---|---|
@@ -57,36 +59,98 @@ and validation roles below (`docs/decisions/0004-freeze-review-gate-integration-
 | Field or credential | Producer | Version 2 role | Supervisor validation |
 |---|---|---|---|
 | `SO_PEERCRED.uid` | Linux kernel for the accepted Unix-socket peer | Connection identity | Independently require exact equality with the configured dedicated `panel_ui` service UID; shared-group membership is insufficient |
-| `appliance_release_id` | Top-level CMake derives one application-bundle identity from repository `VERSION`, Git commit, and a dirty-tree marker; it compiles the same value into `panel_supervisor` and `panel_ui`, and the Buildroot build inherits that value | Connection-handshake binding and `snapshot_id` digest input | Compare equality once per connection before any acknowledgement can satisfy readiness; mismatch closes the connection and leaves the display dark |
-| `supervisor_session_id` | Supervisor CSPRNG at every process start | `snapshot_id` digest input and acknowledgement diagnostic echo only | Do not validate as an independent mismatch class; at least 128 unpredictable bits, never persisted or reused |
+| `appliance_release_id` | Top-level CMake derives one application-bundle identity from repository `VERSION` and Git commit; a dirty tree additionally carries the full Git-visible source-content SHA-256, so divergent dirty builds do not share a generic marker. It compiles the same value into `panel_supervisor` and `panel_ui`, and the Buildroot build inherits that value | Connection-handshake binding and `snapshot_id` digest input | Require exact equality in every acknowledgement; mismatch closes the connection and leaves the display dark |
+| `supervisor_session_id` | Supervisor CSPRNG at every process start | `snapshot_id` digest input and acknowledgement binding | Independently require the exact current session; at least 128 unpredictable bits, never persisted or reused |
 | `connection_challenge` | Supervisor CSPRNG for every accepted UI connection | Per-connection acknowledgement binding and `snapshot_id` digest input | Independently require the exact challenge issued on that connection; invalidate it on disconnect or replacement |
-| `event_sequence` | Supervisor counter within `supervisor_session_id` | `snapshot_id` digest input and acknowledgement diagnostic echo only | Do not validate as an independent mismatch class; emit strictly increasing values meaningful only within the session |
+| `event_sequence` | Supervisor counter within `supervisor_session_id` | `snapshot_id` digest input and acknowledgement binding | Independently require the exact latest pending sequence and emit strictly increasing values meaningful only within the session |
 | `snapshot_id` | Supervisor digest of the complete requested lifecycle snapshot plus `appliance_release_id`, `supervisor_session_id`, `connection_challenge`, and `event_sequence` | Content and identity binding | Independently require the exact identifier of the one latest pending snapshot |
 | `display_mode` | Supervisor requested lifecycle snapshot | Explicit lifecycle binding | Independently require an exact echo of the latest requested mode |
 | `render_generation` | UI monotonic counter within the challenged connection | Presented-frame binding | Independently require the generation for the frame attempted for the latest pending snapshot; only a newer committed generation may satisfy readiness |
 | `presentation_result` | UI after its strongest available page-flip or commit observation | Positive or negative presentation acknowledgement | Independently require exactly `committed` or `failed`; only `committed` satisfies readiness, while `failed` completes as degraded and keeps brightness zero |
 
-The first snapshot/presentation-acknowledgement exchange is the release
+The first snapshot/presentation-acknowledgement exchange establishes the release
 handshake: the supervisor publishes its built-in `appliance_release_id`, and the
-UI reports its built-in value in that first presentation acknowledgement. The
-UI sends no separate hello, request, or negotiation message. Until the one-time
-equality check passes, the connection is unbound and nonzero brightness remains
-forbidden. Later snapshots keep `appliance_release_id` inside the `snapshot_id`
-digest but do not create another independent release-mismatch check.
+UI reports its built-in value in the presentation acknowledgement. The UI sends
+no separate hello, request, or negotiation message. Every later acknowledgement
+must repeat the same exact release, session, challenge, sequence, snapshot, and
+mode binding; the first success never waives a later field comparison.
+
+The canonical Unix adapter is part of the privileged power-path TCB. `publish`
+freezes the exact expected tuple and prior render-generation floor before the
+power owner calls `await_presentation`; the await operation receives that value
+as immutable. A connection arriving after publication is retained for the next
+snapshot and cannot rewrite or satisfy the current expectation.
 
 The `snapshot_id` digest binds the semantic field values above. The concrete
-canonical byte encoding and digest algorithm remain a version-2 codec decision;
-they must be specified before implementation so two conforming peers cannot
-produce different identifiers for the same snapshot.
+canonical byte encoding and digest algorithm are frozen below so two conforming
+peers cannot produce different identifiers for the same snapshot.
+
+### Canonical version 2 snapshot digest
+
+JSON text is never hashed. Each peer first decodes and validates the complete
+typed snapshot, then forms this exact byte sequence:
+
+1. ASCII `bhp.panel_mode.snapshot.v2`, followed by one NUL byte;
+2. protocol version as unsigned byte `0x02`;
+3. `appliance_release_id` UTF-8 byte length as unsigned 16-bit big-endian,
+   followed by its ASCII bytes;
+4. `supervisor_session_id` decoded from exactly 32 lowercase hexadecimal
+   characters into 16 raw bytes;
+5. `connection_challenge` decoded the same way into 16 raw bytes;
+6. `event_sequence` as unsigned 64-bit big-endian;
+7. one unsigned byte for each enum in order: `display_mode` (`01` day active,
+   `02` night red, `03` suspended, `04` diagnostic), `presence_state` (`00`
+   unknown, `01` present, `02` grace period, `03` absent), `solar_state` (`00`
+   unknown, `01` day, `02` night), and `system_state` (`00` starting, `01`
+   active, `02` suspended, `03` recomputing after resume, `04` faulted);
+8. `effective_brightness_percent` as one unsigned byte; and
+9. `observed_at_unix_milliseconds` as signed two's-complement 64-bit
+   big-endian.
+
+`snapshot_id` is the literal prefix `sha256:` followed by 64 lowercase
+hexadecimal characters encoding SHA-256 of that preimage. It is not included in
+its own preimage. `render_generation` and `presentation_result` belong only to
+the acknowledgement. JSON member order, whitespace, and diagnostic metadata
+are not digest inputs. Version 2 metadata cannot influence rendering or
+readiness; adding any presentation-affecting field requires protocol version 3
+so the field can enter the typed preimage.
+
+Conversion from a system-clock time point to wire milliseconds floors toward
+negative infinity, including for sub-millisecond instants before the Unix
+epoch. It never truncates a negative value toward zero.
+
+The checked-in [schema](panel-mode-protocol-v2.schema.json) freezes the typed
+JSON data model after lexical decoding; JSON Schema alone cannot distinguish an
+integer token from `2.0`, detect duplicate names, or observe escape spelling.
+The canonical strict codec, bounded incremental stream framer, and
+[golden-vector harness](../testing/fixtures/panel-mode-protocol-v2-golden.json)
+therefore jointly freeze the accepted wire language, complete snapshot and
+acknowledgement frames, and two independently reproduced digest examples. Both
+frames are flat JSON objects followed by one line feed. A complete frame is at
+most 4,096 bytes;
+carriage return and blank frames are forbidden. Release IDs are 1–128 ASCII
+bytes matching `[A-Za-z0-9][A-Za-z0-9._+-]{0,127}`. Session and challenge IDs
+are nonzero 16-byte values encoded as lowercase hexadecimal. Event sequence and
+render generation are in `1..9007199254740991`; brightness is in `0..100`; and
+observed time is from `1800-01-01T00:00:00Z` inclusive through
+`2101-01-01T00:00:00Z` exclusive.
+
+Decoders reject duplicate, unknown, or missing members, invalid UTF-8, string
+escapes, floats, coercions, nulls, unknown enum values, unsafe integers, and
+unknown protocol versions. No decoder supplies defaults or an alternate digest
+path. Stable structured failures use the `PANEL_MODE_PROTOCOL.*` codes for
+frame size/encoding, JSON, missing/duplicate/unknown/type/value fields,
+unsupported version, digest computation, and snapshot mismatch. Error context
+names only the field, bound, or operation; it never includes the raw frame,
+release/session/challenge identifiers, or digest.
 
 The supervisor accepts an acknowledgement exactly once for its one latest
 pending snapshot, only on the connection to which it issued the challenge, and
-only when every independently validated binding matches. Differences in the
-diagnostic `supervisor_session_id` or `event_sequence` echoes are not separate
-mismatch classes; their authoritative values remain bound by `snapshot_id`. A
-new connection, process restart, release mismatch, duplicate, timeout, or
-malformed value invalidates the pending readiness claim and keeps the backlight
-at zero.
+only when every independently validated binding matches. The session and event
+sequence remain digest inputs and are also exact mismatch classes at the
+adapter and final power-owner boundaries. A new connection, process restart,
+release mismatch, duplicate, timeout, or malformed value invalidates the
+pending readiness claim and keeps the backlight at zero.
 
 The UI-to-supervisor direction is acknowledgement-only. It carries positive or
 negative presentation acknowledgements plus ordinary socket connect and
@@ -112,9 +176,14 @@ independent deployment lifecycles.~~ Version 1 is unconsumed, so there is no
 consumer compatibility window to preserve. Reconsider dual-version support
 only if the replacement supervisor and `panel_ui` later acquire genuinely
 independent deployment lifecycles. ADR 0006 accepts this greenfield replacement;
-implementation remains pending.
+the host peers are implemented, while target service enablement remains gated
+on a physical display-commit backend and on-target evidence.
 
-## Snapshot/event envelope
+## Legacy version 1 snapshot/event envelope
+
+This historical publisher-only shape has no current consumer and is not
+accepted by either version-2 peer. It remains documented solely to make the
+atomic replacement boundary explicit.
 
 ```json
 {
@@ -150,10 +219,9 @@ must blank rather than guess.
 
 - A newly connected UI receives the current snapshot before incremental events.
 - In version 1, `event_sequence` increases monotonically for the supervisor
-  process lifetime. ~~Version 2 additionally validates it with the unpredictable
-  `supervisor_session_id` and connection challenge defined above.~~ Version 2
-  includes the session and sequence in `snapshot_id`, echoes both for
-  diagnostics, and independently validates the connection challenge.
+  process lifetime. Version 2 includes the session and sequence in
+  `snapshot_id` and independently validates the exact session, sequence, and
+  connection challenge on every acknowledgement.
 - At most one UI client is retained. Extra or slow clients are isolated and closed; a reconnect receives the current snapshot rather than replaying stale events.
 - With no UI connected, publication retains the snapshot and returns success;
   it is not a disconnection signal or proof of presentation.
@@ -176,14 +244,15 @@ frame, or completed a DRM/fbdev page flip. The supervisor may notify before it
 raises a nonzero backlight value, but that ordering alone cannot guarantee that
 an old or bright frame will never be exposed.
 
-Before the backlight/resume path is called product-safe, implement the complete
-version 2 binding above. The supervisor must reject stale or mismatched
-acknowledgements, retain brightness zero on timeout or disconnect, and must not
-let an acknowledgement grant suspend or backlight authority. On-target tests
-must correlate the acknowledgement with a completed page flip (or the strongest
-equivalent the selected framebuffer path provides). Until then, the target
-services remain disabled by default and the no-white-flash behavior is an
-experiment requirement, not a proven invariant.
+The host implementation enforces the complete version 2 binding above: it
+rejects stale or mismatched acknowledgements, retains brightness zero on timeout
+or disconnect, and never lets an acknowledgement grant suspend or backlight
+authority. Before the backlight/resume path is called product-safe, an
+evidence-backed display backend and on-target tests must correlate the
+acknowledgement with a completed page flip (or the strongest equivalent the
+selected framebuffer path provides). Until then, the target services remain
+disabled by default and the no-white-flash behavior is an experiment
+requirement, not a proven invariant.
 
 ## Version 1 error direction
 
@@ -198,13 +267,23 @@ integration to a published-but-unconsumed scaffold, recast version 2 as a
 greenfield replacement that still cuts over atomically, and removed the invalid
 UI-to-supervisor version-error envelope.
 
-**Amended 2026-08-07:** froze the reduced version-2 validation set from ADR
-0004, defined the top-level-CMake application-bundle release identity and its
-one-time handshake, made the reverse direction acknowledgement-only, and
+**Amended 2026-08-07:** ~~froze the reduced version-2 validation set from ADR
+0004~~, defined the top-level-CMake application-bundle release identity and its
+first-exchange handshake with per-acknowledgement revalidation, made the reverse
+direction acknowledgement-only, and
 enumerated the feature-neutral version-2 lifecycle modes. This amendment does
 not approve roadmap Step 1 or any pending `LEXI-*`, `VOICE-*`, or `AGENDA-*`
 decision.
 
 **Amended 2026-08-16:** ADR 0006 accepted the atomic protocol-v2 appliance
-cutover with no version-1 compatibility window. Version 2 remains unimplemented,
-services remain disabled, and no display or brightness behavior is claimed.
+cutover with no version-1 compatibility window. The host v2 codec, supervisor
+server, neutral UI client, and final supervisor tuple validation are now
+implemented and tested. Services remain disabled pending a physical
+display-commit backend and target evidence; no display or brightness behavior is
+claimed.
+
+**Amended 2026-08-16:** ADR 0007 superseded ADR 0004's reduced validation set.
+Every acknowledgement now carries and independently validates the complete
+immutable release/session/challenge/sequence/snapshot/mode/result commitment at
+the privileged adapter and final power-owner boundaries. This host contract
+does not provide a physical display-commit backend or target evidence.

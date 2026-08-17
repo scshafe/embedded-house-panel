@@ -74,7 +74,9 @@ there is no version-1 compatibility adapter or runtime negotiation window.
 
 Source changes may land while the affected target services remain disabled,
 but no deployable release may enable only one side. The release-identity and
-fail-dark handshake frozen by ADR 0004 enforce the boundary. Missing,
+fail-dark handshake frozen by ADR 0004 enforce the boundary. ADR 0007
+supersedes that record's reduced validation set and requires the complete
+immutable commitment to be checked on every acknowledgement. Missing,
 unknown-version, mismatched, failed, disconnected, stale, or timed-out
 acknowledgement cannot permit nonzero brightness.
 
@@ -124,3 +126,4 @@ every approval boundary recorded by that plan.
 - [Application capability ownership](../architecture/application-capability-ownership.md)
 - [Panel mode protocol](../interfaces/panel-mode-protocol.md)
 - [Review-gate integration contracts](0004-freeze-review-gate-integration-contracts.md)
+- [Complete protocol-v2 commitment validation](0007-validate-complete-protocol-v2-commitments.md)

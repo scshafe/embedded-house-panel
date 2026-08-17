@@ -67,12 +67,21 @@ not skip a requested suspend. Timeout, disconnect, stale, duplicate, mismatch,
 and explicit negative acknowledgement are degraded presentation outcomes rather
 than cycle faults.
 
-The version-1 Unix-socket adapter retains and offers snapshots exactly as
-before, but it has no renderer-ready acknowledgement and therefore returns
-immediate `not_committed` with reason `acknowledgement_unavailable`. It never
-fabricates commitment from a successful socket write or connected client, so
-the production version-1 path remains dark until the version-2 acknowledgement
-protocol is implemented and enabled.
+The host implementation now speaks only protocol v2. The Unix-socket adapter
+validates the full acknowledgement tuple, and `PanelSupervisor` independently
+rejects a committed variant unless its release, pending publication sequence,
+nonzero render generation, session, challenge, snapshot digest, and display mode
+are structurally valid and exactly bound where the power owner has the expected
+value. A successful write or connected client never grants readiness. Target
+services remain disabled because `panel_ui` has no display-commit backend; this
+host evidence makes no brightness or physical-frame claim.
+
+`UiModeNotifier` is a privileged power-path TCB port, not a plugin boundary for
+untrusted code. The production build wires only `UnixSocketUiModeNotifier`;
+host fakes exist for deterministic policy tests. Its publish result freezes the
+exact commitment expectation before `await_presentation` begins. A UI that
+connects later is retained for the next publication and cannot amend or satisfy
+the current one.
 
 ## Linux runtime adapters
 
@@ -97,8 +106,9 @@ The production slice includes:
   single-component `/sys/class/backlight/<device>/{brightness,max_brightness}`
   pair. Values are not clamped.
 - `UnixSocketUiModeNotifier`, the supervisor-owned local Unix stream server for
-  protocol-v1 JSON Lines snapshots. Publication returns a pending sequence;
-  awaiting it returns immediate non-commit because version 1 is one-way.
+  strict protocol-v2 JSON Lines snapshots and acknowledgements. Publication
+  returns a pending sequence; only the exact latest authenticated peer tuple can
+  return committed, and the final supervisor boundary validates it again.
 - `SysfsSuspend`, which writes only the explicitly selected `freeze` or `mem`
   token to exactly `/sys/power/state`.
 
@@ -131,6 +141,8 @@ Set every required variable:
 | `BHP_PANEL_SUPERVISOR_BACKLIGHT_PATH` | Exact `/sys/class/backlight/<device>/brightness` shape |
 | `BHP_PANEL_SUPERVISOR_BACKLIGHT_MAX_PATH` | Matching exact `<device>/max_brightness` path |
 | `BHP_PANEL_SUPERVISOR_MODE_SOCKET` | Absolute Unix socket path |
+| `BHP_PANEL_SUPERVISOR_PANEL_UI_UID` | Exact nonzero numeric UID of the dedicated `panel_ui` service; group membership is insufficient |
+| `BHP_PANEL_SUPERVISOR_PRESENTATION_TIMEOUT_MILLISECONDS` | Explicit acknowledgement deadline, 1 through 60,000 milliseconds |
 | `BHP_PANEL_SUPERVISOR_DAY_BRIGHTNESS` | Logical percentage, 0 through 100 |
 | `BHP_PANEL_SUPERVISOR_NIGHT_BRIGHTNESS` | Logical percentage, 0 through 100 |
 | `BHP_PANEL_SUPERVISOR_GRACE_DAY_BRIGHTNESS` | Logical percentage, 0 through 100 |
@@ -166,18 +178,51 @@ paths are preserved. Shutdown likewise removes only the socket identity this
 process created. The deployment pre-creates the parent directory with the UI
 group and setgid mode so `0660` grants only the intended access.
 
-Every publication is one complete version-1 snapshot with monotonically
-increasing `event_sequence`, display mode, presence state, solar state, system
-state, effective logical brightness, UTC observation timestamp, and local
-request ID. A newly accepted client receives the retained current snapshot
-before the next incremental snapshot. At most one UI client is retained;
-extra, slow, or disconnected clients are isolated and closed without faulting
-panel policy. The server never reads client data; the UI cannot issue power
+Every publication is one complete protocol-v2 lifecycle snapshot encoded by the
+shared canonical codec. The server accepts only an exact-UID peer, creates a
+fresh 128-bit challenge per connection, and requires the one exact bounded
+presentation acknowledgement for its latest snapshot. The first exchange also
+binds the common build-stamped appliance release identity. Timeout, disconnect,
+stale, duplicate, mismatch, malformed input, and explicit presentation failure
+leave brightness at zero and complete as visible degraded outcomes. Only a
+newer exact `committed` render generation permits nonzero brightness. At most
+one UI client is retained; extra, slow, or unauthorized clients are closed
+without granting readiness or changing panel policy. Each accept pass has a
+fixed four-syscall budget, so a replenished connection backlog cannot prevent
+the acknowledgement loop from rechecking its monotonic deadline. Reverse traffic is
+acknowledgement-only; the UI cannot issue power
 commands through this channel. A retained one-way publication still succeeds
 with zero clients, but awaiting presentation reports
 `acknowledgement_unavailable`; it never counts as committed. The canonical shape
 and vocabularies are documented in
 [`docs/interfaces/panel-mode-protocol.md`](../docs/interfaces/panel-mode-protocol.md).
+
+## Touch observation and provenance host boundary
+
+`TouchObservationAuthority` is the supervisor-owned single-use evidence
+authority seam accepted by ADR 0005. It records evidence only against one exact
+committed protocol-v2 presentation, issues opaque CSPRNG identities through an
+injected port, and records contact start and completion as separate transitions.
+The authority reads its injected monotonic clock at both transitions and derives
+the duration internally; its completion API accepts no duration or qualification
+value, so an observer caller cannot forge or reset the measured hold. It exposes
+separate media-broker and personal-context redemption entry points, so audience
+is never supplied inside a claim. Snapshot, render, connection, presence, night,
+suspend, restart, expiry, hold, and clock failures invalidate in-progress contact
+measurement or unconsumed evidence; structured failures do not echo identifiers
+or raw input.
+
+The process-neutral record and bounded handoff live only in
+`shared/touch_observation_protocol/`. Its producer uses try-only publication;
+queue saturation or producer contention invalidates the stream instead of
+blocking panel policy or delivering a plausible partial contact. Coordinates
+remain signed raw-axis evidence with no scale, orientation, range, calibration,
+resolution, or gesture inference. This is host software evidence: no raw-touch
+device adapter, cross-process claim transport, exact-holder-UID admission
+adapter, target permission cutover, or physical touch behavior is claimed yet.
+The role-bound entry points must not be exposed directly to an untrusted request
+parser; the future adapter must derive which one is callable from exact kernel
+peer credentials.
 
 ## Suspend and shutdown behavior
 

@@ -64,6 +64,7 @@ trap cleanup EXIT HUP INT TERM
 sysfs_root=$temporary_root/sysfs
 presence_path=$temporary_root/fake-evdev-presence-state
 mode_socket_path=$temporary_root/panel-mode.sock
+panel_ui_uid=$(id -u)
 daemon_log_path=$temporary_root/panel-supervisord.jsonl
 preload_library_path=$temporary_root/panel-supervisord-sysfs-fixture-preload.so
 mkdir "$sysfs_root"
@@ -84,6 +85,8 @@ BHP_PANEL_SUPERVISOR_PRESENCE_INPUT_PATH=$presence_path \
 BHP_PANEL_SUPERVISOR_BACKLIGHT_PATH=/sys/class/backlight/bhp-smoke/brightness \
 BHP_PANEL_SUPERVISOR_BACKLIGHT_MAX_PATH=/sys/class/backlight/bhp-smoke/max_brightness \
 BHP_PANEL_SUPERVISOR_MODE_SOCKET=$mode_socket_path \
+BHP_PANEL_SUPERVISOR_PANEL_UI_UID=$panel_ui_uid \
+BHP_PANEL_SUPERVISOR_PRESENTATION_TIMEOUT_MILLISECONDS=1 \
 BHP_PANEL_SUPERVISOR_DAY_BRIGHTNESS=80 \
 BHP_PANEL_SUPERVISOR_NIGHT_BRIGHTNESS=20 \
 BHP_PANEL_SUPERVISOR_GRACE_DAY_BRIGHTNESS=40 \

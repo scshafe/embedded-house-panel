@@ -33,6 +33,7 @@ docs/legacy/recovery-summary.md
 docs/decisions/README.md
 docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md
 docs/decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md
+docs/decisions/0007-validate-complete-protocol-v2-commitments.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
@@ -234,6 +235,17 @@ require_fixed_count docs/decisions/README.md \
   '[0006](0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md)' 1 \
   VERIFY_DOCS.PRODUCT_SEMANTICS_ADR_REGISTRY_ENTRY_INVALID
 
+protocol_commitment_adr=docs/decisions/0007-validate-complete-protocol-v2-commitments.md
+require_exact_line_count "$protocol_commitment_adr" \
+  '<!-- @canonical complete-protocol-v2-commitment-validation -->' 1 \
+  VERIFY_DOCS.PROTOCOL_COMMITMENT_ADR_CANONICAL_MARKER_INVALID
+require_exact_line_count "$protocol_commitment_adr" \
+  '# ADR 0007: Validate Complete Protocol v2 Commitments' 1 \
+  VERIFY_DOCS.PROTOCOL_COMMITMENT_ADR_TITLE_INVALID
+require_fixed_count docs/decisions/README.md \
+  '[0007](0007-validate-complete-protocol-v2-commitments.md)' 1 \
+  VERIFY_DOCS.PROTOCOL_COMMITMENT_ADR_REGISTRY_ENTRY_INVALID
+
 require_exact_line_count docs/architecture/application-capability-ownership.md \
   '<!-- @canonical application-capability-ownership -->' 1 \
   VERIFY_DOCS.OWNERSHIP_CANONICAL_MARKER_INVALID
@@ -309,16 +321,16 @@ if ! ownership_registry_error=$(awk -F '|' \
   }
   in_registry { in_registry = 0 }
   END {
-    if (header_count != 1 || registry_rows == 0 || absent_status_rows != 6) {
-      fail("registry must have one status header and exactly six absent-path rows")
+    if (header_count != 1 || registry_rows == 0 || absent_status_rows != 5) {
+      fail("registry must have one status header and exactly five absent-path rows")
     }
-    require_status(display, absent_status)
     require_status(http, absent_status)
     require_status(media, absent_status)
     require_status(spoken, absent_status)
     require_status(recognition, absent_status)
     require_status(personal_context, absent_status)
     require_token(display, "`panel_ui/`")
+    require_token(display, "Neutral host shell")
     require_token(http, "`shared/http_runtime/`")
     require_token(media, "`media_broker/`")
     require_token(spoken, "`shared/spoken_command_catalog/`")
@@ -358,7 +370,6 @@ if ! ownership_registry_error=$(awk -F '|' \
 fi
 
 for absent_registry_path in \
-  panel_ui \
   shared/http_runtime \
   media_broker \
   shared/spoken_command_catalog \

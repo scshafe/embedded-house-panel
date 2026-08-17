@@ -9,6 +9,8 @@
 #include "panel_supervisor/suspend.hpp"
 #include "panel_supervisor/ui_mode_notifier.hpp"
 
+#include "bhp/application_identity.h"
+
 #include "bhp/structured_log_level.h"
 #include "bhp/structured_logger.h"
 
@@ -90,8 +92,21 @@ public:
 	{
 		ui_mode_ = notification.ui_mode;
 		++publication_sequence_;
-		return Result<PendingPresentation>::success(
-			PendingPresentation{publication_sequence_});
+		const std::string display_mode =
+			ui_mode_ == UiMode::Day
+				? "day_active"
+				: ui_mode_ == UiMode::Night ? "night_red" : "suspended";
+		std::string digest(64U, '1');
+		digest.back() = static_cast<char>(
+			'1' + static_cast<int>((publication_sequence_ - 1U) % 9U));
+		return Result<PendingPresentation>::success(PendingPresentation{
+			publication_sequence_,
+			PresentationCommitmentExpectation{
+				std::string(bhp::kApplianceReleaseId),
+				"00112233445566778899aabbccddeeff",
+				"ffeeddccbbaa99887766554433221100",
+				"sha256:" + digest, display_mode,
+				last_render_generation_}});
 	}
 
 	PresentationOutcome await_presentation(
@@ -102,7 +117,13 @@ public:
 		if (pending_presentation.publication_sequence != publication_sequence_) {
 			return PresentationNotCommitted{PresentationNotCommittedReason::Stale};
 		}
-		return PresentationCommitted{};
+		const auto &expected = *pending_presentation.expected_commitment;
+		++last_render_generation_;
+		return PresentationCommitted{
+			expected.appliance_release_id, publication_sequence_,
+			last_render_generation_, expected.supervisor_session_id,
+			expected.connection_challenge, expected.snapshot_id,
+			expected.display_mode};
 	}
 
 	[[nodiscard]] UiMode ui_mode() const noexcept { return ui_mode_; }
@@ -110,6 +131,7 @@ public:
 private:
 	UiMode ui_mode_{UiMode::Suspended};
 	std::uint64_t publication_sequence_{0};
+	std::uint64_t last_render_generation_{0};
 };
 
 class SimulationSuspend final : public Suspend {
@@ -261,7 +283,8 @@ int main(const int argument_count, char **argument_values)
 	const auto options = options_result.value();
 
 	const auto config_result = SupervisorConfig::create(
-		std::chrono::milliseconds(options.grace_period_ms), options.brightness_levels);
+		std::chrono::milliseconds(options.grace_period_ms), options.brightness_levels,
+		std::chrono::milliseconds(250));
 	if (!config_result) {
 		logger.log_error(
 			"simulation_configuration_validation_failed", "simulation-configuration",

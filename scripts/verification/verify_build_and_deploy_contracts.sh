@@ -319,6 +319,41 @@ if "$PROJECT_ROOT/scripts/build/project_content_id.sh" \
 fi
 rm -- "$content_fixture/linked-source"
 
+# The application-bundle handshake identity is exact for a clean commit and
+# gains the full Git-visible source ID for a dirty build; a generic "dirty"
+# marker would let two divergent binaries pass the release check.
+printf '%s\n' '0.1.0' >"$content_fixture/VERSION"
+git -C "$content_fixture" add .gitignore VERSION source.txt
+git -C "$content_fixture" \
+	-c user.name=fixture -c user.email=fixture.invalid commit -q -m fixture
+application_release_clean=$(
+	"$PROJECT_ROOT/scripts/build/application_release_id.sh" "$content_fixture"
+)
+printf '%s\n' "$application_release_clean" | \
+	grep -E -x '0\.1\.0\+g[0-9a-f]{40}' >/dev/null || {
+	bhp_fail VERIFY_BUILD_DEPLOY.APPLICATION_RELEASE_CLEAN_ID_INVALID \
+		"Clean application release identity does not bind the full commit" "$TRACE_ID"
+	exit 1
+}
+printf '%s\n' gamma >"$content_fixture/source.txt"
+dirty_content_id=$(
+	"$PROJECT_ROOT/scripts/build/project_content_id.sh" "$content_fixture"
+)
+application_release_dirty=$(
+	"$PROJECT_ROOT/scripts/build/application_release_id.sh" "$content_fixture"
+)
+[ "$application_release_dirty" = \
+	"$application_release_clean-dirty.$dirty_content_id" ] || {
+	bhp_fail VERIFY_BUILD_DEPLOY.APPLICATION_RELEASE_DIRTY_ID_INVALID \
+		"Dirty application release identity did not bind exact source content" "$TRACE_ID"
+	exit 1
+}
+[ "${#application_release_dirty}" -le 128 ] || {
+	bhp_fail VERIFY_BUILD_DEPLOY.APPLICATION_RELEASE_ID_TOO_LONG \
+		"Application release identity exceeded the protocol bound" "$TRACE_ID"
+	exit 1
+}
+
 buildroot_identity_fixture=$temporary_root/buildroot-identity-fixture
 mkdir -p "$buildroot_identity_fixture/empty-directory" \
 	"$buildroot_identity_fixture/package"
@@ -578,6 +613,91 @@ if grep -F 'video,input' \
 	exit 1
 fi
 
+panel_ui_package=$PROJECT_ROOT/system_image/buildroot_external/package/bhp-panel-ui/bhp-panel-ui.mk
+grep -F "panel-ui 1102 panel-ui 1102 * - - - BeagleBone neutral panel UI" \
+	"$panel_ui_package" >/dev/null || {
+	bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_PRINCIPAL_INVALID \
+		"Expected exact non-login panel-ui UID/GID allocation without supplementary groups" \
+		"$TRACE_ID"
+	exit 1
+}
+for release_identity_contract in \
+	'BHP_PANEL_UI_PRE_CONFIGURE_HOOKS += BHP_PANEL_UI_VALIDATE_APPLICATION_RELEASE_ID' \
+	'BHP_PANEL_UI.APPLICATION_RELEASE_ID_MISSING'; do
+	grep -F "$release_identity_contract" "$panel_ui_package" >/dev/null || {
+		bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_RELEASE_IDENTITY_CONTRACT_MISSING \
+			"$release_identity_contract" "$TRACE_ID"
+		exit 1
+	}
+done
+
+for panel_ui_package_contract in \
+	'BHP_PANEL_UI_DEPENDENCIES = openssl' \
+	'-DBHP_BUILD_PANEL_UI=ON' \
+	'-DPANEL_UI_BUILD_TESTS=OFF'; do
+	grep -F -- "$panel_ui_package_contract" "$panel_ui_package" >/dev/null || {
+		bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_PACKAGE_CONTRACT_MISSING \
+			"$panel_ui_package_contract" "$TRACE_ID"
+		exit 1
+	}
+done
+
+panel_ui_cmake=$PROJECT_ROOT/panel_ui/CMakeLists.txt
+# This is a literal CMake source contract, not a verifier-shell expansion.
+# shellcheck disable=SC2016
+panel_ui_install_rule='install(TARGETS bhp-panel-ui RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")'
+grep -F -x "$panel_ui_install_rule" "$panel_ui_cmake" >/dev/null || {
+	bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_PRODUCTION_INSTALL_RULE_MISSING \
+		"Expected sole installed target bhp-panel-ui" "$TRACE_ID"
+	exit 1
+}
+panel_ui_install_rule_count=$(grep -E -c '^[[:space:]]*install\(TARGETS[[:space:]]' \
+	"$panel_ui_cmake" || true)
+if [ "$panel_ui_install_rule_count" -ne 1 ]; then
+	bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_INSTALLED_TARGET_SET_INVALID \
+		"Expected one panel_ui install rule; found $panel_ui_install_rule_count" \
+		"$TRACE_ID"
+	exit 1
+fi
+if grep -E 'install\(TARGETS[[:space:]]+panel_ui_core_smoke' \
+	"$panel_ui_cmake" >/dev/null; then
+	bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_TEST_BINARY_INSTALLED \
+		"panel_ui_core_smoke must remain host-test-only" "$TRACE_ID"
+	exit 1
+fi
+
+panel_ui_init=$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S75bhp-panel-ui
+panel_ui_environment_example=$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/panel-ui.env.example
+for panel_ui_init_contract in \
+	'BHP_PANEL_UI_ENVIRONMENT_FILE=/etc/beaglebone-house-panel/panel-ui.env' \
+	'BHP_PANEL_UI.DISPLAY_COMMIT_BACKEND_UNAVAILABLE' \
+	'panel_ui_disabled_by_configuration'; do
+	grep -F "$panel_ui_init_contract" "$panel_ui_init" >/dev/null || {
+		bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_INIT_CONTRACT_MISSING \
+			"$panel_ui_init_contract" "$TRACE_ID"
+		exit 1
+	}
+done
+if [ "$(grep -F -x -c 'BHP_PANEL_UI_ENABLED=0' \
+	"$panel_ui_environment_example" || true)" -ne 1 ]; then
+	bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_DEFAULT_ENABLEMENT_INVALID \
+		"Panel UI environment example must contain exactly one disabled default" \
+		"$TRACE_ID"
+	exit 1
+fi
+
+panel_supervisor_package=$PROJECT_ROOT/system_image/buildroot_external/package/bhp-panel-supervisor/bhp-panel-supervisor.mk
+for release_identity_contract in \
+	'BHP_PANEL_SUPERVISOR_DEPENDENCIES = openssl bhp-panel-ui' \
+	'BHP_PANEL_SUPERVISOR_PRE_CONFIGURE_HOOKS += BHP_PANEL_SUPERVISOR_VALIDATE_APPLICATION_RELEASE_ID' \
+	'BHP_PANEL_SUPERVISOR.APPLICATION_RELEASE_ID_MISSING'; do
+	grep -F "$release_identity_contract" "$panel_supervisor_package" >/dev/null || {
+		bhp_fail VERIFY_BUILD_DEPLOY.PANEL_SUPERVISOR_RELEASE_IDENTITY_CONTRACT_MISSING \
+			"$release_identity_contract" "$TRACE_ID"
+		exit 1
+	}
+done
+
 for required_toolchain_contract in \
 	'PKG_CONFIG_EXECUTABLE' \
 	'PKG_CONFIG_LIBDIR' \
@@ -604,7 +724,7 @@ for panel_supervisor_restart_contract in \
 	'panel_supervisor_restart_attempt_' \
 	'BHP_PANEL_SUPERVISOR.RESTART_LIMIT_EXHAUSTED' \
 	'kill -TERM "$BHP_PANEL_SUPERVISOR_CHILD_PID"' \
-	'chown root:vocabulary-panel "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"' \
+	'chown root:panel-ui "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"' \
 	'chmod 0660 "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"' \
 	'-p "$SUPERVISOR_PIDFILE" -x /bin/sh' \
 	'-p "$PIDFILE"' \

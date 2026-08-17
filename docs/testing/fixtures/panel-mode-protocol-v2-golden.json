@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "digest_algorithm": "sha256",
+  "preimage_contract": "bhp.panel_mode.snapshot.v2",
+  "vectors": [
+    {
+      "name": "day-active-positive-time",
+      "snapshot": {
+        "appliance_release_id": "0.1.0+g0123456789abcdef0123456789abcdef01234567",
+        "supervisor_session_id": "00112233445566778899aabbccddeeff",
+        "connection_challenge": "ffeeddccbbaa99887766554433221100",
+        "event_sequence": 42,
+        "display_mode": "day_active",
+        "presence_state": "present",
+        "solar_state": "day",
+        "system_state": "active",
+        "effective_brightness_percent": 88,
+        "observed_at_unix_milliseconds": 1700000000123
+      },
+      "preimage_hex": "6268702e70616e656c5f6d6f64652e736e617073686f742e76320002002f302e312e302b673031323334353637383961626364656630313233343536373839616263646566303132333435363700112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100000000000000002a01010101580000018bcfe5687b",
+      "snapshot_id": "sha256:8a1859c8bf700316733bf3f2db1c65947b2cdba77b83dff3410cc115ef3afc9d",
+      "snapshot_frame": "{\"protocol_version\":2,\"message_type\":\"lifecycle_snapshot\",\"appliance_release_id\":\"0.1.0+g0123456789abcdef0123456789abcdef01234567\",\"supervisor_session_id\":\"00112233445566778899aabbccddeeff\",\"connection_challenge\":\"ffeeddccbbaa99887766554433221100\",\"event_sequence\":42,\"snapshot_id\":\"sha256:8a1859c8bf700316733bf3f2db1c65947b2cdba77b83dff3410cc115ef3afc9d\",\"display_mode\":\"day_active\",\"presence_state\":\"present\",\"solar_state\":\"day\",\"system_state\":\"active\",\"effective_brightness_percent\":88,\"observed_at_unix_milliseconds\":1700000000123}\n",
+      "acknowledgement_frame": "{\"protocol_version\":2,\"message_type\":\"presentation_acknowledgement\",\"appliance_release_id\":\"0.1.0+g0123456789abcdef0123456789abcdef01234567\",\"supervisor_session_id\":\"00112233445566778899aabbccddeeff\",\"connection_challenge\":\"ffeeddccbbaa99887766554433221100\",\"event_sequence\":42,\"snapshot_id\":\"sha256:8a1859c8bf700316733bf3f2db1c65947b2cdba77b83dff3410cc115ef3afc9d\",\"display_mode\":\"day_active\",\"render_generation\":7,\"presentation_result\":\"committed\"}\n"
+    },
+    {
+      "name": "suspended-negative-time-safe-integer-maximum",
+      "snapshot": {
+        "appliance_release_id": "0.1.0-dirty",
+        "supervisor_session_id": "102132435465768798a9bacbdcedfe0f",
+        "connection_challenge": "0ffedccbbaa998877665544332211020",
+        "event_sequence": 9007199254740991,
+        "display_mode": "suspended",
+        "presence_state": "absent",
+        "solar_state": "night",
+        "system_state": "suspended",
+        "effective_brightness_percent": 0,
+        "observed_at_unix_milliseconds": -1
+      },
+      "preimage_hex": "6268702e70616e656c5f6d6f64652e736e617073686f742e76320002000b302e312e302d6469727479102132435465768798a9bacbdcedfe0f0ffedccbbaa998877665544332211020001fffffffffffff0303020200ffffffffffffffff",
+      "snapshot_id": "sha256:b2dfe86f05894b7c0d2f518685fabe9f01accc7d4ed3a5d9fb57b62f6404b08f",
+      "snapshot_frame": "{\"protocol_version\":2,\"message_type\":\"lifecycle_snapshot\",\"appliance_release_id\":\"0.1.0-dirty\",\"supervisor_session_id\":\"102132435465768798a9bacbdcedfe0f\",\"connection_challenge\":\"0ffedccbbaa998877665544332211020\",\"event_sequence\":9007199254740991,\"snapshot_id\":\"sha256:b2dfe86f05894b7c0d2f518685fabe9f01accc7d4ed3a5d9fb57b62f6404b08f\",\"display_mode\":\"suspended\",\"presence_state\":\"absent\",\"solar_state\":\"night\",\"system_state\":\"suspended\",\"effective_brightness_percent\":0,\"observed_at_unix_milliseconds\":-1}\n",
+      "acknowledgement_frame": "{\"protocol_version\":2,\"message_type\":\"presentation_acknowledgement\",\"appliance_release_id\":\"0.1.0-dirty\",\"supervisor_session_id\":\"102132435465768798a9bacbdcedfe0f\",\"connection_challenge\":\"0ffedccbbaa998877665544332211020\",\"event_sequence\":9007199254740991,\"snapshot_id\":\"sha256:b2dfe86f05894b7c0d2f518685fabe9f01accc7d4ed3a5d9fb57b62f6404b08f\",\"display_mode\":\"suspended\",\"render_generation\":8,\"presentation_result\":\"committed\"}\n"
+    }
+  ]
+}

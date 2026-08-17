@@ -2,12 +2,16 @@
 
 #include "panel_supervisor/error_code.hpp"
 
+#include "bhp/application_identity.h"
+#include "bhp/panel_mode_protocol/types.h"
 #include "bhp/structured_log_level.h"
 
 #include <chrono>
 #include <exception>
 #include <map>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace house_panel::supervisor {
@@ -48,6 +52,112 @@ std::string_view presentation_status(const PresentationOutcome &outcome) noexcep
 		return "not_committed";
 	}
 	return "failed";
+}
+
+std::string_view protocol_display_mode(const UiMode ui_mode) noexcept
+{
+	switch (ui_mode) {
+	case UiMode::Day:
+		return "day_active";
+	case UiMode::Night:
+		return "night_red";
+	case UiMode::Suspended:
+		return "suspended";
+	}
+	return "invalid";
+}
+
+bool is_lowercase_hex(const std::string_view value, const std::size_t expected_size,
+		      const bool require_nonzero) noexcept
+{
+	if (value.size() != expected_size) {
+		return false;
+	}
+	bool contains_nonzero = false;
+	for (const char character : value) {
+		if (!((character >= '0' && character <= '9') ||
+		      (character >= 'a' && character <= 'f'))) {
+			return false;
+		}
+		contains_nonzero = contains_nonzero || character != '0';
+	}
+	return !require_nonzero || contains_nonzero;
+}
+
+std::optional<std::string_view> invalid_committed_presentation_field(
+	const PresentationCommitted &committed, const PendingPresentation &pending,
+	const UiModeNotification &notification,
+	const PresentationCommitted *last_committed) noexcept
+{
+	using bhp::panel_mode_protocol::kMaximumSafeJsonInteger;
+	if (committed.appliance_release_id != bhp::kApplianceReleaseId) {
+		return "appliance_release_id";
+	}
+	if (pending.publication_sequence == 0U ||
+	    pending.publication_sequence > kMaximumSafeJsonInteger ||
+	    committed.publication_sequence != pending.publication_sequence) {
+		return "publication_sequence";
+	}
+	if (committed.render_generation == 0U ||
+	    committed.render_generation > kMaximumSafeJsonInteger) {
+		return "render_generation";
+	}
+	if (!is_lowercase_hex(committed.supervisor_session_id, 32U, true)) {
+		return "supervisor_session_id";
+	}
+	if (!is_lowercase_hex(committed.connection_challenge, 32U, true)) {
+		return "connection_challenge";
+	}
+	constexpr std::string_view digest_prefix = "sha256:";
+	if (committed.snapshot_id.size() != digest_prefix.size() + 64U ||
+	    committed.snapshot_id.compare(0U, digest_prefix.size(), digest_prefix) != 0 ||
+	    !is_lowercase_hex(
+		std::string_view(committed.snapshot_id).substr(digest_prefix.size()), 64U,
+		false)) {
+		return "snapshot_id";
+	}
+	if (committed.display_mode != protocol_display_mode(notification.ui_mode)) {
+		return "display_mode";
+	}
+	if (!pending.expected_commitment.has_value()) {
+		return "expected_commitment";
+	}
+	const auto &expected = *pending.expected_commitment;
+	if (committed.appliance_release_id != expected.appliance_release_id) {
+		return "appliance_release_id";
+	}
+	if (committed.supervisor_session_id != expected.supervisor_session_id) {
+		return "supervisor_session_id";
+	}
+	if (committed.connection_challenge != expected.connection_challenge) {
+		return "connection_challenge";
+	}
+	if (committed.snapshot_id != expected.snapshot_id) {
+		return "snapshot_id";
+	}
+	if (committed.display_mode != expected.display_mode) {
+		return "display_mode";
+	}
+	if (expected.minimum_render_generation_exclusive >= kMaximumSafeJsonInteger ||
+	    committed.render_generation <= expected.minimum_render_generation_exclusive) {
+		return "render_generation";
+	}
+	if (last_committed != nullptr) {
+		if (committed.supervisor_session_id !=
+		    last_committed->supervisor_session_id) {
+			return "supervisor_session_id";
+		}
+		if (committed.publication_sequence <=
+		    last_committed->publication_sequence) {
+			return "publication_sequence";
+		}
+		if (committed.connection_challenge ==
+			    last_committed->connection_challenge &&
+		    committed.render_generation <= last_committed->render_generation) {
+			return "render_generation";
+		}
+	}
+	return std::nullopt;
 }
 
 template <typename Callable>
@@ -321,12 +431,11 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 		}
 
 		const auto pending_presentation = publish_result.value();
-		// Version 1 cannot acknowledge, so the current scaffold never waits. The
-		// protocol-v2 work must inject its reviewed timeout instead of promoting an
-		// unmeasured duration into runtime configuration.
-		const auto presentation_deadline = std::chrono::steady_clock::now();
+		const auto presentation_deadline =
+			std::chrono::steady_clock::now() + config_.presentation_timeout();
 		const auto await_started_at = std::chrono::steady_clock::now();
-		PresentationOutcome outcome = PresentationCommitted{};
+		PresentationOutcome outcome = PresentationNotCommitted{
+			PresentationNotCommittedReason::AcknowledgementUnavailable};
 		bool adapter_returned_outcome = false;
 		try {
 			outcome = ui_mode_notifier_.await_presentation(
@@ -361,6 +470,26 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 			if (!external_log_result) {
 				return Result<PresentationOutcome>::failure(
 					external_log_result.error());
+			}
+		}
+		if (const auto *committed = std::get_if<PresentationCommitted>(&outcome)) {
+			const auto invalid_field = invalid_committed_presentation_field(
+				*committed, pending_presentation, ui_mode_notification,
+				last_committed_presentation_.has_value()
+					? &*last_committed_presentation_
+					: nullptr);
+			if (invalid_field.has_value()) {
+				outcome = PresentationFailed{
+					PresentationFailureReason::AdapterContractViolation,
+					SupervisorError(
+						ErrorCode::UiPresentationBindingInvalid,
+						"UI presentation adapter returned a commitment that was not "
+						"bound to the exact pending lifecycle publication",
+						{{"field", std::string(*invalid_field)},
+						 {"operation",
+						  "ui_mode_notifier.await_presentation"}})};
+			} else {
+				last_committed_presentation_ = *committed;
 			}
 		}
 		if (!std::holds_alternative<PresentationCommitted>(outcome)) {

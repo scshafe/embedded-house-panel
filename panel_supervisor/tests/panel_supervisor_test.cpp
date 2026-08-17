@@ -11,6 +11,7 @@
 #include "panel_supervisor/suspend.hpp"
 #include "panel_supervisor/ui_mode_notifier.hpp"
 
+#include "bhp/application_identity.h"
 #include "bhp/structured_logger.h"
 
 #include <array>
@@ -107,6 +108,7 @@ public:
 	{
 		++write_count;
 		calls_.emplace_back("backlight");
+		requested_brightnesses.push_back(brightness_percent);
 		if (failure.has_value() &&
 		    (!failure_write_count.has_value() ||
 		     failure_write_count.value() == write_count)) {
@@ -119,6 +121,7 @@ public:
 	std::optional<int> applied_brightness;
 	std::optional<SupervisorError> failure;
 	std::optional<int> failure_write_count;
+	std::vector<int> requested_brightnesses;
 	int write_count{0};
 
 private:
@@ -139,8 +142,25 @@ public:
 		notified_mode = notification.ui_mode;
 		last_notification = notification;
 		++publication_sequence;
-		return Result<PendingPresentation>::success(
-			PendingPresentation{publication_sequence});
+		const std::string display_mode =
+			notification.ui_mode == UiMode::Day
+				? "day_active"
+				: notification.ui_mode == UiMode::Night ? "night_red"
+								   : "suspended";
+		std::string snapshot_digest(64U, '1');
+		snapshot_digest.back() = static_cast<char>(
+			'1' + static_cast<int>((publication_sequence - 1U) % 9U));
+		const PresentationCommitmentExpectation expected{
+				std::string(bhp::kApplianceReleaseId),
+				"00112233445566778899aabbccddeeff",
+				"ffeeddccbbaa99887766554433221100",
+				"sha256:" + snapshot_digest, display_mode,
+				last_render_generation};
+		return Result<PendingPresentation>::success(PendingPresentation{
+			publication_sequence,
+			omit_expected_commitment
+				? std::optional<PresentationCommitmentExpectation>{}
+				: std::optional<PresentationCommitmentExpectation>{expected}});
 	}
 
 	PresentationOutcome await_presentation(
@@ -155,6 +175,25 @@ public:
 			throw std::runtime_error(
 				"test presentation exception must not cross the supervisor boundary");
 		}
+		if (synthesize_exact_commit &&
+		    std::holds_alternative<PresentationCommitted>(presentation_outcome)) {
+			const auto &expected = *pending_presentation.expected_commitment;
+			const auto render_generation =
+				override_render_generation.value_or(last_render_generation + 1U);
+			PresentationCommitted committed{
+				expected.appliance_release_id,
+				pending_presentation.publication_sequence, render_generation,
+				override_supervisor_session_id.value_or(
+					expected.supervisor_session_id),
+				override_connection_challenge.value_or(
+					expected.connection_challenge),
+				override_snapshot_id.value_or(expected.snapshot_id),
+				expected.display_mode};
+			if (!override_render_generation.has_value()) {
+				last_render_generation = render_generation;
+			}
+			return committed;
+		}
 		return presentation_outcome;
 	}
 
@@ -163,11 +202,23 @@ public:
 	std::optional<PendingPresentation> last_pending_presentation;
 	std::optional<std::chrono::steady_clock::time_point> last_deadline;
 	std::optional<SupervisorError> publish_failure;
-	PresentationOutcome presentation_outcome{PresentationCommitted{}};
+	PresentationOutcome presentation_outcome{PresentationCommitted{
+		std::string(bhp::kApplianceReleaseId), 1U, 1U,
+		"00112233445566778899aabbccddeeff",
+		"ffeeddccbbaa99887766554433221100",
+		"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"day_active"}};
 	std::uint64_t publication_sequence{0};
+	std::uint64_t last_render_generation{0};
+	std::optional<std::uint64_t> override_render_generation;
+	std::optional<std::string> override_supervisor_session_id;
+	std::optional<std::string> override_connection_challenge;
+	std::optional<std::string> override_snapshot_id;
 	int publication_count{0};
 	int await_count{0};
 	bool throw_await_exception{false};
+	bool synthesize_exact_commit{true};
+	bool omit_expected_commitment{false};
 
 private:
 	std::vector<std::string> &calls_;
@@ -307,6 +358,31 @@ bool initial_active_mode_is_notified_before_nonzero_backlight()
 	return true;
 }
 
+bool active_day_to_night_change_blanks_before_exact_presentation_then_lights()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	TEST_REQUIRE(fixture.supervisor.start("day-night-start").has_value());
+	TEST_REQUIRE(fixture.backlight.applied_brightness ==
+		     test_fixture::kPresentDayBrightnessPercent);
+
+	fixture.calls.clear();
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.solar_calculator.solar_state = SolarState::Night;
+	fixture.clock.current_time += std::chrono::hours(1);
+	const auto result = fixture.supervisor.poll("day-night-change");
+
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().notified_ui_mode == UiMode::Night);
+	const std::vector<std::string> expected_calls{
+		"backlight", "publish", "await_presentation", "backlight"};
+	TEST_REQUIRE(fixture.calls == expected_calls);
+	const std::vector<int> expected_brightnesses{
+		0, test_fixture::kPresentNightBrightnessPercent};
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == expected_brightnesses);
+	return true;
+}
+
 bool presence_failure_is_wrapped_and_stops_downstream_outputs()
 {
 	SupervisorFixture fixture;
@@ -370,6 +446,100 @@ bool failed_active_publication_is_degraded_and_keeps_backlight_zero()
 		     std::string::npos);
 	TEST_REQUIRE(fixture.log_output.str().find("\"degraded_reason\":\"publication_failed\"") !=
 		     std::string::npos);
+	return true;
+}
+
+bool mismatched_committed_publication_never_raises_brightness()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	fixture.ui_mode_notifier.synthesize_exact_commit = false;
+	fixture.ui_mode_notifier.presentation_outcome = PresentationCommitted{
+		std::string(bhp::kApplianceReleaseId), 99U, 1U,
+		"00112233445566778899aabbccddeeff",
+		"ffeeddccbbaa99887766554433221100",
+		"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"day_active"};
+
+	const auto result = fixture.supervisor.start("forged-publication-sequence");
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
+	TEST_REQUIRE(fixture.log_output.str().find(
+			     "PANEL_SUPERVISOR.UI_PRESENTATION_BINDING_INVALID") !=
+		     std::string::npos);
+	TEST_REQUIRE(fixture.log_output.str().find(
+			     "\"degraded_reason\":\"adapter_contract_violation\"") !=
+		     std::string::npos);
+	return true;
+}
+
+bool structurally_empty_committed_provenance_never_raises_brightness()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	fixture.ui_mode_notifier.synthesize_exact_commit = false;
+	fixture.ui_mode_notifier.presentation_outcome =
+		PresentationCommitted{"", 0U, 0U, "", "", "", ""};
+
+	const auto result = fixture.supervisor.start("empty-committed-provenance");
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
+	return true;
+}
+
+bool well_formed_but_wrong_pending_provenance_never_raises_brightness()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	fixture.ui_mode_notifier.override_supervisor_session_id =
+		"102132435465768798a9bacbdcedfe0f";
+	fixture.ui_mode_notifier.override_snapshot_id =
+		"sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+
+	const auto result = fixture.supervisor.start("well-formed-wrong-provenance");
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
+	return true;
+}
+
+bool commitment_without_a_publish_time_expectation_never_raises_brightness()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	fixture.ui_mode_notifier.omit_expected_commitment = true;
+	fixture.ui_mode_notifier.synthesize_exact_commit = false;
+	fixture.ui_mode_notifier.presentation_outcome = PresentationCommitted{
+		std::string(bhp::kApplianceReleaseId), 1U, 1U,
+		"00112233445566778899aabbccddeeff",
+		"ffeeddccbbaa99887766554433221100",
+		"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"day_active"};
+
+	const auto result = fixture.supervisor.start("missing-frozen-expectation");
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
+	return true;
+}
+
+bool replayed_render_generation_never_raises_brightness_on_a_later_cycle()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	TEST_REQUIRE(fixture.supervisor.start("render-generation-initial").has_value());
+	TEST_REQUIRE(fixture.backlight.applied_brightness ==
+		     test_fixture::kPresentDayBrightnessPercent);
+
+	fixture.ui_mode_notifier.override_render_generation = 1U;
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.clock.current_time += std::chrono::seconds(1);
+	const auto replayed = fixture.supervisor.poll("render-generation-replay");
+	TEST_REQUIRE(replayed.has_value());
+	TEST_REQUIRE(replayed.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
 	return true;
 }
 
@@ -610,7 +780,7 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 19> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 25> tests{{
 		{"resume_reacquires_all_inputs_and_applies_fresh_night_state",
 		 resume_reacquires_all_inputs_and_applies_fresh_night_state},
 		{"resume_while_still_absent_requests_suspend_again",
@@ -619,6 +789,8 @@ int main()
 		 initial_absence_applies_outputs_before_requesting_suspend},
 		{"initial_active_mode_is_notified_before_nonzero_backlight",
 		 initial_active_mode_is_notified_before_nonzero_backlight},
+		{"active_day_to_night_change_blanks_before_exact_presentation_then_lights",
+		 active_day_to_night_change_blanks_before_exact_presentation_then_lights},
 		{"presence_failure_is_wrapped_and_stops_downstream_outputs",
 		 presence_failure_is_wrapped_and_stops_downstream_outputs},
 		{"empty_trace_id_returns_typed_error_without_reading_ports",
@@ -627,6 +799,16 @@ int main()
 		 thrown_adapter_exception_is_converted_to_typed_failure},
 		{"failed_active_publication_is_degraded_and_keeps_backlight_zero",
 		 failed_active_publication_is_degraded_and_keeps_backlight_zero},
+		{"mismatched_committed_publication_never_raises_brightness",
+		 mismatched_committed_publication_never_raises_brightness},
+		{"structurally_empty_committed_provenance_never_raises_brightness",
+		 structurally_empty_committed_provenance_never_raises_brightness},
+		{"well_formed_but_wrong_pending_provenance_never_raises_brightness",
+		 well_formed_but_wrong_pending_provenance_never_raises_brightness},
+		{"commitment_without_a_publish_time_expectation_never_raises_brightness",
+		 commitment_without_a_publish_time_expectation_never_raises_brightness},
+		{"replayed_render_generation_never_raises_brightness_on_a_later_cycle",
+		 replayed_render_generation_never_raises_brightness_on_a_later_cycle},
 		{"explicitly_failed_presentation_still_reaches_suspend_with_zero_brightness",
 		 explicitly_failed_presentation_still_reaches_suspend_with_zero_brightness},
 		{"timed_out_presentation_still_reaches_suspend_with_zero_brightness",

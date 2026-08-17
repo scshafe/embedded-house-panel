@@ -22,9 +22,10 @@ This is an executable scaffold, not a hardware-complete product.
 | Work stream | First implementation | What remains hardware-dependent |
 |---|---|---|
 | Presence/wake | Custom input-driver experiment plus stock `gpio-keys` comparison | PIR electrical behavior, cape pin conflicts, DeepSleep0 wake proof |
-| Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, clock-readiness, and local IPC adapters | Actual nodes, brightness, clock recovery, and suspend behavior on the target |
-| Vocabulary panel | Host-tested flash-card flow; Linux x86_64 verification reaches the provisional HTTPS Lexinet client and strict-compiled LVGL DRM/fbdev renderer | Integrated graphical controller executable, actual Lexinet contract, cape nodes, and calibrated touch |
-| Personal agenda | `AGENDA-001` through `AGENDA-010` accepted; provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan documented; `AGENDA-011` deferred | Agenda feasibility Step 1 review; neutral shared UI shell; EventKit/Contacts, Google, Tailnet, local STT, and Messages measurements; all implementation |
+| Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, protocol-v2 presentation gate, and touch-provenance seams | Actual nodes, brightness, clock recovery, suspend behavior, raw-touch adapter, and display-commit correlation on the target |
+| Panel UI | Host-tested neutral shell/controller, intent registry, Unicode policy, headless renderer, protocol-v2 Unix client, and disabled fail-dark Buildroot entry point | Evidence-backed physical renderer, normalized-touch transport adapter, target service enablement, and calibrated display/touch |
+| Vocabulary panel | Host-tested flash-card scaffold and provenance-stamped `study.v1` consumer contract | Lexinet service/data plane, integration beneath the neutral shell, target renderer, and calibrated touch |
+| Personal agenda | `AGENDA-001` through `AGENDA-010` accepted; provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan documented; `AGENDA-011` deferred | Agenda feasibility Step 1 review; EventKit/Contacts, Google, Tailnet, local STT, Messages measurements, and all feature implementation |
 | System image | Pinned Buildroot external tree, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | Full release image build, cape driver/device tree, and measured package/resource budget |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
 | Enclosure | Requirements and measurement checklist | Physical dimensions, thermals, connectors, and CAD |
@@ -42,9 +43,9 @@ and
 [BeagleBone hardware baseline](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md)
 plans remain authoritative inside their work streams.
 
-With the shared product contracts accepted by ADR 0006, the immediate sequence
-is to build the neutral host UI/protocol spine, implement Lexinet study and
-offline behavior, run Mac feasibility in parallel, and produce a
+With the shared product contracts accepted by ADR 0006 and the neutral host
+UI/protocol spine now implemented, the immediate sequence is to implement
+Lexinet study and offline behavior, run Mac feasibility in parallel, and produce a
 disabled-by-default Buildroot release candidate. GPIO, display, suspend/wake,
 microphone, battery, and final platform claims remain measured hardware gates
 rather than blockers to that software head start.
@@ -66,17 +67,17 @@ QCS6490 only after its sleep claim is made reproducible. See the
 [proposed two-domain power architecture](docs/architecture/power-domain-architecture.md),
 and [current investigation decision](docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md).
 
-Two software gates intentionally remain before a product-like lit-screen test:
-the LVGL renderer/flash-card/session/HTTP pieces still need one neutral
-`panel_ui` controller process, and protocol v1 still needs a sequence-bound
-rendered/page-flipped acknowledgement before the supervisor may raise a
-nonzero backlight. Until those exist, services stay disabled by default and the
-no-white-flash requirement is not claimed as proven.
+Two gates intentionally remain before a product-like lit-screen test: the
+vocabulary session/HTTP/LVGL surface must be integrated beneath `panel_ui`, and
+the host-tested protocol-v2 handshake needs an evidence-backed physical
+display-commit backend plus on-target correlation. Until those exist, services
+stay disabled by default and the no-white-flash requirement is not claimed as
+proven.
 
 ## Architecture
 
-The implemented scaffold deliberately keeps hardware authority out of its
-currently vocabulary-specific UI:
+The implemented host spine keeps hardware authority in the supervisor and
+feature routing in the neutral UI:
 
 ```mermaid
 flowchart LR
@@ -85,8 +86,9 @@ flowchart LR
     CLOCK["clock + solar calculation"] --> SUPERVISOR
     SUPERVISOR --> BACKLIGHT["backlight"]
     SUPERVISOR --> SUSPEND["Linux suspend"]
-    SUPERVISOR -->|"versioned local mode event"| UI["vocabulary panel\ncurrent scaffold"]
-    UI -->|"authenticated HTTPS over tailnet"| LEXINET["Lexinet server"]
+    SUPERVISOR -->|"protocol v2 lifecycle + render gate"| UI["panel_ui\nneutral shell"]
+    UI --> VOCABULARY["vocabulary panel\nsubordinate feature"]
+    VOCABULARY -->|"future study data plane"| LEXINET["Lexinet server"]
     BUILDROOT["Buildroot image"] --> PRESENCE
     BUILDROOT --> SUPERVISOR
     BUILDROOT --> UI
@@ -94,9 +96,9 @@ flowchart LR
     TAILSCALE --> LEXINET
 ```
 
-The accepted planned application convergence replaces that future UI owner with
-one neutral shell; it does not add agenda or vocabulary decisions to the
-supervisor:
+The accepted application boundary extends this host spine with touch
+provenance, voice, and sibling feature surfaces; it does not add agenda or
+vocabulary decisions to the supervisor:
 
 ```mermaid
 flowchart LR
@@ -142,8 +144,9 @@ See [system architecture](docs/architecture/system-architecture.md),
 |---|---|
 | `presence_sensor/` | Kernel-side PIR state/events and wake experiments |
 | `panel_supervisor/` | Presence, solar, display, and sleep policy |
+| `panel_ui/` | Neutral display shell, application hit testing, intent routing, and lifecycle client |
 | `vocabulary_panel/` | Lexinet client boundary and flash-card presentation |
-| `shared/` | Canonical user-space capabilities shared across product domains, currently structured logging |
+| `shared/` | Canonical application identity, lifecycle codec, normalized-touch stream, and structured logging capabilities |
 | `config/` | Example build, deployment, and service configuration templates; secrets excluded |
 | `system_image/` | Buildroot external tree and target lifecycle |
 | `hardware_tests/` | Non-destructive discovery and on-device evidence capture |

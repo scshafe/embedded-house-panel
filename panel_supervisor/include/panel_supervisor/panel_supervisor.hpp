@@ -15,6 +15,7 @@
 #include "bhp/structured_logger.h"
 
 #include <map>
+#include <optional>
 #include <string>
 
 namespace house_panel::supervisor {
@@ -82,6 +83,7 @@ private:
 	Suspend &suspend_;
 	bhp::StructuredLogger &logger_;
 	PanelState state_;
+	std::optional<PresentationCommitted> last_committed_presentation_;
 };
 
 } // namespace house_panel::supervisor

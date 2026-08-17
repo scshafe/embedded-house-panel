@@ -523,7 +523,7 @@ as the production default.
     surface.~~ Superseded by Steps 7a and 7b; every requirement is
     redistributed below.
 
-- [ ] **Step 7a: Establish the neutral production panel spine**
+- [x] **Step 7a: Establish the neutral production panel spine**
   - Requires roadmap Step 1 and Lexinet Step 1a. It may run in parallel with
     Lexinet Steps 1b–6.
   - Establish `panel_ui` as the unprivileged sole owner of LVGL, display,
@@ -966,3 +966,16 @@ authority and reproduces contract bundle SHA-256
 `2b58b02ba543bac297763a3d8a2008645dcf18f18d221ac20c596580cf7be096`;
 its test rejects an unknown required semantic. Both automated proof rows are
 recorded without claiming any Step 2 persistence or service implementation.
+
+**Amended 2026-08-16:** completed the independently verifiable Step 7a host
+spine. Canonical shared code now owns application identity, strict protocol-v2
+encoding/digests, and the normalized-touch stream; `panel_supervisor` owns the
+immutable fail-dark presentation gate and authority-measured touch provenance;
+and persistent `bhp-panel-ui` assembles the neutral controller, Unicode policy,
+headless renderer, bounded lifecycle reconnect loop, and a backend that can
+emit only `failed`. The intent registry reserves the reviewed vocabulary and
+agenda IDs without enabling agenda effects. Packaging installs one neutral UI
+entry point under the distinct unprivileged UID and leaves its service disabled.
+Mapped host shell, supervisor, packaging, all-slice, and repository proofs pass.
+No physical renderer, production normalized-touch transport, ARM package build,
+on-target evidence, vocabulary surface, or Step 7b completion is claimed.

@@ -10,14 +10,22 @@ Public Buildroot interface:
 - Kconfig symbol: `BR2_PACKAGE_BHP_PANEL_SUPERVISOR`
 - package target: `bhp-panel-supervisor`
 - installed daemon: `/usr/sbin/panel_supervisord`
-- IPC client group: `vocabulary-panel`
+- IPC client group: `panel-ui` (fixed UID/GID `1102`, owned by
+  `bhp-panel-ui`)
 
 `S70panel_supervisord` remains opt-in because its GPIO/input, backlight, local
 IPC, solar-time, and suspend adapters have not been exercised on the target
 assembly. The daemon validates its complete environment before opening any
-device. Its init path creates the IPC directory as root:vocabulary-panel mode
-2750, allowing the UI to traverse/connect to the group-owned socket without
-permission to replace it.
+device. Its init path creates the IPC directory as root:panel-ui mode 2750,
+allowing only the neutral UI peer to traverse/connect to the group-owned socket
+without permission to replace it. The legacy vocabulary process is not a
+protocol-v2 peer and receives no membership in this group.
+
+The package depends directly on `bhp-panel-ui` so the fixed peer principal
+exists whenever the supervisor is selected. Its application release identity
+is required by a pre-configure hook: ordinary Kconfig/target discovery remains
+parseable, while a package configuration that bypasses the canonical build
+wrapper fails before CMake can derive an identity from its copied source tree.
 
 When enabled, the init service runs one foreground shell supervisor around the
 foreground daemon. An unexpected exit is followed by at most three restart

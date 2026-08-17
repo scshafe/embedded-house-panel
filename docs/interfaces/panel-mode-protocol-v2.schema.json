@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "panel-mode-protocol-v2.schema.json",
+  "title": "BeagleBone House Panel lifecycle protocol v2 frame",
+  "description": "Typed JSON data model after the stricter version-2 lexical JSON-Lines decoder has accepted a frame.",
+  "x-bhp-wire-lexical-contract": "The canonical codec additionally rejects decimal/exponent spellings of integral numbers, duplicate members, string escapes, CR, invalid bytes, blank frames, and frames over 4096 bytes including LF.",
+  "oneOf": [
+    { "$ref": "#/$defs/lifecycle_snapshot" },
+    { "$ref": "#/$defs/presentation_acknowledgement" }
+  ],
+  "$defs": {
+    "release_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$"
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^(?=[0-9a-f]{32}$)(?=.*[1-9a-f])[0-9a-f]{32}$"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "safe_positive_integer": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "display_mode": {
+      "enum": ["day_active", "night_red", "suspended", "diagnostic"]
+    },
+    "lifecycle_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "message_type",
+        "appliance_release_id",
+        "supervisor_session_id",
+        "connection_challenge",
+        "event_sequence",
+        "snapshot_id",
+        "display_mode",
+        "presence_state",
+        "solar_state",
+        "system_state",
+        "effective_brightness_percent",
+        "observed_at_unix_milliseconds"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "message_type": { "const": "lifecycle_snapshot" },
+        "appliance_release_id": { "$ref": "#/$defs/release_id" },
+        "supervisor_session_id": { "$ref": "#/$defs/identity" },
+        "connection_challenge": { "$ref": "#/$defs/identity" },
+        "event_sequence": { "$ref": "#/$defs/safe_positive_integer" },
+        "snapshot_id": { "$ref": "#/$defs/snapshot_id" },
+        "display_mode": { "$ref": "#/$defs/display_mode" },
+        "presence_state": {
+          "enum": ["unknown", "present", "grace_period", "absent"]
+        },
+        "solar_state": { "enum": ["unknown", "day", "night"] },
+        "system_state": {
+          "enum": [
+            "starting",
+            "active",
+            "suspended",
+            "recomputing_after_resume",
+            "faulted"
+          ]
+        },
+        "effective_brightness_percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "observed_at_unix_milliseconds": {
+          "type": "integer",
+          "minimum": -5364662400000,
+          "exclusiveMaximum": 4133980800000
+        }
+      }
+    },
+    "presentation_acknowledgement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "message_type",
+        "appliance_release_id",
+        "supervisor_session_id",
+        "connection_challenge",
+        "event_sequence",
+        "snapshot_id",
+        "display_mode",
+        "render_generation",
+        "presentation_result"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "message_type": { "const": "presentation_acknowledgement" },
+        "appliance_release_id": { "$ref": "#/$defs/release_id" },
+        "supervisor_session_id": { "$ref": "#/$defs/identity" },
+        "connection_challenge": { "$ref": "#/$defs/identity" },
+        "event_sequence": { "$ref": "#/$defs/safe_positive_integer" },
+        "snapshot_id": { "$ref": "#/$defs/snapshot_id" },
+        "display_mode": { "$ref": "#/$defs/display_mode" },
+        "render_generation": { "$ref": "#/$defs/safe_positive_integer" },
+        "presentation_result": { "enum": ["committed", "failed"] }
+      }
+    }
+  }
+}

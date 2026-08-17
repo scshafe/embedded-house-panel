@@ -2,13 +2,19 @@
 
 #include "panel_supervisor/ui_mode_notifier.hpp"
 
+#include "bhp/panel_mode_protocol/types.h"
+#include "bhp/panel_mode_protocol/framing.h"
+
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace house_panel::supervisor {
 
-// @canonical panel_mode_unix_socket_server -- one-client version-1 JSON Lines publisher.
+// @canonical panel_mode_unix_socket_server -- authenticated one-client version-2 lifecycle and
+// presentation-readiness boundary.
 class UnixSocketUiModeNotifier final : public UiModeNotifier {
 public:
 	/**
@@ -19,7 +25,8 @@ public:
 	 * it stale and a final type/owner/device/inode check still matches.
 	 */
 	[[nodiscard]] static Result<std::unique_ptr<UnixSocketUiModeNotifier>>
-	create(std::string socket_path);
+	create(std::string socket_path, std::uint32_t expected_panel_ui_uid,
+	       std::string appliance_release_id);
 
 	~UnixSocketUiModeNotifier() override;
 
@@ -29,7 +36,7 @@ public:
 	UnixSocketUiModeNotifier &operator=(UnixSocketUiModeNotifier &&) = delete;
 
 	/**
-	 * Accepts at most one UI client and publishes a complete protocol-v1 snapshot.
+	 * Accepts at most one exact-UID UI client and publishes a complete protocol-v2 snapshot.
 	 *
 	 * Extra clients are immediately closed without disturbing the primary client
 	 * or panel policy. Per-client setup/send/protocol failure isolates that client
@@ -40,11 +47,10 @@ public:
 	publish(const UiModeNotification &notification) override;
 
 	/**
-	 * Returns immediate non-commit because protocol v1 has no acknowledgement.
-	 *
-	 * The deadline and pending sequence are accepted to preserve the presentation
-	 * seam, but this adapter never fabricates renderer commitment from a socket
-	 * write or connected client.
+	 * Waits only until the explicit deadline for the one exact acknowledgement.
+	 * Timeout, disconnect, stale, duplicate, mismatch, and explicit failure are
+	 * degraded outcomes. Malformed protocol input closes the connection and never
+	 * grants readiness.
 	 */
 	[[nodiscard]] PresentationOutcome await_presentation(
 		const PendingPresentation &pending_presentation,
@@ -54,22 +60,41 @@ public:
 	[[nodiscard]] std::uint64_t event_sequence() const noexcept;
 	[[nodiscard]] bool has_connected_client() const noexcept;
 
+	/** Hard per-call accept syscall budget; connection floods cannot monopolize policy. */
+	[[nodiscard]] static constexpr std::size_t
+	maximum_accept_attempts_per_pass() noexcept
+	{
+		return 4U;
+	}
+
 private:
 	UnixSocketUiModeNotifier(std::string socket_path, int listening_socket,
 				 std::uint64_t socket_device,
-				 std::uint64_t socket_inode);
+				 std::uint64_t socket_inode,
+				 std::uint32_t expected_panel_ui_uid,
+				 std::string appliance_release_id,
+				 std::string supervisor_session_id);
 
 	[[nodiscard]] Result<bool> accept_pending_primary_client();
 	[[nodiscard]] bool send_line_to_client(const std::string &json_line) noexcept;
+	[[nodiscard]] Result<bool> send_latest_snapshot_to_client();
 	void close_client() noexcept;
-	[[nodiscard]] Result<std::string>
-	encode_notification(const UiModeNotification &notification, std::uint64_t sequence) const;
+	void invalidate_pending() noexcept;
+	[[nodiscard]] Result<bhp::panel_mode_protocol::Snapshot>
+	make_snapshot(const UiModeNotification &notification, std::uint64_t sequence) const;
 
 	std::string socket_path_;
 	int listening_socket_;
 	int client_socket_{-1};
+	std::uint32_t expected_panel_ui_uid_;
+	std::string appliance_release_id_;
+	std::string supervisor_session_id_;
+	std::string connection_challenge_;
 	std::uint64_t event_sequence_{0};
-	std::string current_snapshot_line_;
+	std::uint64_t last_render_generation_{0};
+	std::optional<UiModeNotification> latest_notification_;
+	std::optional<bhp::panel_mode_protocol::Snapshot> pending_snapshot_;
+	bhp::panel_mode_protocol::FrameAccumulator acknowledgement_frames_;
 	std::uint64_t socket_device_;
 	std::uint64_t socket_inode_;
 };

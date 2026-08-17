@@ -115,8 +115,18 @@ case "$build_jobs" in
   *[!0-9]*|0|'') bhp_fail BUILDROOT.JOBS_INVALID "$build_jobs" "$TRACE_ID"; exit 1 ;;
 esac
 
+BHP_APPLIANCE_RELEASE_ID=$(
+  "$PROJECT_ROOT/scripts/build/application_release_id.sh" "$PROJECT_ROOT"
+) || {
+  bhp_fail BUILDROOT.APPLICATION_RELEASE_ID_FAILED \
+    "Canonical application release identity could not be derived" "$TRACE_ID"
+  exit 1
+}
+export BHP_APPLIANCE_RELEASE_ID
+
 bhp_log info buildroot_build_started "$TRACE_ID" jobs "$build_jobs" \
   profile "$configured_profile" \
+  application_release_id "$BHP_APPLIANCE_RELEASE_ID" \
   buildroot_source_id "$buildroot_source_id" \
   buildroot_archive_sha256 "$BHP_BUILDROOT_ARCHIVE_SHA256"
 make -C "$BHP_BUILDROOT_DIR" \

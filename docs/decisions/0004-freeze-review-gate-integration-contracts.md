@@ -2,7 +2,7 @@
 
 # ADR 0004: Freeze Review-Gate Integration Contracts
 
-**Status:** accepted
+**Status:** accepted; protocol-v2 validation portions superseded by ADR 0007
 
 **Date:** 2026-08-07
 
@@ -53,6 +53,9 @@ acknowledgement-only invariant.
 
 ### `appliance_release_id` identifies the application bundle
 
+> **Superseded by ADR 0007.** Protocol version 2 revalidates the exact built-in
+> release identity on every typed acknowledgement, not only once.
+
 `appliance_release_id` is one build-stamped application-bundle identity:
 repository `VERSION` plus Git commit, with a dirty-tree marker when applicable.
 The top-level CMake configure/build step produces the identity and compiles the
@@ -67,6 +70,9 @@ self-enforcing even when per-binary deployment tooling could otherwise install
 only one side of the protocol migration.
 
 ### Protocol v2 uses the reduced validation set
+
+> **Superseded by ADR 0007.** The complete commitment is independently
+> validated at the adapter and final power-owner boundaries.
 
 The independently validated bindings are `connection_challenge`, `snapshot_id`,
 `display_mode`, `render_generation`, and `presentation_result`, plus an
@@ -130,3 +136,8 @@ must defer to panel policy for current grace behavior.
 - [Panel policy](../behavior/panel-policy.md)
 - [Application capability ownership](../architecture/application-capability-ownership.md)
 - [Lexinet study integration](../architecture/lexinet-study-integration.md)
+
+**Amended 2026-08-16:** ADR 0007 superseded only the release-handshake and
+reduced-validation-set sections after the executable roadmap and adversarial
+implementation review required one immutable complete commitment at the final
+power boundary. Every other decision in this record remains accepted.

@@ -64,7 +64,7 @@ bhp_panel_supervisor_validate_enabled_configuration()
 	if ! bhp_init_prepare_panel_runtime_directory; then
 		bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
 			BHP_PANEL_SUPERVISOR.RUNTIME_DIRECTORY_FAILED \
-			'Failed to prepare root-owned IPC directory for vocabulary-panel group access'
+			'Failed to prepare root-owned IPC directory for panel-ui group access'
 		return 1
 	fi
 }
@@ -192,7 +192,7 @@ bhp_panel_supervisor_foreground_supervise()
 				bhp_panel_supervisor_log_restart warn \
 					"startup_not_ready_exit_${BHP_PANEL_SUPERVISOR_PREVIOUS_EXIT_STATUS}"
 		else
-			if ! chown root:vocabulary-panel "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ||
+			if ! chown root:panel-ui "$BHP_PANEL_SUPERVISOR_MODE_SOCKET" ||
 				! chmod 0660 "$BHP_PANEL_SUPERVISOR_MODE_SOCKET"; then
 				bhp_init_log_error "$BHP_PANEL_SUPERVISOR_SERVICE" \
 					BHP_PANEL_SUPERVISOR.MODE_SOCKET_PERMISSION_FAILED \

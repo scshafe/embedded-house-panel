@@ -37,13 +37,16 @@ bool valid_configuration_preserves_every_explicit_output()
 		     test_fixture::kGraceNightBrightnessPercent);
 	TEST_REQUIRE(result.value().brightness_levels().suspended_percent ==
 		     test_fixture::kSuspendedBrightnessPercent);
+	TEST_REQUIRE(result.value().presentation_timeout() ==
+		     test_fixture::kPresentationTimeout);
 	return true;
 }
 
 bool invalid_configuration_reports_all_invalid_fields()
 {
 	const auto result = SupervisorConfig::create(std::chrono::milliseconds(-1),
-						     BrightnessLevels{-1, 101, 50, 20, 999});
+						     BrightnessLevels{-1, 101, 50, 20, 999},
+						     std::chrono::milliseconds(0));
 
 	TEST_REQUIRE(!result.has_value());
 	TEST_REQUIRE(result.error().code() == ErrorCode::InvalidConfiguration);
@@ -51,6 +54,7 @@ bool invalid_configuration_reports_all_invalid_fields()
 	TEST_REQUIRE(result.error().context().count("present_day_percent") == 1);
 	TEST_REQUIRE(result.error().context().count("present_night_percent") == 1);
 	TEST_REQUIRE(result.error().context().count("suspended_percent") == 1);
+	TEST_REQUIRE(result.error().context().count("presentation_timeout_ms") == 1);
 	TEST_REQUIRE(result.error().context().count("grace_day_percent") == 0);
 	TEST_REQUIRE(result.error().context().count("grace_night_percent") == 0);
 	return true;
@@ -63,7 +67,8 @@ bool suspended_brightness_must_be_exactly_zero()
 		BrightnessLevels{test_fixture::kPresentDayBrightnessPercent,
 				 test_fixture::kPresentNightBrightnessPercent,
 				 test_fixture::kGraceDayBrightnessPercent,
-				 test_fixture::kGraceNightBrightnessPercent, 1});
+				 test_fixture::kGraceNightBrightnessPercent, 1},
+		test_fixture::kPresentationTimeout);
 
 	TEST_REQUIRE(!result.has_value());
 	TEST_REQUIRE(result.error().code() == ErrorCode::InvalidConfiguration);

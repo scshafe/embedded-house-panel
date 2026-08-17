@@ -20,11 +20,16 @@ void record_invalid_brightness(std::map<std::string, std::string> &context, cons
 } // namespace
 
 Result<SupervisorConfig> SupervisorConfig::create(const std::chrono::milliseconds grace_period,
-						  const BrightnessLevels brightness_levels)
+						  const BrightnessLevels brightness_levels,
+						  const std::chrono::milliseconds presentation_timeout)
 {
 	std::map<std::string, std::string> invalid_fields;
 	if (grace_period.count() < 0) {
 		invalid_fields.emplace("grace_period_ms", std::to_string(grace_period.count()));
+	}
+	if (presentation_timeout.count() < 1 || presentation_timeout.count() > 60'000) {
+		invalid_fields.emplace("presentation_timeout_ms",
+				       "must_be_between_1_and_60000");
 	}
 	record_invalid_brightness(invalid_fields, "present_day_percent",
 				  brightness_levels.present_day_percent);
@@ -47,12 +52,15 @@ Result<SupervisorConfig> SupervisorConfig::create(const std::chrono::millisecond
 					std::move(invalid_fields)));
 	}
 
-	return Result<SupervisorConfig>::success(SupervisorConfig(grace_period, brightness_levels));
+	return Result<SupervisorConfig>::success(
+		SupervisorConfig(grace_period, brightness_levels, presentation_timeout));
 }
 
 SupervisorConfig::SupervisorConfig(const std::chrono::milliseconds grace_period,
-				   const BrightnessLevels brightness_levels) noexcept
-    : grace_period_(grace_period), brightness_levels_(brightness_levels)
+				   const BrightnessLevels brightness_levels,
+				   const std::chrono::milliseconds presentation_timeout) noexcept
+    : grace_period_(grace_period), brightness_levels_(brightness_levels),
+	  presentation_timeout_(presentation_timeout)
 {
 }
 
@@ -61,6 +69,11 @@ std::chrono::milliseconds SupervisorConfig::grace_period() const noexcept { retu
 const BrightnessLevels &SupervisorConfig::brightness_levels() const noexcept
 {
 	return brightness_levels_;
+}
+
+std::chrono::milliseconds SupervisorConfig::presentation_timeout() const noexcept
+{
+	return presentation_timeout_;
 }
 
 } // namespace house_panel::supervisor

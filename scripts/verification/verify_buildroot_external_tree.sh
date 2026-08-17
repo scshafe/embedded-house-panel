@@ -31,9 +31,14 @@ board/beaglebone-house-panel/post-build.sh
 board/beaglebone-house-panel/bringup/post-build.sh
 board/beaglebone-house-panel/bringup/rootfs-overlay/etc/default/dropbear
 board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S50tailscaled
+board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S75bhp-panel-ui
+board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/panel-ui.env.example
 board/beaglebone-house-panel/rootfs-overlay/usr/libexec/beaglebone-house-panel/classify-touch-input
 package/bhp-panel-supervisor/Config.in
 package/bhp-panel-supervisor/bhp-panel-supervisor.mk
+package/bhp-panel-ui/Config.in
+package/bhp-panel-ui/bhp-panel-ui.mk
+package/bhp-panel-ui/README.md
 package/bhp-presence-sensor/Config.in
 package/bhp-presence-sensor/bhp-presence-sensor.mk
 package/bhp-vocabulary-panel/Config.in
@@ -86,7 +91,7 @@ for expected_genimage_pattern in \
   }
 done
 
-for package_symbol in BR2_PACKAGE_BHP_PANEL_SUPERVISOR BR2_PACKAGE_BHP_PRESENCE_SENSOR BR2_PACKAGE_BHP_VOCABULARY_PANEL BR2_PACKAGE_LVGL; do
+for package_symbol in BR2_PACKAGE_BHP_PANEL_SUPERVISOR BR2_PACKAGE_BHP_PANEL_UI BR2_PACKAGE_BHP_PRESENCE_SENSOR BR2_PACKAGE_BHP_VOCABULARY_PANEL BR2_PACKAGE_LVGL; do
   grep -F "$package_symbol" "$external_tree/configs/beaglebone_house_panel_defconfig" >/dev/null || {
     bhp_fail VERIFY_BUILDROOT.PACKAGE_NOT_SELECTED "$package_symbol" "$TRACE_ID"
     exit 1
@@ -135,8 +140,8 @@ if [ -n "${BHP_BUILDROOT_DIR:-}" ]; then
     'BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.18.21"' \
     "$expected_kernel_fragment_config" \
     'BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE="2026.04"' \
-    'BR2_PACKAGE_BHP_PRESENCE_SENSOR=y' \
-    'BR2_PACKAGE_LVGL=y' \
+	    'BR2_PACKAGE_BHP_PRESENCE_SENSOR=y' \
+	    'BR2_PACKAGE_LVGL=y' \
     'BR2_PACKAGE_CHRONY=y' \
     'BR2_PACKAGE_TAILSCALE=y' \
     "$expected_post_script_args" \
@@ -166,6 +171,7 @@ if [ -n "${BHP_BUILDROOT_DIR:-}" ]; then
       'BR2_INSTALL_LIBSTDCPP=y' \
       'BR2_TOOLCHAIN_GCC_AT_LEAST_9=y' \
       'BR2_PACKAGE_BHP_PANEL_SUPERVISOR=y' \
+      'BR2_PACKAGE_BHP_PANEL_UI=y' \
       'BR2_PACKAGE_BHP_VOCABULARY_PANEL=y' \
       'BR2_PACKAGE_LIBCURL_FORCE_TLS=y' \
       'BR2_PACKAGE_JSON_FOR_MODERN_CPP=y'; do
@@ -211,7 +217,7 @@ if [ -n "${BHP_BUILDROOT_DIR:-}" ]; then
     show-targets)
   expected_targets="bhp-presence-sensor chrony lvgl tailscale"
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ]; then
-    expected_targets="$expected_targets bhp-panel-supervisor bhp-vocabulary-panel"
+    expected_targets="$expected_targets bhp-panel-supervisor bhp-panel-ui bhp-vocabulary-panel"
   fi
   for expected_target in $expected_targets; do
     printf '%s\n' "$registered_targets" | tr ' ' '\n' | grep -F -x "$expected_target" >/dev/null || {

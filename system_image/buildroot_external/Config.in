@@ -1,6 +1,7 @@
 menu "BeagleBone house panel"
 
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-panel-supervisor/Config.in"
+source "$BR2_EXTERNAL_BHP_PATH/package/bhp-panel-ui/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-vocabulary-panel/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-presence-sensor/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/lvgl/Config.in"

@@ -13,9 +13,10 @@ still occupy their filename and are never treated as a free number.
 | [0001](0001-separate-policy-from-presentation.md) | Accepted for the scaffold | Separate power policy from presentation |
 | [0002](0002-buildroot-baseline.md) | Proposed; hardware-gated | Prefer Buildroot after Debian hardware bring-up |
 | [0003](0003-characterize-beaglebone-before-selecting-product-platform.md) | Accepted for the current investigation | Characterize BeagleBone before selecting the product platform |
-| [0004](0004-freeze-review-gate-integration-contracts.md) | Accepted | Freeze review-gate integration contracts |
+| [0004](0004-freeze-review-gate-integration-contracts.md) | Accepted; protocol-v2 validation portions superseded by ADR 0007 | Freeze review-gate integration contracts |
 | [0005](0005-validate-touch-provenance-at-capability-holders.md) | Accepted | Validate touch provenance at capability holders |
 | [0006](0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md) | Accepted | Accept product semantics and atomic protocol-v2 cutover |
+| [0007](0007-validate-complete-protocol-v2-commitments.md) | Accepted | Validate complete protocol-v2 commitments |
 
 No later number is reserved by a plan.
 
@@ -45,3 +46,8 @@ registration does not approve roadmap Step 1 or any pending product decision.
 Step 1 product-semantics, shared-ownership, explicit-source-input, and atomic
 protocol-v2 cutover decision. `AGENDA-011` and every implementation, feasibility,
 and hardware gate remain pending.
+
+**Amended 2026-08-16:** registered accepted ADR 0007 as the narrow superseding
+record for ADR 0004's release-handshake and reduced protocol-v2 validation
+sections. ADR 0004's other decisions remain accepted, and neither record claims
+a physical display commit or target evidence.

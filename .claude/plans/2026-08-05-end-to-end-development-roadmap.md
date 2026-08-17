@@ -196,7 +196,7 @@ behavior.
     `make verify-docs` and `make verify` pass with no credentials or personal
     identifiers in the repository.
 
-- [ ] **Step 2: Establish the neutral host platform spine**
+- [x] **Step 2: Establish the neutral host platform spine**
   - ~~Execute the platform-spine portion of Lexinet Step 7.~~ Execute Lexinet
     Step 7a: introduce
     ~~`panel_ui` as sole display/touch owner~~ `panel_ui` as sole display,
@@ -779,3 +779,16 @@ Step 1a and this roadmap gate were completed after their mapped human proof,
 Step 1 decision-review subpart is complete, but its experiment README, matrix,
 limits, redaction proof, and safety review remain unchecked work owned by
 roadmap Step 5.
+
+**Amended 2026-08-16:** completed Step 2 and delegated Lexinet Step 7a as a
+host-software milestone. The repository now has one strict protocol-v2 codec,
+complete immutable presentation commitments under superseding ADR 0007, exact
+Unix-peer validation, a persistent neutral `panel_ui` shell/controller with a
+headless renderer and fail-dark backend, supervisor-owned touch-provenance seams
+with authority-measured contact duration, and one installed `bhp-panel-ui`
+Buildroot entry point. Focused supervisor/UI and packaging proofs, the all-slice
+host suite, and `make verify` are recorded in the verification map. A fresh
+hash-verified Buildroot 2026.05.1 Kconfig evaluation also passed on this Darwin
+host, while Linux-x86_64 ARM toolchain resolution, a physical display-commit
+backend, raw-touch transport, on-target correlation, and every hardware claim
+remain unperformed; target services stay disabled.

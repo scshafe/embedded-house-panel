@@ -8,8 +8,8 @@
 
 namespace house_panel::supervisor {
 
-// @extension-point ui_mode_notification -- connect policy presentation mode to any UI process or
-// in-process view.
+// @extension-point ui_mode_notification -- privileged presentation TCB port. Production builds
+// wire only the canonical exact-UID Unix adapter; host fakes exercise policy deterministically.
 class UiModeNotifier {
 public:
 	virtual ~UiModeNotifier() = default;
@@ -27,6 +27,11 @@ public:
 
 	/**
 	 * Consumes the matching pending presentation no later than `deadline`.
+	 *
+	 * A committed outcome is eligible only when `publish` already returned a
+	 * complete immutable commitment expectation. Late connections may be retained
+	 * for the next publication but cannot amend or satisfy this one. The final
+	 * power owner compares every binding field and generation constraint.
 	 *
 	 * Committed, not-committed, and failed presentations are explicit values, not
 	 * cycle errors. Implementations must identify timeout, disconnect, stale,

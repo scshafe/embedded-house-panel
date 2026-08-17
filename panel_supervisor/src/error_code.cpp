@@ -95,6 +95,18 @@ std::string_view to_string(const ErrorCode error_code) noexcept
 		return "PANEL_SUPERVISOR.UI_SOCKET_ACCEPT_FAILED";
 	case ErrorCode::UiSocketSendFailed:
 		return "PANEL_SUPERVISOR.UI_SOCKET_SEND_FAILED";
+	case ErrorCode::UiSocketReceiveFailed:
+		return "PANEL_SUPERVISOR.UI_SOCKET_RECEIVE_FAILED";
+	case ErrorCode::UiSocketProtocolFailed:
+		return "PANEL_SUPERVISOR.UI_SOCKET_PROTOCOL_FAILED";
+	case ErrorCode::UiSocketPeerIdentityFailed:
+		return "PANEL_SUPERVISOR.UI_SOCKET_PEER_IDENTITY_FAILED";
+	case ErrorCode::UiSocketRandomFailed:
+		return "PANEL_SUPERVISOR.UI_SOCKET_RANDOM_FAILED";
+	case ErrorCode::UiPresentationExplicitlyFailed:
+		return "PANEL_SUPERVISOR.UI_PRESENTATION_EXPLICITLY_FAILED";
+	case ErrorCode::UiPresentationBindingInvalid:
+		return "PANEL_SUPERVISOR.UI_PRESENTATION_BINDING_INVALID";
 	case ErrorCode::UiSocketSequenceOverflow:
 		return "PANEL_SUPERVISOR.UI_SOCKET_SEQUENCE_OVERFLOW";
 	case ErrorCode::UiSocketStalePathInspectionFailed:

@@ -1,0 +1,61 @@
+#!/bin/sh
+
+BHP_INIT_LIBRARY=/etc/beaglebone-house-panel/init-service-library.sh
+BHP_PANEL_UI_ENVIRONMENT_FILE=/etc/beaglebone-house-panel/panel-ui.env
+BHP_PANEL_UI_SERVICE=beaglebone_house_panel.panel_ui
+
+if [ ! -r "$BHP_INIT_LIBRARY" ]; then
+	printf '%s\n' 'BHP_PANEL_UI.INIT_LIBRARY_MISSING' >&2
+	exit 1
+fi
+# shellcheck disable=SC1090,SC1091
+. "$BHP_INIT_LIBRARY"
+
+bhp_panel_ui_load_configuration()
+{
+	BHP_PANEL_UI_ENABLED=0
+	if ! bhp_init_load_environment "$BHP_PANEL_UI_ENVIRONMENT_FILE"; then
+		bhp_init_log_error "$BHP_PANEL_UI_SERVICE" \
+			BHP_PANEL_UI.CONFIGURATION_READ_FAILED \
+			'Failed to read the root-managed panel UI environment'
+		return 1
+	fi
+	if ! bhp_init_boolean_is_valid "$BHP_PANEL_UI_ENABLED"; then
+		bhp_init_log_error "$BHP_PANEL_UI_SERVICE" \
+			BHP_PANEL_UI.ENABLEMENT_INVALID \
+			'BHP_PANEL_UI_ENABLED must be exactly 0 or 1'
+		return 1
+	fi
+}
+
+bhp_panel_ui_start()
+{
+	bhp_panel_ui_load_configuration || return 1
+	if [ "$BHP_PANEL_UI_ENABLED" = 0 ]; then
+		bhp_init_log info "$BHP_PANEL_UI_SERVICE" panel_ui_disabled_by_configuration
+		return 0
+	fi
+	bhp_init_log_error "$BHP_PANEL_UI_SERVICE" \
+		BHP_PANEL_UI.DISPLAY_COMMIT_BACKEND_UNAVAILABLE \
+		'Installed persistent service is fail-dark and cannot establish presentation readiness without an evidence-backed physical display commit backend'
+	return 1
+}
+
+bhp_panel_ui_stop()
+{
+	bhp_init_log info "$BHP_PANEL_UI_SERVICE" panel_ui_not_running
+}
+
+bhp_panel_ui_status()
+{
+	bhp_init_log info "$BHP_PANEL_UI_SERVICE" panel_ui_not_running
+	return 3
+}
+
+case "${1:-}" in
+	start) bhp_panel_ui_start ;;
+	stop) bhp_panel_ui_stop ;;
+	restart) bhp_panel_ui_stop && bhp_panel_ui_start ;;
+	status) bhp_panel_ui_status ;;
+	*) printf '%s\n' "Usage: $0 {start|stop|restart|status}" >&2; exit 1 ;;
+esac

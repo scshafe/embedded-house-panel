@@ -31,6 +31,8 @@ std::map<std::string, std::string> complete_configuration()
 		{"BHP_PANEL_SUPERVISOR_BACKLIGHT_MAX_PATH",
 		 "/sys/class/backlight/panel/max_brightness"},
 		{"BHP_PANEL_SUPERVISOR_MODE_SOCKET", "/run/beaglebone-house-panel/mode.sock"},
+		{"BHP_PANEL_SUPERVISOR_PANEL_UI_UID", "1102"},
+		{"BHP_PANEL_SUPERVISOR_PRESENTATION_TIMEOUT_MILLISECONDS", "750"},
 		{"BHP_PANEL_SUPERVISOR_DAY_BRIGHTNESS", "88"},
 		{"BHP_PANEL_SUPERVISOR_NIGHT_BRIGHTNESS", "24"},
 		{"BHP_PANEL_SUPERVISOR_GRACE_DAY_BRIGHTNESS", "48"},
@@ -54,11 +56,14 @@ bool complete_configuration_populates_every_runtime_value()
 	TEST_REQUIRE(config.backlight_maximum_path() ==
 		     "/sys/class/backlight/panel/max_brightness");
 	TEST_REQUIRE(config.mode_socket_path() == "/run/beaglebone-house-panel/mode.sock");
+	TEST_REQUIRE(config.panel_ui_uid() == 1102U);
 	TEST_REQUIRE(config.suspend_mode() == SuspendMode::Disabled);
 	TEST_REQUIRE(config.power_state_path().empty());
 	TEST_REQUIRE(config.poll_interval() == std::chrono::milliseconds(250));
 	TEST_REQUIRE(config.suspend_retry_backoff() == std::chrono::milliseconds(0));
 	TEST_REQUIRE(config.supervisor_config().grace_period() == std::chrono::seconds(15));
+	TEST_REQUIRE(config.supervisor_config().presentation_timeout() ==
+		     std::chrono::milliseconds(750));
 	const auto &brightness = config.supervisor_config().brightness_levels();
 	TEST_REQUIRE(brightness.present_day_percent == 88);
 	TEST_REQUIRE(brightness.present_night_percent == 24);
@@ -81,6 +86,9 @@ bool missing_configuration_reports_all_required_fields_before_action()
 	TEST_REQUIRE(context.count("BHP_PANEL_SUPERVISOR_BACKLIGHT_PATH") == 1);
 	TEST_REQUIRE(context.count("BHP_PANEL_SUPERVISOR_BACKLIGHT_MAX_PATH") == 1);
 	TEST_REQUIRE(context.count("BHP_PANEL_SUPERVISOR_MODE_SOCKET") == 1);
+	TEST_REQUIRE(context.count("BHP_PANEL_SUPERVISOR_PANEL_UI_UID") == 1);
+	TEST_REQUIRE(context.count(
+		     "BHP_PANEL_SUPERVISOR_PRESENTATION_TIMEOUT_MILLISECONDS") == 1);
 	TEST_REQUIRE(context.count("BHP_PANEL_SUPERVISOR_SUSPEND_MODE") == 1);
 	TEST_REQUIRE(context.count("BHP_PANEL_SUPERVISOR_POLL_INTERVAL_MILLISECONDS") == 1);
 	return true;
