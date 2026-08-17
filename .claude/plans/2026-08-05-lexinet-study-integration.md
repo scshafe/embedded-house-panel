@@ -296,6 +296,26 @@ as the production default.
     not orchestrate repository calls. The common lock order is profile
     ingestion row, active-scope anchor, stable-UUID session rows, client stream,
     then idempotency/receipt rows. Never expose raw `pgx.Tx` outside storage.
+  - Close three persistence/composition seams before mounting handlers:
+    (1) replace the materializer's caller-pre-sized item-ID slice with a bounded
+    injected allocator invoked only after durable receipt resolution and locked
+    eligible-corpus capture; replay and convergence never allocate; (2) add a
+    forward-only study API migration that binds each sync flush receipt to its
+    original page request and canonical immutable `SessionPage` JSON text plus
+    SHA-256, so identical sync replay cannot regenerate a page from mutable
+    live-source links; and (3) replace the two-read committed-cycle helper with
+    one read-only consistent-snapshot authority read containing the exact
+    creation receipt, immutable session issuance fields, and ordered items. A
+    study-owned validator compares that fresh authority byte-for-byte with the
+    committed materialization before any optional shadow call.
+  - Put public composition in `internal/studysession`, not the pure
+    `internal/study` scheduler package or HTTP package. Its focused repository
+    adapter may import storage; storage must not import the service.
+    `StudySessionService` is the `@canonical study_session_service` and owns
+    normalization, authorization, admission, transaction invocation, committed
+    readback, stable paging, and response construction. Each handler calls
+    exactly one service method and never receives the existing broad server
+    `Store` interface.
   - Implement idempotent `POST /api/v1/study/sessions`, resumable
     `GET /api/v1/study/sessions/{id}`, and atomic
     `POST /api/v1/study/sessions/{id}/sync` from the frozen contract.
@@ -341,6 +361,15 @@ as the production default.
     never derives or persists bearer bytes. Step 5 replaces only principal
     derivation. Scope create keys by principal/profile/scope/request UUID and
     sync keys by principal/session/sync UUID.
+    The Step 4 composition installs a named `OperatorStudyAuthorizer` that
+    grants create/read/sync only to the exact stable operator principal across
+    all profiles. This explicit transitional allow-all-operator policy is not
+    an absent authorization check. Study routes always use dedicated bearer
+    middleware: an empty configured token, missing/wrong bearer, or missing
+    typed principal context returns the same `401` and performs zero service
+    work, even though legacy loopback routes may retain optional authentication
+    until Step 5. Step 5 replaces derivation/policy without changing service or
+    storage signatures.
   - Canonicalize normalized request hashes with RFC 8785 JSON after domain
     normalization. Exclude the idempotency UUID from its content hash and keep
     principal in the key namespace; include the operation, versions, canonical
@@ -349,6 +378,16 @@ as the production default.
     and page. Normalize UUIDs to lowercase and times to UTC RFC3339Nano; reject
     duplicate resolved topics. Event hashes include every normalized event
     field including event UUID and sequence.
+    Pin the RFC-listed Apache-2.0 Go implementation
+    `github.com/cyberphone/json-canonicalization` at
+    `v0.0.0-20241213102144-19d51d7fe467`; wrap it behind one
+    `@canonical study_request_jcs` leaf and execute RFC 8785/I-JSON vectors.
+    Do not substitute ordinary `encoding/json` ordering or hash raw request
+    bytes. Resolve topic references to stable IDs and canonical display refs,
+    reject aliases resolving to one duplicate ID, then revalidate and lock all
+    normalized topic IDs inside the materialization transaction used for
+    eligibility capture. A vanished topic is `STATE_STALE`, never a plausible
+    empty corpus; a later rename does not change the ID-based scope.
   - Creation receipts are immutable. `created` means that request materialized
     a new root; `converged_to_existing` means its first adjudication found the
     unfinished cycle; `successor` binds a predecessor request to the newly made
@@ -361,6 +400,25 @@ as the production default.
     malformed input, authorization denial, and transient service failure with
     stable codes. Apply strict decoding, body/count/text bounds, request
     correlation, and context cancellation.
+    Strict decoding counts raw bytes including whitespace, accepts at most
+    262,144 bytes, and rejects invalid UTF-8, duplicate members, unknown members
+    at every level, multiple/trailing values, unsupported content encoding, and
+    non-JSON media types before service invocation. Marshal a complete success
+    or error before writing headers; every response is at most 1,048,576 bytes
+    and carries a server-generated bounded `X-Request-ID`. Map only allowlisted
+    stable study codes to 400/401/403/404/409/413/429/500/503 and never copy
+    `StudyError.Cause`, internal context, panic values, bodies, card content,
+    profile refs, credentials, URLs, or raw errors into HTTP/CLI output or logs.
+  - Apply finite host-service budgets: 5-second header, 30-second body/read,
+    60-second write, 120-second idle, and 64-KiB header ceilings; a 30-second
+    authoritative study-operation context; and non-queuing admission of four
+    global/two per-principal authoritative operations. Saturation returns `429`
+    before storage. Cancellation or timeout before commit writes no receipt;
+    cancellation after commit leaves the result replayable. Shadow work owns a
+    separate bounded slot and is invoked only for a newly created nonempty cycle
+    after exact committed readback; replay, convergence, waiting, commit
+    failure, and readback mismatch invoke it zero times, and shadow
+    error/timeout/panic/busy never changes the authoritative HTTP result.
   - Add `lexinet study session`, `lexinet study sync`, and `lexinet study state`
     operator commands through the existing Go client; do not couple the Linux
     panel to the macOS Swift client or its drifting fixtures.
@@ -371,6 +429,13 @@ as the production default.
     deterministic immutable-item prefix under both the requested count and a
     983,040-byte page budget, then marshal and enforce the one-MiB whole-response
     ceiling before writing.
+    Use a dedicated study HTTP client rather than generic `doJSON`: reject
+    endpoint userinfo/query/fragment, redirects, non-HTTP schemes, cleartext
+    non-loopback origins, TLS failure, and HTTPS-to-HTTP downgrade; use finite
+    connect/TLS/header/total deadlines; read request/success/error bodies through
+    max-plus-one overflow detectors; and preserve only bounded status, stable
+    code, request ID, retry-after, and retryability metadata. Never
+    automatically retry POST.
   - Output (Lexinet): handlers, focused store interfaces, CLI/client commands,
     fake-store unit tests, live database handler tests, and contract examples
     emitted from real types.
@@ -394,6 +459,14 @@ as the production default.
     prove `next` or `presented` never writes a `good` outcome; mutate source
     content after session creation and prove its issued projection is unchanged;
     run CLI round trips against a disposable server and PostgreSQL instance.
+    Also prove topic deletion cannot become empty success, exact-limit versus
+    over-limit raw bodies, duplicate/ambiguous JSON rejection, normalized JCS
+    equivalence and semantic mutation, all stable error mappings/redaction,
+    auth/authorizer short-circuiting, admission/cancellation, committed-readback
+    mismatch suppressing shadow, sync-page byte stability across merge/delete,
+    response/page budgets without partial writes, endpoint/redirect/TLS policy,
+    and CLI request/response overflow handling. Run focused service/server/CLI
+    and live-PostgreSQL suites under `go test -race`.
 
 - [ ] **Step 5: ~~Establish least-privilege HTTPS Tailnet access~~ Remediate the
   live unauthenticated Tailnet path and establish least-privilege HTTPS access**
