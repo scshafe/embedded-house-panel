@@ -338,8 +338,11 @@ erDiagram
   device identity, so re-provisioning hardware does not create a new learner.
 - `study_sessions` records an authoritative session identity, normalized active
   cycle scope (learner, corpus selector, and card kind), selected scheduler
-  namespace/configuration, per-profile ingestion high-water ordinal, planning
-  time, seed, corpus hash, predecessor/successor links, and finite lifecycle.
+  namespace/configuration, scheduler input per-profile ingestion high-water,
+  immutable terminal per-profile ingestion high-water, planning time, seed,
+  corpus hash, predecessor/successor links, and finite lifecycle. The input and
+  terminal high-waters are distinct provenance boundaries and must not be
+  overloaded.
   The lifecycle distinguishes `active`, `completed`, `waiting_for_corpus`,
   `superseded_empty`, and explicitly audited `abandoned`. A transactional
   uniqueness rule permits one nonterminal `active` or `waiting_for_corpus`
@@ -361,10 +364,13 @@ erDiagram
 - `study_client_streams` records the durable stream UUID and its terminally
   adjudicated-through sequence.
 - `study_event_receipts` binds every terminally adjudicated stream sequence to
-  its event UUID, normalized payload hash, disposition (`accepted`,
+  the immutable flush receipt whose closed new-suffix range first adjudicated
+  it, its event UUID, normalized payload hash, disposition (`accepted`,
   `semantic_duplicate`, or `terminal_rejected`), stable code, and optional
-  canonical event UUID/ingestion ordinal. Receipts are replay authority but are
-  not scheduler facts.
+  canonical event UUID/ingestion ordinal. A terminal suffix has exactly one
+  self-causative receipt and one shared failure code; the cause may follow
+  earlier collateral inputs. Later replay preserves the original flush-batch
+  identity. Receipts are replay authority but are not scheduler facts.
 - `study_card_states` is a disposable acceleration projection keyed by learner,
   stable card kind/identity, scheduler name/version, state-schema version, and
   derived-through per-profile ingestion ordinal. It is always rebuildable from canonical
@@ -403,10 +409,12 @@ reprovisioning starts a new stream without reusing a prior sequence. The server
 enforces unique `(profile, client_stream_id, client_sequence)` and event UUIDs,
 adjudicates only the next contiguous new stream sequence while idempotently
 replaying old receipts, and assigns the separate per-profile ingestion ordinal
-only to a newly accepted canonical event. A stable terminal batch rejection
-writes terminal receipts for every new sequence in that batch while committing
-no study event; a retryable request failure writes no receipt. Thus semantic
-duplicates and rejected events cannot block or later reorder the stream.
+only to a newly accepted canonical event. Each sync closes its exact new-suffix
+range under one immutable flush receipt; any replay prefix retains older origin
+batches. A stable terminal batch rejection writes terminal receipts for every
+new sequence in that suffix while committing no study event; a retryable
+request failure writes no receipt. Thus semantic duplicates and rejected events
+cannot block or later reorder the stream.
 
 ## HTTP contract direction
 
@@ -444,10 +452,11 @@ active-scope and event-snapshot transaction lock, Lexinet validates the receipt
 and the authoritative exhaustion predicate: a nonempty predecessor is still the
 current `active` session and every one of its materialized items has one
 accepted canonical `presented` fact. Local page/prefetch exhaustion is not this
-predicate. If valid, the transaction records the final input high-water, marks
-the predecessor `completed`, links and materializes exactly one successor from
-an event snapshot at or after the receipt, and returns it. An unexhausted cycle
-fails with a stable `STUDY_CYCLE_NOT_EXHAUSTED` code without changing lifecycle.
+predicate. If valid, the transaction records the predecessor's immutable
+terminal high-water, marks it `completed`, links and materializes exactly one
+successor from an event snapshot at or after the receipt, and returns it. An
+unexhausted cycle fails with a stable `STUDY_CYCLE_NOT_EXHAUSTED` code without
+changing lifecycle.
 Concurrent requests with distinct creation UUIDs and replays naming the same
 predecessor return the one linked successor after the first transaction wins.
 The panel must not call create while an earlier local predecessor event remains
@@ -1055,6 +1064,14 @@ cycle and supplies storage-owned immutable item bytes; all relevant vocabulary
 mutators share that idea-lock protocol. Idea merge invalidates opaque derived
 rows for canonical namespace-owned replay rather than fabricating projection
 state. This clarifies persistence behavior without claiming Step 2 completion.
+
+**Amended 2026-08-17:** made the first-adjudication flush batch and terminal
+session high-water explicit persistence authorities. Each immutable flush owns
+one exact closed new-suffix range; replay retains older receipt origins, and a
+grouped terminal suffix has one cause and code even when the failing input is
+not first. Terminal high-water remains distinct from scheduler input
+provenance. This clarifies Step 2 storage and successor behavior without
+claiming its production adjudicator or mapped proof complete.
 
 ## Additional primary scheduler references
 
