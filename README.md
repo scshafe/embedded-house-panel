@@ -36,7 +36,7 @@ The
 [end-to-end development roadmap](.claude/plans/2026-08-05-end-to-end-development-roadmap.md)
 is the program-ordering authority. It shows which work can proceed immediately
 on host machines, where the Lexinet and Mac-companion lanes can run in parallel,
-and the evidence gates that begin when the BeagleBone returns. The detailed
+and the evidence gates that begin when the development hardware arrives. The detailed
 [Lexinet integration](.claude/plans/2026-08-05-lexinet-study-integration.md),
 [personal-agenda feasibility](.claude/plans/2026-08-05-personal-agenda-feasibility.md),
 and
@@ -54,10 +54,13 @@ No document or test result in this repository claims the saved legacy pin map is
 
 ## Platform direction
 
-The owned BeagleBone Black is the immediate characterization target, not an
-implicit final product-board selection. It will establish the real cape, PIR,
-kernel wake, display, network-recovery, and battery-boundary facts before money
-is spent on a replacement.
+The BeagleBone Black was lost. Per
+[ADR 0008](docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md),
+the development platform is now the NXP FRDM i.MX 8M Plus board with a
+Waveshare 7inch DSI LCD (C) touchscreen, both ordered and not yet received. It
+is the characterization target, not the final product-board selection; a
+successful prototype is expected to move to an i.MX 8M Plus system-on-module on
+a custom carrier.
 
 Current research rejects BeagleBone AI-64 as the default cordless upgrade,
 uses i.MX 8M Plus as the practical comparison baseline, BeagleY-AI as the
@@ -196,9 +199,9 @@ The current scaffold and every hardware-evidence gate remain unchanged.
 
 ## Decisions intentionally still open
 
-- Exact BeagleBone/cape/PIR revisions and wiring.
-- Final product compute platform; the Black is the current measurement target,
-  not a permanent constraint.
+- Exact FRDM board variant, display cable, PIR part, and wiring.
+- Final product compute platform; the FRDM i.MX 8M Plus board is the current
+  measurement target, not a permanent constraint.
 - Custom input driver versus stock `gpio-keys` for the final wake path.
 - LVGL direct DRM versus its fbdev fallback; Qt 6 Widgets remains the measured fallback if LVGL fails a target gate.
 - DeepSleep0 versus a shallower always-networked mode on Black; a future product
@@ -245,3 +248,8 @@ handshake and invalid-certificate behavior, destructive/cross-profile denial,
 and the panel Tailscale packaging choice remain pending. The `study.v1`
 contract provenance and roadmap checkboxes are unchanged; Step 5 stays
 unchecked.
+
+**Amended 2026-09-24:** recorded ADR 0008. The BeagleBone Black was lost; the
+FRDM i.MX 8M Plus board and Waveshare 7inch DSI LCD (C) are being purchased as
+the development platform. Black-specific Buildroot defconfigs and AM335x
+research remain as history. Every hardware evidence gate remains pending.

@@ -1,6 +1,7 @@
 # ADR 0003: Characterize BeagleBone Before Selecting Product Platform
 
-**Status:** accepted for the current investigation
+**Status:** accepted; the characterize-before-purchase decision is superseded by
+[ADR 0008](0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)
 
 **Date:** 2026-08-05
 
@@ -58,3 +59,9 @@ complete system.
 - [Proposed power-domain architecture](../architecture/power-domain-architecture.md)
 - [AM335x sleep/wake strategies](../research/sleep-wake-strategies.md)
 - [Hardware assumptions](../hardware/hardware-assumptions.md)
+
+**Amended 2026-09-24:** the owned BeagleBone Black was lost, which removes the
+zero-cost reason for characterizing it first. [ADR 0008](0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)
+adopts the FRDM i.MX 8M Plus board and Waveshare 7inch DSI LCD (C) as the
+development platform. The platform ranking, the AI-64 rejection, the deferred
+final-product ADR, and the evidence requirements above remain in force.

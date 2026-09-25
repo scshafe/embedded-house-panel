@@ -2,6 +2,23 @@
 
 Every assumption remains provisional until linked evidence exists under `hardware_tests/results/`.
 
+**Current target (2026-09-24):** FRDM i.MX 8M Plus + Waveshare 7inch DSI LCD (C),
+per [ADR 0008](../decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md).
+The BeagleBone Black was lost; its rows are retained as history and are not active targets.
+
+## FRDM i.MX 8M Plus assembly (active)
+
+| Assumption | Source | Risk | Evidence required |
+|---|---|---|---|
+| Board is FRDM-IMX8MPLUS with 4 GB LPDDR4, 32 GB eMMC, onboard IW612 | NXP product page; UM12340 | A distributor listing describes 2 GB / 16 GB / M.2 Wi-Fi | Board markings, `/proc/meminfo`, eMMC size, Wi-Fi driver probe |
+| Board input is 12–20 V USB-C PD, at least 45 W supply | UM12340 | Undersized or non-PD supply fails to boot or browns out under load | Board-input voltage/current trace across states |
+| Display is Waveshare 7inch DSI LCD (C), 1024×600 on J15 (22-pin, 0.5 mm) | UM12340; NXP overlay `imx8mp-frdm-waveshare-7inch-c-panel.dtso` | Wrong cable variant or overlay mismatch | DRM connector/mode listing, visible test pattern |
+| Touch is Goodix GT911 on `i2c3` at `0x14` | NXP overlay | Extra I2C wiring required; no interrupt defined | `i2cdetect`, stable evdev node, touch event capture |
+| Backlight is software-controllable to 0 (off) | Waveshare wiki (Raspberry Pi) | NXP overlay has no backlight node | `/sys/class/backlight` node, `max_brightness`, measured backlight-off current |
+| A header GPIO can wake suspend-to-RAM from a PIR | i.MX 8M Plus capability; Toradex Verdin measurements | FRDM carrier, BSP, or Wi-Fi driver may block suspend or wake | Repeated attributed wake per the assessment observation contract |
+
+## BeagleBone Black assembly (inactive; board lost)
+
 | Assumption | Legacy clue | Risk | Evidence required |
 |---|---|---|---|
 | Board is BeagleBone Black with 4 GB eMMC | Saved device tree and developer recollection | Different board/revision changes boot, pins, and PM | Markings, EEPROM, block layout |

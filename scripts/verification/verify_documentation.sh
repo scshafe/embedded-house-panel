@@ -34,6 +34,7 @@ docs/decisions/README.md
 docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md
 docs/decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md
 docs/decisions/0007-validate-complete-protocol-v2-commitments.md
+docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
@@ -246,6 +247,23 @@ require_exact_line_count "$protocol_commitment_adr" \
 require_fixed_count docs/decisions/README.md \
   '[0007](0007-validate-complete-protocol-v2-commitments.md)' 1 \
   VERIFY_DOCS.PROTOCOL_COMMITMENT_ADR_REGISTRY_ENTRY_INVALID
+
+development_platform_adr=docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md
+require_exact_line_count "$development_platform_adr" \
+  '<!-- @canonical development-platform-selection -->' 1 \
+  VERIFY_DOCS.DEVELOPMENT_PLATFORM_ADR_CANONICAL_MARKER_INVALID
+require_exact_line_count "$development_platform_adr" \
+  '# ADR 0008: Adopt FRDM i.MX 8M Plus and Waveshare 7-inch DSI as the Development Platform' 1 \
+  VERIFY_DOCS.DEVELOPMENT_PLATFORM_ADR_TITLE_INVALID
+require_fixed_count docs/decisions/README.md \
+  '[0008](0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)' 1 \
+  VERIFY_DOCS.DEVELOPMENT_PLATFORM_ADR_REGISTRY_ENTRY_INVALID
+for frdm_gate_id in \
+  FRDM-GATE-BACKLIGHT FRDM-GATE-TOUCH FRDM-GATE-POWER FRDM-GATE-SUSPEND \
+  FRDM-GATE-WIFI FRDM-GATE-PIR; do
+  require_fixed_count "$development_platform_adr" \
+    "| \`$frdm_gate_id\` |" 1 VERIFY_DOCS.DEVELOPMENT_PLATFORM_GATE_ROW_INVALID
+done
 
 agenda_feasibility_contract=experiments/macos_personal_companion/README.md
 require_exact_line_count "$agenda_feasibility_contract" \

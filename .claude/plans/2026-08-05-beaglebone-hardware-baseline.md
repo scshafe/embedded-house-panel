@@ -1,5 +1,11 @@
 # Plan: Establish the BeagleBone Hardware Baseline
 
+**Status (2026-09-24):** blocked; the BeagleBone Black was lost.
+[ADR 0008](../../docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)
+moves characterization to the FRDM i.MX 8M Plus board. Reuse this plan's
+evidence discipline for an FRDM baseline plan; its Black-specific steps are
+not executable.
+
 **Goal:** Establish the exact board, cape, PIR, pin, kernel, display, suspend,
 wake, network-recovery, and power facts without overwriting the existing eMMC,
 producing a working BeagleBone proof and quantitative gates for any future

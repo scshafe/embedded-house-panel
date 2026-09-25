@@ -9,7 +9,13 @@ birthday-wish flow, measured power behavior, and a printable enclosure.
 
 **Current execution horizon:** finish all credible board-independent software
 and integration evidence, then stop before physical claims until the
-BeagleBone, cape, PIR, microphone, and power hardware are available.
+development board, display, PIR, microphone, and power hardware are available.
+
+**Amended 2026-09-24:** the BeagleBone Black was lost.
+[ADR 0008](../../docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)
+replaces it with the FRDM i.MX 8M Plus board and Waveshare 7inch DSI LCD (C).
+Wherever this roadmap says the board "returns", read "the FRDM hardware
+arrives"; the H-steps need an FRDM baseline plan.
 
 **Role of this plan:** this is the program-ordering authority. It records the
 joins, gates, and milestone evidence across the existing detailed plans. It

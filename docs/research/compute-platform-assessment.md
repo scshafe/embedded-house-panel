@@ -2,15 +2,19 @@
 
 Research snapshot: 2026-08-05.
 
-**Status:** current recommendation and selection framework; no product platform
-has been selected.
+**Status:** current recommendation and selection framework. The development
+platform is the FRDM i.MX 8M Plus board
+([ADR 0008](../decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md));
+no final product platform has been selected.
 
 This document owns the dated board research, primary-source evidence, candidate
 matrix, and procurement gates for a future cordless product. The proposed
 cross-platform power design lives in
 [power-domain architecture](../architecture/power-domain-architecture.md).
-The current BeagleBone Black remains the already-owned characterization target
-for the kernel module, GPIO wake, cape, and power experiments.
+~~The current BeagleBone Black remains the already-owned characterization target
+for the kernel module, GPIO wake, cape, and power experiments.~~ The Black was
+lost; the FRDM i.MX 8M Plus development board is now the characterization
+target (see the 2026-09-24 amendment below).
 
 ## Recommendation
 
@@ -35,8 +39,17 @@ for the kernel module, GPIO wake, cape, and power experiments.
    energy requirements against which every candidate will be tested.
 
 This is a recommendation to investigate, not an authorization to purchase.
-The accepted current direction is recorded in
-[ADR 0003](../decisions/0003-characterize-beaglebone-before-selecting-product-platform.md).
+The accepted direction was recorded in
+[ADR 0003](../decisions/0003-characterize-beaglebone-before-selecting-product-platform.md);
+[ADR 0008](../decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)
+supersedes its characterize-before-purchase decision (item 6).
+
+**Amended 2026-09-24:** the BeagleBone Black was lost, so item 6 can no longer
+be executed. The FRDM i.MX 8M Plus evaluation board and a Waveshare 7inch DSI
+LCD (C) were purchased as the development platform. See
+[ADR 0008](../decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)
+for the part list, procurement snapshot, and new hardware gates. The candidate
+matrix, openness axes, and observation contract below are unchanged.
 
 ## Requirements that drive the choice
 
