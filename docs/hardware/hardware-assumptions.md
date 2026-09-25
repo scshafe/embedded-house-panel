@@ -6,6 +6,11 @@ Every assumption remains provisional until linked evidence exists under `hardwar
 per [ADR 0008](../decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md).
 The BeagleBone Black was lost; its rows are retained as history and are not active targets.
 
+The machine-readable survey of every BeagleBone/AM335x assumption in code,
+configuration, and scripts, with its `retarget` / `board_parameterize` /
+`bbb_history` classification and disposition, is
+[`frdm-retarget-inventory.json`](frdm-retarget-inventory.json).
+
 ## FRDM i.MX 8M Plus assembly (active)
 
 | Assumption | Source | Risk | Evidence required |

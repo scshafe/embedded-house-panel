@@ -1,0 +1,2065 @@
+{
+  "schema_version": 1,
+  "inventory_id": "frdm-retarget-bbb-assumption-inventory",
+  "surveyed_commit": "4b6ec6412d2a7fdc55e6199ddc0b5bd9960baaea",
+  "surveyed_on": "2026-09-25",
+  "authority": "docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md",
+  "scope": {
+    "included": "code, config, scripts, build files, Buildroot external tree, init scripts, deploy scripts, hardware_tests, verification scripts",
+    "excluded": [
+      "docs/**",
+      ".claude/**",
+      "hardware_tests/tests/fixtures/**",
+      ".build/**",
+      ".git/**"
+    ],
+    "ignored_tokens": "project-name uses such as beaglebone_house_panel and beaglebone-house-panel"
+  },
+  "classifications": {
+    "retarget": "Board content on the live build, image, or runtime path; must change for the FRDM i.MX 8M Plus.",
+    "board_parameterize": "Generic logic holding a hard-coded board value; must read the board profile.",
+    "bbb_history": "BeagleBone-only experiment or evidence kept as history, never a target."
+  },
+  "hit_counts": {
+    "retarget": 91,
+    "board_parameterize": 91,
+    "bbb_history": 57
+  },
+  "files": [
+    {
+      "path": "cmake/toolchains/buildroot-armv7.cmake",
+      "role": "Canonical CMake cross-toolchain file for Buildroot-SDK application builds (file name encodes ARMv7).",
+      "disposition": "Generalize into cmake/toolchains/buildroot-sdk.cmake (processor from the board profile); keep buildroot-armv7.cmake as a deprecated BBB wrapper.",
+      "hits": [
+        {
+          "line": 3,
+          "token": "CMAKE_SYSTEM_PROCESSOR arm",
+          "quote": "set(CMAKE_SYSTEM_PROCESSOR arm)",
+          "classification": "board_parameterize",
+          "reason": "Hard-codes 32-bit ARM; FRDM needs aarch64. Derive from the board profile/SDK tuple (and drop 'armv7' from the file name)."
+        },
+        {
+          "line": 10,
+          "token": "arm-buildroot-linux-gnueabihf",
+          "quote": "message(FATAL_ERROR \"BHP_BUILDROOT_CROSS_PREFIX must be the full compiler prefix, for example arm-buildroot-linux-gnueabihf\")",
+          "classification": "retarget",
+          "reason": "Error-message example is the ARMv7 hard-float tuple; FRDM SDK tuple is aarch64-buildroot-linux-gnu."
+        }
+      ]
+    },
+    {
+      "path": "CMakePresets.json",
+      "role": "CMake configure/build/test presets for host builds and the Buildroot cross build.",
+      "disposition": "Add buildroot-aarch64-release (FRDM) and linux-aarch64-cross; keep buildroot-armv7-release as deprecated BBB history.",
+      "hits": [
+        {
+          "line": 32,
+          "token": "buildroot-armv7-release",
+          "quote": "\"name\": \"buildroot-armv7-release\",",
+          "classification": "board_parameterize",
+          "reason": "Cross preset name encodes ARMv7; make arch-neutral or select per board profile."
+        },
+        {
+          "line": 33,
+          "token": "ARMv7",
+          "quote": "\"displayName\": \"Buildroot ARMv7 release\",",
+          "classification": "board_parameterize",
+          "reason": "Display name encodes ARMv7."
+        },
+        {
+          "line": 35,
+          "token": "buildroot-armv7-release",
+          "quote": "\"binaryDir\": \"${sourceDir}/.build/buildroot-armv7-release\",",
+          "classification": "board_parameterize",
+          "reason": "Binary dir encodes ARMv7; consumed by cross-build and upload scripts."
+        },
+        {
+          "line": 36,
+          "token": "buildroot-armv7.cmake",
+          "quote": "\"toolchainFile\": \"${sourceDir}/cmake/toolchains/buildroot-armv7.cmake\",",
+          "classification": "board_parameterize",
+          "reason": "Toolchain file path encodes ARMv7."
+        },
+        {
+          "line": 55,
+          "token": "buildroot-armv7-release",
+          "quote": "\"name\": \"buildroot-armv7-release\",",
+          "classification": "board_parameterize",
+          "reason": "Build preset name encodes ARMv7."
+        },
+        {
+          "line": 56,
+          "token": "buildroot-armv7-release",
+          "quote": "\"configurePreset\": \"buildroot-armv7-release\"",
+          "classification": "board_parameterize",
+          "reason": "Build preset configurePreset encodes ARMv7."
+        }
+      ]
+    },
+    {
+      "path": "config/build-and-deploy.env.example",
+      "role": "Host-side template for Buildroot/SDK/deploy environment variables.",
+      "disposition": "Select the board with BHP_BOARD; FRDM SDK prefix; root@ bring-up SSH target and /tmp staging.",
+      "hits": [
+        {
+          "line": 17,
+          "token": "arm-buildroot-linux-gnueabihf",
+          "quote": "BHP_BUILDROOT_CROSS_PREFIX=arm-buildroot-linux-gnueabihf",
+          "classification": "retarget",
+          "reason": "Cross prefix example is ARMv7 EABIHF; FRDM (Bootlin aarch64 glibc) is aarch64-buildroot-linux-gnu."
+        },
+        {
+          "line": 20,
+          "token": "debian@beaglebone-placeholder",
+          "quote": "BHP_BOARD_SSH_TARGET=debian@beaglebone-placeholder",
+          "classification": "board_parameterize",
+          "reason": "Assumes the official BeagleBoard Debian image's 'debian' account and a BBB host; FRDM bring-up image is Buildroot root-key-only."
+        },
+        {
+          "line": 23,
+          "token": "/home/debian",
+          "quote": "BHP_BOARD_UPLOAD_DIR=/home/debian/beaglebone-house-panel-staging",
+          "classification": "board_parameterize",
+          "reason": "Staging dir assumes BBB Debian 'debian' home; not present on the Buildroot bring-up image."
+        }
+      ]
+    },
+    {
+      "path": "scripts/build/cross_build_applications.sh",
+      "role": "Cross-builds user-space apps with the Buildroot SDK and stages a manifest-verified bundle.",
+      "disposition": "Read preset, build directory, and SDK prefix from the board profile.",
+      "hits": [
+        {
+          "line": 4,
+          "token": "buildroot-armv7-release",
+          "quote": "# Side effects: writes only to .build/buildroot-armv7-release.",
+          "classification": "board_parameterize",
+          "reason": "Output dir name encodes ARMv7; follow the per-board preset."
+        },
+        {
+          "line": 22,
+          "token": "arm-buildroot-linux-gnueabihf",
+          "quote": "printf '%s\\n' \"Usage: BHP_BUILDROOT_HOST_DIR=/abs/output/host BHP_BUILDROOT_CROSS_PREFIX=arm-buildroot-linux-gnueabihf $0\"",
+          "classification": "retarget",
+          "reason": "Usage example prints the ARMv7 EABIHF tuple; should be aarch64-buildroot-linux-gnu for FRDM."
+        },
+        {
+          "line": 80,
+          "token": "buildroot-armv7-release",
+          "quote": "build_directory=$PROJECT_ROOT/.build/buildroot-armv7-release",
+          "classification": "board_parameterize",
+          "reason": "Hard-coded ARMv7 build directory."
+        },
+        {
+          "line": 118,
+          "token": "buildroot-armv7-release",
+          "quote": "cmake --preset buildroot-armv7-release",
+          "classification": "board_parameterize",
+          "reason": "Hard-coded ARMv7 configure preset."
+        },
+        {
+          "line": 147,
+          "token": "buildroot-armv7-release",
+          "quote": "cmake --build --preset buildroot-armv7-release --parallel \"$build_jobs\"",
+          "classification": "board_parameterize",
+          "reason": "Hard-coded ARMv7 build preset."
+        }
+      ]
+    },
+    {
+      "path": "scripts/deploy/upload_application_bundle.sh",
+      "role": "Dry-run-by-default rsync upload of the staged application bundle to a board staging directory.",
+      "disposition": "Default bundle path comes from the board profile; staging rule unchanged (/tmp works on the root-only bring-up image).",
+      "hits": [
+        {
+          "line": 22,
+          "token": "buildroot-armv7-release",
+          "quote": "bundle_directory=$PROJECT_ROOT/.build/buildroot-armv7-release/stage",
+          "classification": "board_parameterize",
+          "reason": "Default bundle path hard-codes the ARMv7 build dir."
+        },
+        {
+          "line": 55,
+          "token": "/home/*/*|/tmp/*",
+          "quote": "/home/*/*|/tmp/*) ;;",
+          "classification": "board_parameterize",
+          "reason": "Remote staging restricted to /home/*/* or /tmp/*, which presumes the BBB Debian non-root 'debian' account; the Buildroot bring-up image has only root (/root), so FRDM can use only /tmp unless the profile supplies an allowed root."
+        }
+      ]
+    },
+    {
+      "path": "scripts/build/configure_buildroot.sh",
+      "role": "Configures pinned Buildroot with the external-tree defconfig for the production or bring-up profile.",
+      "disposition": "Select defconfig from the board profile; gate NXP firmware behind a recorded human EULA decision.",
+      "hits": [
+        {
+          "line": 29,
+          "token": "beaglebone_house_panel_defconfig",
+          "quote": "production) defconfig_target=beaglebone_house_panel_defconfig ;;",
+          "classification": "board_parameterize",
+          "reason": "Profile->defconfig map has no board dimension; the only defconfig is the AM335x one. Add a board selector (e.g. FRDM defconfigs)."
+        },
+        {
+          "line": 30,
+          "token": "beaglebone_house_panel_bringup_defconfig",
+          "quote": "bringup) defconfig_target=beaglebone_house_panel_bringup_defconfig ;;",
+          "classification": "board_parameterize",
+          "reason": "Same: bring-up profile is implicitly the BBB bring-up defconfig."
+        }
+      ]
+    },
+    {
+      "path": "scripts/build/build_bringup_image.sh",
+      "role": "Wrapper that configures and builds the non-production bring-up image.",
+      "disposition": "Forward BHP_BOARD to configure/build.",
+      "hits": [
+        {
+          "line": 35,
+          "token": "sdcard.img",
+          "quote": "image \"$BHP_BUILDROOT_OUTPUT_DIR/images/sdcard.img\"",
+          "classification": "board_parameterize",
+          "reason": "Image artifact name comes from the BBB genimage layout; should follow the board's genimage config."
+        }
+      ]
+    },
+    {
+      "path": "scripts/environment/check_host_dependencies.sh",
+      "role": "Checks host tool dependencies per profile (host/buildroot/deploy).",
+      "disposition": "Keep: Bootlin prebuilt toolchains (armv7 and aarch64) are x86_64-hosted.",
+      "hits": [
+        {
+          "line": 119,
+          "token": "x86_64",
+          "quote": "if [ \"$profile\" = buildroot ] && [ \"$(uname -m)\" != x86_64 ]; then",
+          "classification": "board_parameterize",
+          "reason": "x86_64-host requirement stems from the Bootlin prebuilt external toolchain in the BBB defconfig; still true for Bootlin aarch64, but should follow the board profile's toolchain choice."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/configs/beaglebone_house_panel_defconfig",
+      "role": "Production Buildroot defconfig (BeagleBone Black / AM335x target).",
+      "disposition": "Keep as deprecated BBB history; add frdm_imx8mp_house_panel_defconfig.",
+      "hits": [
+        {
+          "line": 1,
+          "token": "BR2_arm",
+          "quote": "BR2_arm=y",
+          "classification": "retarget",
+          "reason": "32-bit ARM arch; FRDM i.MX 8M Plus needs BR2_aarch64."
+        },
+        {
+          "line": 2,
+          "token": "BR2_cortex_a8",
+          "quote": "BR2_cortex_a8=y",
+          "classification": "retarget",
+          "reason": "AM335x core; FRDM needs BR2_cortex_a53."
+        },
+        {
+          "line": 3,
+          "token": "BR2_ARM_FPU_VFPV3",
+          "quote": "BR2_ARM_FPU_VFPV3=y",
+          "classification": "retarget",
+          "reason": "ARMv7 FPU selection; not applicable to aarch64 (remove)."
+        },
+        {
+          "line": 6,
+          "token": "BR2_TOOLCHAIN_EXTERNAL_BOOTLIN_ARMV7_EABIHF_GLIBC_STABLE",
+          "quote": "BR2_TOOLCHAIN_EXTERNAL_BOOTLIN_ARMV7_EABIHF_GLIBC_STABLE=y",
+          "classification": "retarget",
+          "reason": "ARMv7 EABIHF toolchain; use the Bootlin aarch64 glibc stable toolchain."
+        },
+        {
+          "line": 8,
+          "token": "board/beagleboard/beaglebone/patches",
+          "quote": "BR2_GLOBAL_PATCH_DIR=\"board/beagleboard/beaglebone/patches\"",
+          "classification": "retarget",
+          "reason": "Upstream Buildroot BeagleBone board patch dir; FRDM needs none or its own i.MX8MP board patches."
+        },
+        {
+          "line": 12,
+          "token": "board/beagleboard/beaglebone/post-build.sh",
+          "quote": "BR2_ROOTFS_POST_BUILD_SCRIPT=\"board/beagleboard/beaglebone/post-build.sh $(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/post-build.sh\"",
+          "classification": "retarget",
+          "reason": "Upstream BeagleBone post-build (stages uEnv.txt/extlinux for AM335x); replace with an FRDM post-build."
+        },
+        {
+          "line": 14,
+          "token": "genimage.cfg",
+          "quote": "BR2_ROOTFS_POST_SCRIPT_ARGS=\"-c $(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/genimage.cfg\"",
+          "classification": "retarget",
+          "reason": "Points genimage at the AM335x SD layout (MLO/u-boot.img/zImage/uEnv.txt); FRDM needs its own genimage config."
+        },
+        {
+          "line": 18,
+          "token": "eth0",
+          "quote": "BR2_SYSTEM_DHCP=\"eth0\"",
+          "classification": "board_parameterize",
+          "reason": "DHCP interface hard-coded; FRDM has two Ethernet MACs (EQOS/FEC) plus Wi-Fi, so the interface should come from the board profile."
+        },
+        {
+          "line": 22,
+          "token": "omap2plus",
+          "quote": "BR2_LINUX_KERNEL_DEFCONFIG=\"omap2plus\"",
+          "classification": "retarget",
+          "reason": "OMAP/AM335x kernel defconfig; FRDM needs the arm64 defconfig (or an NXP/i.MX8MP config)."
+        },
+        {
+          "line": 23,
+          "token": "linux-suspend-prerequisites.config",
+          "quote": "BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES=\"$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/linux-suspend-prerequisites.config\"",
+          "classification": "retarget",
+          "reason": "Fragment contains AM335x-only PM symbols; needs an FRDM suspend fragment."
+        },
+        {
+          "line": 25,
+          "token": "ti/omap/am335x-boneblack",
+          "quote": "BR2_LINUX_KERNEL_INTREE_DTS_NAME=\"ti/omap/am335x-boneblack\"",
+          "classification": "retarget",
+          "reason": "BBB device tree; FRDM needs the i.MX8MP FRDM DTS (freescale/... if in the pinned kernel, else a project DTS) plus DSI panel/touch nodes."
+        },
+        {
+          "line": 29,
+          "token": "BR2_PACKAGE_AM33X_CM3",
+          "quote": "BR2_PACKAGE_AM33X_CM3=y",
+          "classification": "retarget",
+          "reason": "AM335x WKUP-M3 (CM3) PM firmware; irrelevant on i.MX8MP (PSCI via TF-A instead)."
+        },
+        {
+          "line": 38,
+          "token": "BR2_PACKAGE_LIBDRM_OMAP",
+          "quote": "BR2_PACKAGE_LIBDRM_OMAP=y",
+          "classification": "retarget",
+          "reason": "OMAP libdrm backend; not applicable to i.MX8MP (LCDIF/DSI via generic KMS; etnaviv only if GPU used)."
+        },
+        {
+          "line": 58,
+          "token": "am335x_evm",
+          "quote": "BR2_TARGET_UBOOT_BOARD_DEFCONFIG=\"am335x_evm\"",
+          "classification": "retarget",
+          "reason": "AM335x U-Boot defconfig; FRDM needs an i.MX8MP U-Boot defconfig plus TF-A (BR2_TARGET_ARM_TRUSTED_FIRMWARE) and NXP DDR firmware (firmware-imx), none of which are selected."
+        },
+        {
+          "line": 63,
+          "token": "BR2_TARGET_UBOOT_FORMAT_IMG",
+          "quote": "BR2_TARGET_UBOOT_FORMAT_IMG=y",
+          "classification": "retarget",
+          "reason": "u-boot.img output is the AM335x SPL flow; i.MX8MP boots a binman/imx-mkimage flash.bin."
+        },
+        {
+          "line": 64,
+          "token": "BR2_TARGET_UBOOT_SPL",
+          "quote": "BR2_TARGET_UBOOT_SPL=y",
+          "classification": "retarget",
+          "reason": "AM335x SPL build as MLO; i.MX8MP SPL is packed into flash.bin, not a separate file."
+        },
+        {
+          "line": 65,
+          "token": "MLO",
+          "quote": "BR2_TARGET_UBOOT_SPL_NAME=\"MLO\"",
+          "classification": "retarget",
+          "reason": "AM335x ROM second-stage loader name; not used on i.MX8MP."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/configs/beaglebone_house_panel_bringup_defconfig",
+      "role": "Non-production bring-up Buildroot defconfig (BeagleBone Black / AM335x target, root-key SSH).",
+      "disposition": "Keep as deprecated BBB history; add frdm_imx8mp_house_panel_bringup_defconfig.",
+      "hits": [
+        {
+          "line": 3,
+          "token": "BR2_arm",
+          "quote": "BR2_arm=y",
+          "classification": "retarget",
+          "reason": "32-bit ARM arch; FRDM needs BR2_aarch64."
+        },
+        {
+          "line": 4,
+          "token": "BR2_cortex_a8",
+          "quote": "BR2_cortex_a8=y",
+          "classification": "retarget",
+          "reason": "AM335x core; FRDM needs BR2_cortex_a53."
+        },
+        {
+          "line": 5,
+          "token": "BR2_ARM_FPU_VFPV3",
+          "quote": "BR2_ARM_FPU_VFPV3=y",
+          "classification": "retarget",
+          "reason": "ARMv7 FPU selection; remove for aarch64."
+        },
+        {
+          "line": 8,
+          "token": "BR2_TOOLCHAIN_EXTERNAL_BOOTLIN_ARMV7_EABIHF_GLIBC_STABLE",
+          "quote": "BR2_TOOLCHAIN_EXTERNAL_BOOTLIN_ARMV7_EABIHF_GLIBC_STABLE=y",
+          "classification": "retarget",
+          "reason": "ARMv7 EABIHF toolchain; use Bootlin aarch64 glibc stable."
+        },
+        {
+          "line": 10,
+          "token": "board/beagleboard/beaglebone/patches",
+          "quote": "BR2_GLOBAL_PATCH_DIR=\"board/beagleboard/beaglebone/patches\"",
+          "classification": "retarget",
+          "reason": "Upstream BeagleBone board patch dir."
+        },
+        {
+          "line": 14,
+          "token": "board/beagleboard/beaglebone/post-build.sh",
+          "quote": "BR2_ROOTFS_POST_BUILD_SCRIPT=\"board/beagleboard/beaglebone/post-build.sh $(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/post-build.sh $(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/bringup/post-build.sh\"",
+          "classification": "retarget",
+          "reason": "Upstream BeagleBone post-build in the chain; replace for FRDM."
+        },
+        {
+          "line": 16,
+          "token": "genimage.cfg",
+          "quote": "BR2_ROOTFS_POST_SCRIPT_ARGS=\"-c $(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/genimage.cfg\"",
+          "classification": "retarget",
+          "reason": "Uses the AM335x SD layout."
+        },
+        {
+          "line": 22,
+          "token": "eth0",
+          "quote": "BR2_SYSTEM_DHCP=\"eth0\"",
+          "classification": "board_parameterize",
+          "reason": "DHCP interface hard-coded; should come from the board profile."
+        },
+        {
+          "line": 26,
+          "token": "omap2plus",
+          "quote": "BR2_LINUX_KERNEL_DEFCONFIG=\"omap2plus\"",
+          "classification": "retarget",
+          "reason": "OMAP kernel defconfig; use arm64/i.MX8MP config."
+        },
+        {
+          "line": 27,
+          "token": "linux-suspend-prerequisites.config",
+          "quote": "BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES=\"$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/linux-suspend-prerequisites.config\"",
+          "classification": "retarget",
+          "reason": "AM335x-only PM fragment."
+        },
+        {
+          "line": 29,
+          "token": "ti/omap/am335x-boneblack",
+          "quote": "BR2_LINUX_KERNEL_INTREE_DTS_NAME=\"ti/omap/am335x-boneblack\"",
+          "classification": "retarget",
+          "reason": "BBB device tree; replace with FRDM i.MX8MP DTS + DSI panel/touch."
+        },
+        {
+          "line": 33,
+          "token": "BR2_PACKAGE_AM33X_CM3",
+          "quote": "BR2_PACKAGE_AM33X_CM3=y",
+          "classification": "retarget",
+          "reason": "AM335x WKUP-M3 firmware; drop for i.MX8MP."
+        },
+        {
+          "line": 42,
+          "token": "BR2_PACKAGE_LIBDRM_OMAP",
+          "quote": "BR2_PACKAGE_LIBDRM_OMAP=y",
+          "classification": "retarget",
+          "reason": "OMAP libdrm backend; drop for i.MX8MP."
+        },
+        {
+          "line": 69,
+          "token": "am335x_evm",
+          "quote": "BR2_TARGET_UBOOT_BOARD_DEFCONFIG=\"am335x_evm\"",
+          "classification": "retarget",
+          "reason": "AM335x U-Boot defconfig; FRDM needs i.MX8MP U-Boot + TF-A + DDR firmware."
+        },
+        {
+          "line": 74,
+          "token": "BR2_TARGET_UBOOT_FORMAT_IMG",
+          "quote": "BR2_TARGET_UBOOT_FORMAT_IMG=y",
+          "classification": "retarget",
+          "reason": "u-boot.img is the AM335x flow; i.MX8MP needs flash.bin."
+        },
+        {
+          "line": 75,
+          "token": "BR2_TARGET_UBOOT_SPL",
+          "quote": "BR2_TARGET_UBOOT_SPL=y",
+          "classification": "retarget",
+          "reason": "AM335x SPL/MLO flow."
+        },
+        {
+          "line": 76,
+          "token": "MLO",
+          "quote": "BR2_TARGET_UBOOT_SPL_NAME=\"MLO\"",
+          "classification": "retarget",
+          "reason": "AM335x ROM loader filename."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/board/beaglebone-house-panel/genimage.cfg",
+      "role": "Canonical SD-card image layout shared by production and bring-up profiles.",
+      "disposition": "Keep for BBB; FRDM gets board/beaglebone-house-panel/frdm-imx8mp/genimage.cfg (flash.bin at 32 KiB, 64 MiB boot FAT).",
+      "hits": [
+        {
+          "line": 5,
+          "token": "MLO",
+          "quote": "\"MLO\",",
+          "classification": "retarget",
+          "reason": "AM335x ROM loads MLO from a FAT partition; i.MX8MP ROM loads flash.bin raw at 32 KiB offset."
+        },
+        {
+          "line": 6,
+          "token": "u-boot.img",
+          "quote": "\"u-boot.img\",",
+          "classification": "retarget",
+          "reason": "AM335x U-Boot image; i.MX8MP uses flash.bin (SPL+ATF+U-Boot+DDR fw)."
+        },
+        {
+          "line": 7,
+          "token": "zImage",
+          "quote": "\"zImage\",",
+          "classification": "retarget",
+          "reason": "ARM32 compressed kernel; arm64 boots the uncompressed Image."
+        },
+        {
+          "line": 8,
+          "token": "uEnv.txt",
+          "quote": "\"uEnv.txt\",",
+          "classification": "retarget",
+          "reason": "BeagleBone U-Boot env convention (staged by upstream beaglebone post-build); FRDM uses extlinux/boot.scr."
+        },
+        {
+          "line": 9,
+          "token": "am335x-boneblack.dtb",
+          "quote": "\"am335x-boneblack.dtb\",",
+          "classification": "retarget",
+          "reason": "BBB DTB; FRDM needs the i.MX8MP FRDM DTB (+ DSI panel/touch)."
+        },
+        {
+          "line": 10,
+          "token": "extlinux",
+          "quote": "\"extlinux\"",
+          "classification": "retarget",
+          "reason": "extlinux.conf here is produced by the upstream beaglebone post-build for zImage/am335x DTB; FRDM needs its own (Image + imx8mp DTB)."
+        },
+        {
+          "line": 14,
+          "token": "size = 16M",
+          "quote": "size = 16M",
+          "classification": "retarget",
+          "reason": "16 MiB boot FAT sized for zImage+MLO; an arm64 uncompressed Image (~30-40 MiB) will not fit."
+        },
+        {
+          "line": 21,
+          "token": "partition u-boot",
+          "quote": "partition u-boot {",
+          "classification": "retarget",
+          "reason": "FAT 'u-boot' partition holds the AM335x boot chain; i.MX8MP needs a raw flash.bin entry at 32 KiB before the first partition (in-partition-table=false)."
+        },
+        {
+          "line": 23,
+          "token": "bootable = \"true\"",
+          "quote": "bootable = \"true\"",
+          "classification": "retarget",
+          "reason": "Active-FAT requirement of the AM335x ROM MMC boot; not how i.MX8MP boots."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/board/beaglebone-house-panel/linux-suspend-prerequisites.config",
+      "role": "Kernel config fragment for AM335x DeepSleep0 suspend-stack prerequisites.",
+      "disposition": "Keep for BBB; FRDM gets frdm-imx8mp/linux-frdm-imx8mp.config.",
+      "hits": [
+        {
+          "line": 1,
+          "token": "AM335x",
+          "quote": "# Software prerequisites for AM335x suspend-stack qualification.",
+          "classification": "retarget",
+          "reason": "Whole fragment is AM335x-specific; FRDM needs an i.MX8MP fragment (PM_SLEEP/SUSPEND, ARM_PSCI_FW, i.MX GPC wake, etc.)."
+        },
+        {
+          "line": 2,
+          "token": "DeepSleep0",
+          "quote": "# These options do not establish that DeepSleep0 works on the target assembly.",
+          "classification": "retarget",
+          "reason": "AM335x-specific sleep state name."
+        },
+        {
+          "line": 3,
+          "token": "CONFIG_AMX3_PM",
+          "quote": "CONFIG_AMX3_PM=m",
+          "classification": "retarget",
+          "reason": "AM335x/AM437x PM driver; not built for arm64."
+        },
+        {
+          "line": 4,
+          "token": "CONFIG_WKUP_M3_IPC",
+          "quote": "CONFIG_WKUP_M3_IPC=m",
+          "classification": "retarget",
+          "reason": "TI WKUP-M3 IPC; AM335x only."
+        },
+        {
+          "line": 5,
+          "token": "CONFIG_WKUP_M3_RPROC",
+          "quote": "CONFIG_WKUP_M3_RPROC=m",
+          "classification": "retarget",
+          "reason": "TI WKUP-M3 remoteproc; AM335x only."
+        },
+        {
+          "line": 6,
+          "token": "CONFIG_TI_EMIF_SRAM",
+          "quote": "CONFIG_TI_EMIF_SRAM=m",
+          "classification": "retarget",
+          "reason": "TI EMIF SRAM PM code; AM335x only."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S31bhp-presence-sensor",
+      "role": "Opt-in SysV init check/loader for the PIR wake experiment (custom module or gpio-keys overlay).",
+      "disposition": "Add FRDM gpio-keys and custom-driver experiments.",
+      "hits": [
+        {
+          "line": 50,
+          "token": "presence-sensor-custom-pir",
+          "quote": "if [ ! -r /proc/device-tree/presence-sensor-custom-pir/compatible ] ||",
+          "classification": "board_parameterize",
+          "reason": "DT node path defined by the BBB custom overlay; FRDM DT node name should come from the board profile."
+        },
+        {
+          "line": 51,
+          "token": "beagle,house-pir",
+          "quote": "! grep -q 'beagle,house-pir' /proc/device-tree/presence-sensor-custom-pir/compatible; then",
+          "classification": "board_parameterize",
+          "reason": "Checks the BBB-overlay compatible (BeagleBoard 'beagle' vendor prefix); expected compatible should be profile-driven."
+        },
+        {
+          "line": 63,
+          "token": "Beagle House PIR custom experiment",
+          "quote": "if ! bhp_presence_sensor_input_device_exists 'Beagle House PIR custom experiment'; then",
+          "classification": "board_parameterize",
+          "reason": "Expected input name is the BBB overlay label; profile-driven on FRDM."
+        },
+        {
+          "line": 71,
+          "token": "gpio-keys-presence-baseline",
+          "quote": "if [ ! -r /proc/device-tree/gpio-keys-presence-baseline/compatible ] ||",
+          "classification": "board_parameterize",
+          "reason": "DT node path defined by the BBB gpio-keys overlay."
+        },
+        {
+          "line": 78,
+          "token": "Beagle House gpio-keys wake baseline",
+          "quote": "if ! bhp_presence_sensor_input_device_exists 'Beagle House gpio-keys wake baseline'; then",
+          "classification": "board_parameterize",
+          "reason": "Expected input name is the BBB overlay label."
+        },
+        {
+          "line": 119,
+          "token": "Beagle House PIR custom experiment",
+          "quote": "bhp_presence_sensor_input_device_exists 'Beagle House PIR custom experiment'",
+          "classification": "board_parameterize",
+          "reason": "Status path repeats the BBB overlay label."
+        },
+        {
+          "line": 122,
+          "token": "Beagle House gpio-keys wake baseline",
+          "quote": "bhp_presence_sensor_input_device_exists 'Beagle House gpio-keys wake baseline'",
+          "classification": "board_parameterize",
+          "reason": "Status path repeats the BBB overlay label."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/presence-sensor.env.example",
+      "role": "Template for the PIR init configuration (experiment selection, overlay dir).",
+      "disposition": "Document FRDM experiment values; overlays are merged into the FRDM boot DTB, not staged.",
+      "hits": [
+        {
+          "line": 5,
+          "token": "stock_gpio_keys_wake_baseline",
+          "quote": "# Must be exactly custom_pir_input_driver or stock_gpio_keys_wake_baseline.",
+          "classification": "board_parameterize",
+          "reason": "Allowed experiments are the two BBB P9.21 overlay variants; FRDM experiment set should come from the board profile."
+        },
+        {
+          "line": 6,
+          "token": "cape",
+          "quote": "# Do not choose either until voltage, board/cape revision, pin ownership, and",
+          "classification": "retarget",
+          "reason": "Asks for board/cape revision; 'cape' is a BeagleBone concept (FRDM: board rev + DSI panel/PIR wiring)."
+        },
+        {
+          "line": 12,
+          "token": "device-tree-overlays",
+          "quote": "BHP_PRESENCE_SENSOR_OVERLAY_DIRECTORY=/usr/lib/beaglebone-house-panel/device-tree-overlays",
+          "classification": "board_parameterize",
+          "reason": "Directory holds the BBB .dtbo artifacts; per-board overlay set."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/usr/libexec/beaglebone-house-panel/classify-touch-input",
+      "role": "mdev add-event helper granting one provisioned touch evdev identity to bhp-touch.",
+      "disposition": "Add the FRDM PIR input names to the PIR deny list.",
+      "hits": [
+        {
+          "line": 98,
+          "token": "Beagle House PIR custom experiment",
+          "quote": "'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline')",
+          "classification": "board_parameterize",
+          "reason": "Hard-deny list names the BBB PIR overlay labels; FRDM PIR identity must be denied too (profile-driven list)."
+        },
+        {
+          "line": 122,
+          "token": "Beagle House PIR custom experiment",
+          "quote": "'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline')",
+          "classification": "board_parameterize",
+          "reason": "Same BBB PIR deny list in the candidate scan."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/package/bhp-presence-sensor/bhp-presence-sensor.mk",
+      "role": "Buildroot package building the PIR kernel module and installing the DT overlays.",
+      "disposition": "Select overlays per board; FRDM overlay generated from the board profile and fails until the PIR pin is measured.",
+      "hits": [
+        {
+          "line": 21,
+          "token": "beagle-house-custom-pir-overlay.dts",
+          "quote": "presence_sensor/experiments/custom_pir_input_driver/beagle-house-custom-pir-overlay.dts \\",
+          "classification": "board_parameterize",
+          "reason": "License file list hard-codes the BBB overlay source."
+        },
+        {
+          "line": 22,
+          "token": "beagle-house-gpio-keys-wake-baseline-overlay.dts",
+          "quote": "presence_sensor/experiments/stock_gpio_keys_wake_baseline/beagle-house-gpio-keys-wake-baseline-overlay.dts",
+          "classification": "board_parameterize",
+          "reason": "License file list hard-codes the BBB overlay source."
+        },
+        {
+          "line": 38,
+          "token": "presence_sensor/overlays",
+          "quote": "$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/presence_sensor/overlays \\",
+          "classification": "board_parameterize",
+          "reason": "Always builds the BBB overlays; dt-bindings/pinctrl/am33xx.h is arch-independent, so this still compiles against an arm64 kernel and ships dead BBB dtbos. Overlay set should be per board."
+        },
+        {
+          "line": 47,
+          "token": "beagle-house-custom-pir.dtbo",
+          "quote": "$(@D)/presence_sensor/overlays/beagle-house-custom-pir.dtbo \\",
+          "classification": "board_parameterize",
+          "reason": "Installs the BBB custom-PIR overlay into every image."
+        },
+        {
+          "line": 50,
+          "token": "beagle-house-gpio-keys-wake-baseline.dtbo",
+          "quote": "$(@D)/presence_sensor/overlays/beagle-house-gpio-keys-wake-baseline.dtbo \\",
+          "classification": "board_parameterize",
+          "reason": "Installs the BBB gpio-keys overlay into every image."
+        }
+      ]
+    },
+    {
+      "path": "system_image/buildroot_external/package/bhp-presence-sensor/README.md",
+      "role": "README for the presence-sensor Buildroot package.",
+      "disposition": "Describe per-board overlays.",
+      "hits": [
+        {
+          "line": 16,
+          "token": "uEnv.txt",
+          "quote": "edit `uEnv.txt`, or autoload the module. The two overlays claim the same",
+          "classification": "retarget",
+          "reason": "Names the BeagleBone uEnv.txt overlay mechanism; FRDM uses extlinux fdtoverlays or a boot script."
+        }
+      ]
+    },
+    {
+      "path": "system_image/README.md",
+      "role": "System-image domain README (baseline, build, image policy).",
+      "disposition": "Describe FRDM defconfigs and the NXP firmware decision gate.",
+      "hits": [
+        {
+          "line": 7,
+          "token": "beaglebone_defconfig",
+          "quote": "The scaffold pins Buildroot 2026.05.1 and starts from its official `beaglebone_defconfig`. That upstream baseline selects Cortex-A8, the x86_64-hosted Bootlin ARMv7 glibc toolchain, AM33x CM3 firmware, Linux 6.18.21, ...",
+          "classification": "retarget",
+          "reason": "States the baseline is Buildroot's beaglebone_defconfig (Cortex-A8, Bootlin ARMv7, AM33x CM3); must describe the FRDM baseline."
+        },
+        {
+          "line": 9,
+          "token": "4D cape",
+          "quote": "This is a buildable experiment baseline, not a declaration that Linux 6.18 or its standard device tree drives the unknown 4D cape. The official BeagleBoard Debian 6.12 image remains the first hardware-characterization...",
+          "classification": "retarget",
+          "reason": "Refers to the unknown 4D LCD cape and BeagleBoard Debian 6.12 as characterization env; FRDM uses Waveshare 7in DSI (C) and NXP/Buildroot."
+        },
+        {
+          "line": 11,
+          "token": "omap2plus",
+          "quote": "The kernel is already project-built and pinned, but it intentionally starts from the broad upstream `omap2plus` defconfig. Trimming before discovery could remove the unknown cape, touch, PM, or storage dependency. Aft...",
+          "classification": "retarget",
+          "reason": "Describes the omap2plus kernel starting point."
+        },
+        {
+          "line": 48,
+          "token": "eth0",
+          "quote": "- The wired prototype interface requests DHCP on `eth0`; no Wi-Fi profile or",
+          "classification": "board_parameterize",
+          "reason": "DHCP on eth0 policy; interface is per board."
+        },
+        {
+          "line": 60,
+          "token": "cape",
+          "quote": "to `bhp-touch` and `video`, never the generic `input` group. If the cape",
+          "classification": "retarget",
+          "reason": "Touch-access caveat is framed around the cape touch driver; FRDM touch is the DSI panel's I2C controller."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/Kbuild",
+      "role": "Out-of-tree Kbuild for the custom PIR module; reviewed: arch-neutral, no board assumption.",
+      "disposition": "No change; arch-neutral.",
+      "hits": []
+    },
+    {
+      "path": "presence_sensor/Makefile",
+      "role": "External-module and overlay build entry point for the PIR experiments.",
+      "disposition": "No change; ARCH/CROSS_COMPILE already caller-supplied.",
+      "hits": [
+        {
+          "line": 3,
+          "token": "/lib/modules/$(shell uname -r)/build",
+          "quote": "KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build",
+          "classification": "board_parameterize",
+          "reason": "Default assumes a native on-target build with installed headers (the BBB Debian workflow); FRDM builds should pass KERNEL_SRC from the Buildroot/SDK profile."
+        },
+        {
+          "line": 7,
+          "token": "ARCH=$(ARCH)",
+          "quote": "KBUILD_OPTIONS += ARCH=$(ARCH)",
+          "classification": "board_parameterize",
+          "reason": "Arch-neutral pass-through; caller must supply ARCH=arm64 for FRDM (no arm hard-code here)."
+        },
+        {
+          "line": 10,
+          "token": "CROSS_COMPILE=$(CROSS_COMPILE)",
+          "quote": "KBUILD_OPTIONS += CROSS_COMPILE=$(CROSS_COMPILE)",
+          "classification": "board_parameterize",
+          "reason": "Arch-neutral pass-through; caller must supply an aarch64 prefix."
+        },
+        {
+          "line": 21,
+          "token": "overlays",
+          "quote": "$(MAKE) -C overlays KERNEL_SRC=\"$(KERNEL_SRC)\" all",
+          "classification": "board_parameterize",
+          "reason": "'all' always builds the BBB overlays; overlay set should be per board."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/overlays/Makefile",
+      "role": "Builds the two PIR experiment DT overlays (.dtbo).",
+      "disposition": "Build the BBB or FRDM overlay set selected by BHP_BOARD_ID.",
+      "hits": [
+        {
+          "line": 10,
+          "token": "beagle-house-custom-pir-overlay.dts",
+          "quote": "CUSTOM_PIR_SOURCE := ../experiments/custom_pir_input_driver/beagle-house-custom-pir-overlay.dts",
+          "classification": "board_parameterize",
+          "reason": "Overlay source list is the BBB P9.21 overlay; per-board list."
+        },
+        {
+          "line": 11,
+          "token": "beagle-house-gpio-keys-wake-baseline-overlay.dts",
+          "quote": "GPIO_KEYS_BASELINE_SOURCE := ../experiments/stock_gpio_keys_wake_baseline/beagle-house-gpio-keys-wake-baseline-overlay.dts",
+          "classification": "board_parameterize",
+          "reason": "Overlay source list is the BBB P9.21 overlay; per-board list."
+        },
+        {
+          "line": 12,
+          "token": "beagle-house-custom-pir.dtbo",
+          "quote": "OVERLAYS := beagle-house-custom-pir.dtbo",
+          "classification": "board_parameterize",
+          "reason": "Output list is BBB-only."
+        },
+        {
+          "line": 13,
+          "token": "beagle-house-gpio-keys-wake-baseline.dtbo",
+          "quote": "OVERLAYS += beagle-house-gpio-keys-wake-baseline.dtbo",
+          "classification": "board_parameterize",
+          "reason": "Output list is BBB-only."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/README.md",
+      "role": "Presence-sensor domain README (ownership, dependencies, experiments).",
+      "disposition": "Describe the FRDM overlay and keep BBB overlays as history.",
+      "hits": [
+        {
+          "line": 14,
+          "token": "AM335x OMAP GPIO irqchip",
+          "quote": "wake-IRQ support, Device Tree/pinctrl, the AM335x OMAP GPIO irqchip, and—for",
+          "classification": "retarget",
+          "reason": "Domain dependency list names the AM335x GPIO irqchip; FRDM uses i.MX GPIO + GPC wake."
+        },
+        {
+          "line": 15,
+          "token": "WKUP-M3/AMx3",
+          "quote": "DeepSleep0—the TI WKUP-M3/AMx3 PM stack and matching firmware.",
+          "classification": "retarget",
+          "reason": "Names the TI WKUP-M3/AMx3 PM stack as the DeepSleep0 dependency; FRDM uses PSCI/TF-A suspend."
+        },
+        {
+          "line": 24,
+          "token": "P9.21 / GPIO0_3",
+          "quote": "Both use candidate BeagleBone Black P9.21 / GPIO0_3 and assume an active-high,",
+          "classification": "bbb_history",
+          "reason": "Documents the BBB candidate pin for the existing experiments; keep as history."
+        },
+        {
+          "line": 30,
+          "token": "DeepSleep0",
+          "quote": "including unresolved DeepSleep0 assumptions, is in",
+          "classification": "bbb_history",
+          "reason": "Points to AM335x DeepSleep0 research; history."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/docs/build-and-test.md",
+      "role": "PIR module/overlay build and BeagleBone hardware test procedure.",
+      "disposition": "Keep BBB procedure as history; point FRDM readers to docs/operations/frdm-bringup.md.",
+      "hits": [
+        {
+          "line": 4,
+          "token": "BeagleBone Black",
+          "quote": "BeagleBone Black. Treat every result below as a validation gate, not as an",
+          "classification": "bbb_history",
+          "reason": "Procedure is written for the BBB; keep as history, write an FRDM procedure separately."
+        },
+        {
+          "line": 15,
+          "token": "ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-",
+          "quote": "ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- \\",
+          "classification": "retarget",
+          "reason": "Kernel prep command uses 32-bit ARM tuple; FRDM needs ARCH=arm64 CROSS_COMPILE=aarch64-...-."
+        },
+        {
+          "line": 21,
+          "token": "AM335x DeepSleep0",
+          "quote": "`CONFIG_KEYBOARD_GPIO`. AM335x DeepSleep0 has further platform and firmware",
+          "classification": "bbb_history",
+          "reason": "AM335x sleep-state requirements; history."
+        },
+        {
+          "line": 29,
+          "token": "ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-",
+          "quote": "ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-",
+          "classification": "retarget",
+          "reason": "Module build command uses 32-bit ARM tuple."
+        },
+        {
+          "line": 56,
+          "token": "BeagleBone Black",
+          "quote": "1. Verify the PIR output never exceeds the BeagleBone Black GPIO electrical",
+          "classification": "bbb_history",
+          "reason": "BBB GPIO electrical limits; history."
+        },
+        {
+          "line": 58,
+          "token": "P9.21",
+          "quote": "2. Confirm P9.21 is free, maps to GPIO0_3 on the exact board, and is not claimed",
+          "classification": "bbb_history",
+          "reason": "BBB header pin / GPIO0_3 check; history."
+        },
+        {
+          "line": 59,
+          "token": "cape",
+          "quote": "by another cape, UART configuration, or overlay.",
+          "classification": "bbb_history",
+          "reason": "BBB cape conflict check; history."
+        },
+        {
+          "line": 65,
+          "token": "WKUP-M3",
+          "quote": "is `enabled`. Verify `/sys/power/mem_sleep`, running WKUP-M3 firmware, and PM",
+          "classification": "bbb_history",
+          "reason": "WKUP-M3 firmware check; AM335x-only."
+        },
+        {
+          "line": 69,
+          "token": "DeepSleep0",
+          "quote": "of DeepSleep0 wake.",
+          "classification": "bbb_history",
+          "reason": "AM335x DeepSleep0 evidence note."
+        },
+        {
+          "line": 76,
+          "token": "WKUP-M3",
+          "quote": "load messages, suspend/resume log, and the WKUP-M3 reported wake source.",
+          "classification": "bbb_history",
+          "reason": "WKUP-M3 wake-source evidence; AM335x-only."
+        },
+        {
+          "line": 83,
+          "token": "GPIO0 parent wake, WKUP-M3",
+          "quote": "| Baseline reports changes but does not wake | Investigate wake enablement, selected sleep state, GPIO0 parent wake, WKUP-M3, firmware, and board PM |",
+          "classification": "bbb_history",
+          "reason": "AM335x GPIO0/WKUP-M3 wake troubleshooting."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/docs/input-abi.md",
+      "role": "Stable userspace ABI and DT interface for the PIR input device.",
+      "disposition": "Add FRDM input names.",
+      "hits": [
+        {
+          "line": 39,
+          "token": "beagle,house-pir",
+          "quote": "- `compatible = \"beagle,house-pir\"` selects the custom platform driver.",
+          "classification": "bbb_history",
+          "reason": "Custom compatible uses BeagleBoard.org's 'beagle' vendor prefix; functional anywhere, rename only if the driver is promoted beyond the BBB experiment."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/experiments/custom_pir_input_driver/beagle-house-custom-pir-overlay.dts",
+      "role": "BBB P9.21/GPIO0_3 DT overlay binding the custom PIR driver (experiment).",
+      "disposition": "BBB history.",
+      "hits": [
+        {
+          "line": 6,
+          "token": "am33xx.h",
+          "quote": "#include <dt-bindings/pinctrl/am33xx.h>",
+          "classification": "bbb_history",
+          "reason": "AM33xx pinctrl macros; BBB-only overlay."
+        },
+        {
+          "line": 11,
+          "token": "P9.21 / GPIO0_3",
+          "quote": "* This candidate routes BeagleBone Black P9.21 / GPIO0_3 to the custom PIR",
+          "classification": "bbb_history",
+          "reason": "BBB header pin comment."
+        },
+        {
+          "line": 14,
+          "token": "GPIO0_3",
+          "quote": "* together with the stock gpio-keys baseline overlay: both claim GPIO0_3.",
+          "classification": "bbb_history",
+          "reason": "BBB GPIO claim note."
+        },
+        {
+          "line": 18,
+          "token": "ti,am335x-bone-black",
+          "quote": "compatible = \"ti,am335x-bone-black\";",
+          "classification": "bbb_history",
+          "reason": "Overlay targets the BBB root compatible."
+        },
+        {
+          "line": 21,
+          "token": "am33xx_pinmux",
+          "quote": "target = <&am33xx_pinmux>;",
+          "classification": "bbb_history",
+          "reason": "AM33xx pinmux node label; does not exist on i.MX8MP."
+        },
+        {
+          "line": 26,
+          "token": "AM335X_PIN_SPI0_D0",
+          "quote": "AM33XX_PADCONF(AM335X_PIN_SPI0_D0,",
+          "classification": "bbb_history",
+          "reason": "AM335x pad (SPI0_D0, mode 7 = GPIO0_3)."
+        },
+        {
+          "line": 34,
+          "token": "AM335X_PIN_SPI0_D0",
+          "quote": "AM33XX_PADCONF(AM335X_PIN_SPI0_D0,",
+          "classification": "bbb_history",
+          "reason": "AM335x sleep pad state."
+        },
+        {
+          "line": 47,
+          "token": "beagle,house-pir",
+          "quote": "compatible = \"beagle,house-pir\";",
+          "classification": "bbb_history",
+          "reason": "Custom compatible with BeagleBoard vendor prefix."
+        },
+        {
+          "line": 51,
+          "token": "&gpio0 3",
+          "quote": "presence-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;",
+          "classification": "bbb_history",
+          "reason": "AM335x GPIO bank 0 line 3."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/experiments/stock_gpio_keys_wake_baseline/beagle-house-gpio-keys-wake-baseline-overlay.dts",
+      "role": "BBB P9.21/GPIO0_3 gpio-keys wake-baseline DT overlay (experiment).",
+      "disposition": "BBB history.",
+      "hits": [
+        {
+          "line": 8,
+          "token": "am33xx.h",
+          "quote": "#include <dt-bindings/pinctrl/am33xx.h>",
+          "classification": "bbb_history",
+          "reason": "AM33xx pinctrl macros."
+        },
+        {
+          "line": 14,
+          "token": "P9.21 / GPIO0_3",
+          "quote": "* candidate BeagleBone Black P9.21 / GPIO0_3 input as the custom experiment.",
+          "classification": "bbb_history",
+          "reason": "BBB header pin comment."
+        },
+        {
+          "line": 16,
+          "token": "GPIO0_3",
+          "quote": "* experiment overlays because both claim GPIO0_3.",
+          "classification": "bbb_history",
+          "reason": "BBB GPIO claim note."
+        },
+        {
+          "line": 20,
+          "token": "ti,am335x-bone-black",
+          "quote": "compatible = \"ti,am335x-bone-black\";",
+          "classification": "bbb_history",
+          "reason": "BBB root compatible."
+        },
+        {
+          "line": 23,
+          "token": "am33xx_pinmux",
+          "quote": "target = <&am33xx_pinmux>;",
+          "classification": "bbb_history",
+          "reason": "AM33xx pinmux label."
+        },
+        {
+          "line": 28,
+          "token": "AM335X_PIN_SPI0_D0",
+          "quote": "AM33XX_PADCONF(AM335X_PIN_SPI0_D0,",
+          "classification": "bbb_history",
+          "reason": "AM335x pad."
+        },
+        {
+          "line": 36,
+          "token": "AM335X_PIN_SPI0_D0",
+          "quote": "AM33XX_PADCONF(AM335X_PIN_SPI0_D0,",
+          "classification": "bbb_history",
+          "reason": "AM335x sleep pad state."
+        },
+        {
+          "line": 59,
+          "token": "&gpio0 3",
+          "quote": "gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;",
+          "classification": "bbb_history",
+          "reason": "AM335x GPIO bank 0 line 3."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/experiments/custom_pir_input_driver/beagle_house_pir_input_driver.c",
+      "role": "Experimental GPIO PIR platform/input driver with wake-IRQ support (gpiod-based, otherwise board-neutral).",
+      "disposition": "Driver is generic GPIO code: make its log message board-neutral and keep it as the secondary FRDM experiment.",
+      "hits": [
+        {
+          "line": 6,
+          "token": "AM335x",
+          "quote": "* that an AM335x can wake from DeepSleep0; that path also depends on the chosen",
+          "classification": "bbb_history",
+          "reason": "Header comment scopes the wake caveat to AM335x DeepSleep0."
+        },
+        {
+          "line": 7,
+          "token": "WKUP-M3",
+          "quote": "* pad, GPIO bank, parent IRQ, WKUP-M3 firmware, PM configuration, and board.",
+          "classification": "bbb_history",
+          "reason": "Header comment names WKUP-M3 firmware dependency."
+        },
+        {
+          "line": 110,
+          "token": "AM335x DeepSleep0",
+          "quote": "\"experimental wake path armed; AM335x DeepSleep0 wake remains unverified on target hardware\\n\");",
+          "classification": "retarget",
+          "reason": "Runtime dev_warn hard-codes 'AM335x DeepSleep0'; if the module is reused on FRDM this kernel log text is wrong (board assumption inside driver code)."
+        },
+        {
+          "line": 195,
+          "token": "beagle,house-pir",
+          "quote": "{ .compatible = \"beagle,house-pir\" },",
+          "classification": "bbb_history",
+          "reason": "OF match uses the BeagleBoard 'beagle' vendor prefix; works on any board, rename only if promoted (must stay in sync with overlay, binding, S31, verifier)."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/experiments/custom_pir_input_driver/Documentation/devicetree/bindings/input/beagle,house-pir.yaml",
+      "role": "Experimental DT binding for the custom PIR node.",
+      "disposition": "Keep; the compatible string is an experimental project binding, not a board claim.",
+      "hits": [
+        {
+          "line": 4,
+          "token": "beagle,house-pir",
+          "quote": "$id: http://devicetree.org/schemas/input/beagle,house-pir.yaml#",
+          "classification": "bbb_history",
+          "reason": "Schema id uses BeagleBoard vendor prefix."
+        },
+        {
+          "line": 20,
+          "token": "beagle,house-pir",
+          "quote": "const: beagle,house-pir",
+          "classification": "bbb_history",
+          "reason": "Compatible const with BeagleBoard vendor prefix."
+        },
+        {
+          "line": 46,
+          "token": "beagle,house-pir",
+          "quote": "compatible = \"beagle,house-pir\";",
+          "classification": "bbb_history",
+          "reason": "Example compatible."
+        },
+        {
+          "line": 47,
+          "token": "&gpio0 3",
+          "quote": "presence-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;",
+          "classification": "bbb_history",
+          "reason": "Example uses AM335x GPIO0_3."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/experiments/custom_pir_input_driver/README.md",
+      "role": "README for the custom PIR driver experiment.",
+      "disposition": "BBB history plus FRDM note.",
+      "hits": [
+        {
+          "line": 6,
+          "token": "beagle,house-pir",
+          "quote": "This experiment binds `beagle,house-pir` to the local",
+          "classification": "bbb_history",
+          "reason": "Documents the BBB-experiment compatible."
+        },
+        {
+          "line": 14,
+          "token": "BeagleBone Black P9.21",
+          "quote": "- `beagle-house-custom-pir-overlay.dts`: candidate BeagleBone Black P9.21 /",
+          "classification": "bbb_history",
+          "reason": "Candidate BBB wiring."
+        },
+        {
+          "line": 15,
+          "token": "GPIO0_3",
+          "quote": "GPIO0_3 wiring.",
+          "classification": "bbb_history",
+          "reason": "Candidate BBB GPIO."
+        },
+        {
+          "line": 21,
+          "token": "AM335x",
+          "quote": "or AM335x low-power path.",
+          "classification": "bbb_history",
+          "reason": "AM335x low-power path troubleshooting."
+        }
+      ]
+    },
+    {
+      "path": "presence_sensor/experiments/stock_gpio_keys_wake_baseline/README.md",
+      "role": "README for the stock gpio-keys wake baseline experiment.",
+      "disposition": "BBB history plus FRDM note.",
+      "hits": [
+        {
+          "line": 7,
+          "token": "P9.21",
+          "quote": "Linux v6.12's in-tree `gpio-keys` driver on the same candidate P9.21 /",
+          "classification": "bbb_history",
+          "reason": "Candidate BBB header pin."
+        },
+        {
+          "line": 8,
+          "token": "GPIO0_3",
+          "quote": "GPIO0_3 input and emits the same `EV_SW/SW_FRONT_PROXIMITY` state as the",
+          "classification": "bbb_history",
+          "reason": "Candidate BBB GPIO."
+        }
+      ]
+    },
+    {
+      "path": "scripts/verification/verify_build_and_deploy_contracts.sh",
+      "role": "Host verifier for build/deploy scripts, provenance, mdev touch classifier, packages and init contracts.",
+      "disposition": "Extend fake Buildroot fixtures and contracts to FRDM targets; BBB 4D-cape touch fixtures stay as classifier test data.",
+      "hits": [
+        {
+          "line": 88,
+          "token": "beaglebone_house_panel_defconfig",
+          "quote": "'beaglebone_house_panel_defconfig:' \\",
+          "classification": "board_parameterize",
+          "reason": "Fixture Makefile mirrors the single (BBB) defconfig target; follows the board selector in configure_buildroot.sh."
+        },
+        {
+          "line": 176,
+          "token": "4D Cape Touch Controller",
+          "quote": "printf '%s\\n' '4D Cape Touch Controller' >\"$classifier_configuration/touch-input.name\"",
+          "classification": "bbb_history",
+          "reason": "Touch-classifier fixture uses the BBB 4D cape touch identity; logic-only test, passes unchanged. Optionally add an FRDM/Waveshare DSI touch case."
+        },
+        {
+          "line": 177,
+          "token": "i2c-1/1-0048/input0",
+          "quote": "printf '%s\\n' 'i2c-1/1-0048/input0' >\"$classifier_configuration/touch-input.phys\"",
+          "classification": "bbb_history",
+          "reason": "BBB cape touch phys (I2C bus 1, addr 0x48) fixture."
+        },
+        {
+          "line": 178,
+          "token": "4D Cape Touch Controller",
+          "quote": "printf '%s\\n' '4D Cape Touch Controller' >\"$classifier_sys/event0/device/name\"",
+          "classification": "bbb_history",
+          "reason": "Same BBB touch-name fixture."
+        },
+        {
+          "line": 179,
+          "token": "i2c-1/1-0048/input0",
+          "quote": "printf '%s\\n' 'i2c-1/1-0048/input0' >\"$classifier_sys/event0/device/phys\"",
+          "classification": "bbb_history",
+          "reason": "Same BBB touch-phys fixture."
+        },
+        {
+          "line": 180,
+          "token": "Beagle House PIR custom experiment",
+          "quote": "printf '%s\\n' 'Beagle House PIR custom experiment' \\",
+          "classification": "board_parameterize",
+          "reason": "Exercises the PIR deny list; must follow a profile-driven deny list."
+        },
+        {
+          "line": 183,
+          "token": "4D Cape Touch Controller",
+          "quote": "printf '%s\\n' '4D Cape Touch Controller' >\"$classifier_sys/event2/device/name\"",
+          "classification": "bbb_history",
+          "reason": "Duplicate-identity fixture with BBB touch name."
+        },
+        {
+          "line": 184,
+          "token": "i2c-1/1-0049/input0",
+          "quote": "printf '%s\\n' 'i2c-1/1-0049/input0' >\"$classifier_sys/event2/device/phys\"",
+          "classification": "bbb_history",
+          "reason": "Duplicate BBB-style phys fixture."
+        },
+        {
+          "line": 185,
+          "token": "Beagle House gpio-keys wake baseline",
+          "quote": "printf '%s\\n' 'Beagle House gpio-keys wake baseline' \\",
+          "classification": "board_parameterize",
+          "reason": "Exercises the PIR deny list; follow profile-driven list."
+        },
+        {
+          "line": 229,
+          "token": "4D Cape Touch Controller",
+          "quote": "printf '%s\\n' '4D Cape Touch Controller' >\"$classifier_sys/event3/device/name\"",
+          "classification": "bbb_history",
+          "reason": "BBB touch-name fixture (duplicate add case)."
+        },
+        {
+          "line": 230,
+          "token": "i2c-1/1-0048/input0",
+          "quote": "printf '%s\\n' 'i2c-1/1-0048/input0' >\"$classifier_sys/event3/device/phys\"",
+          "classification": "bbb_history",
+          "reason": "BBB touch-phys fixture."
+        },
+        {
+          "line": 243,
+          "token": "Beagle House PIR custom experiment",
+          "quote": "printf '%s\\n' 'Beagle House PIR custom experiment' \\",
+          "classification": "board_parameterize",
+          "reason": "Deny-list configuration case."
+        },
+        {
+          "line": 254,
+          "token": "Beagle House gpio-keys wake baseline",
+          "quote": "printf '%s\\n' 'Beagle House gpio-keys wake baseline' \\",
+          "classification": "board_parameterize",
+          "reason": "Deny-list configuration case."
+        },
+        {
+          "line": 267,
+          "token": "4D Cape Touch Controller",
+          "quote": "printf '%s\\n' '4D Cape Touch Controller' >\"$classifier_configuration/touch-input.name\"",
+          "classification": "bbb_history",
+          "reason": "BBB touch-name fixture."
+        },
+        {
+          "line": 268,
+          "token": "i2c-1/1-0048/input0",
+          "quote": "printf '%s\\n' 'i2c-1/1-0048/input0' >\"$classifier_configuration/touch-input.phys\"",
+          "classification": "bbb_history",
+          "reason": "BBB touch-phys fixture."
+        },
+        {
+          "line": 277,
+          "token": "4D Cape Touch Controller",
+          "quote": "printf '4D Cape Touch Controller\\r\\n' >\"$classifier_configuration/touch-input.name\"",
+          "classification": "bbb_history",
+          "reason": "CRLF rejection fixture with BBB touch name."
+        },
+        {
+          "line": 476,
+          "token": "beaglebone_house_panel_defconfig",
+          "quote": "'beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig:'",
+          "classification": "board_parameterize",
+          "reason": "Fixture Makefile mirrors the BBB defconfig targets."
+        },
+        {
+          "line": 710,
+          "token": "buildroot-armv7.cmake",
+          "quote": "\"$PROJECT_ROOT/cmake/toolchains/buildroot-armv7.cmake\" >/dev/null || {",
+          "classification": "board_parameterize",
+          "reason": "Asserts contracts against the ARMv7-named toolchain file; follow the renamed/per-board file."
+        }
+      ]
+    },
+    {
+      "path": "scripts/verification/verify_buildroot_external_tree.sh",
+      "role": "Verifies Buildroot external-tree wiring and optionally evaluates defconfigs/kernel config.",
+      "disposition": "Verify every board's defconfigs from its profile.",
+      "hits": [
+        {
+          "line": 19,
+          "token": "genimage.cfg",
+          "quote": "expected_post_script_args=\"BR2_ROOTFS_POST_SCRIPT_ARGS=\\\"-c \\$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/genimage.cfg\\\"\"",
+          "classification": "board_parameterize",
+          "reason": "Expects both defconfigs to use the single (AM335x) genimage.cfg; should be per board."
+        },
+        {
+          "line": 20,
+          "token": "linux-suspend-prerequisites.config",
+          "quote": "expected_kernel_fragment_config=\"BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES=\\\"\\$(BR2_EXTERNAL_BHP_PATH)/board/beaglebone-house-panel/linux-suspend-prerequisites.config\\\"\"",
+          "classification": "board_parameterize",
+          "reason": "Expects the AM335x kernel fragment; per-board fragment."
+        },
+        {
+          "line": 28,
+          "token": "genimage.cfg",
+          "quote": "board/beaglebone-house-panel/genimage.cfg",
+          "classification": "board_parameterize",
+          "reason": "Required-file list assumes one board dir layout."
+        },
+        {
+          "line": 29,
+          "token": "linux-suspend-prerequisites.config",
+          "quote": "board/beaglebone-house-panel/linux-suspend-prerequisites.config",
+          "classification": "board_parameterize",
+          "reason": "Required-file list assumes the AM335x fragment."
+        },
+        {
+          "line": 57,
+          "token": "beaglebone_house_panel_defconfig",
+          "quote": "for defconfig_name in beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig; do",
+          "classification": "board_parameterize",
+          "reason": "Iterates only the BBB defconfigs."
+        },
+        {
+          "line": 71,
+          "token": "check_suspend_kernel_config.sh",
+          "quote": "\"$SCRIPT_DIRECTORY/check_suspend_kernel_config.sh\" \\",
+          "classification": "board_parameterize",
+          "reason": "Runs the AM335x-symbol checker on the fragment; checker input should be per board."
+        },
+        {
+          "line": 78,
+          "token": "am335x-boneblack.dtb",
+          "quote": "if [ \"$genimage_dtb_references\" != am335x-boneblack.dtb ]; then",
+          "classification": "board_parameterize",
+          "reason": "Hard-codes the only allowed DTB in genimage; will fail for an i.MX8MP DTB."
+        },
+        {
+          "line": 80,
+          "token": "am335x-boneblack.dtb",
+          "quote": "\"Expected only am335x-boneblack.dtb; found: ${genimage_dtb_references:-none}\" \\",
+          "classification": "board_parameterize",
+          "reason": "Error text hard-codes the BBB DTB."
+        },
+        {
+          "line": 137,
+          "token": "beaglebone_house_panel_defconfig",
+          "quote": "beaglebone_house_panel_defconfig",
+          "classification": "board_parameterize",
+          "reason": "Evaluates only the BBB production defconfig."
+        },
+        {
+          "line": 149,
+          "token": "BR2_SYSTEM_DHCP=\"eth0\"",
+          "quote": "'BR2_SYSTEM_DHCP=\"eth0\"'; do",
+          "classification": "board_parameterize",
+          "reason": "Asserts eth0 DHCP; per-board interface."
+        },
+        {
+          "line": 166,
+          "token": "x86_64",
+          "quote": "if [ \"$(uname -s)\" = Linux ] && [ \"$(uname -m)\" = x86_64 ]; then",
+          "classification": "board_parameterize",
+          "reason": "Toolchain/kernel evaluation gated on x86_64 because of the Bootlin prebuilt toolchain; profile-dependent."
+        },
+        {
+          "line": 169,
+          "token": "BR2_TOOLCHAIN_EXTERNAL_BOOTLIN_ARMV7_EABIHF_GLIBC_STABLE",
+          "quote": "'BR2_TOOLCHAIN_EXTERNAL_BOOTLIN_ARMV7_EABIHF_GLIBC_STABLE=y' \\",
+          "classification": "board_parameterize",
+          "reason": "Asserts the ARMv7 toolchain; FRDM expects the aarch64 Bootlin toolchain."
+        },
+        {
+          "line": 201,
+          "token": "check_suspend_kernel_config.sh",
+          "quote": "\"$SCRIPT_DIRECTORY/check_suspend_kernel_config.sh\" \\",
+          "classification": "board_parameterize",
+          "reason": "Checks the effective kernel config for AM335x PM symbols; would fail on an arm64 config."
+        },
+        {
+          "line": 206,
+          "token": "deepsleep0_evidence",
+          "quote": "deepsleep0_evidence not_established",
+          "classification": "retarget",
+          "reason": "Log key names the AM335x DeepSleep0 state."
+        },
+        {
+          "line": 234,
+          "token": "beaglebone_house_panel_bringup_defconfig",
+          "quote": "beaglebone_house_panel_bringup_defconfig",
+          "classification": "board_parameterize",
+          "reason": "Evaluates only the BBB bring-up defconfig."
+        }
+      ]
+    },
+    {
+      "path": "scripts/verification/verify_presence_sensor_sources.sh",
+      "role": "Verifies the PIR experiment sources/ABI contract and optionally compiles the module.",
+      "disposition": "Also verify the FRDM overlay template contracts.",
+      "hits": [
+        {
+          "line": 17,
+          "token": "beagle-house-custom-pir-overlay.dts",
+          "quote": "custom_overlay=$PROJECT_ROOT/presence_sensor/experiments/custom_pir_input_driver/beagle-house-custom-pir-overlay.dts",
+          "classification": "board_parameterize",
+          "reason": "Hard-codes the BBB custom overlay path as a required source."
+        },
+        {
+          "line": 18,
+          "token": "beagle-house-gpio-keys-wake-baseline-overlay.dts",
+          "quote": "stock_overlay=$PROJECT_ROOT/presence_sensor/experiments/stock_gpio_keys_wake_baseline/beagle-house-gpio-keys-wake-baseline-overlay.dts",
+          "classification": "board_parameterize",
+          "reason": "Hard-codes the BBB gpio-keys overlay path."
+        },
+        {
+          "line": 19,
+          "token": "beagle,house-pir.yaml",
+          "quote": "binding=$PROJECT_ROOT/presence_sensor/experiments/custom_pir_input_driver/Documentation/devicetree/bindings/input/beagle,house-pir.yaml",
+          "classification": "board_parameterize",
+          "reason": "Hard-codes the BBB-experiment binding path."
+        },
+        {
+          "line": 94,
+          "token": "beagle,house-pir",
+          "quote": "grep -F 'compatible = \"beagle,house-pir\";' \"$custom_overlay\" >/dev/null || {",
+          "classification": "board_parameterize",
+          "reason": "Requires the BBB overlay compatible."
+        },
+        {
+          "line": 99,
+          "token": "beagle,house-pir",
+          "quote": "grep -F '{ .compatible = \"beagle,house-pir\" },' \"$driver\" >/dev/null || {",
+          "classification": "board_parameterize",
+          "reason": "Requires the driver OF match compatible."
+        },
+        {
+          "line": 152,
+          "token": "KERNEL_DIR",
+          "quote": "make -C \"$KERNEL_DIR\" M=\"$PROJECT_ROOT/presence_sensor\" W=1 modules",
+          "classification": "board_parameterize",
+          "reason": "Module build via KERNEL_DIR passes no ARCH/CROSS_COMPILE; FRDM builds need ARCH=arm64 and an aarch64 prefix from the environment/profile."
+        }
+      ]
+    },
+    {
+      "path": "scripts/verification/check_suspend_kernel_config.sh",
+      "role": "Validates suspend-stack kernel config prerequisites (fragment or effective config).",
+      "disposition": "Read the required symbol set from the board profile (--board).",
+      "hits": [
+        {
+          "line": 2,
+          "token": "AM335x",
+          "quote": "# Validates the AM335x suspend-stack prerequisites in an explicit kernel config.",
+          "classification": "retarget",
+          "reason": "Script purpose is AM335x-specific."
+        },
+        {
+          "line": 57,
+          "token": "CONFIG_AMX3_PM",
+          "quote": "CONFIG_AMX3_PM",
+          "classification": "board_parameterize",
+          "reason": "Hard-coded AM335x symbol list; should be the board profile's list (e.g. PM_SLEEP, SUSPEND, ARM_PSCI_FW for i.MX8MP)."
+        },
+        {
+          "line": 58,
+          "token": "CONFIG_WKUP_M3_IPC",
+          "quote": "CONFIG_WKUP_M3_IPC",
+          "classification": "board_parameterize",
+          "reason": "AM335x-only symbol in the hard-coded list."
+        },
+        {
+          "line": 59,
+          "token": "CONFIG_WKUP_M3_RPROC",
+          "quote": "CONFIG_WKUP_M3_RPROC",
+          "classification": "board_parameterize",
+          "reason": "AM335x-only symbol in the hard-coded list."
+        },
+        {
+          "line": 60,
+          "token": "CONFIG_TI_EMIF_SRAM",
+          "quote": "CONFIG_TI_EMIF_SRAM",
+          "classification": "board_parameterize",
+          "reason": "AM335x-only symbol in the hard-coded list."
+        },
+        {
+          "line": 83,
+          "token": "deepsleep0_evidence",
+          "quote": "deepsleep0_evidence not_established",
+          "classification": "retarget",
+          "reason": "Log key names AM335x DeepSleep0."
+        }
+      ]
+    },
+    {
+      "path": "scripts/verification/verify_suspend_kernel_config_checker.sh",
+      "role": "Self-test proving the suspend kconfig checker rejects missing/disabled symbols.",
+      "disposition": "Self-test every board profile's symbol set.",
+      "hits": [
+        {
+          "line": 35,
+          "token": "CONFIG_AMX3_PM",
+          "quote": "'CONFIG_AMX3_PM=y' \\",
+          "classification": "board_parameterize",
+          "reason": "Positive fixture uses AM335x symbols; follow the per-board list."
+        },
+        {
+          "line": 36,
+          "token": "CONFIG_WKUP_M3_IPC",
+          "quote": "'CONFIG_WKUP_M3_IPC=m' \\",
+          "classification": "board_parameterize",
+          "reason": "AM335x fixture symbol."
+        },
+        {
+          "line": 37,
+          "token": "CONFIG_WKUP_M3_RPROC",
+          "quote": "'CONFIG_WKUP_M3_RPROC=m' \\",
+          "classification": "board_parameterize",
+          "reason": "AM335x fixture symbol."
+        },
+        {
+          "line": 38,
+          "token": "CONFIG_TI_EMIF_SRAM",
+          "quote": "'CONFIG_TI_EMIF_SRAM=y' >\"$valid_config\"",
+          "classification": "board_parameterize",
+          "reason": "AM335x fixture symbol."
+        },
+        {
+          "line": 43,
+          "token": "CONFIG_AMX3_PM",
+          "quote": "CONFIG_AMX3_PM",
+          "classification": "board_parameterize",
+          "reason": "Negative-case loop hard-codes AM335x symbols."
+        },
+        {
+          "line": 44,
+          "token": "CONFIG_WKUP_M3_IPC",
+          "quote": "CONFIG_WKUP_M3_IPC",
+          "classification": "board_parameterize",
+          "reason": "AM335x symbol."
+        },
+        {
+          "line": 45,
+          "token": "CONFIG_WKUP_M3_RPROC",
+          "quote": "CONFIG_WKUP_M3_RPROC",
+          "classification": "board_parameterize",
+          "reason": "AM335x symbol."
+        },
+        {
+          "line": 46,
+          "token": "CONFIG_TI_EMIF_SRAM",
+          "quote": "CONFIG_TI_EMIF_SRAM",
+          "classification": "board_parameterize",
+          "reason": "AM335x symbol."
+        },
+        {
+          "line": 70,
+          "token": "CONFIG_TI_EMIF_SRAM",
+          "quote": "grep -F -v 'CONFIG_TI_EMIF_SRAM=' \"$valid_config\" >\"$missing_config\"",
+          "classification": "board_parameterize",
+          "reason": "Missing-symbol case uses an AM335x symbol."
+        }
+      ]
+    },
+    {
+      "path": "scripts/verification/verify_release_candidate_image.sh",
+      "role": "Fresh-source release build and artifact/provenance gate for the full image.",
+      "disposition": "Require the selected board's image artifacts.",
+      "hits": [
+        {
+          "line": 26,
+          "token": "x86_64",
+          "quote": "if [ \"$(uname -s)\" != Linux ] || [ \"$(uname -m)\" != x86_64 ]; then",
+          "classification": "board_parameterize",
+          "reason": "Linux x86_64 requirement follows from the Bootlin prebuilt toolchain; profile-dependent."
+        },
+        {
+          "line": 249,
+          "token": "sdcard.img",
+          "quote": "bhp_release_require_file \"$images_directory/sdcard.img\" sdcard_image",
+          "classification": "board_parameterize",
+          "reason": "Requires the BBB genimage artifact name."
+        },
+        {
+          "line": 253,
+          "token": "beagle-house-custom-pir.dtbo",
+          "quote": "\"$target_directory/usr/lib/beaglebone-house-panel/device-tree-overlays/beagle-house-custom-pir.dtbo\" \\",
+          "classification": "board_parameterize",
+          "reason": "Requires the BBB custom-PIR overlay in the image."
+        },
+        {
+          "line": 256,
+          "token": "beagle-house-gpio-keys-wake-baseline.dtbo",
+          "quote": "\"$target_directory/usr/lib/beaglebone-house-panel/device-tree-overlays/beagle-house-gpio-keys-wake-baseline.dtbo\" \\",
+          "classification": "board_parameterize",
+          "reason": "Requires the BBB gpio-keys overlay in the image."
+        }
+      ]
+    },
+    {
+      "path": "scripts/verification/verify_documentation.sh",
+      "role": "Verifies required project documents and canonical doc markers.",
+      "disposition": "Keep BBB documents as required history; add FRDM documents.",
+      "hits": [
+        {
+          "line": 18,
+          "token": "beaglebone-hardware-baseline",
+          "quote": ".claude/plans/2026-08-05-beaglebone-hardware-baseline.md",
+          "classification": "bbb_history",
+          "reason": "Requires the BBB hardware-baseline plan; keep as history."
+        },
+        {
+          "line": 34,
+          "token": "characterize-beaglebone",
+          "quote": "docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md",
+          "classification": "bbb_history",
+          "reason": "Requires ADR 0003 (BBB characterization); history."
+        },
+        {
+          "line": 41,
+          "token": "debian-tailnet-bringup",
+          "quote": "docs/operations/debian-tailnet-bringup.md",
+          "classification": "bbb_history",
+          "reason": "Requires the BBB Debian 13.6 armhf Tailnet runbook; history."
+        }
+      ]
+    },
+    {
+      "path": "hardware_tests/README.md",
+      "role": "Hardware test safety order, inventory, suspend/wake trial and evidence procedures.",
+      "disposition": "Retarget to FRDM-GATE evidence scripts; BBB procedure kept as history.",
+      "hits": [
+        {
+          "line": 8,
+          "token": "BBB",
+          "quote": "2. Verify PIR datasheet and powered output in isolation before connecting it to the BBB.",
+          "classification": "retarget",
+          "reason": "Safety order names the BBB as the target."
+        },
+        {
+          "line": 9,
+          "token": "non-flasher microSD",
+          "quote": "3. Boot a verified non-flasher microSD and prove eMMC is unmounted/read-only.",
+          "classification": "retarget",
+          "reason": "BBB flasher-image/eMMC-preservation step; FRDM boot-mode switches and NXP factory eMMC image need their own step."
+        },
+        {
+          "line": 10,
+          "token": "eMMC",
+          "quote": "4. Image and hash eMMC before booting or modifying its installed OS.",
+          "classification": "retarget",
+          "reason": "Same BBB eMMC-preservation step."
+        },
+        {
+          "line": 18,
+          "token": "On the BeagleBone",
+          "quote": "On the BeagleBone:",
+          "classification": "retarget",
+          "reason": "Inventory instructions target the BeagleBone."
+        },
+        {
+          "line": 32,
+          "token": "sudo",
+          "quote": "sudo hardware_tests/scripts/run_suspend_wake_trials.sh \\",
+          "classification": "retarget",
+          "reason": "Assumes BBB Debian userland with sudo; the Buildroot bring-up image is root-only with no sudo."
+        },
+        {
+          "line": 53,
+          "token": "platform/M3 wake reason",
+          "quote": "timing marker, confirmed state entry, platform/M3 wake reason, the companion",
+          "classification": "retarget",
+          "reason": "Expects a WKUP-M3 wake reason (AM335x); i.MX8MP has no M3 wake report."
+        },
+        {
+          "line": 173,
+          "token": "cape",
+          "quote": "Each result set names board/cape/sensor revisions, wiring, supply, kernel,",
+          "classification": "retarget",
+          "reason": "Evidence requires cape revision; FRDM has a DSI panel and PIR wiring instead."
+        },
+        {
+          "line": 178,
+          "token": "BeagleBone stable-state",
+          "quote": "The current power schema represents preliminary scalar BeagleBone stable-state",
+          "classification": "retarget",
+          "reason": "Power schema scoped to BeagleBone samples."
+        }
+      ]
+    },
+    {
+      "path": "hardware_tests/schemas/power_measurement.schema.json",
+      "role": "JSON schema for scalar power measurement records.",
+      "disposition": "Generalize cape_revision to accessory_revision for the FRDM display.",
+      "hits": [
+        {
+          "line": 13,
+          "token": "cape_revision",
+          "quote": "\"cape_revision\",",
+          "classification": "retarget",
+          "reason": "Required field is a BeagleBone cape concept; generalize (e.g. display/accessory revision) for FRDM."
+        },
+        {
+          "line": 27,
+          "token": "cape_revision",
+          "quote": "\"cape_revision\": {\"type\": \"string\", \"minLength\": 1},",
+          "classification": "retarget",
+          "reason": "Same required cape field definition."
+        }
+      ]
+    },
+    {
+      "path": "hardware_tests/scripts/collect_read_only_board_inventory.sh",
+      "role": "Read-only on-target discovery capture (kernel, DT, PM, pinctrl, EEPROM, backlight, DRM, input).",
+      "disposition": "Keep as BBB history; FRDM uses hardware_tests/frdm/ evidence scripts.",
+      "hits": [
+        {
+          "line": 161,
+          "token": "capture_cape_eeprom_candidates",
+          "quote": "capture_cape_eeprom_candidates()",
+          "classification": "retarget",
+          "reason": "Generic I2C EEPROM capture framed as BBB cape identity; rename/extend for FRDM (board ID EEPROM, DSI panel)."
+        },
+        {
+          "line": 173,
+          "token": "cape",
+          "quote": "printf '%s\\n' 'identity_policy=eeprom paths are candidates only; no board or cape identity is inferred'",
+          "classification": "retarget",
+          "reason": "Identity-policy text refers to cape identity."
+        },
+        {
+          "line": 216,
+          "token": "lsblk",
+          "quote": "capture block_devices lsblk -o NAME,PATH,SIZE,TYPE,FSTYPE,MOUNTPOINTS,RO,MODEL",
+          "classification": "retarget",
+          "reason": "Needs util-linux lsblk (present on BBB Debian); absent from the Buildroot bring-up image, so capture silently fails on FRDM."
+        },
+        {
+          "line": 217,
+          "token": "findmnt",
+          "quote": "capture mounts findmnt",
+          "classification": "retarget",
+          "reason": "Needs util-linux findmnt; absent from BusyBox/Buildroot bring-up."
+        },
+        {
+          "line": 227,
+          "token": "cape_eeprom_candidates",
+          "quote": "capture cape_eeprom_candidates capture_cape_eeprom_candidates",
+          "classification": "retarget",
+          "reason": "Output file named for cape EEPROMs."
+        }
+      ]
+    },
+    {
+      "path": "hardware_tests/scripts/run_suspend_wake_trials.sh",
+      "role": "On-target suspend/wake trial runner (writes /sys/power/state, captures evidence, classifies).",
+      "disposition": "Keep; FRDM suspend evidence script classifies host-side because the Buildroot image has no python3.",
+      "hits": [
+        {
+          "line": 111,
+          "token": "python3",
+          "quote": "command -v python3 >/dev/null 2>&1 || {",
+          "classification": "retarget",
+          "reason": "Requires python3 on target (available on BBB Debian); neither Buildroot defconfig selects python3, so FRDM bring-up must add it or classify host-side."
+        }
+      ]
+    },
+    {
+      "path": "hardware_tests/scripts/classify_wake_trial.py",
+      "role": "Wake-trial manifest classifier; reviewed: board-neutral (mem_sleep observed, never assumed).",
+      "disposition": "No change; board-neutral.",
+      "hits": []
+    },
+    {
+      "path": "hardware_tests/tests/test_classify_wake_trial.py",
+      "role": "Unit tests for the wake-trial classifier; reviewed: board-neutral (excluded fixtures carry wkup_m3_* wake-source values).",
+      "disposition": "No change; board-neutral.",
+      "hits": []
+    },
+    {
+      "path": "hardware_tests/schemas/wake_trial.schema.json",
+      "role": "JSON schema for wake-trial manifests; reviewed: board-neutral.",
+      "disposition": "No change; board-neutral.",
+      "hits": []
+    },
+    {
+      "path": "README.md",
+      "role": "Project overview, status, verification entry points and open decisions.",
+      "disposition": "Update status, first on-device action, and open decisions for FRDM.",
+      "hits": [
+        {
+          "line": 3,
+          "token": "BeagleBone display",
+          "quote": "A clean-room embedded appliance project for a motion-aware BeagleBone display:",
+          "classification": "retarget",
+          "reason": "Product description still names BeagleBone as the device."
+        },
+        {
+          "line": 11,
+          "token": "4 GB eMMC",
+          "quote": "- build a small, reproducible Buildroot image suitable for 4 GB eMMC;",
+          "classification": "retarget",
+          "reason": "Image budget assumes the BBB 4 GB eMMC; FRDM i.MX 8M Plus has larger eMMC, so size target should be re-derived."
+        },
+        {
+          "line": 12,
+          "token": "cape",
+          "quote": "- eventually package the board, cape, sensor, and power hardware in a printable enclosure.",
+          "classification": "retarget",
+          "reason": "Enclosure goal names a cape."
+        },
+        {
+          "line": 24,
+          "token": "DeepSleep0",
+          "quote": "| Presence/wake | Custom input-driver experiment plus stock `gpio-keys` comparison | PIR electrical behavior, cape pin conflicts, DeepSleep0 wake proof |",
+          "classification": "retarget",
+          "reason": "Status table lists cape pin conflicts and DeepSleep0 wake proof as the remaining hardware work."
+        },
+        {
+          "line": 29,
+          "token": "cape driver",
+          "quote": "| System image | Pinned Buildroot external tree, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | Full release image build, cape dr...",
+          "classification": "retarget",
+          "reason": "System-image remaining work names the cape driver/device tree."
+        },
+        {
+          "line": 167,
+          "token": "BeagleBone",
+          "quote": "`make verify` uses the compilers already available on the host and does not contact or mutate a BeagleBone. CMake remains the application/build-image integration path:",
+          "classification": "retarget",
+          "reason": "States make verify does not contact a BeagleBone."
+        },
+        {
+          "line": 183,
+          "token": "official-Debian",
+          "quote": "For Buildroot and deployment, follow [development environment setup](docs/operations/development-environment.md) and [build/deploy operations](docs/operations/build-and-deploy.md). For the official-Debian compatibilit...",
+          "classification": "retarget",
+          "reason": "Points to the BBB official-Debian compatibility baseline runbook as current guidance."
+        },
+        {
+          "line": 191,
+          "token": "eMMC",
+          "quote": "Do not flash or boot the installed eMMC OS. Inventory the unpowered hardware, prepare a verified non-flasher microSD, boot explicitly from it with eMMC unmounted/read-only, and image/hash eMMC first. Then run the read...",
+          "classification": "retarget",
+          "reason": "'First on-device action' is the BBB eMMC-preservation procedure."
+        },
+        {
+          "line": 194,
+          "token": "BeagleBone hardware baseline plan",
+          "quote": "[BeagleBone hardware baseline plan](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md).",
+          "classification": "retarget",
+          "reason": "Names the BBB baseline plan as the complete executable sequence."
+        },
+        {
+          "line": 207,
+          "token": "DeepSleep0",
+          "quote": "- DeepSleep0 versus a shallower always-networked mode on Black; a future product",
+          "classification": "retarget",
+          "reason": "Open decision is framed as DeepSleep0 on Black."
+        }
+      ]
+    },
+    {
+      "path": "enclosure/README.md",
+      "role": "Enclosure workspace placeholder and measurement guidance.",
+      "disposition": "Replace cape wording with the FRDM assembly.",
+      "hits": [
+        {
+          "line": 7,
+          "token": "cape",
+          "quote": "board, cape, PIR, cabling, and thermal tests.",
+          "classification": "retarget",
+          "reason": "Enclosure evidence assumes a stacked board+cape; FRDM + DSI panel stack differs."
+        }
+      ]
+    },
+    {
+      "path": "panel_supervisor/README.md",
+      "role": "Panel supervisor domain README (policy, adapters, configuration).",
+      "disposition": "Document mem_sleep selection.",
+      "hits": [
+        {
+          "line": 54,
+          "token": "Black experiment",
+          "quote": "Black experiment calls `pm_wakeup_event` on every GPIO edge. A supervisor rule",
+          "classification": "bbb_history",
+          "reason": "Describes the BBB custom-PIR experiment's pm_wakeup_event behavior."
+        }
+      ]
+    },
+    {
+      "path": "panel_supervisor/src/sysfs_suspend.cpp",
+      "role": "Sysfs suspend adapter writing the configured mode to /sys/power/state.",
+      "disposition": "Select and confirm /sys/power/mem_sleep before writing mem.",
+      "hits": [
+        {
+          "line": 27,
+          "token": "\"mem\"",
+          "quote": "if (suspend_mode != \"freeze\" && suspend_mode != \"mem\") {",
+          "classification": "board_parameterize",
+          "reason": "Writes 'mem' but never selects /sys/power/mem_sleep; BBB plan relied on the kernel default 'deep' = AM335x DeepSleep0. FRDM (PSCI deep vs s2idle) needs an explicit per-board mem_sleep choice."
+        }
+      ]
+    },
+    {
+      "path": "panel_supervisor/src/sysfs_backlight.cpp",
+      "role": "Sysfs backlight adapter; reviewed: requires an explicit /sys/class/backlight/<dev> path, no board default.",
+      "disposition": "No change; path is explicit configuration.",
+      "hits": []
+    },
+    {
+      "path": "panel_supervisor/src/evdev_presence_source.cpp",
+      "role": "Evdev PIR presence source; reviewed: exact-name discovery under /dev/input, word-size-portable bitmaps, no board default.",
+      "disposition": "No change; exact-name discovery.",
+      "hits": []
+    },
+    {
+      "path": "vocabulary_panel/gui/lvgl/src/lvgl_flash_card_renderer.cpp",
+      "role": "LVGL renderer; reviewed: display node, DRM connector, resolution and touch calibration are all explicit config, no board default.",
+      "disposition": "No change; explicit backend/device configuration.",
+      "hits": []
+    },
+    {
+      "path": "system_image/buildroot_external/package/lvgl/lv_conf.h",
+      "role": "Pinned LVGL configuration; reviewed: generic DRM/fbdev/evdev, no board-specific value.",
+      "disposition": "No change; DRM and fbdev both built.",
+      "hits": []
+    },
+    {
+      "path": "system_image/buildroot_external/board/beaglebone-house-panel/post-build.sh",
+      "role": "Production post-build hook (provenance, mdev rules); reviewed: generic DRM/fbdev/evdev mdev rules, no board assumption.",
+      "disposition": "Install the selected board profile into the image.",
+      "hits": []
+    }
+  ]
+}
