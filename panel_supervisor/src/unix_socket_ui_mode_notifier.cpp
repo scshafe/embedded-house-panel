@@ -257,7 +257,7 @@ Result<std::uint32_t> peer_uid(const int socket_descriptor)
 	struct ucred credentials {};
 	socklen_t size = static_cast<socklen_t>(sizeof(credentials));
 	if (::getsockopt(socket_descriptor, SOL_SOCKET, SO_PEERCRED, &credentials, &size) != 0 ||
-	    size != sizeof(credentials) || credentials.uid < 0) {
+	    size != sizeof(credentials) || credentials.uid == static_cast<uid_t>(-1)) {
 		return Result<std::uint32_t>::failure(SupervisorError(
 			ErrorCode::UiSocketPeerIdentityFailed,
 			"Failed to read exact kernel peer credentials for the panel UI socket",
@@ -662,6 +662,18 @@ PresentationOutcome UnixSocketUiModeNotifier::await_presentation(
 	};
 	if (!latest_notification_ || pending_presentation.publication_sequence != event_sequence_) {
 		return PresentationNotCommitted{PresentationNotCommittedReason::Stale};
+	}
+	if (!pending_presentation.expected_commitment.has_value()) {
+		// No client held this publication, so no acknowledgement can ever bind to
+		// it. Adopt a late client for the next publication and report immediately
+		// instead of spending the presentation timeout.
+		const auto accepted_result = accept_pending_primary_client();
+		if (!accepted_result) {
+			return PresentationFailed{PresentationFailureReason::ExplicitFailure,
+						  accepted_result.error()};
+		}
+		return PresentationNotCommitted{
+			PresentationNotCommittedReason::AcknowledgementUnavailable};
 	}
 
 	while (std::chrono::steady_clock::now() < deadline) {

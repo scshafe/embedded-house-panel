@@ -65,6 +65,17 @@ def main() -> int:
         )
 
     source = json.loads(valid_path.read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(prefix="bhp-plan-map-builtin-") as builtin_name:
+        builtin_map = json.loads(json.dumps(source))
+        builtin_map["entries"][0]["command"] = "cd bin && bin/fixture-check"
+        builtin_path = Path(builtin_name) / "builtin.json"
+        builtin_path.write_text(json.dumps(builtin_map), encoding="utf-8")
+        builtin_result = invoke(builtin_path)
+        if builtin_result.returncode != 0:
+            raise AssertionError(
+                "POSIX shell built-in cd must resolve on every host: "
+                f"stderr={builtin_result.stderr!r}"
+            )
     unchecked_step_statuses = {
         entry["proof_status"]
         for entry in source["entries"]
@@ -167,7 +178,7 @@ def main() -> int:
         )
 
     print(
-        "PLAN_VERIFICATION_MAP_TESTS.COMPLETE positive=3 negative=8 "
+        "PLAN_VERIFICATION_MAP_TESTS.COMPLETE positive=4 negative=8 "
         "lexinet_step_4_items=22 lexinet_step_6_items=41"
     )
     return 0

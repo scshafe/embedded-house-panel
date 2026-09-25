@@ -91,11 +91,10 @@ if(PANEL_UI_BUILD_TESTS)
     endif()
     add_test(NAME panel_ui_${test_name}_test COMMAND panel_ui_${test_name}_test)
   endforeach()
+  # CTest versions disagree on how WILL_FAIL combines with
+  # PASS_REGULAR_EXPRESSION, so assert the nonzero exit and the stable error code
+  # explicitly instead of relying on either property.
   add_test(NAME panel_ui_production_client_requires_explicit_configuration
-    COMMAND bhp-panel-ui)
-  set_tests_properties(panel_ui_production_client_requires_explicit_configuration
-    PROPERTIES
-      PASS_REGULAR_EXPRESSION "PANEL_UI.LIFECYCLE_SOCKET_CONFIGURATION_INVALID"
-      WILL_FAIL TRUE
-  )
+    COMMAND sh -c "output=$(\"$0\" 2>&1); test \"$?\" -eq 2 && printf '%s\\n' \"$output\" | grep -F PANEL_UI.LIFECYCLE_SOCKET_CONFIGURATION_INVALID"
+      $<TARGET_FILE:bhp-panel-ui>)
 endif()

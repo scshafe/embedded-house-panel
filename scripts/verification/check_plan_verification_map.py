@@ -20,6 +20,9 @@ LEXINET_PLAN = ".claude/plans/2026-08-05-lexinet-study-integration.md"
 PROOF_KINDS = {"automated", "delegated", "hardware", "human", "integration"}
 PROOF_STATUSES = {"planned", "recorded"}
 COMMAND_SEPARATORS = {"&&", "||", ";", "|"}
+# POSIX regular built-ins that some hosts (macOS) also ship as /usr/bin shims
+# and others (Debian/Ubuntu) do not. They are resolvable by every POSIX shell.
+POSIX_SHELL_BUILTINS = frozenset({"cd", "command", "export", "umask"})
 ENV_ASSIGNMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$")
 STEP_PATTERN = re.compile(r"^\s*- \[([ xX])\] \*\*(Step [^:]+):")
 VERIFY_PATTERN = re.compile(r"^(\s*)- Verify(?: \([^)]*\))?:\s*(.*)$")
@@ -319,6 +322,8 @@ def require_resolvable_executables(
 ) -> None:
     for executable in command_executables(command, entry_index):
         if "/" not in executable:
+            if executable in POSIX_SHELL_BUILTINS:
+                continue
             if shutil.which(executable) is None:
                 raise MapError(
                     "RECORDED_EXECUTABLE_UNRESOLVED",

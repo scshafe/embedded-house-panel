@@ -169,7 +169,9 @@ public:
 			if (received < 0 && errno == EINTR) {
 				continue;
 			}
-			return received == 0;
+			// Linux reports ECONNRESET instead of EOF when an AF_UNIX peer closes
+			// with unread bytes still queued, which fail-dark rejection causes.
+			return received == 0 || (received < 0 && errno == ECONNRESET);
 		}
 	}
 

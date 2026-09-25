@@ -554,6 +554,26 @@ bool late_connection_cannot_amend_or_satisfy_an_existing_publication()
 	return true;
 }
 
+bool zero_client_publication_reports_acknowledgement_unavailable_without_waiting()
+{
+	test_fixture::TemporaryDirectory directory;
+	auto notifier = create_notifier(directory.child_path("mode.sock"));
+	auto pending = notifier->publish(notification(
+		UiMode::Day, PresenceState::Present, SolarState::Day, SystemState::Active, 80,
+		1'700'000'000'000LL));
+	TEST_REQUIRE(pending);
+	TEST_REQUIRE(!pending.value().expected_commitment.has_value());
+	const auto await_started = std::chrono::steady_clock::now();
+	const auto outcome = notifier->await_presentation(
+		pending.value(), await_started + std::chrono::seconds(2));
+	const auto await_elapsed = std::chrono::steady_clock::now() - await_started;
+	TEST_REQUIRE(std::holds_alternative<PresentationNotCommitted>(outcome));
+	TEST_REQUIRE(std::get<PresentationNotCommitted>(outcome).reason ==
+		     PresentationNotCommittedReason::AcknowledgementUnavailable);
+	TEST_REQUIRE(await_elapsed < std::chrono::milliseconds(500));
+	return true;
+}
+
 bool existing_path_is_never_replaced_or_removed()
 {
 	test_fixture::TemporaryDirectory directory;
@@ -617,7 +637,7 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 16> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 17> tests{{
 		{"exact acknowledgement",
 		 exact_acknowledgement_commits_and_every_ack_binds_release},
 		{"release mismatch", first_release_mismatch_fails_dark_and_closes_connection},
@@ -636,6 +656,8 @@ int main()
 		 continuously_replenished_connection_backlog_cannot_monopolize_policy},
 		{"late connection publication isolation",
 		 late_connection_cannot_amend_or_satisfy_an_existing_publication},
+		{"zero-client publication",
+		 zero_client_publication_reports_acknowledgement_unavailable_without_waiting},
 		{"existing path", existing_path_is_never_replaced_or_removed},
 		{"stale socket recovery", same_owner_stale_socket_is_recovered},
 		{"active socket preservation", active_socket_is_preserved},
