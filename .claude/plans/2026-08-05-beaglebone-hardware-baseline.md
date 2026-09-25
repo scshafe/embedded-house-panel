@@ -6,6 +6,11 @@ moves characterization to the FRDM i.MX 8M Plus board. Reuse this plan's
 evidence discipline for an FRDM baseline plan; its Black-specific steps are
 not executable.
 
+**Superseded (2026-09-25):** the
+[FRDM hardware baseline plan](2026-09-25-frdm-hardware-baseline.md) is the
+executable hardware plan. This file remains as history; its Verify items stay
+mapped as `planned` and will never be recorded.
+
 **Goal:** Establish the exact board, cape, PIR, pin, kernel, display, suspend,
 wake, network-recovery, and power facts without overwriting the existing eMMC,
 producing a working BeagleBone proof and quantitative gates for any future

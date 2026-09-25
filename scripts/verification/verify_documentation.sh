@@ -39,6 +39,8 @@ docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
 docs/operations/debian-tailnet-bringup.md
+docs/operations/frdm-bringup.md
+.claude/plans/2026-09-25-frdm-hardware-baseline.md
 docs/research/gui-strategies.md
 docs/research/sleep-wake-strategies.md
 docs/research/compute-platform-assessment.md
@@ -265,6 +267,42 @@ for frdm_gate_id in \
   require_fixed_count "$development_platform_adr" \
     "| \`$frdm_gate_id\` |" 1 VERIFY_DOCS.DEVELOPMENT_PLATFORM_GATE_ROW_INVALID
 done
+
+# The FRDM bring-up doc is agent-executable: every gate has a gate-map row,
+# the checklist is numbered contiguously, and every script it names exists.
+frdm_bringup=docs/operations/frdm-bringup.md
+require_exact_line_count "$frdm_bringup" '<!-- @canonical frdm-bringup -->' 1 \
+  VERIFY_DOCS.FRDM_BRINGUP_CANONICAL_MARKER_INVALID
+for frdm_gate_id in \
+  FRDM-GATE-BACKLIGHT FRDM-GATE-TOUCH FRDM-GATE-POWER FRDM-GATE-SUSPEND \
+  FRDM-GATE-WIFI FRDM-GATE-PIR FRDM-GATE-IDENTITY FRDM-GATE-DISPLAY \
+  FRDM-GATE-AUDIO; do
+  require_fixed_count "$frdm_bringup" "| \`$frdm_gate_id\` |" 1 \
+    VERIFY_DOCS.FRDM_BRINGUP_GATE_ROW_INVALID
+done
+python3 - "$PROJECT_ROOT" "$frdm_bringup" <<'PY_FRDM_BRINGUP' || {
+import re
+import sys
+from pathlib import Path
+
+root, document = Path(sys.argv[1]), sys.argv[2]
+text = (root / document).read_text(encoding="utf-8")
+steps = [int(n) for n in re.findall(r"^\| ARRIVAL-(\d{2}) \|", text, re.MULTILINE)]
+if not steps or steps != list(range(1, len(steps) + 1)):
+    print(f"checklist numbering {steps}")
+    sys.exit(1)
+names = set(re.findall(r"\b(frdm_[a-z0-9_]+\.sh)\b", text))
+missing = [n for n in sorted(names)
+           if not (root / "hardware_tests/frdm" / n).is_file() and not (root / "scripts/deploy" / n).is_file()]
+paths = set(re.findall(r"\b(scripts/[a-z_]+/[a-z0-9_]+\.(?:sh|py))\b", text))
+missing += [p for p in sorted(paths) if not (root / p).is_file()]
+if missing:
+    print("missing: " + " ".join(missing))
+    sys.exit(1)
+PY_FRDM_BRINGUP
+  bhp_fail VERIFY_DOCS.FRDM_BRINGUP_CHECKLIST_INVALID "$frdm_bringup" "$TRACE_ID"
+  exit 1
+}
 
 agenda_feasibility_contract=experiments/macos_personal_companion/README.md
 require_exact_line_count "$agenda_feasibility_contract" \

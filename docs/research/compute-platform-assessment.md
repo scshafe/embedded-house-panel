@@ -404,8 +404,12 @@ hard parts every later platform still has:
 6. Measure battery-boundary power, wake-to-frame, and network recovery.
 7. Use those results to set quantitative gates for the new-board bake-off.
 
-The executable checklist is
-[the BeagleBone hardware baseline plan](../../.claude/plans/2026-08-05-beaglebone-hardware-baseline.md).
+~~The executable checklist is
+[the BeagleBone hardware baseline plan](../../.claude/plans/2026-08-05-beaglebone-hardware-baseline.md).~~
+The Black was lost (ADR 0008). The executable checklist is now
+[the FRDM hardware baseline plan](../../.claude/plans/2026-09-25-frdm-hardware-baseline.md),
+which applies the same steps and this observation contract to the i.MX 8M Plus
+baseline gates above.
 
 ## Inputs needed before final selection
 
@@ -420,3 +424,6 @@ The executable checklist is
 Until these are answered and measurements exist, i.MX 8M Plus is a baseline
 recommendation—not a procurement decision—and BeagleBone Black is an
 experiment platform—not an accidental permanent constraint.
+
+**Amended 2026-09-25:** pointed the "Immediate BeagleBone path" checklist at the
+FRDM hardware baseline plan; the observation contract and gates are unchanged.

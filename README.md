@@ -21,12 +21,13 @@ This is an executable scaffold, not a hardware-complete product.
 
 | Work stream | First implementation | What remains hardware-dependent |
 |---|---|---|
-| Presence/wake | Custom input-driver experiment plus stock `gpio-keys` comparison | PIR electrical behavior, cape pin conflicts, DeepSleep0 wake proof |
+| Presence/wake | Stock `gpio-keys` PIR node in the FRDM project overlay (pin is a build-failing placeholder) plus the custom input-driver experiment | PIR pin and J18 voltage, pad ownership, suspend-to-RAM wake proof |
 | Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, protocol-v2 presentation gate, and touch-provenance seams | Actual nodes, brightness, clock recovery, suspend behavior, raw-touch adapter, and display-commit correlation on the target |
 | Panel UI | Host-tested neutral shell/controller, intent registry, Unicode policy, headless renderer, protocol-v2 Unix client, and disabled fail-dark Buildroot entry point | Evidence-backed physical renderer, normalized-touch transport adapter, target service enablement, and calibrated display/touch |
 | Vocabulary panel | Host-tested flash-card scaffold and provenance-stamped `study.v1` consumer contract; Lexinet canonical study service/routes/CLI plus its local native-TLS scoped Tailnet boundary are implemented | Resilient panel data plane, real Tailnet identity/policy/revocation/certificate evidence, panel Tailscale packaging choice, integration beneath the neutral shell, target renderer, and calibrated touch |
 | Personal agenda | `AGENDA-001` through `AGENDA-010` accepted; provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan documented; `AGENDA-011` deferred | Agenda feasibility Step 1 review; EventKit/Contacts, Google, Tailnet, local STT, Messages measurements, and all feature implementation |
-| System image | Pinned Buildroot external tree, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | Full release image build, cape driver/device tree, and measured package/resource budget |
+| System image | Pinned Buildroot external tree with FRDM i.MX 8M Plus production and bring-up defconfigs (NXP `linux-imx`/`uboot-imx` `lf-6.12.49-2.2.0`), board profiles, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | NXP firmware license decision, full image build, measured PIR/backlight/display values, and measured package/resource budget |
+| Board bring-up | `config/boards/` profiles, AArch64 cross build, `hardware_tests/frdm/` gate evidence scripts, and the board-arrival checklist | Every `FRDM-GATE-*` measurement |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
 | Enclosure | Requirements and measurement checklist | Physical dimensions, thermals, connectors, and CAD |
 
@@ -41,7 +42,9 @@ and the evidence gates that begin when the development hardware arrives. The det
 [personal-agenda feasibility](.claude/plans/2026-08-05-personal-agenda-feasibility.md),
 and
 [BeagleBone hardware baseline](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md)
-plans remain authoritative inside their work streams.
+plans remain authoritative inside their work streams; the
+[FRDM hardware baseline](.claude/plans/2026-09-25-frdm-hardware-baseline.md)
+plan replaces the BeagleBone one for hardware work.
 
 With the shared product contracts accepted by ADR 0006 and the neutral host
 UI/protocol spine now implemented, the immediate sequence is to implement
@@ -188,10 +191,19 @@ the fast host suite and remains build evidence, not hardware evidence.
 
 ## First on-device action
 
-Do not flash or boot the installed eMMC OS. Inventory the unpowered hardware, prepare a verified non-flasher microSD, boot explicitly from it with eMMC unmounted/read-only, and image/hash eMMC first. Then run the read-only inventory collection described in [hardware testing](hardware_tests/README.md).
+~~Do not flash or boot the installed eMMC OS. Inventory the unpowered hardware, prepare a verified non-flasher microSD, boot explicitly from it with eMMC unmounted/read-only, and image/hash eMMC first. Then run the read-only inventory collection described in [hardware testing](hardware_tests/README.md).~~
+
+When the FRDM board arrives, follow the ordered board-arrival checklist
+(`ARRIVAL-01` through `ARRIVAL-25`) in
+[FRDM bring-up](docs/operations/frdm-bringup.md): boot NXP's vendor image
+first, back up the factory eMMC, then run the `hardware_tests/frdm/` gate
+scripts. Each writes JSON evidence to ignored `hardware_tests/results/frdm/`.
+The project image waits for the measured PIR pin and the NXP firmware license
+decision.
 
 The complete executable sequence is the
-[BeagleBone hardware baseline plan](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md).
+~~[BeagleBone hardware baseline plan](.claude/plans/2026-08-05-beaglebone-hardware-baseline.md).~~
+[FRDM hardware baseline plan](.claude/plans/2026-09-25-frdm-hardware-baseline.md).
 
 **Amended 2026-08-07:** reconciled the proposed convergence sketch with ADR
 0005's supervisor-observed touch provenance and capability-holder validation.
@@ -200,12 +212,20 @@ The current scaffold and every hardware-evidence gate remain unchanged.
 ## Decisions intentionally still open
 
 - Exact FRDM board variant, display cable, PIR part, and wiring.
+- Acceptance of the NXP Software License Agreement for `firmware-imx` (LPDDR4
+  training) and the IW612 Wi-Fi firmware (`BHP_BOARD_NXP_FIRMWARE_EULA` in
+  `config/boards/frdm-imx8mp.env`). This is a human decision recorded as an ADR;
+  the project image cannot boot or use Wi-Fi without it.
+- Every `UNMEASURED:FRDM-GATE-*` value in the board profile
+  (`scripts/boards/show_board_profile.sh` lists them).
 - Final product compute platform; the FRDM i.MX 8M Plus board is the current
   measurement target, not a permanent constraint.
 - Custom input driver versus stock `gpio-keys` for the final wake path.
 - LVGL direct DRM versus its fbdev fallback; Qt 6 Widgets remains the measured fallback if LVGL fails a target gate.
-- DeepSleep0 versus a shallower always-networked mode on Black; a future product
-  may add an always-on MCU and full application-domain power-off.
+- ~~DeepSleep0 versus a shallower always-networked mode on Black; a future product
+  may add an always-on MCU and full application-domain power-off.~~
+  `deep` versus `s2idle` suspend-to-RAM on the FRDM (`FRDM-GATE-SUSPEND`); a
+  future product may add an always-on MCU and full application-domain power-off.
 - Real Lexinet Tailnet deployment evidence, the panel Tailscale packaging
   choice, and the resilient panel study data plane, integration, and packaging
   work in its
@@ -253,3 +273,9 @@ unchecked.
 FRDM i.MX 8M Plus board and Waveshare 7inch DSI LCD (C) are being purchased as
 the development platform. Black-specific Buildroot defconfigs and AM335x
 research remain as history. Every hardware evidence gate remains pending.
+
+**Amended 2026-09-25:** retargeted the status table, first on-device action,
+and open decisions to the FRDM i.MX 8M Plus (ADR 0008): board profiles, FRDM
+Buildroot defconfigs, gate evidence scripts, and the board-arrival checklist.
+No hardware evidence exists yet; the NXP firmware license is an open human
+decision.

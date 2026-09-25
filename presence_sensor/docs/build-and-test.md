@@ -4,6 +4,14 @@ Nothing in this directory has been target-compiled or proven to wake the
 BeagleBone Black. Treat every result below as a validation gate, not as an
 expected success claim.
 
+**FRDM i.MX 8M Plus (ADR 0008).** The procedure below is BeagleBone history.
+On the FRDM, Buildroot builds the module (`bhp-presence-sensor`) against NXP
+`linux-imx` `lf-6.12.49-2.2.0` for arm64, the gpio-keys path is part of the boot
+DTB, and the evidence procedure is `docs/operations/frdm-bringup.md` with
+`hardware_tests/frdm/frdm_pir_edge_capture.sh` and `frdm_suspend_wake.sh`. For a
+manual host compile use `ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-` against a
+prepared `linux-imx` tree in place of the `arm` values below.
+
 ## Prepare a Linux v6.12 target tree
 
 Use the exact configured source/output tree that produced the target kernel.
@@ -87,3 +95,6 @@ load messages, suspend/resume log, and the WKUP-M3 reported wake source.
 Any failed GPIO read, IRQ request, input registration, or custom wake setup is a
 hard probe error or explicit kernel error; there is no silent runtime-only
 fallback when `wakeup-source` was requested.
+
+**Amended 2026-09-25:** marked this procedure as BeagleBone history and pointed
+the FRDM build and evidence path at Buildroot and `hardware_tests/frdm/`.

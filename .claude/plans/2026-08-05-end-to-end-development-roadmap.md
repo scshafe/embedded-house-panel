@@ -17,6 +17,11 @@ replaces it with the FRDM i.MX 8M Plus board and Waveshare 7inch DSI LCD (C).
 Wherever this roadmap says the board "returns", read "the FRDM hardware
 arrives"; the H-steps need an FRDM baseline plan.
 
+**Amended 2026-09-25:** the FRDM hardware baseline plan
+(`2026-09-25-frdm-hardware-baseline.md`) replaces the blocked BeagleBone plan
+as Step 10's hardware plan; Step 10's gates and Verify clause are unchanged and
+now apply to that plan.
+
 **Role of this plan:** this is the program-ordering authority. It records the
 joins, gates, and milestone evidence across the existing detailed plans. It
 does not replace their implementation instructions. When a step below invokes
@@ -44,10 +49,14 @@ authorization; enabling real-recipient messaging during a software build.
   [personal-agenda feasibility plan](2026-08-05-personal-agenda-feasibility.md)
   owns the Mac/provider/Messages/Tailnet experiments and stops at an ADR before
   production implementation.
-- The
+- ~~The
   [BeagleBone hardware baseline plan](2026-08-05-beaglebone-hardware-baseline.md)
   owns physical identity, eMMC preservation, display, touch, PIR, suspend/wake,
-  and power evidence.
+  and power evidence.~~ The
+  [FRDM hardware baseline plan](2026-09-25-frdm-hardware-baseline.md) owns
+  physical identity, storage preservation, display, touch, backlight, PIR,
+  suspend/wake, network recovery, microphone, and board-input power evidence;
+  its ordered procedure is `docs/operations/frdm-bringup.md`.
 - `BHP_LEXINET_SOURCE_DIR` is the sole host-side input for the populated Lexinet
   checkout. The audit found a clean source checkout at revision `3e15ef6`; the
   originally supplied directory was empty. Cross-repository tooling must not
@@ -463,10 +472,13 @@ behavior.
     does not wait for Steps 1–9. Target mutation waits for the preservation and
     experiment gates in the hardware plan; integrated qualification waits for
     the host-readiness join.
-  - Execute the BeagleBone hardware baseline plan in order. On first access,
+  - ~~Execute the BeagleBone hardware baseline plan in order. On first access,
     inventory the unpowered hardware, prepare verified non-flasher rescue media,
     boot from microSD with eMMC unmounted/read-only, and image/hash eMMC before
-    inspecting or installing anything.
+    inspecting or installing anything.~~
+  - Execute the FRDM hardware baseline plan in order. On first access,
+    inventory the unpowered hardware, boot the NXP vendor image, and back up and
+    hash the factory eMMC before flashing anything.
   - Establish display/touch/backlight facts, then PIR electrical safety and the
     normal awake `libgpiod` path. Run stock `gpio-keys` before the custom module
     for the same pin, sensor, kernel, state, starting level, and edge.

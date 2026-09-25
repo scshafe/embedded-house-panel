@@ -1,0 +1,202 @@
+<!-- @canonical frdm-bringup -->
+
+# FRDM i.MX 8M Plus bring-up
+
+Authority: [ADR 0008](../decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md).
+Board facts: [`config/boards/frdm-imx8mp.env`](../../config/boards/frdm-imx8mp.env).
+Evidence scripts: [`hardware_tests/frdm/`](../../hardware_tests/README.md#frdm-imx-8m-plus-gate-evidence).
+Plan: [`.claude/plans/2026-09-25-frdm-hardware-baseline.md`](../../.claude/plans/2026-09-25-frdm-hardware-baseline.md).
+
+Status: written before the board arrived. No step below has been run on
+hardware. Every value marked `UNMEASURED:` in the profile is closed only by a
+reviewed commit that links the JSON evidence named in the gate map.
+
+## Order
+
+1. **Vendor baseline.** Boot NXP's stock Yocto image (preinstalled on eMMC, or
+   reflashed from the product page). It carries NXP's firmware under NXP's
+   terms, so discovery, display, audio, and Wi-Fi evidence can start before the
+   project image exists.
+2. **Project image.** Build and flash the bring-up image only after two blockers
+   clear: `FRDM-GATE-PIR` values (the project DTB refuses to build without them)
+   and the `NXP-FIRMWARE-EULA` human decision (post-image refuses without the
+   LPDDR4 training firmware).
+3. **Wake path.** On the project image, prove gpio-keys PIR events, then
+   suspend entry with an attributed PIR wake.
+
+## Access paths
+
+### Serial console
+
+- Connector `J19` (`BHP_BOARD_DEBUG_USB_CONNECTOR`), USB-C to the host. It
+  enumerates two serial ports; the first is the Cortex-A53 console
+  (`ttymxc1`, 115200 8N1).
+- macOS host: `screen <SERIAL_DEVICE> 115200` with `<SERIAL_DEVICE>` from
+  `ls /dev/cu.usbserial-*`. Linux host: `picocom -b 115200 <SERIAL_DEVICE>`.
+- Keep this console attached for every flash and suspend step.
+
+### Boot switch SW5
+
+| Boot source | SW5[1-4] | Profile key |
+|---|---|---|
+| eMMC (default) | `0010` | `BHP_BOARD_BOOT_SWITCH_EMMC` |
+| microSD | `0011` | `BHP_BOARD_BOOT_SWITCH_MICROSD` |
+| USB serial download (uuu) | `0001` | `BHP_BOARD_BOOT_SWITCH_USB_SERIAL_DOWNLOAD` |
+
+Power off before moving SW5. Power is `J2` only: a USB-C PD charger offering
+12–20 V at 45 W or more (65 W preferred). The USB download port is `J3`.
+
+### Flashing with uuu
+
+Install NXP's `uuu` on the host. Set SW5 to `0001`, connect `J3` to the host,
+power on, and confirm with `uuu -lsusb`.
+
+```sh
+# eMMC (the stock image lives here; back it up first, see ARRIVAL-05)
+uuu -b emmc_all <BOOTLOADER> <IMAGE>
+# microSD in the board's slot, written over USB
+uuu -b sd_all <BOOTLOADER> <IMAGE>
+```
+
+Vendor image: `<BOOTLOADER>`/`<IMAGE>` are the `imx-boot-*-frdm*` and
+`*.wic.zst` files of the downloaded release. Project image:
+`$BHP_BUILDROOT_OUTPUT_DIR/images/imx8-boot-sd.bin` and
+`$BHP_BUILDROOT_OUTPUT_DIR/images/sdcard.img`. Then power off, set SW5 back to
+`0010` (eMMC) or `0011` (microSD), and power on. To write a microSD card on the
+host instead, positively identify the card (`diskutil list` / `lsblk`) and use a
+separately reviewed `dd`; no repository script guesses a block device.
+
+### SSH bring-up profile
+
+The production image has no SSH server. The bring-up image adds Dropbear with
+root public-key login only (see
+[board-bringup-provisioning.md](board-bringup-provisioning.md) for the security
+boundary):
+
+```sh
+export BHP_BOARD=frdm-imx8mp
+export BHP_BUILDROOT_DIR=<BUILDROOT_2026_05_1_DIR>       # from download_verified_buildroot.sh
+export BHP_BUILDROOT_OUTPUT_DIR=<ABSOLUTE_BRINGUP_OUTPUT_DIR>
+export BHP_BRINGUP_AUTHORIZED_KEYS_FILE=<ABSOLUTE_PATH>/id_ed25519.pub
+scripts/build/build_bringup_image.sh
+```
+
+The image requests DHCP on `eth0` (`BHP_BOARD_BRINGUP_DHCP_INTERFACE`); which
+RJ45 jack is `eth0` is part of `FRDM-GATE-WIFI` inventory. Log in with
+`ssh -o IdentitiesOnly=yes -i <ABSOLUTE_PATH>/id_ed25519 root@<BOARD_ADDRESS>`.
+
+### Moving evidence scripts and results
+
+Both images have `ssh` and `tar` (the vendor image's SSH server is unverified;
+use a USB drive if it has none). All three commands default to `--dry-run`:
+
+```sh
+export BHP_BOARD_SSH_TARGET=root@<BOARD_ADDRESS>
+scripts/deploy/frdm_evidence_bundle.sh pack
+scripts/deploy/frdm_evidence_bundle.sh push --execute    # -> /root/bhp-evidence on the board
+scripts/deploy/frdm_evidence_bundle.sh fetch --execute   # -> hardware_tests/results/frdm (never overwrites)
+```
+
+On the board, run scripts from `/root/bhp-evidence` as root. Each prints the path
+of the JSON record it wrote.
+
+## Gate map
+
+| Gate | Evidence script | Closes profile keys | Also needs |
+|---|---|---|---|
+| `FRDM-GATE-IDENTITY` | `frdm_board_identity.sh --board-marking '<BOARD_MARKING>'` | none (EXPECTED_* checks) | photo of the board label |
+| `FRDM-GATE-PIR` | `frdm_j18_gpio_inventory.sh`, `frdm_pir_edge_capture.sh --mode gpio`, then `--mode evdev` | `PIR_HEADER_PIN`, `HEADER_IO_VOLTAGE_MV`, `PIR_GPIO_CONTROLLER`, `PIR_GPIO_LINE`, `PIR_PAD_MUX`, `PIR_PAD_OWNER_TO_DISABLE`, `PIR_ACTIVE_LEVEL` | schematic J18 table; meter |
+| `FRDM-GATE-DISPLAY` | `frdm_display_touch_backlight.sh [--execute-test-pattern 30]` | `DRM_DEVICE`, `DRM_CONNECTOR_ID`, `FBDEV_DEVICE` | operator sees the pattern |
+| `FRDM-GATE-TOUCH` | same run | `TOUCH_INPUT_NAME`, `TOUCH_INPUT_PHYS`, `TOUCH_INTERRUPT` | ADR 0005 provenance path later |
+| `FRDM-GATE-BACKLIGHT` | same run, `--execute-backlight-off-trial 5` | `BACKLIGHT_SYSFS_DIR`, `BACKLIGHT_OFF_VALUE` | operator sees a dark panel |
+| `FRDM-GATE-SUSPEND` | `frdm_suspend_wake.sh --execute --mem-sleep deep --safety-rtc-seconds 120` | `MEM_SLEEP_STATE` | power in `mem` (POWER row) |
+| `FRDM-GATE-WIFI` | `frdm_wifi_resume_timing.sh --observe-seconds 120 [--after-next-resume]` | `WIFI_INTERFACE` | repeated resume samples |
+| `FRDM-GATE-AUDIO` | `frdm_mic_capture.sh --duration-seconds 5` | `AUDIO_CAPTURE_DEVICE` | CTIA headset in the 3.5 mm jack |
+| `FRDM-GATE-POWER` | `frdm_power_input_log.sh --software-state <STATE> ... --meter-csv <METER_CSV>` | none (power records) | inline USB-C PD meter at `J2` |
+
+A reviewer copies `candidates[].candidate_value` into the profile, runs
+`make verify`, and commits with the evidence paths in the message.
+`scripts/boards/show_board_profile.sh` lists every key that is still open.
+
+## Board-arrival checklist
+
+Each step: **run** (exact command; `<...>` is a placeholder the user fills),
+**pass when** (machine-checkable), **records**. Stop at the first failed step.
+Steps marked `HUMAN` need a person at the board.
+
+| # | Where | Run | Pass when | Records |
+|---|---|---|---|---|
+| ARRIVAL-01 | host | `git switch frdm-imx8mp-retarget && make verify && scripts/boards/show_board_profile.sh` | exit 0; JSON lists 18 `UNMEASURED` values and 1 human decision | none |
+| ARRIVAL-02 | HUMAN | Unbox; photograph both sides and the label; check the kit has the board, J15 22-pin cable, panel. Do not connect the PIR. | photos exist | `<BOARD_MARKING>` text |
+| ARRIVAL-03 | HUMAN | SW5 = `0010`; connect J19 to host; open the console (`screen <SERIAL_DEVICE> 115200`); connect Ethernet; connect the PD charger to J2 | U-Boot then Linux login on the console | console log |
+| ARRIVAL-04 | board (vendor) | log in as `root`; `cat /etc/os-release; uname -a; ip -4 addr` | vendor image boots to a shell | `<BOARD_ADDRESS>` |
+| ARRIVAL-05 | host | `ssh root@<BOARD_ADDRESS> 'dd if=/dev/mmcblk2 bs=4M' \| zstd -o frdm-factory-emmc.img.zst` (confirm `mmcblk2` is the eMMC with `lsblk` first) | file size ≈ eMMC size compressed; keep outside the repo | backup SHA-256 |
+| ARRIVAL-06 | host | `export BHP_BOARD_SSH_TARGET=root@<BOARD_ADDRESS>; scripts/deploy/frdm_evidence_bundle.sh push --execute` | JSON/log `frdm_evidence_bundle_pushed` | bundle SHA-256 |
+| ARRIVAL-07 | board | `cd /root/bhp-evidence && sh hardware_tests/frdm/frdm_board_identity.sh --board-marking '<BOARD_MARKING>'` | `result` is `complete`, or `incomplete` only on `wifi_chip_name`; never `mismatch` (a `mismatch` on RAM/eMMC is the 2 GB/16 GB variant: stop, contact the seller) | IDENTITY record |
+| ARRIVAL-08 | HUMAN | Power off. With a meter, measure the J18 I/O voltage on the candidate pin `<J18_PIN>` (from the FRDM-IMX8MPLUS schematic header table) to GND, board powered, nothing connected | reading taken | `<HEADER_MV>` |
+| ARRIVAL-09 | board | `sh hardware_tests/frdm/frdm_j18_gpio_inventory.sh --candidate <J18_PIN>:<PAD_MUX> --measured-header-voltage-mv <HEADER_MV> --voltage-method '<METER_MODEL> J18-to-GND'` | `candidate_format`, `pad_mux_owner`, `gpio_line_consumer`, `header_io_voltage` all `pass` | PIR record (pin candidates) |
+| ARRIVAL-10 | HUMAN | Power off. Wire the PIR: VCC per its datasheet, GND, OUT to `<J18_PIN>` (only if ARRIVAL-09 passed at 3.3 V) | wiring photo | wiring photo |
+| ARRIVAL-11 | board | `sh hardware_tests/frdm/frdm_pir_edge_capture.sh --mode gpio --controller <gpioN> --line <L> --duration-seconds 60` (values from ARRIVAL-09 candidates); stay still, then walk past | `edges_observed` `pass`; `BHP_BOARD_PIR_ACTIVE_LEVEL` candidate present | PIR record |
+| ARRIVAL-12 | board | `sh hardware_tests/frdm/frdm_mic_capture.sh --duration-seconds 5` with the CTIA headset plugged in; speak | `alsa_card`, `codec_i2c`, `capture_non_silent` `pass` | AUDIO record |
+| ARRIVAL-13 | board | `sh hardware_tests/frdm/frdm_display_touch_backlight.sh` (vendor DTB with the Waveshare panel only if the vendor release provides one, `<VENDOR_PANEL_DTB>`) | records written; any `mismatch` is expected on a DTB without the panel | DISPLAY/TOUCH/BACKLIGHT records |
+| ARRIVAL-14 | host | copy the ARRIVAL-09/11 candidates into `config/boards/frdm-imx8mp.env`; `make verify`; commit `docs(hardware): record FRDM PIR pin evidence` with the record paths | `verify_frdm_device_tree_overlay` logs `committed_pir_state":"measured"` | commit |
+| ARRIVAL-15 | HUMAN | Decide on the NXP Software License Agreement for `firmware-imx` (LPDDR4 training) and the IW612 firmware. If accepted, record it as the next free ADR with `<!-- @canonical nxp-firmware-eula-acceptance -->` and `**Status:** accepted`, then set `BHP_BOARD_NXP_FIRMWARE_EULA=accepted-adr-<NNNN>` | ADR merged; `make verify` exit 0 | ADR |
+| ARRIVAL-16 | host | `scripts/build/build_bringup_image.sh` (SSH bring-up profile env above) | `images/sdcard.img` and `images/imx8-boot-sd.bin` exist; post-image did not log `NXP_FIRMWARE_EULA_NOT_ACCEPTED` | build log |
+| ARRIVAL-17 | HUMAN+host | SW5 = `0001`, J3 to host, power on; `uuu -b sd_all "$BHP_BUILDROOT_OUTPUT_DIR/images/imx8-boot-sd.bin" "$BHP_BUILDROOT_OUTPUT_DIR/images/sdcard.img"` with a microSD in the slot; power off; SW5 = `0011`; power on | console shows `frdm-imx8mp-house-panel-bringup` and the NON-PRODUCTION banner | console log |
+| ARRIVAL-18 | host | `ssh -o IdentitiesOnly=yes -i <KEY> root@<BOARD_ADDRESS> cat /etc/beaglebone-house-panel/image-profile /etc/beaglebone-house-panel/image-version` | `bringup-root-public-key-only`; `board_id=frdm-imx8mp`; commit matches ARRIVAL-16 | image identity |
+| ARRIVAL-19 | board | `frdm_evidence_bundle.sh push --execute` (host), then `sh hardware_tests/frdm/frdm_display_touch_backlight.sh --execute-test-pattern 30`; answer `yes` if the pattern shows | `first_frame_visible` `pass`: **panel shows first frame** | DISPLAY record |
+| ARRIVAL-20 | board | `sh hardware_tests/frdm/frdm_display_touch_backlight.sh --execute-backlight-off-trial 5`; answer `dark`/`lit` | `backlight_zero_is_off` `pass` | BACKLIGHT record |
+| ARRIVAL-21 | board | `sh hardware_tests/frdm/frdm_pir_edge_capture.sh --mode evdev --duration-seconds 60`; walk past | `pir_input_device`, `gpio_keys_wakeup`, `pir_irq_label`, `sw_front_proximity_events` `pass` | PIR record |
+| ARRIVAL-22 | board | `sh hardware_tests/frdm/frdm_suspend_wake.sh` (preflight) | `power_state_mem`, `pir_wakeup_enabled`, `wake_irq_interface`, `rtc_safety_wake` `pass` | SUSPEND record |
+| ARRIVAL-23 | board (console) | `sh hardware_tests/frdm/frdm_suspend_wake.sh --execute --mem-sleep deep --safety-rtc-seconds 120`; stay out of view ~10 s, then walk past | `suspend_entered` and `attributed_pir_wake` `pass`: **PIR wakes it**. If it woke on the RTC, repeat with `--mem-sleep s2idle` and record both | SUSPEND record (MEM_SLEEP_STATE candidate) |
+| ARRIVAL-24 | board | `sh hardware_tests/frdm/frdm_display_touch_backlight.sh --execute-test-pattern 30` after the resume | `first_frame_visible` `pass` after wake | DISPLAY record |
+| ARRIVAL-25 | host | `scripts/deploy/frdm_evidence_bundle.sh fetch --execute`; copy candidates into the profile; `make verify`; commit with record paths | `scripts/boards/show_board_profile.sh` no longer lists the closed keys | commit |
+
+Wi-Fi, tailnet, and power samples continue after ARRIVAL-25:
+
+- Wi-Fi credentials never enter the repository. On the board:
+  `wpa_passphrase '<SSID>' > /etc/wpa_supplicant.conf` (type the passphrase on
+  stdin), `chmod 600 /etc/wpa_supplicant.conf`,
+  `wpa_supplicant -B -i <WIFI_INTERFACE> -c /etc/wpa_supplicant.conf`,
+  `udhcpc -i <WIFI_INTERFACE>`; then
+  `sh hardware_tests/frdm/frdm_wifi_resume_timing.sh --observe-seconds 120`.
+  For resume timing start
+  `frdm_wifi_resume_timing.sh --observe-seconds 300 --after-next-resume` in one
+  SSH session and run ARRIVAL-23 on the console.
+- Tailscale is provisioned by the operator (`tailscale up`, interactive or a
+  one-time key kept outside the repository), then add
+  `--tailnet-probe <TAILNET_HOST>` and `--lexinet-url <LEXINET_URL>`.
+- Power: for each of `active_day`, `active_night`, `backlight_zero`, `idle`,
+  and `mem` (with `--mem-sleep-state`), record a meter trace
+  (`elapsed_seconds,volts,amps`) and run
+  `sh hardware_tests/frdm/frdm_power_input_log.sh --software-state <STATE> --board-revision <BOARD_REV> --accessory-revision '<PANEL_AND_PIR_ASSEMBLY>' --supply-description '<CHARGER_MODEL_AND_RATING>' --meter-csv <METER_CSV> --instrument '<METER_MODEL>'`.
+
+## Placeholders the user fills
+
+| Placeholder | Source | Used in |
+|---|---|---|
+| `<SERIAL_DEVICE>` | host `ls /dev/cu.usbserial-*` | ARRIVAL-03 |
+| `<BOARD_ADDRESS>` | console `ip -4 addr` or router lease | ARRIVAL-04 onward |
+| `<BOARD_MARKING>` | board label/silkscreen | ARRIVAL-07 |
+| `<J18_PIN>`, `<PAD_MUX>` | FRDM-IMX8MPLUS schematic J18 table (native `GPIO1`–`GPIO5` pads only, never the PCAL6416A expanders) | ARRIVAL-08/09 |
+| `<HEADER_MV>`, `<METER_MODEL>` | meter reading | ARRIVAL-09 |
+| `<gpioN>`, `<L>` | ARRIVAL-09 candidates | ARRIVAL-11 |
+| NXP firmware EULA decision | human; ADR | ARRIVAL-15 |
+| `<BUILDROOT_2026_05_1_DIR>`, `<ABSOLUTE_BRINGUP_OUTPUT_DIR>`, `<KEY>` | host paths outside the repository | ARRIVAL-16/18 |
+| `<VENDOR_PANEL_DTB>` | vendor release notes, if any | ARRIVAL-13 |
+| `<SSID>`, passphrase, `<WIFI_INTERFACE>` | operator (secret, board only) / Wi-Fi record | Wi-Fi |
+| `<TAILNET_HOST>`, `<LEXINET_URL>` | operator | Wi-Fi |
+| `<STATE>`, `<METER_CSV>`, `<BOARD_REV>`, `<PANEL_AND_PIR_ASSEMBLY>`, `<CHARGER_MODEL_AND_RATING>` | operator and meter | power |
+
+## Known blockers (not closable from the repository)
+
+- `NXP-FIRMWARE-EULA` (human decision): without it the project image stops in
+  post-image and has no IW612 firmware.
+- `FRDM-GATE-PIR`: the project DTB (`imx8mp-frdm-bhp-panel.dtb`) and the custom
+  PIR overlay refuse to render until the seven PIR values are measured.
+- `FRDM-GATE-BACKLIGHT`: no device-tree backlight node is added; the NXP
+  `waveshare,dsi2dpi` bridge is expected to register `<bus>-0045`, and the
+  project kernel carries a patch that checks that registration. Only the
+  ARRIVAL-20 trial closes it.
+- `FRDM-GATE-TOUCH`: no GT911 interrupt line is justified from available
+  documentation; the driver polls.

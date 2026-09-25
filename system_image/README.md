@@ -4,6 +4,36 @@ Owns the reproducible bootloader, kernel, device tree, root filesystem, packages
 
 ## Baseline
 
+The board profile selects the defconfig (`BR2_BHP_BOARD_ID`,
+`config/boards/<id>.env`; `BHP_BOARD` on the scripts, default the active
+profile).
+
+**FRDM i.MX 8M Plus (active, ADR 0008).** `frdm_imx8mp_house_panel_defconfig`
+and `frdm_imx8mp_house_panel_bringup_defconfig` derive from Buildroot
+2026.05.1 `imx8mp-evk_defconfig`: Cortex-A53, Bootlin AArch64 glibc stable
+toolchain, NXP `linux-imx`, `uboot-imx` (`imx8mp_frdm`), and `imx-atf` pinned at
+`lf-6.12.49-2.2.0` with hashes, the in-tree
+`imx8mp-frdm-waveshare-7inch-c-panel` DTB plus the project overlay merged into
+`imx8mp-frdm-bhp-panel.dtb` (`bhp-board-device-tree`), the out-of-tree IW612
+`moal` driver, alsa-utils, libgpiod, evtest, libdrm tests, iw, wpa_supplicant,
+Tailscale, and LVGL. `board/beaglebone-house-panel/frdm-imx8mp/` holds the
+genimage layout (`imx8-boot-sd.bin` at 32 KiB, `boot.vfat`, ext4 root by
+PARTUUID), extlinux, the suspend Kconfig fragment, and the kernel patch.
+
+Two gates are deliberate build failures, not defaults:
+
+- `NXP-FIRMWARE-EULA`: `firmware-imx` (LPDDR4 training) and the IW612 firmware
+  are NXP-licensed. They are merged only through
+  `nxp-firmware-eula.fragment` when the profile's `BHP_BOARD_NXP_FIRMWARE_EULA`
+  names an accepted ADR carrying `<!-- @canonical nxp-firmware-eula-acceptance -->`.
+  Until then post-image stops with `BHP_IMAGE.NXP_FIRMWARE_EULA_NOT_ACCEPTED`.
+  No script accepts this license.
+- `FRDM-GATE-PIR`: the project DTB refuses to render while any PIR pin value is
+  `UNMEASURED`.
+
+**BeagleBone Black (history).** The BBB defconfigs are marked deprecated and
+still evaluate; the text below describes that history baseline.
+
 The scaffold pins Buildroot 2026.05.1 and starts from its official `beaglebone_defconfig`. That upstream baseline selects Cortex-A8, the x86_64-hosted Bootlin ARMv7 glibc toolchain, AM33x CM3 firmware, Linux 6.18.21, U-Boot 2026.04, and an ext4 image. Project packages and a rootfs overlay are supplied through `buildroot_external/`.
 
 This is a buildable experiment baseline, not a declaration that Linux 6.18 or its standard device tree drives the unknown 4D cape. The official BeagleBoard Debian 6.12 image remains the first hardware-characterization environment.
@@ -80,7 +110,8 @@ from scratch. Consequently, a modified same-version Buildroot tree and
 
 ## Bring-up profile
 
-`beaglebone_house_panel_bringup_defconfig` is deliberately non-production. It
+`frdm_imx8mp_house_panel_bringup_defconfig` (and the history
+`beaglebone_house_panel_bringup_defconfig`) is deliberately non-production. It
 adds Dropbear, rsync, and board-characterization tools while retaining a locked
 root password. Dropbear disables every password authentication method; its only
 login is root with one caller-supplied Ed25519 public key. This gives initial
@@ -108,3 +139,12 @@ then retire it after characterization. See
 - Project packages: `buildroot_external/package/`
 - Root filesystem additions: `buildroot_external/board/beaglebone-house-panel/rootfs-overlay/`
 - Kernel/device-tree changes: keep them as named, test-specific patches or packages until an ADR promotes one.
+- Board facts: `config/boards/<id>.env` only; `post-build.sh` installs the
+  profile at `/usr/share/beaglebone-house-panel/board-profile.env` and renders
+  board-specific service environment examples from
+  `board/beaglebone-house-panel/service-environment/`.
+
+**Amended 2026-09-25:** added the FRDM i.MX 8M Plus defconfigs, board-profile
+selection, the NXP firmware license gate, and the PIR build gate (ADR 0008).
+The BeagleBone baseline is kept as deprecated history. No image has been built
+or booted on the FRDM.
