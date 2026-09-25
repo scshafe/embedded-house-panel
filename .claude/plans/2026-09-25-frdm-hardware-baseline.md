@@ -105,10 +105,11 @@ alone.
 - [ ] **Step 6: Prove suspend-to-RAM with attributed PIR wake (FRDM-GATE-SUSPEND)**
   - Smoke-test with `frdm_suspend_wake.sh --execute` for `deep`, then `s2idle`,
     with the RTC recovery alarm armed and the serial console attached.
-  - Then run `hardware_tests/scripts/run_suspend_wake_trials.sh` with FRDM
-    expectations (PIR wake label, selected `mem_sleep`), the external
-    observation record, and the independent negative control for every
-    enumerated state × starting-level × wake-edge cell.
+  - Then run `hardware_tests/scripts/run_suspend_wake_trials.sh` on the
+    bring-up image (which carries standard-library `python3` for the
+    classifier) with FRDM expectations (PIR wake label, selected `mem_sleep`),
+    the external observation record, and the independent negative control for
+    every enumerated state × starting-level × wake-edge cell.
   - Output: `docs/hardware/frdm-suspend-wake-baseline.md`; `MEM_SLEEP_STATE` in
     the profile.
   - Verify: every cell claimed as supported has at least 50 consecutive

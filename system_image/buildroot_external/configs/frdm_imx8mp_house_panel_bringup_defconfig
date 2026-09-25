@@ -72,6 +72,9 @@ BR2_PACKAGE_BHP_NXP_MWIFIEX=y
 BR2_PACKAGE_DROPBEAR=y
 BR2_PACKAGE_DROPBEAR_DISABLE_REVERSEDNS=y
 BR2_PACKAGE_RSYNC=y
+# Standard-library Python for hardware_tests/scripts/run_suspend_wake_trials.sh
+# and classify_wake_trial.py (on-target acceptance trials). Bring-up only.
+BR2_PACKAGE_PYTHON3=y
 BR2_PACKAGE_DTC=y
 BR2_PACKAGE_DTC_PROGRAMS=y
 BR2_PACKAGE_I2C_TOOLS=y

@@ -152,6 +152,12 @@ Steps marked `HUMAN` need a person at the board.
 | ARRIVAL-24 | board | `sh hardware_tests/frdm/frdm_display_touch_backlight.sh --execute-test-pattern 30` after the resume | `first_frame_visible` `pass` after wake | DISPLAY record |
 | ARRIVAL-25 | host | `scripts/deploy/frdm_evidence_bundle.sh fetch --execute`; copy candidates into the profile; `make verify`; commit with record paths | `scripts/boards/show_board_profile.sh` no longer lists the closed keys | commit |
 
+Acceptance counts for `FRDM-GATE-SUSPEND` (50 consecutive attributed trials
+per claimed cell, then the masked-PIR soak) use the existing correlated runner,
+`hardware_tests/scripts/run_suspend_wake_trials.sh`, on the bring-up image,
+which includes standard-library `python3` for its classifier; see
+`hardware_tests/README.md` "Suspend/wake trials".
+
 Wi-Fi, tailnet, and power samples continue after ARRIVAL-25:
 
 - Wi-Fi credentials never enter the repository. On the board:
