@@ -62,6 +62,8 @@ enum class ErrorCode {
 	UiSocketStalePathRemovalFailed,
 	SuspendConfigurationInvalid,
 	PowerStateWriteFailed,
+	MemSleepSelectionFailed,
+	MemSleepStateUnavailable,
 	SystemClockSynchronizationQueryFailed,
 	SystemClockUntrusted,
 	SimulationInvalidArgument,

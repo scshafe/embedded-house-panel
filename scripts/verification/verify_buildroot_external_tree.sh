@@ -30,7 +30,9 @@ board/beaglebone-house-panel/bringup/post-build.sh
 board/beaglebone-house-panel/bringup/rootfs-overlay/etc/default/dropbear
 board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S50tailscaled
 board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S75bhp-panel-ui
-board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/panel-ui.env.example
+board/beaglebone-house-panel/service-environment/panel-supervisor.env.example.in
+board/beaglebone-house-panel/service-environment/presence-sensor.env.example.in
+board/beaglebone-house-panel/service-environment/panel-ui.env.example.in
 board/beaglebone-house-panel/rootfs-overlay/usr/libexec/beaglebone-house-panel/classify-touch-input
 package/bhp-panel-supervisor/Config.in
 package/bhp-panel-supervisor/bhp-panel-supervisor.mk

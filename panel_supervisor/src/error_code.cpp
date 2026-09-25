@@ -117,6 +117,10 @@ std::string_view to_string(const ErrorCode error_code) noexcept
 		return "PANEL_SUPERVISOR.SUSPEND_CONFIGURATION_INVALID";
 	case ErrorCode::PowerStateWriteFailed:
 		return "PANEL_SUPERVISOR.POWER_STATE_WRITE_FAILED";
+	case ErrorCode::MemSleepSelectionFailed:
+		return "PANEL_SUPERVISOR.MEM_SLEEP_SELECTION_FAILED";
+	case ErrorCode::MemSleepStateUnavailable:
+		return "PANEL_SUPERVISOR.MEM_SLEEP_STATE_UNAVAILABLE";
 	case ErrorCode::SystemClockSynchronizationQueryFailed:
 		return "PANEL_SUPERVISOR.SYSTEM_CLOCK_SYNCHRONIZATION_QUERY_FAILED";
 	case ErrorCode::SystemClockUntrusted:

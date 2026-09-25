@@ -174,6 +174,17 @@ install -m 0644 "$project_root/scripts/boards/board_profile.sh" \
 	"$board_share_directory/board_profile.sh"
 
 mkdir -p "$target_directory/etc/beaglebone-house-panel"
+# Service environment examples carry this board's facts; an unmeasured fact is
+# rendered as REPLACE_ME_UNMEASURED_<gate>, which every service rejects.
+for service_environment in panel-supervisor presence-sensor panel-ui; do
+	service_environment_output=$target_directory/etc/beaglebone-house-panel/$service_environment.env.example
+	test ! -L "$service_environment_output"
+	"$project_root/scripts/boards/render_service_environment.sh" \
+		--profile "$board_profile_source" \
+		--template "$BR2_EXTERNAL_BHP_PATH/board/beaglebone-house-panel/service-environment/$service_environment.env.example.in" \
+		--output "$service_environment_output" >/dev/null
+	chmod 0644 "$service_environment_output"
+done
 image_version_path=$target_directory/etc/beaglebone-house-panel/image-version
 image_profile_path=$target_directory/etc/beaglebone-house-panel/image-profile
 test ! -L "$image_version_path"

@@ -17,6 +17,10 @@ backlight, touch, PIR, suspend, audio, or Wi-Fi value.
 - One `BHP_BOARD_<KEY>=<value>` per line; `#` comments and blank lines allowed.
 - Values match `[A-Za-z0-9_./:,@+=*%-]*`: no spaces, quotes, `$`, or `#`. The
   same file is read by POSIX sh, included by make, and parsed by Python.
+- A `%` always starts an RFC 3986 `%XX` escape (uppercase hex). Only
+  `BHP_BOARD_TOUCH_INPUT_NAME`/`_PHYS` may need one, because kernel input names
+  can contain spaces (`Goodix%20Capacitive%20TouchScreen`); consumers decode
+  before comparing with sysfs.
 - `BHP_BOARD_SSH_TARGET` and `BHP_BOARD_UPLOAD_DIR` are reserved deployment
   variables and may not appear in a profile.
 - Required keys and value patterns: [`board-profile.schema.json`](board-profile.schema.json).
@@ -42,8 +46,20 @@ which key.
 scripts/boards/show_board_profile.sh                         # JSON: values, placeholders, counts
 scripts/boards/show_board_profile.sh --require BHP_BOARD_PIR_GPIO_LINE   # exit 3 while unmeasured
 scripts/boards/show_board_profile.sh --board beaglebone-black --value BHP_BOARD_CMAKE_PRESET
-python3 scripts/verification/verify_board_profiles.py        # schema, gates, references, negative fixtures
+python3 scripts/verification/verify_board_profiles.py        # schema, gates, references, consumers, negative fixtures
+scripts/boards/render_service_environment.sh --board frdm-imx8mp \
+  --template system_image/buildroot_external/board/beaglebone-house-panel/service-environment/panel-supervisor.env.example.in \
+  --output /tmp/panel-supervisor.env [--require-measured]    # exit 3 with --require-measured while any value is unresolved
 ```
+
+Consumers: CMake presets and toolchains (`TARGET_*`), Buildroot
+(`external.mk`, `configure_buildroot.sh`, the board device-tree and presence
+packages), `render_device_tree_overlay.sh` (PIR pad and GPIO), post-build
+service environment examples (backlight node, PIR input name, mem_sleep
+variant, display backend), `S31bhp-presence-sensor` (PIR device-tree nodes and
+input names from the image-installed profile), `check_suspend_kernel_config.sh`
+(suspend Kconfig symbols), and `hardware_tests/frdm/` evidence scripts
+(`EXPECTED_*` comparisons).
 
 Shell consumers source `scripts/boards/board_profile.sh` and use
 `bhp_board_profile_load_selected` and `bhp_board_profile_require_into`. Buildroot

@@ -14,6 +14,7 @@
 #include <limits>
 #include <locale>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -39,6 +40,8 @@ constexpr const char *kGraceNightBrightness = "BHP_PANEL_SUPERVISOR_GRACE_NIGHT_
 constexpr const char *kOffBrightness = "BHP_PANEL_SUPERVISOR_OFF_BRIGHTNESS";
 constexpr const char *kSuspendMode = "BHP_PANEL_SUPERVISOR_SUSPEND_MODE";
 constexpr const char *kPowerStatePath = "BHP_PANEL_SUPERVISOR_POWER_STATE_PATH";
+constexpr const char *kMemSleepPath = "BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH";
+constexpr const char *kMemSleepState = "BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE";
 constexpr const char *kPollIntervalMilliseconds = "BHP_PANEL_SUPERVISOR_POLL_INTERVAL_MILLISECONDS";
 constexpr const char *kSuspendRetryBackoffMilliseconds =
 	"BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS";
@@ -51,7 +54,7 @@ constexpr long long kMaximumSuspendRetryBackoffMilliseconds = 300'000;
 constexpr long long kMinimumPresentationTimeoutMilliseconds = 1;
 constexpr long long kMaximumPresentationTimeoutMilliseconds = 60'000;
 
-constexpr std::array<const char *, 19> kKnownEnvironmentVariables{
+constexpr std::array<const char *, 21> kKnownEnvironmentVariables{
 	kLatitude,
 	kLongitude,
 	kPresenceGraceSeconds,
@@ -69,6 +72,8 @@ constexpr std::array<const char *, 19> kKnownEnvironmentVariables{
 	kOffBrightness,
 	kSuspendMode,
 	kPowerStatePath,
+	kMemSleepPath,
+	kMemSleepState,
 	kPollIntervalMilliseconds,
 	kSuspendRetryBackoffMilliseconds,
 };
@@ -272,6 +277,34 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 	    (power_state_path == nullptr || power_state_path->empty())) {
 		invalid_fields[kPowerStatePath] = "required_when_suspend_mode_is_enabled";
 	}
+	const std::string *mem_sleep_path = find_field(configuration_fields, kMemSleepPath);
+	const std::string *mem_sleep_state = find_field(configuration_fields, kMemSleepState);
+	const bool has_mem_sleep_path = mem_sleep_path != nullptr && !mem_sleep_path->empty();
+	const bool has_mem_sleep_state = mem_sleep_state != nullptr && !mem_sleep_state->empty();
+	if (suspend_mode == SuspendMode::Mem) {
+		if (!has_mem_sleep_path) {
+			invalid_fields[kMemSleepPath] = "required_when_suspend_mode_is_mem";
+		}
+		if (!has_mem_sleep_state) {
+			invalid_fields[kMemSleepState] = "required_when_suspend_mode_is_mem";
+		}
+	} else if (suspend_mode_text != nullptr &&
+		   invalid_fields.find(kSuspendMode) == invalid_fields.end()) {
+		if (has_mem_sleep_path) {
+			invalid_fields[kMemSleepPath] = "only_valid_when_suspend_mode_is_mem";
+		}
+		if (has_mem_sleep_state) {
+			invalid_fields[kMemSleepState] = "only_valid_when_suspend_mode_is_mem";
+		}
+	}
+	if (has_mem_sleep_path && !is_explicit_path(*mem_sleep_path)) {
+		invalid_fields[kMemSleepPath] = "must_be_absolute_and_placeholder_free";
+	}
+	if (has_mem_sleep_state && (mem_sleep_state->find("REPLACE_ME") != std::string::npos ||
+				    (*mem_sleep_state != "s2idle" && *mem_sleep_state != "shallow" &&
+				     *mem_sleep_state != "deep"))) {
+		invalid_fields[kMemSleepState] = "must_be_exactly_s2idle_shallow_or_deep";
+	}
 	long long suspend_retry_backoff_milliseconds = 0;
 	if (suspend_mode != SuspendMode::Disabled) {
 		if (suspend_retry_backoff_text == nullptr || suspend_retry_backoff_text->empty()) {
@@ -341,8 +374,13 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		merge_error_context(invalid_fields, backlight_result.error());
 	}
 	if (suspend_mode != SuspendMode::Disabled) {
-		const auto suspend_result = SysfsSuspend::create(
-			*power_state_path, std::string(to_string(suspend_mode)));
+		std::optional<MemSleepSelection> mem_sleep_selection;
+		if (suspend_mode == SuspendMode::Mem) {
+			mem_sleep_selection = MemSleepSelection{*mem_sleep_path, *mem_sleep_state};
+		}
+		const auto suspend_result =
+			SysfsSuspend::create(*power_state_path, std::string(to_string(suspend_mode)),
+					     std::move(mem_sleep_selection));
 		if (!suspend_result) {
 			merge_error_context(invalid_fields, suspend_result.error());
 		}
@@ -374,6 +412,8 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		*backlight_maximum_path, *mode_socket_path,
 		static_cast<std::uint32_t>(panel_ui_uid),
 		suspend_mode, power_state_path == nullptr ? std::string{} : *power_state_path,
+		has_mem_sleep_path ? *mem_sleep_path : std::string{},
+		has_mem_sleep_state ? *mem_sleep_state : std::string{},
 		std::chrono::milliseconds(poll_interval_milliseconds),
 		std::chrono::milliseconds(suspend_retry_backoff_milliseconds)));
 }
@@ -385,6 +425,7 @@ PanelSupervisordConfig::PanelSupervisordConfig(
 	std::string backlight_maximum_path,
 	std::string mode_socket_path, const std::uint32_t panel_ui_uid,
 	const SuspendMode suspend_mode, std::string power_state_path,
+	std::string mem_sleep_path, std::string mem_sleep_state,
 	const std::chrono::milliseconds poll_interval,
 	const std::chrono::milliseconds suspend_retry_backoff)
     : supervisor_config_(std::move(supervisor_config)), latitude_degrees_(latitude_degrees),
@@ -394,7 +435,9 @@ PanelSupervisordConfig::PanelSupervisordConfig(
       backlight_maximum_path_(std::move(backlight_maximum_path)),
 	  mode_socket_path_(std::move(mode_socket_path)), panel_ui_uid_(panel_ui_uid),
 	  suspend_mode_(suspend_mode),
-	  power_state_path_(std::move(power_state_path)), poll_interval_(poll_interval),
+	  power_state_path_(std::move(power_state_path)),
+	  mem_sleep_path_(std::move(mem_sleep_path)),
+	  mem_sleep_state_(std::move(mem_sleep_state)), poll_interval_(poll_interval),
 	  suspend_retry_backoff_(suspend_retry_backoff)
 {
 }
@@ -440,6 +483,16 @@ SuspendMode PanelSupervisordConfig::suspend_mode() const noexcept { return suspe
 const std::string &PanelSupervisordConfig::power_state_path() const noexcept
 {
 	return power_state_path_;
+}
+
+const std::string &PanelSupervisordConfig::mem_sleep_path() const noexcept
+{
+	return mem_sleep_path_;
+}
+
+const std::string &PanelSupervisordConfig::mem_sleep_state() const noexcept
+{
+	return mem_sleep_state_;
 }
 
 std::chrono::milliseconds PanelSupervisordConfig::poll_interval() const noexcept

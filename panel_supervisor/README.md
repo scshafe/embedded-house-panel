@@ -110,7 +110,13 @@ The production slice includes:
   returns a pending sequence; only the exact latest authenticated peer tuple can
   return committed, and the final supervisor boundary validates it again.
 - `SysfsSuspend`, which writes only the explicitly selected `freeze` or `mem`
-  token to exactly `/sys/power/state`.
+  token to exactly `/sys/power/state`. For `mem` it first reads exactly
+  `/sys/power/mem_sleep`, selects the configured `s2idle`, `shallow`, or `deep`
+  variant if another one is bracketed, and rereads to confirm the kernel took
+  it. An unlisted variant (`PANEL_SUPERVISOR.MEM_SLEEP_STATE_UNAVAILABLE`) or an
+  unconfirmed selection (`PANEL_SUPERVISOR.MEM_SLEEP_SELECTION_FAILED`) stops
+  before `/sys/power/state` is touched; the kernel's default variant is never
+  inherited silently.
 
 The clock adapter proves that Linux currently reports the clock synchronized;
 it cannot prove that an upstream server or saved clock was honest. The target
@@ -150,11 +156,16 @@ Set every required variable:
 | `BHP_PANEL_SUPERVISOR_OFF_BRIGHTNESS` | Required to be exactly `0`; nonzero off/suspend output is rejected |
 | `BHP_PANEL_SUPERVISOR_SUSPEND_MODE` | Exactly `disabled`, `freeze`, or `mem` |
 | `BHP_PANEL_SUPERVISOR_POWER_STATE_PATH` | Required for `freeze` or `mem`; exactly `/sys/power/state` |
+| `BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH` | Required for `mem`, rejected otherwise; exactly `/sys/power/mem_sleep` |
+| `BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE` | Required for `mem`, rejected otherwise; exactly `s2idle`, `shallow`, or `deep`, from the board profile's `BHP_BOARD_MEM_SLEEP_STATE` once `FRDM-GATE-SUSPEND` evidence exists |
 | `BHP_PANEL_SUPERVISOR_POLL_INTERVAL_MILLISECONDS` | 50 through 5,000 milliseconds |
 | `BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS` | Required for enabled suspend; 1,000 through 300,000 milliseconds |
 
 `SUSPEND_MODE=disabled` is the explicit non-suspending configuration and does
-not require `POWER_STATE_PATH`. Latitude and longitude are treated as sensitive
+not require `POWER_STATE_PATH`. `scripts/boards/render_service_environment.sh`
+renders the board-derived keys (backlight node, PIR input name, mem_sleep
+variant) from `config/boards/<board>.env`; an unmeasured value becomes a
+`REPLACE_ME_UNMEASURED_<gate>` token that this parser rejects. Latitude and longitude are treated as sensitive
 deployment data and are never included in structured daemon logs.
 
 At initial startup only, `SystemClockUntrusted` and transient Linux clock
@@ -296,3 +307,8 @@ values are test examples, not discovered panel settings.
 attributed wake-rate policy to the supervisor while recording that the current
 host scaffold does not implement it and that no unmeasured value is a
 production default.
+
+**Amended 2026-09-25:** `mem` now requires an explicit, confirmed
+`/sys/power/mem_sleep` variant (ADR 0008 `FRDM-GATE-SUSPEND`); the i.MX 8M Plus
+offers `s2idle` and, with PSCI system suspend, `deep`, and which one wakes
+reliably from the PIR is unmeasured.

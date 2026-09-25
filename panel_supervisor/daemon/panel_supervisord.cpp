@@ -24,6 +24,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unistd.h>
@@ -225,8 +226,14 @@ int run_daemon(bhp::StructuredLogger &logger)
 	if (config.suspend_mode() == SuspendMode::Disabled) {
 		suspend = std::make_unique<DisabledSuspend>();
 	} else {
+		std::optional<MemSleepSelection> mem_sleep_selection;
+		if (config.suspend_mode() == SuspendMode::Mem) {
+			mem_sleep_selection =
+				MemSleepSelection{config.mem_sleep_path(), config.mem_sleep_state()};
+		}
 		auto suspend_result = SysfsSuspend::create(
-			config.power_state_path(), std::string(to_string(config.suspend_mode())));
+			config.power_state_path(), std::string(to_string(config.suspend_mode())),
+			std::move(mem_sleep_selection));
 		if (!suspend_result) {
 			return fail_after_backlight_construction(
 				logger, backlight, "suspend_adapter_creation_failed",
@@ -250,7 +257,10 @@ int run_daemon(bhp::StructuredLogger &logger)
 		   {{"poll_interval_milliseconds", std::to_string(config.poll_interval().count())},
 		    {"suspend_retry_backoff_milliseconds",
 		     std::to_string(config.suspend_retry_backoff().count())},
-		    {"suspend_mode", std::string(to_string(config.suspend_mode()))}});
+		    {"suspend_mode", std::string(to_string(config.suspend_mode()))},
+		    {"mem_sleep_state", config.suspend_mode() == SuspendMode::Mem
+						? config.mem_sleep_state()
+						: std::string("not_applicable")}});
 
 	std::uint64_t trace_sequence = 0;
 	bool startup_cycle_completed = false;

@@ -4,6 +4,8 @@ BHP_INIT_LIBRARY=/etc/beaglebone-house-panel/init-service-library.sh
 DAEMON=bhp-presence-sensor
 BHP_PRESENCE_SENSOR_ENVIRONMENT_FILE=/etc/beaglebone-house-panel/presence-sensor.env
 BHP_PRESENCE_SENSOR_SERVICE=beaglebone_house_panel.presence_sensor
+BHP_PRESENCE_SENSOR_BOARD_PROFILE=/usr/share/beaglebone-house-panel/board-profile.env
+BHP_PRESENCE_SENSOR_BOARD_LIBRARY=/usr/share/beaglebone-house-panel/board_profile.sh
 
 if [ ! -r "$BHP_INIT_LIBRARY" ]; then
 	printf '%s\n' 'BHP_PRESENCE_SENSOR.INIT_LIBRARY_MISSING' >&2
@@ -31,10 +33,50 @@ bhp_presence_sensor_load_configuration()
 	fi
 }
 
+# Resolves the device-tree node and EVIOCGNAME of both PIR paths from the board
+# profile the image installed. BeagleBone names contain spaces the profile
+# grammar cannot hold, so that history board keeps its literal names.
+bhp_presence_sensor_load_board_identities()
+{
+	if [ ! -r "$BHP_PRESENCE_SENSOR_BOARD_LIBRARY" ] ||
+		[ ! -r "$BHP_PRESENCE_SENSOR_BOARD_PROFILE" ]; then
+		bhp_init_log_error "$BHP_PRESENCE_SENSOR_SERVICE" \
+			BHP_PRESENCE_SENSOR.BOARD_PROFILE_MISSING \
+			'The image-installed board profile or its loader is missing'
+		return 1
+	fi
+	# shellcheck disable=SC1090
+	. "$BHP_PRESENCE_SENSOR_BOARD_LIBRARY"
+	if ! bhp_board_profile_load_file "$BHP_PRESENCE_SENSOR_BOARD_PROFILE"; then
+		bhp_init_log_error "$BHP_PRESENCE_SENSOR_SERVICE" \
+			"$BHP_BOARD_PROFILE_ERROR_CODE" "$BHP_BOARD_PROFILE_ERROR_DETAIL"
+		return 1
+	fi
+	if [ "$BHP_BOARD_ID" = beaglebone-black ]; then
+		bhp_presence_gpio_keys_dt_node=gpio-keys-presence-baseline
+		bhp_presence_gpio_keys_input_name='Beagle House gpio-keys wake baseline'
+		bhp_presence_custom_dt_node=presence-sensor-custom-pir
+		bhp_presence_custom_input_name='Beagle House PIR custom experiment'
+		return 0
+	fi
+	bhp_presence_gpio_keys_dt_node=
+	bhp_presence_gpio_keys_input_name=
+	bhp_presence_custom_dt_node=
+	bhp_presence_custom_input_name=
+	if ! bhp_board_profile_require_into bhp_presence_gpio_keys_dt_node BHP_BOARD_PIR_DT_NODE ||
+		! bhp_board_profile_require_into bhp_presence_gpio_keys_input_name BHP_BOARD_PIR_INPUT_NAME ||
+		! bhp_board_profile_require_into bhp_presence_custom_dt_node BHP_BOARD_PIR_CUSTOM_DT_NODE ||
+		! bhp_board_profile_require_into bhp_presence_custom_input_name BHP_BOARD_PIR_CUSTOM_INPUT_NAME; then
+		bhp_init_log_error "$BHP_PRESENCE_SENSOR_SERVICE" \
+			"$BHP_BOARD_PROFILE_ERROR_CODE" "$BHP_BOARD_PROFILE_ERROR_DETAIL"
+		return 1
+	fi
+}
+
 bhp_presence_sensor_input_device_exists()
 {
 	[ -r /proc/bus/input/devices ] || return 1
-	grep -q "$1" /proc/bus/input/devices
+	grep -F -x "N: Name=\"$1\"" /proc/bus/input/devices >/dev/null
 }
 
 bhp_presence_sensor_start()
@@ -44,11 +86,12 @@ bhp_presence_sensor_start()
 		bhp_init_log info "$BHP_PRESENCE_SENSOR_SERVICE" presence_sensor_disabled_by_configuration
 		return 0
 	fi
+	bhp_presence_sensor_load_board_identities || return 1
 
 	case "$BHP_PRESENCE_SENSOR_EXPERIMENT" in
 		custom_pir_input_driver)
-			if [ ! -r /proc/device-tree/presence-sensor-custom-pir/compatible ] ||
-				! grep -q 'beagle,house-pir' /proc/device-tree/presence-sensor-custom-pir/compatible; then
+			if [ ! -r "/proc/device-tree/$bhp_presence_custom_dt_node/compatible" ] ||
+				! grep -q 'beagle,house-pir' "/proc/device-tree/$bhp_presence_custom_dt_node/compatible"; then
 				bhp_init_log_error "$BHP_PRESENCE_SENSOR_SERVICE" \
 					BHP_PRESENCE_SENSOR.CUSTOM_OVERLAY_NOT_ACTIVE \
 					'Custom PIR Device Tree node is not active; refusing an unbound module load'
@@ -60,7 +103,7 @@ bhp_presence_sensor_start()
 					'Failed to load the custom PIR input module'
 				return 1
 			fi
-			if ! bhp_presence_sensor_input_device_exists 'Beagle House PIR custom experiment'; then
+			if ! bhp_presence_sensor_input_device_exists "$bhp_presence_custom_input_name"; then
 				bhp_init_log_error "$BHP_PRESENCE_SENSOR_SERVICE" \
 					BHP_PRESENCE_SENSOR.INPUT_DEVICE_MISSING \
 					'Custom PIR module loaded but its input device is absent'
@@ -68,14 +111,14 @@ bhp_presence_sensor_start()
 			fi
 			;;
 		stock_gpio_keys_wake_baseline)
-			if [ ! -r /proc/device-tree/gpio-keys-presence-baseline/compatible ] ||
-				! grep -q 'gpio-keys' /proc/device-tree/gpio-keys-presence-baseline/compatible; then
+			if [ ! -r "/proc/device-tree/$bhp_presence_gpio_keys_dt_node/compatible" ] ||
+				! grep -q 'gpio-keys' "/proc/device-tree/$bhp_presence_gpio_keys_dt_node/compatible"; then
 				bhp_init_log_error "$BHP_PRESENCE_SENSOR_SERVICE" \
 					BHP_PRESENCE_SENSOR.BASELINE_OVERLAY_NOT_ACTIVE \
 					'Stock gpio-keys baseline Device Tree node is not active'
 				return 1
 			fi
-			if ! bhp_presence_sensor_input_device_exists 'Beagle House gpio-keys wake baseline'; then
+			if ! bhp_presence_sensor_input_device_exists "$bhp_presence_gpio_keys_input_name"; then
 				bhp_init_log_error "$BHP_PRESENCE_SENSOR_SERVICE" \
 					BHP_PRESENCE_SENSOR.INPUT_DEVICE_MISSING \
 					'Stock gpio-keys baseline input device is absent'
@@ -113,13 +156,14 @@ bhp_presence_sensor_status()
 		bhp_init_log info "$BHP_PRESENCE_SENSOR_SERVICE" presence_sensor_disabled_by_configuration
 		return 3
 	fi
+	bhp_presence_sensor_load_board_identities || return 1
 	case "$BHP_PRESENCE_SENSOR_EXPERIMENT" in
 		custom_pir_input_driver)
 			[ -d /sys/module/beagle_house_pir_input_driver ] &&
-				bhp_presence_sensor_input_device_exists 'Beagle House PIR custom experiment'
+				bhp_presence_sensor_input_device_exists "$bhp_presence_custom_input_name"
 			;;
 		stock_gpio_keys_wake_baseline)
-			bhp_presence_sensor_input_device_exists 'Beagle House gpio-keys wake baseline'
+			bhp_presence_sensor_input_device_exists "$bhp_presence_gpio_keys_input_name"
 			;;
 		*) return 3 ;;
 	esac

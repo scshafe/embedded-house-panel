@@ -12,14 +12,24 @@
     "unmeasured": "^UNMEASURED:[A-Z0-9]+(-[A-Z0-9]+)+$",
     "human_decision": "^HUMAN_DECISION_REQUIRED:[A-Z0-9]+(-[A-Z0-9]+)+$"
   },
+  "value_encoding": {
+    "percent_escape": "^%[0-9A-F]{2}$",
+    "rule": "A '%' in a value always starts an RFC 3986 %XX escape with uppercase hex. Only BHP_BOARD_TOUCH_INPUT_NAME and BHP_BOARD_TOUCH_INPUT_PHYS may need one (kernel input names can contain spaces, e.g. %20); consumers decode before comparing with sysfs."
+  },
   "active_gate_source": {
     "path": "docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md",
     "row_pattern": "^\\| `(FRDM-GATE-[A-Z0-9-]+)` \\|",
     "rule": "Every UNMEASURED:FRDM-GATE-* value in an active profile must name a gate row in the source ADR."
   },
-  "reserved_keys": ["BHP_BOARD_SSH_TARGET", "BHP_BOARD_UPLOAD_DIR"],
+  "reserved_keys": [
+    "BHP_BOARD_SSH_TARGET",
+    "BHP_BOARD_UPLOAD_DIR"
+  ],
   "reserved_keys_reason": "Deployment variables share the BHP_BOARD_ prefix; a profile must never shadow them.",
-  "status_values": ["active", "history"],
+  "status_values": [
+    "active",
+    "history"
+  ],
   "exactly_one_active": true,
   "required_keys": {
     "BHP_BOARD_PROFILE_SCHEMA": "^1$",
@@ -49,7 +59,9 @@
     "BHP_BOARD_DISPLAY_BACKEND": "^(drm|fbdev)$",
     "BHP_BOARD_BACKLIGHT_SYSFS_DIR": "^/sys/class/backlight/[A-Za-z0-9_.:-]+$",
     "BHP_BOARD_PIR_GPIO_CONTROLLER": "^gpio[1-9]$",
-    "BHP_BOARD_PIR_GPIO_LINE": "^([0-9]|[12][0-9]|3[01])$"
+    "BHP_BOARD_PIR_GPIO_LINE": "^([0-9]|[12][0-9]|3[01])$",
+    "BHP_BOARD_PIR_DT_NODE": "^[a-z0-9-]+$",
+    "BHP_BOARD_PIR_CUSTOM_DT_NODE": "^[a-z0-9-]+$"
   },
   "required_keys_when_active": {
     "BHP_BOARD_NXP_FIRMWARE_EULA": "^(accepted-adr-[0-9]{4}|not-required)$",
@@ -87,8 +99,8 @@
     "BHP_BOARD_TOUCH_EXPECTED_I2C_CONTROLLER": "^i2c[0-9]+$",
     "BHP_BOARD_TOUCH_EXPECTED_I2C_ADDRESS": "^0x[0-9a-f]{2}$",
     "BHP_BOARD_TOUCH_EXPECTED_MODE": "^(polled|interrupt)$",
-    "BHP_BOARD_TOUCH_INPUT_NAME": "^[A-Za-z0-9_.:-]+$",
-    "BHP_BOARD_TOUCH_INPUT_PHYS": "^[A-Za-z0-9_./:-]+$",
+    "BHP_BOARD_TOUCH_INPUT_NAME": "^([A-Za-z0-9_.:-]|%[0-9A-F]{2})+$",
+    "BHP_BOARD_TOUCH_INPUT_PHYS": "^([A-Za-z0-9_./:-]|%[0-9A-F]{2})+$",
     "BHP_BOARD_TOUCH_INTERRUPT": "^(polled|gpio[1-9]:([0-9]|[12][0-9]|3[01]))$",
     "BHP_BOARD_PIR_HEADER_PIN": "^J[0-9]+-([1-9]|[1-3][0-9]|40)$",
     "BHP_BOARD_HEADER_IO_VOLTAGE_MV": "^(1800|3300)$",
@@ -128,7 +140,10 @@
     "BHP_BOARD_WIFI_INTERFACE",
     "BHP_BOARD_AUDIO_CAPTURE_DEVICE"
   ],
-  "project_file_references": ["BHP_BOARD_PROJECT_OVERLAY_TEMPLATE", "BHP_BOARD_PRESENCE_CUSTOM_OVERLAY_TEMPLATE"],
+  "project_file_references": [
+    "BHP_BOARD_PROJECT_OVERLAY_TEMPLATE",
+    "BHP_BOARD_PRESENCE_CUSTOM_OVERLAY_TEMPLATE"
+  ],
   "file_references": {
     "BHP_BOARD_BUILDROOT_DEFCONFIG_PRODUCTION": "system_image/buildroot_external/configs/{value}",
     "BHP_BOARD_BUILDROOT_DEFCONFIG_BRINGUP": "system_image/buildroot_external/configs/{value}",

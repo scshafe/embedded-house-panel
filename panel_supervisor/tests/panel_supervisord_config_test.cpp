@@ -196,6 +196,54 @@ bool malformed_values_are_aggregated_without_logging_location_values()
 	return true;
 }
 
+bool mem_suspend_requires_an_explicit_mem_sleep_variant()
+{
+	auto fields = complete_configuration();
+	fields["BHP_PANEL_SUPERVISOR_SUSPEND_MODE"] = "mem";
+	fields["BHP_PANEL_SUPERVISOR_POWER_STATE_PATH"] = "/sys/power/state";
+	fields["BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS"] = "5000";
+	const auto missing_result = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!missing_result.has_value());
+	TEST_REQUIRE(missing_result.error().context().at("BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH") ==
+		     "required_when_suspend_mode_is_mem");
+	TEST_REQUIRE(missing_result.error().context().at("BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE") ==
+		     "required_when_suspend_mode_is_mem");
+
+	fields["BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH"] = "/sys/power/mem_sleep";
+	fields["BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE"] = "REPLACE_ME_UNMEASURED_FRDM-GATE-SUSPEND";
+	const auto placeholder_result = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!placeholder_result.has_value());
+	TEST_REQUIRE(placeholder_result.error().context().at(
+			     "BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE") ==
+		     "must_be_exactly_s2idle_shallow_or_deep");
+
+	fields["BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE"] = "deep";
+	const auto enabled_result = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(enabled_result.has_value());
+	TEST_REQUIRE(enabled_result.value().suspend_mode() == SuspendMode::Mem);
+	TEST_REQUIRE(enabled_result.value().mem_sleep_path() == "/sys/power/mem_sleep");
+	TEST_REQUIRE(enabled_result.value().mem_sleep_state() == "deep");
+
+	fields["BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH"] = "/sys/power/state";
+	const auto wrong_path_result = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!wrong_path_result.has_value());
+	TEST_REQUIRE(wrong_path_result.error().context().count("mem_sleep_path") == 1);
+
+	fields["BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH"] = "/sys/power/mem_sleep";
+	fields["BHP_PANEL_SUPERVISOR_SUSPEND_MODE"] = "freeze";
+	const auto freeze_result = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!freeze_result.has_value());
+	TEST_REQUIRE(freeze_result.error().context().at("BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE") ==
+		     "only_valid_when_suspend_mode_is_mem");
+
+	fields["BHP_PANEL_SUPERVISOR_SUSPEND_MODE"] = "disabled";
+	const auto disabled_result = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!disabled_result.has_value());
+	TEST_REQUIRE(disabled_result.error().context().at("BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH") ==
+		     "only_valid_when_suspend_mode_is_mem");
+	return true;
+}
+
 using TestFunction = bool (*)();
 
 } // namespace
@@ -204,7 +252,7 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 7> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 8> tests{{
 		{"complete configuration", complete_configuration_populates_every_runtime_value},
 		{"missing configuration",
 		 missing_configuration_reports_all_required_fields_before_action},
@@ -215,6 +263,7 @@ int main()
 		{"off brightness", off_brightness_must_be_exactly_zero},
 		{"malformed aggregation",
 		 malformed_values_are_aggregated_without_logging_location_values},
+		{"mem_sleep variant", mem_suspend_requires_an_explicit_mem_sleep_variant},
 	}};
 	for (const auto &[name, test] : tests) {
 		if (!test()) {

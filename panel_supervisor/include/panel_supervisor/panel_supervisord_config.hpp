@@ -28,7 +28,9 @@ public:
 	 *
 	 * All numeric values are locale-independent decimal strings. OFF_BRIGHTNESS
 	 * must be exactly zero. Enabled suspend modes additionally require
-	 * BHP_PANEL_SUPERVISOR_POWER_STATE_PATH.
+	 * BHP_PANEL_SUPERVISOR_POWER_STATE_PATH; `mem` also requires
+	 * BHP_PANEL_SUPERVISOR_MEM_SLEEP_PATH and BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE,
+	 * which every other mode rejects.
 	 */
 	[[nodiscard]] static Result<PanelSupervisordConfig>
 	create(const std::map<std::string, std::string> &configuration_fields);
@@ -44,6 +46,10 @@ public:
 	[[nodiscard]] std::uint32_t panel_ui_uid() const noexcept;
 	[[nodiscard]] SuspendMode suspend_mode() const noexcept;
 	[[nodiscard]] const std::string &power_state_path() const noexcept;
+	/** Exactly `/sys/power/mem_sleep` for `mem`; empty otherwise. */
+	[[nodiscard]] const std::string &mem_sleep_path() const noexcept;
+	/** Exactly `s2idle`, `shallow`, or `deep` for `mem`; empty otherwise. */
+	[[nodiscard]] const std::string &mem_sleep_state() const noexcept;
 	[[nodiscard]] std::chrono::milliseconds poll_interval() const noexcept;
 	[[nodiscard]] std::chrono::milliseconds suspend_retry_backoff() const noexcept;
 
@@ -54,7 +60,8 @@ private:
 			       std::string backlight_path, std::string backlight_maximum_path,
 			       std::string mode_socket_path, std::uint32_t panel_ui_uid,
 			       SuspendMode suspend_mode,
-			       std::string power_state_path,
+			       std::string power_state_path, std::string mem_sleep_path,
+			       std::string mem_sleep_state,
 			       std::chrono::milliseconds poll_interval,
 			       std::chrono::milliseconds suspend_retry_backoff);
 
@@ -69,6 +76,8 @@ private:
 	std::uint32_t panel_ui_uid_;
 	SuspendMode suspend_mode_;
 	std::string power_state_path_;
+	std::string mem_sleep_path_;
+	std::string mem_sleep_state_;
 	std::chrono::milliseconds poll_interval_;
 	std::chrono::milliseconds suspend_retry_backoff_;
 };

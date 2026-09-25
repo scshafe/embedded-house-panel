@@ -47,6 +47,8 @@ def parse_profile(text: str, schema: dict, source: str) -> dict[str, str]:
             raise ProfileError("KEY_DUPLICATE", f"{source}:{number}: {key}")
         if key in schema.get("reserved_keys", []):
             raise ProfileError("KEY_RESERVED", f"{source}:{number}: {key}")
+        if "%" in value and re.fullmatch(r"([^%]|%[0-9A-F]{2})*", value) is None:
+            raise ProfileError("PERCENT_ESCAPE_INVALID", f"{source}:{number}: {key}")
         values[key] = value
     return values
 
@@ -177,6 +179,9 @@ def run_negative_fixtures(schema: dict, gates: set[str], presets) -> int:
         "bad_mem_sleep": base.replace(
             "BHP_BOARD_MEM_SLEEP_STATE=UNMEASURED:FRDM-GATE-SUSPEND",
             "BHP_BOARD_MEM_SLEEP_STATE=standby"),
+        "bad_percent_escape": base.replace(
+            "BHP_BOARD_TOUCH_INPUT_NAME=UNMEASURED:FRDM-GATE-TOUCH",
+            "BHP_BOARD_TOUCH_INPUT_NAME=Goodix%2gCapacitive"),
     }
     for name, text in semantic_cases.items():
         if text == base:
@@ -188,7 +193,44 @@ def run_negative_fixtures(schema: dict, gates: set[str], presets) -> int:
             count += 1
             continue
         raise ProfileError("SELF_TEST_ACCEPTED", f"validator accepted {name}")
+    encoded_name = base.replace(
+        "BHP_BOARD_TOUCH_INPUT_NAME=UNMEASURED:FRDM-GATE-TOUCH",
+        "BHP_BOARD_TOUCH_INPUT_NAME=Goodix%20Capacitive%20TouchScreen")
+    if encoded_name == base:
+        raise ProfileError("SELF_TEST_FIXTURE_STALE", "percent_encoded_touch_name")
+    validate_profile("frdm-imx8mp", parse_profile(encoded_name, schema, "encoded"),
+                     schema, gates, presets, check_files=False)
     return count
+
+
+TOUCH_CLASSIFIER = (PROJECT_ROOT / "system_image/buildroot_external/board/beaglebone-house-panel"
+                    / "rootfs-overlay/usr/libexec/beaglebone-house-panel/classify-touch-input")
+
+
+def check_pir_consumers(board_id: str, values: dict[str, str], schema: dict) -> None:
+    """Device-tree node names and PIR input names must match their consumers."""
+    classifier = TOUCH_CLASSIFIER.read_text(encoding="utf-8")
+    for key in ("BHP_BOARD_PIR_INPUT_NAME", "BHP_BOARD_PIR_CUSTOM_INPUT_NAME"):
+        name = values.get(key)
+        if name is None or placeholder_kind(name, schema) is not None:
+            continue
+        if classifier.count(f"'{name}'") < 2:
+            raise ProfileError("PIR_NAME_NOT_DENIED_AS_TOUCH", f"{board_id}: {key}={name}")
+    node_sources = {
+        "BHP_BOARD_PIR_DT_NODE": ("BHP_BOARD_PROJECT_OVERLAY_TEMPLATE",
+                                  "presence_sensor/experiments/stock_gpio_keys_wake_baseline"),
+        "BHP_BOARD_PIR_CUSTOM_DT_NODE": ("BHP_BOARD_PRESENCE_CUSTOM_OVERLAY_TEMPLATE",
+                                         "presence_sensor/experiments/custom_pir_input_driver"),
+    }
+    for key, (template_key, history_directory) in node_sources.items():
+        node = values[key]
+        if template_key in values:
+            candidates = [PROJECT_ROOT / values[template_key]]
+        else:
+            candidates = sorted((PROJECT_ROOT / history_directory).glob("beagle-house-*.dts"))
+        if not any(re.search(rf"^\s+{re.escape(node)} \{{$", path.read_text(encoding="utf-8"),
+                             re.MULTILINE) for path in candidates):
+            raise ProfileError("PIR_DT_NODE_NOT_IN_OVERLAY", f"{board_id}: {key}={node}")
 
 
 def main() -> int:
@@ -208,6 +250,7 @@ def main() -> int:
             if not SHELL_LOADER.exists() or not shell_loader_accepts(path.read_text(encoding="utf-8")):
                 raise ProfileError("SHELL_LOADER_REJECTED", path.name)
             placeholders = validate_profile(board_id, values, schema, gates, presets)
+            check_pir_consumers(board_id, values, schema)
             if values["BHP_BOARD_STATUS"] == "active":
                 active.append(board_id)
             report[board_id] = {

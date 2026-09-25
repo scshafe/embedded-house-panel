@@ -172,6 +172,50 @@ cmp -s "$PROJECT_ROOT/config/boards/frdm-imx8mp.env" \
 		"post-build.sh did not install the selected board profile verbatim" "$TRACE_ID"
 	exit 1
 }
+rendered_environment_directory=$provenance_target/etc/beaglebone-house-panel
+for rendered_environment_contract in \
+	'panel-supervisor.env.example:BHP_PANEL_SUPERVISOR_BACKLIGHT_PATH=REPLACE_ME_UNMEASURED_FRDM-GATE-BACKLIGHT/brightness' \
+	'panel-supervisor.env.example:BHP_PANEL_SUPERVISOR_PRESENCE_INPUT_NAME=bhp-frdm-pir-gpio-keys' \
+	'panel-supervisor.env.example:BHP_PANEL_SUPERVISOR_SUSPEND_MODE=disabled' \
+	'panel-supervisor.env.example:# BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE=REPLACE_ME_UNMEASURED_FRDM-GATE-SUSPEND' \
+	'presence-sensor.env.example:BHP_PRESENCE_SENSOR_ENABLED=0' \
+	'panel-ui.env.example:# BHP_PANEL_UI_DISPLAY_BACKEND=drm' \
+	'panel-ui.env.example:BHP_PANEL_UI_ENABLED=0'; do
+	rendered_environment_file=$rendered_environment_directory/${rendered_environment_contract%%:*}
+	grep -F -x -- "${rendered_environment_contract#*:}" "$rendered_environment_file" >/dev/null || {
+		bhp_fail VERIFY_BUILD_DEPLOY.SERVICE_ENVIRONMENT_INVALID \
+			"$rendered_environment_contract" "$TRACE_ID"
+		exit 1
+	}
+done
+# The host template, the rendered board example, and the daemon's accepted
+# variables must name exactly the same keys (commented keys included).
+python3 - "$PROJECT_ROOT/config/panel-supervisor.env.example" \
+	"$rendered_environment_directory/panel-supervisor.env.example" \
+	"$PROJECT_ROOT/panel_supervisor/src/panel_supervisord_config.cpp" <<'PY_SERVICE_KEYS' || {
+import re
+import sys
+
+def keys(path):
+    return set(re.findall(r"^#? ?(BHP_PANEL_SUPERVISOR_[A-Z_]+)=", open(path).read(), re.MULTILINE))
+
+daemon = set(re.findall(r'"(BHP_PANEL_SUPERVISOR_[A-Z_]+)"', open(sys.argv[3]).read()))
+daemon.add("BHP_PANEL_SUPERVISOR_ENABLED")
+host, rendered = keys(sys.argv[1]), keys(sys.argv[2])
+if not (host == rendered == daemon):
+    print(sorted(host ^ daemon), sorted(rendered ^ daemon))
+    sys.exit(1)
+PY_SERVICE_KEYS
+	bhp_fail VERIFY_BUILD_DEPLOY.SERVICE_ENVIRONMENT_KEYS_DIVERGED \
+		"config/panel-supervisor.env.example, the rendered example, and panel_supervisord_config.cpp disagree" \
+		"$TRACE_ID"
+	exit 1
+}
+if grep -E '@BHP_BOARD_[A-Z0-9_]+@' "$rendered_environment_directory"/*.env.example >/dev/null; then
+	bhp_fail VERIFY_BUILD_DEPLOY.SERVICE_ENVIRONMENT_TOKEN_LEFT \
+		"post-build.sh left a board token in a service environment example" "$TRACE_ID"
+	exit 1
+fi
 unset BR2_CONFIG
 grep -F -x production \
 	"$provenance_target/etc/beaglebone-house-panel/image-profile" >/dev/null
@@ -287,6 +331,23 @@ BHP_MDEV_TEST_TOUCH_GROUP=$test_group \
 MDEV=input/event4 "$classifier"
 python3 -c 'import os,stat,sys; assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o600' \
 	"$classifier_dev/input/event4"
+
+# The FRDM PIR identity is denied the same way.
+mkdir -p "$classifier_sys/event5/device"
+printf '%s\n' 'bhp-frdm-pir-gpio-keys' >"$classifier_sys/event5/device/name"
+printf '%s\n' 'gpio-keys/input0' >"$classifier_sys/event5/device/phys"
+: >"$classifier_dev/input/event5"
+chmod 0600 "$classifier_dev/input/event5"
+printf '%s\n' 'bhp-frdm-pir-gpio-keys' >"$classifier_configuration/touch-input.name"
+printf '%s\n' 'gpio-keys/input0' >"$classifier_configuration/touch-input.phys"
+BHP_MDEV_TEST_MODE=1 \
+BHP_MDEV_TEST_CONFIGURATION_ROOT=$classifier_configuration \
+BHP_MDEV_TEST_SYS_CLASS_INPUT=$classifier_sys \
+BHP_MDEV_TEST_DEVICE_ROOT=$classifier_dev \
+BHP_MDEV_TEST_TOUCH_GROUP=$test_group \
+MDEV=input/event5 "$classifier"
+python3 -c 'import os,stat,sys; assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o600' \
+	"$classifier_dev/input/event5"
 
 # An ambiguous physical identity and a CR-bearing configuration both fail shut.
 printf '%s\n' '4D Cape Touch Controller' >"$classifier_configuration/touch-input.name"
@@ -723,7 +784,12 @@ if grep -E 'install\(TARGETS[[:space:]]+panel_ui_core_smoke' \
 fi
 
 panel_ui_init=$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S75bhp-panel-ui
-panel_ui_environment_example=$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/panel-ui.env.example
+panel_ui_environment_example=$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/service-environment/panel-ui.env.example.in
+test -f "$panel_ui_environment_example" || {
+	bhp_fail VERIFY_BUILD_DEPLOY.PANEL_UI_ENVIRONMENT_TEMPLATE_MISSING \
+		"$panel_ui_environment_example" "$TRACE_ID"
+	exit 1
+}
 for panel_ui_init_contract in \
 	'BHP_PANEL_UI_ENVIRONMENT_FILE=/etc/beaglebone-house-panel/panel-ui.env' \
 	'BHP_PANEL_UI.DISPLAY_COMMIT_BACKEND_UNAVAILABLE' \

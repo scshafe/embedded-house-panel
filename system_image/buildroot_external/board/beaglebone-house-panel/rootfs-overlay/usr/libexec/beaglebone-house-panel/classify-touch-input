@@ -93,9 +93,13 @@ bhp_read_exact_identity_line "$expected_phys_file" || exit 0
 expected_phys=$BHP_TOUCH_IDENTITY_VALUE
 
 # These identities are never touch devices, even if an operator accidentally
-# copies the wrong inventory values into the touch configuration.
+# copies the wrong inventory values into the touch configuration. The list is
+# the union of every board's PIR input names (BeagleBone history literals plus
+# each config/boards/*.env BHP_BOARD_PIR_INPUT_NAME and
+# BHP_BOARD_PIR_CUSTOM_INPUT_NAME); verify_board_profiles.py enforces that.
 case "$expected_name" in
-	'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline')
+	'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline'|\
+	'bhp-frdm-pir-gpio-keys'|'bhp-frdm-pir-custom')
 		exit 0
 		;;
 esac
@@ -119,7 +123,8 @@ for candidate_device in "$sys_class_input"/event*/device; do
 	bhp_read_exact_identity_line "$candidate_phys_file" || continue
 	candidate_phys=$BHP_TOUCH_IDENTITY_VALUE
 	case "$candidate_name" in
-		'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline')
+		'Beagle House PIR custom experiment'|'Beagle House gpio-keys wake baseline'|\
+		'bhp-frdm-pir-gpio-keys'|'bhp-frdm-pir-custom')
 			continue
 			;;
 	esac
