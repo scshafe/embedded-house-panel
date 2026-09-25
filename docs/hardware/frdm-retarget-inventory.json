@@ -25,6 +25,19 @@
     "board_parameterize": 91,
     "bbb_history": 57
   },
+  "resolution_statuses": {
+    "addressed": "Changed by the listed retarget commits (the file may since have been renamed or moved).",
+    "handled_elsewhere": "Left unchanged on purpose; the FRDM equivalent lives at the path named in the note.",
+    "no_change_needed": "Board-neutral, or already reads explicit configuration.",
+    "kept_as_bbb_history": "BeagleBone-only history.",
+    "open": "Still needs a change."
+  },
+  "resolution_counts": {
+    "addressed": 31,
+    "handled_elsewhere": 5,
+    "kept_as_bbb_history": 7,
+    "no_change_needed": 10
+  },
   "files": [
     {
       "path": "cmake/toolchains/buildroot-armv7.cmake",
@@ -45,7 +58,15 @@
           "classification": "retarget",
           "reason": "Error-message example is the ARMv7 hard-float tuple; FRDM SDK tuple is aarch64-buildroot-linux-gnu."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "f404eaf",
+          "34292c8"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "CMakePresets.json",
@@ -94,7 +115,14 @@
           "classification": "board_parameterize",
           "reason": "Build preset configurePreset encodes ARMv7."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "34292c8"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "config/build-and-deploy.env.example",
@@ -122,7 +150,14 @@
           "classification": "board_parameterize",
           "reason": "Staging dir assumes BBB Debian 'debian' home; not present on the Buildroot bring-up image."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "34292c8"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/build/cross_build_applications.sh",
@@ -164,7 +199,14 @@
           "classification": "board_parameterize",
           "reason": "Hard-coded ARMv7 build preset."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "34292c8"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/deploy/upload_application_bundle.sh",
@@ -185,7 +227,14 @@
           "classification": "board_parameterize",
           "reason": "Remote staging restricted to /home/*/* or /tmp/*, which presumes the BBB Debian non-root 'debian' account; the Buildroot bring-up image has only root (/root), so FRDM can use only /tmp unless the profile supplies an allowed root."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "34292c8"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/build/configure_buildroot.sh",
@@ -206,7 +255,14 @@
           "classification": "board_parameterize",
           "reason": "Same: bring-up profile is implicitly the BBB bring-up defconfig."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/build/build_bringup_image.sh",
@@ -220,7 +276,14 @@
           "classification": "board_parameterize",
           "reason": "Image artifact name comes from the BBB genimage layout; should follow the board's genimage config."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/environment/check_host_dependencies.sh",
@@ -234,7 +297,12 @@
           "classification": "board_parameterize",
           "reason": "x86_64-host requirement stems from the Bootlin prebuilt external toolchain in the BBB defconfig; still true for Bootlin aarch64, but should follow the board profile's toolchain choice."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Bootlin toolchains stay x86_64-hosted for both boards; the host check is board-neutral."
+      }
     },
     {
       "path": "system_image/buildroot_external/configs/beaglebone_house_panel_defconfig",
@@ -360,7 +428,14 @@
           "classification": "retarget",
           "reason": "AM335x ROM second-stage loader name; not used on i.MX8MP."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "system_image/buildroot_external/configs/beaglebone_house_panel_bringup_defconfig",
@@ -486,7 +561,14 @@
           "classification": "retarget",
           "reason": "AM335x ROM loader filename."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "system_image/buildroot_external/board/beaglebone-house-panel/genimage.cfg",
@@ -556,7 +638,12 @@
           "classification": "retarget",
           "reason": "Active-FAT requirement of the AM335x ROM MMC boot; not how i.MX8MP boots."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "handled_elsewhere",
+        "commits": [],
+        "note": "Kept for the BBB history defconfig; the FRDM layout is board/beaglebone-house-panel/frdm-imx8mp/genimage.cfg."
+      }
     },
     {
       "path": "system_image/buildroot_external/board/beaglebone-house-panel/linux-suspend-prerequisites.config",
@@ -605,7 +692,12 @@
           "classification": "retarget",
           "reason": "TI EMIF SRAM PM code; AM335x only."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "handled_elsewhere",
+        "commits": [],
+        "note": "Kept for BBB; the FRDM fragment is frdm-imx8mp/linux-frdm-imx8mp.config, selected by BHP_BOARD_SUSPEND_KCONFIG_FRAGMENT."
+      }
     },
     {
       "path": "system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S31bhp-presence-sensor",
@@ -661,7 +753,14 @@
           "classification": "board_parameterize",
           "reason": "Status path repeats the BBB overlay label."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "7e74230"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/presence-sensor.env.example",
@@ -689,7 +788,14 @@
           "classification": "board_parameterize",
           "reason": "Directory holds the BBB .dtbo artifacts; per-board overlay set."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "7e74230"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/usr/libexec/beaglebone-house-panel/classify-touch-input",
@@ -710,7 +816,14 @@
           "classification": "board_parameterize",
           "reason": "Same BBB PIR deny list in the candidate scan."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "7e74230"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "system_image/buildroot_external/package/bhp-presence-sensor/bhp-presence-sensor.mk",
@@ -752,7 +865,14 @@
           "classification": "board_parameterize",
           "reason": "Installs the BBB gpio-keys overlay into every image."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "system_image/buildroot_external/package/bhp-presence-sensor/README.md",
@@ -766,7 +886,14 @@
           "classification": "retarget",
           "reason": "Names the BeagleBone uEnv.txt overlay mechanism; FRDM uses extlinux fdtoverlays or a boot script."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "0e75e35"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "system_image/README.md",
@@ -808,13 +935,25 @@
           "classification": "retarget",
           "reason": "Touch-access caveat is framed around the cape touch driver; FRDM touch is the DSI panel's I2C controller."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "04b93da"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "presence_sensor/Kbuild",
       "role": "Out-of-tree Kbuild for the custom PIR module; reviewed: arch-neutral, no board assumption.",
       "disposition": "No change; arch-neutral.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Architecture-neutral."
+      }
     },
     {
       "path": "presence_sensor/Makefile",
@@ -849,7 +988,12 @@
           "classification": "board_parameterize",
           "reason": "'all' always builds the BBB overlays; overlay set should be per board."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "ARCH and CROSS_COMPILE are caller-supplied; Buildroot passes arm64 for the FRDM."
+      }
     },
     {
       "path": "presence_sensor/overlays/Makefile",
@@ -884,7 +1028,12 @@
           "classification": "board_parameterize",
           "reason": "Output list is BBB-only."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "handled_elsewhere",
+        "commits": [],
+        "note": "Builds only the BBB history overlays; bhp-presence-sensor.mk renders the FRDM custom overlay from its profile template."
+      }
     },
     {
       "path": "presence_sensor/README.md",
@@ -919,7 +1068,14 @@
           "classification": "bbb_history",
           "reason": "Points to AM335x DeepSleep0 research; history."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "04b93da"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "presence_sensor/docs/build-and-test.md",
@@ -1003,7 +1159,14 @@
           "classification": "bbb_history",
           "reason": "AM335x GPIO0/WKUP-M3 wake troubleshooting."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "04b93da"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "presence_sensor/docs/input-abi.md",
@@ -1017,7 +1180,12 @@
           "classification": "bbb_history",
           "reason": "Custom compatible uses BeagleBoard.org's 'beagle' vendor prefix; functional anywhere, rename only if the driver is promoted beyond the BBB experiment."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "kept_as_bbb_history",
+        "commits": [],
+        "note": "BeagleBone-only history; not on any FRDM path."
+      }
     },
     {
       "path": "presence_sensor/experiments/custom_pir_input_driver/beagle-house-custom-pir-overlay.dts",
@@ -1087,7 +1255,12 @@
           "classification": "bbb_history",
           "reason": "AM335x GPIO bank 0 line 3."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "kept_as_bbb_history",
+        "commits": [],
+        "note": "BeagleBone-only history; not on any FRDM path."
+      }
     },
     {
       "path": "presence_sensor/experiments/stock_gpio_keys_wake_baseline/beagle-house-gpio-keys-wake-baseline-overlay.dts",
@@ -1150,7 +1323,12 @@
           "classification": "bbb_history",
           "reason": "AM335x GPIO bank 0 line 3."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "kept_as_bbb_history",
+        "commits": [],
+        "note": "BeagleBone-only history; not on any FRDM path."
+      }
     },
     {
       "path": "presence_sensor/experiments/custom_pir_input_driver/beagle_house_pir_input_driver.c",
@@ -1185,7 +1363,14 @@
           "classification": "bbb_history",
           "reason": "OF match uses the BeagleBoard 'beagle' vendor prefix; works on any board, rename only if promoted (must stay in sync with overlay, binding, S31, verifier)."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "d590983"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "presence_sensor/experiments/custom_pir_input_driver/Documentation/devicetree/bindings/input/beagle,house-pir.yaml",
@@ -1220,7 +1405,12 @@
           "classification": "bbb_history",
           "reason": "Example uses AM335x GPIO0_3."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "kept_as_bbb_history",
+        "commits": [],
+        "note": "BeagleBone-only history; not on any FRDM path."
+      }
     },
     {
       "path": "presence_sensor/experiments/custom_pir_input_driver/README.md",
@@ -1255,7 +1445,12 @@
           "classification": "bbb_history",
           "reason": "AM335x low-power path troubleshooting."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "kept_as_bbb_history",
+        "commits": [],
+        "note": "BeagleBone-only history; not on any FRDM path."
+      }
     },
     {
       "path": "presence_sensor/experiments/stock_gpio_keys_wake_baseline/README.md",
@@ -1276,7 +1471,12 @@
           "classification": "bbb_history",
           "reason": "Candidate BBB GPIO."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "kept_as_bbb_history",
+        "commits": [],
+        "note": "BeagleBone-only history; not on any FRDM path."
+      }
     },
     {
       "path": "scripts/verification/verify_build_and_deploy_contracts.sh",
@@ -1409,7 +1609,17 @@
           "classification": "board_parameterize",
           "reason": "Asserts contracts against the ARMv7-named toolchain file; follow the renamed/per-board file."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "34292c8",
+          "6ddfb23",
+          "7e74230",
+          "b3a4357"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/verification/verify_buildroot_external_tree.sh",
@@ -1521,7 +1731,15 @@
           "classification": "board_parameterize",
           "reason": "Evaluates only the BBB bring-up defconfig."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23",
+          "7e74230"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/verification/verify_presence_sensor_sources.sh",
@@ -1570,7 +1788,12 @@
           "classification": "board_parameterize",
           "reason": "Module build via KERNEL_DIR passes no ARCH/CROSS_COMPILE; FRDM builds need ARCH=arm64 and an aarch64 prefix from the environment/profile."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "handled_elsewhere",
+        "commits": [],
+        "note": "FRDM template contracts are verified by scripts/verification/verify_frdm_device_tree_overlay.sh."
+      }
     },
     {
       "path": "scripts/verification/check_suspend_kernel_config.sh",
@@ -1619,7 +1842,14 @@
           "classification": "retarget",
           "reason": "Log key names AM335x DeepSleep0."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/verification/verify_suspend_kernel_config_checker.sh",
@@ -1689,7 +1919,14 @@
           "classification": "board_parameterize",
           "reason": "Missing-symbol case uses an AM335x symbol."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/verification/verify_release_candidate_image.sh",
@@ -1724,7 +1961,14 @@
           "classification": "board_parameterize",
           "reason": "Requires the BBB gpio-keys overlay in the image."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "scripts/verification/verify_documentation.sh",
@@ -1752,7 +1996,15 @@
           "classification": "bbb_history",
           "reason": "Requires the BBB Debian 13.6 armhf Tailnet runbook; history."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "37bb060",
+          "04b93da"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "hardware_tests/README.md",
@@ -1815,7 +2067,14 @@
           "classification": "retarget",
           "reason": "Power schema scoped to BeagleBone samples."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "b3a4357"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "hardware_tests/schemas/power_measurement.schema.json",
@@ -1836,7 +2095,14 @@
           "classification": "retarget",
           "reason": "Same required cape field definition."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "b3a4357"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "hardware_tests/scripts/collect_read_only_board_inventory.sh",
@@ -1878,7 +2144,12 @@
           "classification": "retarget",
           "reason": "Output file named for cape EEPROMs."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "kept_as_bbb_history",
+        "commits": [],
+        "note": "Generic inventory kept; FRDM evidence uses hardware_tests/frdm/."
+      }
     },
     {
       "path": "hardware_tests/scripts/run_suspend_wake_trials.sh",
@@ -1892,25 +2163,45 @@
           "classification": "retarget",
           "reason": "Requires python3 on target (available on BBB Debian); neither Buildroot defconfig selects python3, so FRDM bring-up must add it or classify host-side."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "handled_elsewhere",
+        "commits": [],
+        "note": "Board-neutral acceptance runner; the FRDM bring-up defconfig adds python3 so it runs on target (frdm_suspend_wake.sh is the smoke)."
+      }
     },
     {
       "path": "hardware_tests/scripts/classify_wake_trial.py",
       "role": "Wake-trial manifest classifier; reviewed: board-neutral (mem_sleep observed, never assumed).",
       "disposition": "No change; board-neutral.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Board-neutral."
+      }
     },
     {
       "path": "hardware_tests/tests/test_classify_wake_trial.py",
       "role": "Unit tests for the wake-trial classifier; reviewed: board-neutral (excluded fixtures carry wkup_m3_* wake-source values).",
       "disposition": "No change; board-neutral.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Board-neutral."
+      }
     },
     {
       "path": "hardware_tests/schemas/wake_trial.schema.json",
       "role": "JSON schema for wake-trial manifests; reviewed: board-neutral.",
       "disposition": "No change; board-neutral.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Board-neutral."
+      }
     },
     {
       "path": "README.md",
@@ -1987,7 +2278,14 @@
           "classification": "retarget",
           "reason": "Open decision is framed as DeepSleep0 on Black."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "04b93da"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "enclosure/README.md",
@@ -2001,7 +2299,14 @@
           "classification": "retarget",
           "reason": "Enclosure evidence assumes a stacked board+cape; FRDM + DSI panel stack differs."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "04b93da"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "panel_supervisor/README.md",
@@ -2015,7 +2320,14 @@
           "classification": "bbb_history",
           "reason": "Describes the BBB custom-PIR experiment's pm_wakeup_event behavior."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "7e74230"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "panel_supervisor/src/sysfs_suspend.cpp",
@@ -2029,37 +2341,72 @@
           "classification": "board_parameterize",
           "reason": "Writes 'mem' but never selects /sys/power/mem_sleep; BBB plan relied on the kernel default 'deep' = AM335x DeepSleep0. FRDM (PSCI deep vs s2idle) needs an explicit per-board mem_sleep choice."
         }
-      ]
+      ],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "7e74230"
+        ],
+        "note": "See the listed commits."
+      }
     },
     {
       "path": "panel_supervisor/src/sysfs_backlight.cpp",
       "role": "Sysfs backlight adapter; reviewed: requires an explicit /sys/class/backlight/<dev> path, no board default.",
       "disposition": "No change; path is explicit configuration.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Backlight path is explicit configuration, now rendered from BHP_BOARD_BACKLIGHT_SYSFS_DIR."
+      }
     },
     {
       "path": "panel_supervisor/src/evdev_presence_source.cpp",
       "role": "Evdev PIR presence source; reviewed: exact-name discovery under /dev/input, word-size-portable bitmaps, no board default.",
       "disposition": "No change; exact-name discovery.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Exact-name discovery; the name comes from BHP_BOARD_PIR_INPUT_NAME."
+      }
     },
     {
       "path": "vocabulary_panel/gui/lvgl/src/lvgl_flash_card_renderer.cpp",
       "role": "LVGL renderer; reviewed: display node, DRM connector, resolution and touch calibration are all explicit config, no board default.",
       "disposition": "No change; explicit backend/device configuration.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "Explicit DRM/fbdev configuration; the rendered panel-ui example carries the board values."
+      }
     },
     {
       "path": "system_image/buildroot_external/package/lvgl/lv_conf.h",
       "role": "Pinned LVGL configuration; reviewed: generic DRM/fbdev/evdev, no board-specific value.",
       "disposition": "No change; DRM and fbdev both built.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "no_change_needed",
+        "commits": [],
+        "note": "DRM and fbdev backends are both built."
+      }
     },
     {
       "path": "system_image/buildroot_external/board/beaglebone-house-panel/post-build.sh",
       "role": "Production post-build hook (provenance, mdev rules); reviewed: generic DRM/fbdev/evdev mdev rules, no board assumption.",
       "disposition": "Install the selected board profile into the image.",
-      "hits": []
+      "hits": [],
+      "resolution": {
+        "status": "addressed",
+        "commits": [
+          "6ddfb23",
+          "7e74230"
+        ],
+        "note": "See the listed commits."
+      }
     }
   ]
 }
