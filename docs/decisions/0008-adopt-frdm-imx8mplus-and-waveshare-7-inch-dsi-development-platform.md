@@ -125,3 +125,14 @@ the variant before paying.
 headset-microphone capture each have an explicit evidence gate. The existing
 six gates are unchanged. No gate is closed; the gate list is also the vocabulary
 for `UNMEASURED:<gate>` placeholders in `config/boards/frdm-imx8mp.env`.
+
+**Amended 2026-09-25:** the replacement plan now exists
+([FRDM hardware baseline plan](../../.claude/plans/2026-09-25-frdm-hardware-baseline.md)),
+with one evidence script per gate in `hardware_tests/frdm/` and the ordered
+board-arrival checklist in
+[FRDM bring-up](../operations/frdm-bringup.md). The retarget also surfaced a
+human decision this record did not name: the NXP Software License Agreement
+covering `firmware-imx` (LPDDR4 training, required to boot a project image) and
+the IW612 Wi-Fi firmware. It is tracked as
+`HUMAN_DECISION_REQUIRED:NXP-FIRMWARE-EULA` in the board profile and must be
+recorded as its own ADR if accepted. No gate is closed.
