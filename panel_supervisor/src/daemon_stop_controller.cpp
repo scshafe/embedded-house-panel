@@ -27,7 +27,12 @@ extern "C" void handle_daemon_stop_signal(int)
 	const int write_descriptor = static_cast<int>(stop_channel_write_descriptor);
 	if (write_descriptor >= 0) {
 		const unsigned char wake_byte = 1;
-		(void)::write(write_descriptor, &wake_byte, sizeof(wake_byte));
+		// A full or closed self-pipe already carries a pending wake, so the
+		// async-signal-safe write result is intentionally unused. Binding it
+		// keeps glibc's _FORTIFY_SOURCE warn_unused_result satisfied.
+		const ssize_t ignored_write_result =
+			::write(write_descriptor, &wake_byte, sizeof(wake_byte));
+		(void)ignored_write_result;
 	}
 	errno = saved_errno;
 }
