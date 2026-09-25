@@ -29,8 +29,21 @@
       }
     },
     {
+      "name": "buildroot-aarch64-release",
+      "displayName": "Buildroot AArch64 release (FRDM i.MX 8M Plus, Cortex-A53)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.build/buildroot-aarch64-release",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/buildroot-aarch64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BHP_BUILD_TESTS": "OFF",
+        "BHP_BUILD_HTTP_LEXINET_CLIENT": "ON",
+        "BHP_BUILD_LVGL_RENDERER": "ON"
+      }
+    },
+    {
       "name": "buildroot-armv7-release",
-      "displayName": "Buildroot ARMv7 release",
+      "displayName": "Buildroot ARMv7 release (deprecated: BeagleBone Black lost, ADR 0008)",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/.build/buildroot-armv7-release",
       "toolchainFile": "${sourceDir}/cmake/toolchains/buildroot-armv7.cmake",
@@ -39,6 +52,19 @@
         "BHP_BUILD_TESTS": "OFF",
         "BHP_BUILD_HTTP_LEXINET_CLIENT": "ON",
         "BHP_BUILD_LVGL_RENDERER": "ON"
+      }
+    },
+    {
+      "name": "linux-aarch64-cross",
+      "displayName": "Host AArch64 cross-compile check (no Buildroot SDK)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.build/linux-aarch64-cross",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/linux-aarch64-gnu.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BHP_BUILD_TESTS": "OFF",
+        "BHP_BUILD_HTTP_LEXINET_CLIENT": "OFF",
+        "BHP_BUILD_LVGL_RENDERER": "OFF"
       }
     }
   ],
@@ -52,8 +78,16 @@
       "configurePreset": "host-dev"
     },
     {
+      "name": "buildroot-aarch64-release",
+      "configurePreset": "buildroot-aarch64-release"
+    },
+    {
       "name": "buildroot-armv7-release",
       "configurePreset": "buildroot-armv7-release"
+    },
+    {
+      "name": "linux-aarch64-cross",
+      "configurePreset": "linux-aarch64-cross"
     }
   ],
   "testPresets": [

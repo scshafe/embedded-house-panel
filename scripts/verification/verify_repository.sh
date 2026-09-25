@@ -63,6 +63,7 @@ shellcheck_version=$(read_shellcheck_version) || {
 }
 
 "$SCRIPT_DIRECTORY/verify_host_cpp.sh" all
+"$SCRIPT_DIRECTORY/verify_aarch64_cross_build.sh"
 "$SCRIPT_DIRECTORY/verify_shell_scripts.sh"
 "$SCRIPT_DIRECTORY/verify_documentation.sh"
 "$SCRIPT_DIRECTORY/verify_presence_sensor_sources.sh"

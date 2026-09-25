@@ -707,12 +707,53 @@ for required_toolchain_contract in \
 	'CMAKE_FIND_USE_PACKAGE_REGISTRY FALSE' \
 	'CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY FALSE'; do
 	grep -F "$required_toolchain_contract" \
-		"$PROJECT_ROOT/cmake/toolchains/buildroot-armv7.cmake" >/dev/null || {
+		"$PROJECT_ROOT/cmake/toolchains/buildroot-sdk.cmake" >/dev/null || {
 		bhp_fail VERIFY_BUILD_DEPLOY.TOOLCHAIN_CONTRACT_MISSING \
 			"$required_toolchain_contract" "$TRACE_ID"
 		exit 1
 	}
 	done
+# Every board wrapper must pin its processor and delegate to the one canonical
+# Buildroot SDK toolchain; the processor must match the board profile.
+for toolchain_board in frdm-imx8mp:aarch64 beaglebone-black:arm; do
+	toolchain_board_id=${toolchain_board%%:*}
+	toolchain_processor=${toolchain_board#*:}
+	toolchain_preset=$("$PROJECT_ROOT/scripts/boards/show_board_profile.sh" \
+		--board "$toolchain_board_id" --value BHP_BOARD_CMAKE_PRESET)
+	toolchain_profile_processor=$("$PROJECT_ROOT/scripts/boards/show_board_profile.sh" \
+		--board "$toolchain_board_id" --value BHP_BOARD_CMAKE_SYSTEM_PROCESSOR)
+	[ "$toolchain_profile_processor" = "$toolchain_processor" ] || {
+		bhp_fail VERIFY_BUILD_DEPLOY.TOOLCHAIN_PROFILE_MISMATCH \
+			"$toolchain_board_id processor $toolchain_profile_processor" "$TRACE_ID"
+		exit 1
+	}
+	toolchain_wrapper=$(python3 - "$PROJECT_ROOT/CMakePresets.json" "$toolchain_preset" <<'PY_TOOLCHAIN_PRESET'
+import json
+import sys
+
+presets = json.load(open(sys.argv[1], encoding="utf-8"))["configurePresets"]
+matches = [preset for preset in presets if preset["name"] == sys.argv[2]]
+if len(matches) != 1:
+    sys.exit(1)
+print(matches[0]["toolchainFile"].replace("${sourceDir}/", ""))
+PY_TOOLCHAIN_PRESET
+	) || {
+		bhp_fail VERIFY_BUILD_DEPLOY.TOOLCHAIN_PRESET_MISSING "$toolchain_preset" "$TRACE_ID"
+		exit 1
+	}
+	# The CMake variable reference is a literal file contract.
+	# shellcheck disable=SC2016
+	for toolchain_wrapper_contract in \
+		"set(BHP_BUILDROOT_TARGET_PROCESSOR $toolchain_processor)" \
+		'include("${CMAKE_CURRENT_LIST_DIR}/buildroot-sdk.cmake")'; do
+		grep -F -x "$toolchain_wrapper_contract" \
+			"$PROJECT_ROOT/$toolchain_wrapper" >/dev/null || {
+			bhp_fail VERIFY_BUILD_DEPLOY.TOOLCHAIN_WRAPPER_INVALID \
+				"$toolchain_wrapper: $toolchain_wrapper_contract" "$TRACE_ID"
+			exit 1
+		}
+	done
+done
 
 panel_supervisor_init=$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/init.d/S70panel_supervisord
 # These are literal source contracts, not expressions for this verifier shell.

@@ -1,6 +1,7 @@
 #!/bin/sh
 # Uploads a built application directory to an unprivileged staging path.
-# Inputs: BHP_BOARD_SSH_TARGET, BHP_BOARD_UPLOAD_DIR, optional --bundle DIRECTORY.
+# Inputs: BHP_BOARD_SSH_TARGET, BHP_BOARD_UPLOAD_DIR, optional --bundle DIRECTORY
+#   (default: .build/<board CMake preset>/stage for BHP_BOARD or the active board).
 # Side effects: none with --dry-run (default); --execute creates/updates the remote staging directory.
 # Idempotent: rsync converges the staging copy; it never installs or removes unrelated paths.
 
@@ -14,12 +15,14 @@ PROJECT_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIRECTORY/../.." && pwd)
 . "$PROJECT_ROOT/scripts/file_integrity/sha256_file.sh"
 # shellcheck source=application_bundle_manifest.sh
 . "$PROJECT_ROOT/scripts/deploy/application_bundle_manifest.sh"
+# shellcheck source=../boards/board_profile.sh
+. "$PROJECT_ROOT/scripts/boards/board_profile.sh"
 BHP_SCRIPT_SERVICE_NAME=beaglebone_house_panel.upload
 export BHP_SCRIPT_SERVICE_NAME
 TRACE_ID=$(bhp_new_trace_id)
 
 mode=dry-run
-bundle_directory=$PROJECT_ROOT/.build/buildroot-armv7-release/stage
+bundle_directory=
 
 usage()
 {
@@ -40,6 +43,15 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+if [ -z "$bundle_directory" ]; then
+  board_cmake_preset=
+  if ! bhp_board_profile_load_selected "$PROJECT_ROOT" ||
+     ! bhp_board_profile_require_into board_cmake_preset BHP_BOARD_CMAKE_PRESET; then
+    bhp_fail "$BHP_BOARD_PROFILE_ERROR_CODE" "$BHP_BOARD_PROFILE_ERROR_DETAIL" "$TRACE_ID"
+    exit 1
+  fi
+  bundle_directory=$PROJECT_ROOT/.build/$board_cmake_preset/stage
+fi
 : "${BHP_BOARD_SSH_TARGET:?BHP_BOARD_SSH_TARGET is required}"
 : "${BHP_BOARD_UPLOAD_DIR:?BHP_BOARD_UPLOAD_DIR is required}"
 case "$BHP_BOARD_SSH_TARGET" in

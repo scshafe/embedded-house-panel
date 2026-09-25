@@ -1,7 +1,9 @@
 #!/bin/sh
 # Cross-builds user-space applications with the generated Buildroot SDK.
-# Inputs: BHP_BUILDROOT_HOST_DIR and BHP_BUILDROOT_CROSS_PREFIX.
-# Side effects: writes only to .build/buildroot-armv7-release.
+# Inputs: BHP_BUILDROOT_HOST_DIR; optional BHP_BOARD (default: the active board
+#   profile); optional BHP_BUILDROOT_CROSS_PREFIX, which must equal the board
+#   profile's BHP_BOARD_BUILDROOT_CROSS_PREFIX when set.
+# Side effects: writes only to .build/<board CMake preset>.
 # Idempotent: yes.
 
 set -eu
@@ -14,17 +16,41 @@ PROJECT_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIRECTORY/../.." && pwd)
 . "$PROJECT_ROOT/scripts/file_integrity/sha256_file.sh"
 # shellcheck source=../deploy/application_bundle_manifest.sh
 . "$PROJECT_ROOT/scripts/deploy/application_bundle_manifest.sh"
+# shellcheck source=../boards/board_profile.sh
+. "$PROJECT_ROOT/scripts/boards/board_profile.sh"
 BHP_SCRIPT_SERVICE_NAME=beaglebone_house_panel.cross_build
 export BHP_SCRIPT_SERVICE_NAME
 TRACE_ID=$(bhp_new_trace_id)
 
 if [ "${1:-}" = --help ] || [ "${1:-}" = -h ]; then
-  printf '%s\n' "Usage: BHP_BUILDROOT_HOST_DIR=/abs/output/host BHP_BUILDROOT_CROSS_PREFIX=arm-buildroot-linux-gnueabihf $0"
+  printf '%s\n' "Usage: BHP_BUILDROOT_HOST_DIR=/abs/output/host [BHP_BOARD=frdm-imx8mp] [BHP_BUILDROOT_CROSS_PREFIX=aarch64-buildroot-linux-gnu] $0"
   exit 0
 fi
 
 : "${BHP_BUILDROOT_HOST_DIR:?BHP_BUILDROOT_HOST_DIR is required}"
-: "${BHP_BUILDROOT_CROSS_PREFIX:?BHP_BUILDROOT_CROSS_PREFIX is required}"
+if ! bhp_board_profile_load_selected "$PROJECT_ROOT"; then
+  bhp_fail "$BHP_BOARD_PROFILE_ERROR_CODE" "$BHP_BOARD_PROFILE_ERROR_DETAIL" "$TRACE_ID"
+  exit 1
+fi
+board_cross_prefix=
+board_cmake_preset=
+if ! bhp_board_profile_require_into board_cross_prefix BHP_BOARD_BUILDROOT_CROSS_PREFIX ||
+   ! bhp_board_profile_require_into board_cmake_preset BHP_BOARD_CMAKE_PRESET; then
+  bhp_fail "$BHP_BOARD_PROFILE_ERROR_CODE" "$BHP_BOARD_PROFILE_ERROR_DETAIL" "$TRACE_ID"
+  exit 1
+fi
+if [ -z "${BHP_BUILDROOT_CROSS_PREFIX:-}" ]; then
+  BHP_BUILDROOT_CROSS_PREFIX=$board_cross_prefix
+elif [ "$BHP_BUILDROOT_CROSS_PREFIX" != "$board_cross_prefix" ]; then
+  bhp_fail CROSS_BUILD.PREFIX_BOARD_MISMATCH \
+    "$BHP_BUILDROOT_CROSS_PREFIX differs from $BHP_BOARD_ID profile prefix $board_cross_prefix" \
+    "$TRACE_ID"
+  exit 1
+fi
+if [ "$BHP_BOARD_STATUS" != active ]; then
+  bhp_log warn cross_build_board_deprecated "$TRACE_ID" \
+    board_id "$BHP_BOARD_ID" board_status "$BHP_BOARD_STATUS" decision ADR-0008
+fi
 case "$BHP_BUILDROOT_HOST_DIR" in
   /*) ;;
   *) bhp_fail CROSS_BUILD.HOST_DIR_NOT_ABSOLUTE "$BHP_BUILDROOT_HOST_DIR" "$TRACE_ID"; exit 1 ;;
@@ -77,7 +103,7 @@ case "$build_jobs" in
   *[!0-9]*|0|'') bhp_fail CROSS_BUILD.JOBS_INVALID "$build_jobs" "$TRACE_ID"; exit 1 ;;
 esac
 cd "$PROJECT_ROOT"
-build_directory=$PROJECT_ROOT/.build/buildroot-armv7-release
+build_directory=$PROJECT_ROOT/.build/$board_cmake_preset
 cache_path=$build_directory/CMakeCache.txt
 bhp_cross_cache_value()
 {
@@ -115,7 +141,7 @@ if [ -f "$cache_path" ]; then
     exit 1
   fi
 fi
-cmake --preset buildroot-armv7-release
+cmake --preset "$board_cmake_preset"
 test -s "$cache_path" || {
   bhp_fail CROSS_BUILD.CACHE_MISSING "$cache_path" "$TRACE_ID"
   exit 1
@@ -144,7 +170,7 @@ for target_cache_path_key in \
     exit 1
   fi
 done
-cmake --build --preset buildroot-armv7-release --parallel "$build_jobs"
+cmake --build --preset "$board_cmake_preset" --parallel "$build_jobs"
 
 bundle_directory=$build_directory/stage
 pending_bundle_directory=$(mktemp -d "$build_directory/stage.pending.XXXXXX") || {
@@ -193,6 +219,8 @@ fi
 manifest_path=$bundle_directory/$BHP_BUNDLE_MANIFEST_FILENAME
 
 bhp_log info cross_build_complete "$TRACE_ID" \
+  board_id "$BHP_BOARD_ID" \
+  cmake_preset "$board_cmake_preset" \
   build_directory "$build_directory" \
   bundle_directory "$bundle_directory" \
   manifest "$manifest_path"

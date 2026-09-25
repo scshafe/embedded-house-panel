@@ -1,13 +1,22 @@
-# @canonical buildroot_cross_toolchain -- all manual ARM application builds use this file.
+# @canonical buildroot_cross_toolchain -- all Buildroot-SDK application builds use this file.
+# Board wrappers (buildroot-aarch64.cmake, deprecated buildroot-armv7.cmake) set
+# BHP_BUILDROOT_TARGET_PROCESSOR from config/boards/<id>.env
+# (BHP_BOARD_CMAKE_SYSTEM_PROCESSOR) before including this file.
+if(NOT DEFINED BHP_BUILDROOT_TARGET_PROCESSOR)
+  message(FATAL_ERROR "Include a board wrapper such as buildroot-aarch64.cmake; BHP_BUILDROOT_TARGET_PROCESSOR is unset")
+endif()
+if(NOT BHP_BUILDROOT_TARGET_PROCESSOR MATCHES "^(aarch64|arm)$")
+  message(FATAL_ERROR "BHP_BUILDROOT_TARGET_PROCESSOR must be aarch64 or arm")
+endif()
 set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR arm)
+set(CMAKE_SYSTEM_PROCESSOR "${BHP_BUILDROOT_TARGET_PROCESSOR}")
 
 if(NOT DEFINED ENV{BHP_BUILDROOT_HOST_DIR})
   message(FATAL_ERROR "BHP_BUILDROOT_HOST_DIR must name Buildroot output/host")
 endif()
 
 if(NOT DEFINED ENV{BHP_BUILDROOT_CROSS_PREFIX})
-  message(FATAL_ERROR "BHP_BUILDROOT_CROSS_PREFIX must be the full compiler prefix, for example arm-buildroot-linux-gnueabihf")
+  message(FATAL_ERROR "BHP_BUILDROOT_CROSS_PREFIX must be the full compiler prefix from config/boards/<id>.env, for example aarch64-buildroot-linux-gnu")
 endif()
 
 set(BHP_BUILDROOT_HOST_DIR "$ENV{BHP_BUILDROOT_HOST_DIR}")
@@ -18,6 +27,9 @@ if(NOT IS_ABSOLUTE "${BHP_BUILDROOT_HOST_DIR}")
 endif()
 if(NOT BHP_BUILDROOT_CROSS_PREFIX MATCHES "^[A-Za-z0-9._+-]+$")
   message(FATAL_ERROR "BHP_BUILDROOT_CROSS_PREFIX contains unsupported characters")
+endif()
+if(NOT BHP_BUILDROOT_CROSS_PREFIX MATCHES "^${BHP_BUILDROOT_TARGET_PROCESSOR}-")
+  message(FATAL_ERROR "BHP_BUILDROOT_CROSS_PREFIX ${BHP_BUILDROOT_CROSS_PREFIX} does not target ${BHP_BUILDROOT_TARGET_PROCESSOR}")
 endif()
 
 set(BHP_BUILDROOT_TOOL_BIN_DIR "${BHP_BUILDROOT_HOST_DIR}/bin")
