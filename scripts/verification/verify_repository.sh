@@ -17,6 +17,7 @@ TRACE_ID=$(bhp_new_trace_id)
 
 python3 "$SCRIPT_DIRECTORY/check_plan_verification_map.py"
 python3 "$SCRIPT_DIRECTORY/verify_plan_verification_map.py"
+python3 "$SCRIPT_DIRECTORY/verify_board_profiles.py"
 (
   cd "$PROJECT_ROOT"
   PYTHONDONTWRITEBYTECODE=1 \

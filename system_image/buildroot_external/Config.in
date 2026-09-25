@@ -1,9 +1,20 @@
 menu "BeagleBone house panel"
 
+config BR2_BHP_BOARD_ID
+	string "House-panel board profile id"
+	help
+	  Selects config/boards/<id>.env, which external.mk includes so the
+	  project packages build for that board. frdm-imx8mp is the active
+	  development board (ADR 0008); beaglebone-black is deprecated
+	  history. An empty or unknown id fails the build.
+
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-panel-supervisor/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-panel-ui/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-vocabulary-panel/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-presence-sensor/Config.in"
+source "$BR2_EXTERNAL_BHP_PATH/package/bhp-board-device-tree/Config.in"
+source "$BR2_EXTERNAL_BHP_PATH/package/bhp-nxp-mwifiex/Config.in"
+source "$BR2_EXTERNAL_BHP_PATH/package/bhp-nxp-iw612-firmware/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/lvgl/Config.in"
 
 endmenu

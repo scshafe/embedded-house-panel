@@ -1,6 +1,7 @@
 #!/bin/sh
-# Adds project provenance to the target root filesystem.
-# Buildroot passes TARGET_DIR as the first argument and exports BR2_EXTERNAL_BHP_PATH.
+# Adds project provenance and the selected board profile to the target root filesystem.
+# Buildroot passes TARGET_DIR as the first argument and exports BR2_EXTERNAL_BHP_PATH
+# and BR2_CONFIG (whose BR2_BHP_BOARD_ID selects config/boards/<id>.env).
 
 set -eu
 
@@ -57,6 +58,23 @@ elif [ "$buildroot_archive_sha256" != unverified ]; then
 	exit 1
 fi
 test -d "$target_directory"
+: "${BR2_CONFIG:?BR2_CONFIG is required}"
+board_id=$(sed -n 's/^BR2_BHP_BOARD_ID="\([a-z0-9-]*\)"$/\1/p' "$BR2_CONFIG")
+case "$board_id" in
+	''|-*|*-|*[!a-z0-9-]*)
+		printf '%s\n' 'BHP_IMAGE.BOARD_ID_INVALID: BR2_BHP_BOARD_ID must name config/boards/<id>.env' >&2
+		exit 1
+		;;
+esac
+board_profile_source=$project_root/config/boards/$board_id.env
+if [ ! -f "$board_profile_source" ] || [ -L "$board_profile_source" ]; then
+	printf '%s\n' "BHP_IMAGE.BOARD_PROFILE_MISSING: $board_id" >&2
+	exit 1
+fi
+grep -F -x "BHP_BOARD_ID=$board_id" "$board_profile_source" >/dev/null || {
+	printf '%s\n' "BHP_IMAGE.BOARD_PROFILE_ID_MISMATCH: $board_id" >&2
+	exit 1
+}
 project_version=$(sed -n '1p' "$project_root/VERSION")
 case "$project_version" in
 	''|*[!A-Za-z0-9._+-]*)
@@ -145,12 +163,23 @@ END {
 ' "$mdev_configuration" >"$mdev_configuration.bhp-new"
 mv "$mdev_configuration.bhp-new" "$mdev_configuration"
 
+# On-target evidence scripts and operators read the same board facts the image
+# was built from. UNMEASURED values stay placeholders on the target too.
+board_share_directory=$target_directory/usr/share/beaglebone-house-panel
+mkdir -p "$board_share_directory"
+test ! -L "$board_share_directory/board-profile.env"
+test ! -L "$board_share_directory/board_profile.sh"
+install -m 0644 "$board_profile_source" "$board_share_directory/board-profile.env"
+install -m 0644 "$project_root/scripts/boards/board_profile.sh" \
+	"$board_share_directory/board_profile.sh"
+
 mkdir -p "$target_directory/etc/beaglebone-house-panel"
 image_version_path=$target_directory/etc/beaglebone-house-panel/image-version
 image_profile_path=$target_directory/etc/beaglebone-house-panel/image-profile
 test ! -L "$image_version_path"
 test ! -L "$image_profile_path"
 {
+  printf 'board_id=%s\n' "$board_id"
   printf 'project_version=%s\n' "$project_version"
   printf 'project_commit=%s\n' "$project_commit"
   printf 'project_content_state=%s\n' "$project_content_state"

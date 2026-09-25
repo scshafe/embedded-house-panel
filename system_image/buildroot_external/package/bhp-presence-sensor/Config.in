@@ -2,14 +2,21 @@ config BR2_PACKAGE_BHP_PRESENCE_SENSOR
 	bool "bhp-presence-sensor"
 	depends on BR2_LINUX_KERNEL
 	help
-	  Build the experimental BeagleBone House Panel PIR input
-	  module and the separately named custom-driver and stock
-	  gpio-keys Device Tree overlays.
+	  Build the experimental house-panel PIR input module and the
+	  board's inert experiment overlays listed by
+	  BHP_BOARD_PRESENCE_OVERLAYS in config/boards/<BR2_BHP_BOARD_ID>.env.
 
-	  The overlays are installed as inert experiment artifacts
-	  and are not added to the boot flow. Neither overlay has
-	  electrical or wake-cycle verification. They must never be
-	  applied together because both claim the same candidate GPIO.
+	  FRDM i.MX 8M Plus: the custom-driver overlay is rendered from the
+	  board profile and refuses to build until FRDM-GATE-PIR evidence
+	  sets the PIR pin; the primary gpio-keys node is merged into the
+	  boot DTB by bhp-board-device-tree instead.
+
+	  BeagleBone Black (history): the custom-driver and stock
+	  gpio-keys overlays for P9.21 / GPIO0_3.
+
+	  Overlays installed here are not added to the boot flow and have
+	  no electrical or wake-cycle verification. Never apply two
+	  overlays that claim the same pad.
 
 comment "bhp-presence-sensor needs a Linux kernel"
 	depends on !BR2_LINUX_KERNEL

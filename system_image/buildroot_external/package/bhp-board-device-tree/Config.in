@@ -1,0 +1,18 @@
+config BR2_PACKAGE_BHP_BOARD_DEVICE_TREE
+	bool "bhp-board-device-tree"
+	depends on BR2_LINUX_KERNEL
+	depends on BR2_LINUX_KERNEL_DTS_SUPPORT
+	select BR2_PACKAGE_HOST_DTC
+	help
+	  Renders the board's project overlay template from
+	  config/boards/<BR2_BHP_BOARD_ID>.env, compiles it, and merges it
+	  into the vendor base DTB to produce the boot DTB named by
+	  BHP_BOARD_BOOT_DTB.
+
+	  Rendering refuses UNMEASURED profile values, so on the FRDM
+	  i.MX 8M Plus the build fails until FRDM-GATE-PIR evidence sets the
+	  PIR pin. The base DTB must be built with overlay symbols
+	  (BR2_LINUX_KERNEL_DTB_OVERLAY_SUPPORT).
+
+comment "bhp-board-device-tree needs a Linux kernel with device tree support"
+	depends on !BR2_LINUX_KERNEL || !BR2_LINUX_KERNEL_DTS_SUPPORT

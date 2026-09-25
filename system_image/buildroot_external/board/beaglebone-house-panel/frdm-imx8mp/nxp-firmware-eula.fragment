@@ -1,0 +1,16 @@
+# HUMAN DECISION REQUIRED (NXP-FIRMWARE-EULA). Never merge by hand.
+#
+# scripts/build/configure_buildroot.sh appends these lines to a FRDM .config
+# only when config/boards/frdm-imx8mp.env sets
+# BHP_BOARD_NXP_FIRMWARE_EULA=accepted-adr-NNNN and ADR NNNN is accepted and
+# carries the <!-- @canonical nxp-firmware-eula-acceptance --> marker. A human
+# makes and records that decision; an agent never does. Selecting them makes
+# Buildroot download NXP's self-extracting firmware-imx archive, run it with
+# --auto-accept, and install NXP-licensed IW612 firmware: that is accepting the
+# NXP Software License Agreement on the user's behalf.
+#
+# firmware-imx supplies the LPDDR4 training firmware (ddr_fw.bin) without which
+# imx8-boot-sd.bin, and therefore sdcard.img, cannot be produced.
+BR2_PACKAGE_FIRMWARE_IMX=y
+BR2_PACKAGE_FIRMWARE_IMX_LPDDR4=y
+BR2_PACKAGE_BHP_NXP_IW612_FIRMWARE=y

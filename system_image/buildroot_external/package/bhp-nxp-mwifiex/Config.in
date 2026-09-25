@@ -1,0 +1,19 @@
+config BR2_PACKAGE_BHP_NXP_MWIFIEX
+	bool "bhp-nxp-mwifiex"
+	depends on BR2_LINUX_KERNEL
+	depends on !BR2_PACKAGE_NXP_MWIFIEX
+	help
+	  NXP moal/mlan Wi-Fi driver (GPL-2.0) pinned to the same NXP
+	  BSP release as the FRDM i.MX 8M Plus kernel (lf-6.12.49-2.2.0).
+	  Buildroot's nxp-mwifiex is pinned to lf-6.6.52_2.2.0, which
+	  targets the 6.6 kernel series.
+
+	  The IW612 firmware it loads is a separate, NXP-licensed package
+	  (bhp-nxp-iw612-firmware) gated by a recorded human EULA
+	  decision. FRDM-GATE-WIFI evidence decides whether suspend and
+	  resume keep Wi-Fi usable.
+
+	  https://github.com/nxp-imx/mwifiex
+
+comment "bhp-nxp-mwifiex needs a Linux kernel to be built"
+	depends on !BR2_LINUX_KERNEL

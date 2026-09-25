@@ -1,0 +1,36 @@
+Subject: [PATCH] drm/bridge: waveshare-dsi: check the registered backlight
+
+ws_bridge_probe() stores the result of ws_bridge_create_backlight() in
+ws->backlight but then tests and decodes an uninitialized local
+variable, so a failed backlight registration is never detected and the
+probe path reads indeterminate stack contents. Test the stored pointer
+and drop the unused local.
+
+Found by source inspection for the house-panel FRDM retarget
+(FRDM-GATE-BACKLIGHT); not yet exercised on hardware.
+
+Upstream-Status: Pending
+---
+diff --git a/drivers/gpu/drm/bridge/waveshare-dsi.c b/drivers/gpu/drm/bridge/waveshare-dsi.c
+index efb3a2f..f54a22b 100644
+--- a/drivers/gpu/drm/bridge/waveshare-dsi.c
++++ b/drivers/gpu/drm/bridge/waveshare-dsi.c
+@@ -150,7 +150,6 @@ static int ws_bridge_probe(struct i2c_client *i2c)
+ 	struct ws_bridge *ws;
+ 	struct drm_panel *panel;
+ 	int ret;
+-	struct backlight_device *backlight;
+
+ 	ws = devm_kzalloc(dev, sizeof(*ws), GFP_KERNEL);
+ 	if (!ws)
+@@ -171,8 +170,8 @@ static int ws_bridge_probe(struct i2c_client *i2c)
+ 		return PTR_ERR(ws->next_bridge);
+
+ 	ws->backlight = ws_bridge_create_backlight(ws);
+-	if (IS_ERR(backlight)) {
+-		ret = PTR_ERR(backlight);
++	if (IS_ERR(ws->backlight)) {
++		ret = PTR_ERR(ws->backlight);
+ 		dev_err(dev, "Failed to create backlight: %d\n", ret);
+ 		return ret;
+ 	}

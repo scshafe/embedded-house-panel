@@ -1,6 +1,8 @@
 #!/bin/sh
 # Builds from a verified archive into fresh source/output trees on Linux x86_64.
-# Inputs: BHP_BUILDROOT_ARCHIVE, BHP_RELEASE_OUTPUT_PARENT, optional jobs.
+# Inputs: BHP_BUILDROOT_ARCHIVE, BHP_RELEASE_OUTPUT_PARENT, optional BHP_BOARD
+#   (default: the active board profile), optional jobs. Required image artifacts,
+#   overlays, and the boot DTB come from config/boards/<id>.env.
 # Evidence boundary: proves build integration only; it performs no hardware test.
 
 set -eu
@@ -13,6 +15,8 @@ PROJECT_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIRECTORY/../.." && pwd)
 . "$PROJECT_ROOT/scripts/build/buildroot_contract.sh"
 # shellcheck source=../file_integrity/sha256_file.sh
 . "$PROJECT_ROOT/scripts/file_integrity/sha256_file.sh"
+# shellcheck source=../boards/board_profile.sh
+. "$PROJECT_ROOT/scripts/boards/board_profile.sh"
 BHP_SCRIPT_SERVICE_NAME=beaglebone_house_panel.verify_release_candidate_image
 export BHP_SCRIPT_SERVICE_NAME
 TRACE_ID=$(bhp_new_trace_id)
@@ -246,15 +250,27 @@ bhp_release_require_single_match()
 target_directory=$BHP_BUILDROOT_OUTPUT_DIR/target
 build_directory=$BHP_BUILDROOT_OUTPUT_DIR/build
 images_directory=$BHP_BUILDROOT_OUTPUT_DIR/images
-bhp_release_require_file "$images_directory/sdcard.img" sdcard_image
+release_image_artifacts=
+release_presence_overlays=
+if ! bhp_board_profile_load_selected "$PROJECT_ROOT" ||
+   ! bhp_board_profile_require_into release_image_artifacts BHP_BOARD_IMAGE_ARTIFACTS ||
+   ! bhp_board_profile_require_into release_presence_overlays BHP_BOARD_PRESENCE_OVERLAYS; then
+	bhp_fail "$BHP_BOARD_PROFILE_ERROR_CODE" "$BHP_BOARD_PROFILE_ERROR_DETAIL" "$TRACE_ID"
+	exit 1
+fi
+for release_image_artifact in $(printf '%s\n' "$release_image_artifacts" | tr ',' ' '); do
+	bhp_release_require_file "$images_directory/$release_image_artifact" \
+		"image_$release_image_artifact"
+done
 bhp_release_require_file "$target_directory/usr/sbin/panel_supervisord" panel_supervisord
 bhp_release_require_file "$target_directory/usr/bin/vocabulary_panel_terminal" vocabulary_terminal
+for release_presence_overlay in $(printf '%s\n' "$release_presence_overlays" | tr ',' ' '); do
+	bhp_release_require_file \
+		"$target_directory/usr/lib/beaglebone-house-panel/device-tree-overlays/$release_presence_overlay.dtbo" \
+		"overlay_$release_presence_overlay"
+done
 bhp_release_require_file \
-	"$target_directory/usr/lib/beaglebone-house-panel/device-tree-overlays/beagle-house-custom-pir.dtbo" \
-	custom_pir_dtbo
-bhp_release_require_file \
-	"$target_directory/usr/lib/beaglebone-house-panel/device-tree-overlays/beagle-house-gpio-keys-wake-baseline.dtbo" \
-	gpio_keys_baseline_dtbo
+	"$target_directory/usr/share/beaglebone-house-panel/board-profile.env" board_profile
 bhp_release_require_single_match "$build_directory" \
 	libvocabulary_panel_lvgl_renderer.a vocabulary_lvgl_renderer
 bhp_release_require_single_match "$target_directory/lib/modules" \
@@ -262,6 +278,10 @@ bhp_release_require_single_match "$target_directory/lib/modules" \
 
 image_version=$target_directory/etc/beaglebone-house-panel/image-version
 bhp_release_require_file "$image_version" image_provenance
+grep -F -x "board_id=$BHP_BOARD_ID" "$image_version" >/dev/null || {
+	bhp_fail RELEASE_CANDIDATE.PROVENANCE_BOARD_INVALID "$image_version" "$TRACE_ID"
+	exit 1
+}
 grep -F -x "buildroot_version=$BHP_PINNED_BUILDROOT_VERSION" "$image_version" >/dev/null || {
 	bhp_fail RELEASE_CANDIDATE.PROVENANCE_VERSION_INVALID "$image_version" "$TRACE_ID"
 	exit 1
@@ -329,7 +349,8 @@ if [ -e "$evidence_file" ] || [ -L "$evidence_file" ]; then
 	exit 1
 fi
 {
-	printf 'evidence_version=2\n'
+	printf 'evidence_version=3\n'
+	printf 'board_id=%s\n' "$BHP_BOARD_ID"
 	printf 'profile=production\n'
 	printf 'project_content_id=%s\n' "$source_content_id"
 	printf 'buildroot_version=%s\n' "$actual_buildroot_version"
@@ -340,6 +361,7 @@ fi
 } >"$evidence_file"
 
 bhp_log info release_candidate_build_evidence_complete "$TRACE_ID" \
+	board_id "$BHP_BOARD_ID" \
 	image "$images_directory/sdcard.img" \
 	evidence "$evidence_file" \
 	project_content_id "$source_content_id" \

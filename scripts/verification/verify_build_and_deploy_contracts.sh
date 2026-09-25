@@ -112,6 +112,23 @@ printf '%s\n' \
 install -m 0755 \
 	"$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/usr/libexec/beaglebone-house-panel/classify-touch-input" \
 	"$provenance_target/usr/libexec/beaglebone-house-panel/classify-touch-input"
+provenance_br2_config=$temporary_root/provenance-br2.config
+printf '%s\n' 'BR2_BHP_BOARD_ID="frdm-imx8mp"' >"$provenance_br2_config"
+BR2_CONFIG=$provenance_br2_config
+export BR2_CONFIG
+unknown_board_br2_config=$temporary_root/unknown-board-br2.config
+printf '%s\n' 'BR2_BHP_BOARD_ID="no-such-board"' >"$unknown_board_br2_config"
+if BR2_CONFIG=$unknown_board_br2_config \
+	BR2_EXTERNAL_BHP_PATH=$PROJECT_ROOT/system_image/buildroot_external \
+	BR2_VERSION=2026.05.1 BR2_VERSION_FULL=2026.05.1 \
+	BHP_BUILDROOT_SOURCE_ID=$BHP_PINNED_BUILDROOT_SOURCE_ID \
+	BHP_BUILDROOT_ARCHIVE_SHA256=$BHP_PINNED_BUILDROOT_ARCHIVE_SHA256 \
+	"$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/post-build.sh" \
+	"$provenance_target" >/dev/null 2>&1; then
+	bhp_fail VERIFY_BUILD_DEPLOY.UNKNOWN_BOARD_PROFILE_ACCEPTED \
+		"post-build.sh accepted a board id without a profile" "$TRACE_ID"
+	exit 1
+fi
 if BR2_EXTERNAL_BHP_PATH=$PROJECT_ROOT/system_image/buildroot_external \
 	BR2_VERSION=2026.05.0 BR2_VERSION_FULL=2026.05.0 \
 	BHP_BUILDROOT_SOURCE_ID=$BHP_PINNED_BUILDROOT_SOURCE_ID \
@@ -148,6 +165,14 @@ grep -F -x "buildroot_archive_sha256=$BHP_PINNED_BUILDROOT_ARCHIVE_SHA256" \
 grep -E -x 'project_content_state=(clean|dirty|uncommitted|source-archive)' \
 	"$image_version" >/dev/null
 grep -E -x 'project_content_id=[0-9a-f]{64}' "$image_version" >/dev/null
+grep -F -x 'board_id=frdm-imx8mp' "$image_version" >/dev/null
+cmp -s "$PROJECT_ROOT/config/boards/frdm-imx8mp.env" \
+	"$provenance_target/usr/share/beaglebone-house-panel/board-profile.env" || {
+	bhp_fail VERIFY_BUILD_DEPLOY.IMAGE_BOARD_PROFILE_INVALID \
+		"post-build.sh did not install the selected board profile verbatim" "$TRACE_ID"
+	exit 1
+}
+unset BR2_CONFIG
 grep -F -x production \
 	"$provenance_target/etc/beaglebone-house-panel/image-profile" >/dev/null
 grep -F -x \
@@ -469,11 +494,11 @@ mkdir -p "$pinned_source"
 {
 	printf '%s\n' \
 		'export BR2_VERSION := 2026.05.1' \
-		'.PHONY: print-version beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig' \
+		'.PHONY: print-version beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig frdm_imx8mp_house_panel_defconfig frdm_imx8mp_house_panel_bringup_defconfig' \
 		'print-version:'
 	printf '\t%s\n' '@printf "%s\\n" 2026.05.1'
 	printf '%s\n' \
-		'beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig:'
+		'beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig frdm_imx8mp_house_panel_defconfig frdm_imx8mp_house_panel_bringup_defconfig:'
 	printf '\t%s\n' '@mkdir -p "$(O)"'
 	printf '\t%s\n' '@printf "%s\\n" configured >"$(O)/.config"'
 } >"$pinned_source/Makefile"
@@ -523,6 +548,37 @@ valid_output=$temporary_root/valid-output
 BHP_BUILDROOT_DIR=$pinned_source BHP_BUILDROOT_OUTPUT_DIR=$valid_output \
 	"$PROJECT_ROOT/scripts/build/configure_buildroot.sh" >/dev/null
 grep -F -x production "$valid_output/.bhp-build-profile" >/dev/null
+active_board_id=$("$PROJECT_ROOT/scripts/boards/show_board_profile.sh" --value BHP_BOARD_ID)
+grep -F -x "$active_board_id" "$valid_output/.bhp-board-id" >/dev/null || {
+	bhp_fail VERIFY_BUILD_DEPLOY.BOARD_STAMP_INVALID \
+		"configure_buildroot.sh did not stamp the active board $active_board_id" "$TRACE_ID"
+	exit 1
+}
+if BHP_BUILDROOT_DIR=$pinned_source BHP_BUILDROOT_OUTPUT_DIR=$valid_output \
+	BHP_BOARD=beaglebone-black \
+	"$PROJECT_ROOT/scripts/build/configure_buildroot.sh" >/dev/null 2>&1; then
+	bhp_fail VERIFY_BUILD_DEPLOY.BOARD_SWITCH_ACCEPTED \
+		"An output configured for one board was reused for another" "$TRACE_ID"
+	exit 1
+fi
+legacy_output=$temporary_root/legacy-bbb-output
+mkdir -p "$legacy_output"
+printf '%s\n' production >"$legacy_output/.bhp-build-profile"
+if BHP_BUILDROOT_DIR=$pinned_source BHP_BUILDROOT_OUTPUT_DIR=$legacy_output \
+	BHP_BOARD=frdm-imx8mp \
+	"$PROJECT_ROOT/scripts/build/configure_buildroot.sh" >/dev/null 2>&1; then
+	bhp_fail VERIFY_BUILD_DEPLOY.LEGACY_BBB_OUTPUT_REUSED \
+		"A pre-profile BeagleBone output was reused for the FRDM board" "$TRACE_ID"
+	exit 1
+fi
+if BHP_BUILDROOT_DIR=$pinned_source \
+	BHP_BUILDROOT_OUTPUT_DIR=$temporary_root/unknown-board-output \
+	BHP_BOARD=no-such-board \
+	"$PROJECT_ROOT/scripts/build/configure_buildroot.sh" >/dev/null 2>&1; then
+	bhp_fail VERIFY_BUILD_DEPLOY.UNKNOWN_BOARD_ACCEPTED \
+		"configure_buildroot.sh accepted a board without a profile" "$TRACE_ID"
+	exit 1
+fi
 if BHP_BUILDROOT_DIR=$pinned_source \
 	BHP_BUILDROOT_OUTPUT_DIR=$temporary_root/production-key-forbidden \
 	BHP_BRINGUP_AUTHORIZED_KEYS_FILE=$bringup_key.pub \

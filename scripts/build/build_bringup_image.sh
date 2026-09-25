@@ -1,6 +1,7 @@
 #!/bin/sh
 # Builds the explicitly non-production, root-public-key-only bring-up image.
-# Inputs: Buildroot source/output, caller-owned Ed25519 public key, optional jobs.
+# Inputs: Buildroot source/output, caller-owned Ed25519 public key, optional
+#   BHP_BOARD (default: the active board profile) and jobs.
 # Side effects: configures and builds only the explicit external output tree.
 
 set -eu
@@ -15,7 +16,7 @@ TRACE_ID=$(bhp_new_trace_id)
 
 if [ "${1:-}" = --help ] || [ "${1:-}" = -h ]; then
 	printf '%s\n' \
-		"Usage: BHP_BUILDROOT_DIR=/abs/source BHP_BUILDROOT_OUTPUT_DIR=/abs/output BHP_BRINGUP_AUTHORIZED_KEYS_FILE=/abs/id_ed25519.pub [BHP_BUILD_JOBS=N] $0"
+		"Usage: BHP_BUILDROOT_DIR=/abs/source BHP_BUILDROOT_OUTPUT_DIR=/abs/output BHP_BRINGUP_AUTHORIZED_KEYS_FILE=/abs/id_ed25519.pub [BHP_BOARD=frdm-imx8mp] [BHP_BUILD_JOBS=N] $0"
 	exit 0
 fi
 

@@ -1,0 +1,14 @@
+config BR2_PACKAGE_BHP_NXP_IW612_FIRMWARE
+	bool "bhp-nxp-iw612-firmware"
+	help
+	  NXP IW612 Wi-Fi/Bluetooth firmware from nxp-imx/imx-firmware
+	  lf-6.12.49-2.2.0, matching bhp-nxp-mwifiex.
+
+	  Licensed under the NXP Software License Agreement and not
+	  redistributable. Never select this in a checked-in defconfig:
+	  scripts/build/configure_buildroot.sh merges it only through
+	  board/beaglebone-house-panel/frdm-imx8mp/nxp-firmware-eula.fragment
+	  after a human records EULA acceptance in an accepted ADR and the
+	  board profile names it (BHP_BOARD_NXP_FIRMWARE_EULA).
+
+	  https://github.com/nxp-imx/imx-firmware

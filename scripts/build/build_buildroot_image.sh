@@ -17,7 +17,7 @@ export BHP_SCRIPT_SERVICE_NAME
 TRACE_ID=$(bhp_new_trace_id)
 
 if [ "${1:-}" = --help ] || [ "${1:-}" = -h ]; then
-  printf '%s\n' "Usage: BHP_BUILDROOT_DIR=/abs/source BHP_BUILDROOT_OUTPUT_DIR=/abs/output [BHP_BUILD_JOBS=N] $0"
+  printf '%s\n' "Usage: BHP_BUILDROOT_DIR=/abs/source BHP_BUILDROOT_OUTPUT_DIR=/abs/output [BHP_BOARD=id] [BHP_BUILD_JOBS=N] $0"
   exit 0
 fi
 
@@ -58,6 +58,19 @@ test -f "$BHP_BUILDROOT_OUTPUT_DIR/.config" || {
   bhp_fail BUILDROOT.CONFIG_MISSING "Run configure_buildroot.sh first" "$TRACE_ID"
   exit 1
 }
+board_file=$BHP_BUILDROOT_OUTPUT_DIR/.bhp-board-id
+if [ ! -f "$board_file" ] || [ -L "$board_file" ] ||
+   [ "$(wc -l <"$board_file" | tr -d ' ')" -ne 1 ]; then
+  bhp_fail BUILDROOT.BOARD_STAMP_MISSING \
+    "Re-run configure_buildroot.sh so the output records its board profile" "$TRACE_ID"
+  exit 1
+fi
+configured_board=$(sed -n '1p' "$board_file")
+if [ -n "${BHP_BOARD:-}" ] && [ "$BHP_BOARD" != "$configured_board" ]; then
+  bhp_fail BUILDROOT.BOARD_SWITCH_FORBIDDEN \
+    "Output was configured for $configured_board, not $BHP_BOARD" "$TRACE_ID"
+  exit 1
+fi
 profile_file=$BHP_BUILDROOT_OUTPUT_DIR/.bhp-build-profile
 if [ ! -f "$profile_file" ] || [ -L "$profile_file" ]; then
   bhp_fail BUILDROOT.PROFILE_STAMP_MISSING \
@@ -125,6 +138,7 @@ BHP_APPLIANCE_RELEASE_ID=$(
 export BHP_APPLIANCE_RELEASE_ID
 
 bhp_log info buildroot_build_started "$TRACE_ID" jobs "$build_jobs" \
+  board_id "$configured_board" \
   profile "$configured_profile" \
   application_release_id "$BHP_APPLIANCE_RELEASE_ID" \
   buildroot_source_id "$buildroot_source_id" \
@@ -135,5 +149,6 @@ make -C "$BHP_BUILDROOT_DIR" \
   -j"$build_jobs"
 test -d "$BHP_BUILDROOT_OUTPUT_DIR/images"
 bhp_log info buildroot_build_complete "$TRACE_ID" \
+  board_id "$configured_board" \
   images_directory "$BHP_BUILDROOT_OUTPUT_DIR/images" \
   profile "$configured_profile"
