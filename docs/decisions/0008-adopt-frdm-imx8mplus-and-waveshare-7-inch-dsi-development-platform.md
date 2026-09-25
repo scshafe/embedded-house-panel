@@ -70,6 +70,9 @@ the variant before paying.
 | `FRDM-GATE-SUSPEND` | Toradex suspend numbers are for Verdin modules, not the FRDM carrier. | Suspend-to-RAM entry, attributed GPIO/PIR wake, and board-input power on the FRDM board |
 | `FRDM-GATE-WIFI` | IW612 driver must survive suspend or be cleanly quiesced. | Repeated resume with Wi-Fi, tailnet, and Lexinet recovery timings |
 | `FRDM-GATE-PIR` | No PIR pin assignment exists for this board. The Black's P9_21/GPIO0_3 assumption no longer applies. | Header pin selection, 3.3 V level check, wake-capable GPIO proof |
+| `FRDM-GATE-IDENTITY` | A distributor listing describes a 2 GB / 16 GB / M.2 Wi-Fi variant that conflicts with NXP's 4 GB / 32 GB / onboard IW612 specification. | Board markings, `/proc/meminfo`, eMMC capacity, and IW612 SDIO probe on the received board |
+| `FRDM-GATE-DISPLAY` | The DSI panel path (LCDIF, MIPI-DSI, `waveshare,dsi2dpi` bridge, 22-pin cable) is unobserved; the DRM card and connector that carry it are unknown. | DRM card/connector/mode listing at 1024×600 and a visible first frame on the panel |
+| `FRDM-GATE-AUDIO` | The WM8962 capture path from the 3.5 mm CTIA headset microphone is unobserved. | ALSA capture device identity and a bounded capture with non-silent signal statistics |
 
 ## Alternatives considered
 
@@ -116,3 +119,9 @@ the variant before paying.
 - [NXP Waveshare 7-inch (C) overlay](https://github.com/nxp-imx/linux-imx/blob/lf-6.12.y/arch/arm64/boot/dts/freescale/imx8mp-frdm-waveshare-7inch-c-panel.dtso)
 - [Waveshare 7inch DSI LCD (C) wiki](https://www.waveshare.com/wiki/7inch_DSI_LCD_(C))
 - [FRDM-IMX8MPLUS community hub](https://community.nxp.com/t5/FRDM-Training-Hub/FRDM-IMX8MPLUS-Hub/ta-p/2107907)
+
+**Amended 2026-09-25:** added `FRDM-GATE-IDENTITY`, `FRDM-GATE-DISPLAY`, and
+`FRDM-GATE-AUDIO` so the board-variant check, the DSI display path, and the
+headset-microphone capture each have an explicit evidence gate. The existing
+six gates are unchanged. No gate is closed; the gate list is also the vocabulary
+for `UNMEASURED:<gate>` placeholders in `config/boards/frdm-imx8mp.env`.
