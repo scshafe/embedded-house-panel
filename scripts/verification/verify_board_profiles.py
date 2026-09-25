@@ -216,6 +216,12 @@ def check_pir_consumers(board_id: str, values: dict[str, str], schema: dict) -> 
             continue
         if classifier.count(f"'{name}'") < 2:
             raise ProfileError("PIR_NAME_NOT_DENIED_AS_TOUCH", f"{board_id}: {key}={name}")
+    wake_label = values.get("BHP_BOARD_PIR_WAKE_INTERRUPT_LABEL")
+    if wake_label is not None and "BHP_BOARD_PROJECT_OVERLAY_TEMPLATE" in values:
+        template = (PROJECT_ROOT / values["BHP_BOARD_PROJECT_OVERLAY_TEMPLATE"]).read_text(
+            encoding="utf-8")
+        if f'label = "{wake_label}";' not in template:
+            raise ProfileError("PIR_WAKE_LABEL_NOT_IN_OVERLAY", f"{board_id}: {wake_label}")
     node_sources = {
         "BHP_BOARD_PIR_DT_NODE": ("BHP_BOARD_PROJECT_OVERLAY_TEMPLATE",
                                   "presence_sensor/experiments/stock_gpio_keys_wake_baseline"),

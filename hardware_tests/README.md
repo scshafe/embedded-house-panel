@@ -5,17 +5,62 @@ Owns reversible discovery, wake, display, and power experiments. Test output bel
 ## Safety order
 
 1. Photograph and inventory unpowered hardware and wiring.
-2. Verify PIR datasheet and powered output in isolation before connecting it to the BBB.
-3. Boot a verified non-flasher microSD and prove eMMC is unmounted/read-only.
+2. Verify PIR datasheet and powered output in isolation before connecting it to the board,
+   and measure the header I/O voltage before connecting the PIR output.
+3. Boot the vendor baseline from removable media first; do not overwrite eMMC
+   until that baseline and a recovery path (USB serial download) are proven.
 4. Image and hash eMMC before booting or modifying its installed OS.
 5. Run read-only discovery.
 6. Test display and GPIO while awake.
 7. Run suspend only with a local console/recovery path and explicit acknowledgement.
 8. Measure power at a documented supply boundary.
 
+## FRDM i.MX 8M Plus gate evidence
+
+`frdm/` holds one evidence script per ADR 0008 `FRDM-GATE-*` row. They are POSIX
+sh for BusyBox (the NXP vendor image and the project bring-up image have no
+Python), read the board profile (the image-installed
+`/usr/share/beaglebone-house-panel/board-profile.env`, else
+`config/boards/<active>.env`), and write one JSON record per gate to ignored
+`hardware_tests/results/frdm/<gate>/<UTC>-<script>.json`
+([`schemas/frdm_gate_evidence.schema.json`](schemas/frdm_gate_evidence.schema.json)),
+printing its path on stdout.
+
+| Script | Gate(s) | Default | Opt-in system change |
+|---|---|---|---|
+| `frdm_board_identity.sh [--board-marking TEXT]` | IDENTITY | read-only | none |
+| `frdm_j18_gpio_inventory.sh [--candidate J18-<pin>:<PAD_MUX>] [--measured-header-voltage-mv MV --voltage-method TEXT]` | PIR | read-only | none |
+| `frdm_pir_edge_capture.sh --mode gpio\|evdev --duration-seconds N` | PIR | reads the line as input | none |
+| `frdm_display_touch_backlight.sh` | DISPLAY, TOUCH, BACKLIGHT | read-only | `--execute-test-pattern S`, `--execute-backlight-off-trial S` (restores brightness) |
+| `frdm_suspend_wake.sh` | SUSPEND | read-only preflight | `--execute --mem-sleep s2idle\|deep --safety-rtc-seconds N` |
+| `frdm_wifi_resume_timing.sh --observe-seconds N [--after-next-resume]` | WIFI | read-only observer | none |
+| `frdm_mic_capture.sh --duration-seconds N` | AUDIO | records a WAV into results | none (mixer never changed) |
+| `frdm_power_input_log.sh --software-state S ... [--meter-csv FILE --instrument TEXT]` | POWER | read-only | none |
+
+Record semantics:
+
+- `checks[].status` is `pass`, `fail`, `unobserved`, or `not_applicable`;
+  `result` is `mismatch` if any check failed, else `incomplete` if any is
+  unobserved, else `complete`.
+- `candidates[]` are values a reviewer may copy into
+  `config/boards/frdm-imx8mp.env`; each already matches the profile schema.
+  `gate_closed` is always `false`: a gate closes only in a reviewed commit that
+  sets the profile values and links the evidence files.
+- `actions[]` lists every system change an `--execute*` option made.
+- `artifacts[]` are raw captures with SHA-256 digests.
+- Operator-only facts (header voltage, board markings, "panel is dark",
+  "pattern visible") enter only as explicit arguments or stdin answers and are
+  labelled `operator attestation`.
+
+`python3 -m unittest hardware_tests.tests.test_frdm_evidence_scripts` runs them
+against invented fixture trees (`--fixture-root`, recorded as
+`fixture_not_evidence`), including under `busybox sh` when BusyBox is installed.
+The ordered procedure is `docs/operations/frdm-bringup.md`.
+
 ## Read-only inventory
 
-On the BeagleBone:
+On any Linux board (the BeagleBone history procedure; on the FRDM prefer the
+gate scripts above, which also compare against the board profile):
 
 ```sh
 hardware_tests/scripts/collect_read_only_board_inventory.sh \
@@ -170,13 +215,15 @@ python3 -m unittest hardware_tests.tests.test_classify_wake_trial
 
 ## Evidence requirements
 
-Each result set names board/cape/sensor revisions, wiring, supply, kernel,
+Each result set names board/accessory/sensor revisions, wiring, supply, kernel,
 device tree, Git commit, command, time, expected outcome, actual outcome, and
 every failure. Wake-trial manifests follow `schemas/wake_trial.schema.json`;
 power samples follow `schemas/power_measurement.schema.json`.
 
-The current power schema represents preliminary scalar BeagleBone stable-state
-samples only. It cannot encode transition traces, controller/application-off,
+The power schema (v2) holds one scalar stable-state summary per external meter
+trace at a named supply boundary (`board_input` for the FRDM's J2 USB-C PD
+input), with `board_id`, `accessory_revision`, and the `mem_sleep_state` of a
+`mem` sample. It still cannot encode transition traces, controller/application-off,
 media workloads, uncertainty, or cross-platform battery-boundary comparisons.
 Do not squeeze those observations into its existing enum. Extend and verify the
 schema as Step 7 requires before collecting candidate-comparison evidence.
@@ -185,3 +232,8 @@ schema as Step 7 requires before collecting candidate-comparison evidence.
 correlated manifest, fail-closed classifier, and explicit external-evidence
 workflow delivered by review-amendments Step 13. No target trial was run and no
 hardware support claim changed.
+
+**Amended 2026-09-25:** retargeted to the FRDM i.MX 8M Plus (ADR 0008): added
+the `frdm/` gate evidence scripts and their JSON schema, generalized the safety
+order, and moved the power schema to v2 (`board_id`, `accessory_revision`,
+`mem_sleep_state`). No script has run on hardware.

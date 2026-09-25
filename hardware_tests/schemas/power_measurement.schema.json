@@ -1,7 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://beaglebone-house-panel.local/schemas/power_measurement.schema.json",
-  "title": "BeagleBone house panel power measurement",
+  "title": "House panel board-input power measurement",
+  "$comment": "@canonical power_measurement_schema -- v2 (2026-09-25): board_id added; cape_revision generalized to accessory_revision (BeagleBone cape or FRDM display/PIR assembly); mem_sleep_state records the mem variant. Written by hardware_tests/frdm/frdm_power_input_log.sh from an external meter trace.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,34 +10,46 @@
     "measurement_id",
     "measured_at_utc",
     "git_commit",
+    "board_id",
     "board_revision",
-    "cape_revision",
+    "accessory_revision",
     "software_state",
     "supply_boundary",
     "supply_voltage_volts",
     "current_milliamps",
+    "power_milliwatts",
     "instrument",
-    "sample_duration_seconds"
+    "sample_duration_seconds",
+    "sample_count"
   ],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "measurement_id": {"type": "string", "minLength": 1},
     "measured_at_utc": {"type": "string", "format": "date-time"},
-    "git_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "git_commit": {"type": "string", "pattern": "^([0-9a-f]{7,40}|not_a_project_image)$"},
+    "board_id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
     "board_revision": {"type": "string", "minLength": 1},
-    "cape_revision": {"type": "string", "minLength": 1},
+    "accessory_revision": {"type": "string", "minLength": 1},
     "pir_revision": {"type": "string"},
     "kernel_release": {"type": "string"},
     "software_state": {
       "type": "string",
       "enum": ["active_day", "active_night", "backlight_zero", "idle", "freeze", "mem"]
     },
-    "supply_boundary": {"type": "string", "minLength": 1},
+    "mem_sleep_state": {"type": "string", "enum": ["s2idle", "shallow", "deep"]},
+    "supply_boundary": {"type": "string", "enum": ["board_input", "product_battery"]},
     "supply_voltage_volts": {"type": "number", "exclusiveMinimum": 0},
     "current_milliamps": {"type": "number", "minimum": 0},
     "power_milliwatts": {"type": "number", "minimum": 0},
     "instrument": {"type": "string", "minLength": 1},
     "sample_duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "sample_count": {"type": "integer", "minimum": 2},
     "notes": {"type": "string"}
-  }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"software_state": {"const": "mem"}}},
+      "then": {"required": ["mem_sleep_state"]}
+    }
+  ]
 }
