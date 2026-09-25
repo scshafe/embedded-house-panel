@@ -67,6 +67,7 @@ shellcheck_version=$(read_shellcheck_version) || {
 "$SCRIPT_DIRECTORY/verify_shell_scripts.sh"
 "$SCRIPT_DIRECTORY/verify_documentation.sh"
 "$SCRIPT_DIRECTORY/verify_presence_sensor_sources.sh"
+"$SCRIPT_DIRECTORY/verify_frdm_device_tree_overlay.sh"
 "$SCRIPT_DIRECTORY/verify_buildroot_external_tree.sh"
 "$SCRIPT_DIRECTORY/verify_build_and_deploy_contracts.sh"
 

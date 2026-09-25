@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * EXPERIMENTAL AND UNVERIFIED ON HARDWARE. SECONDARY FRDM PIR PATH.
+ *
+ * TEMPLATE for the custom beagle,house-pir driver on the FRDM i.MX 8M Plus.
+ * scripts/boards/render_device_tree_overlay.sh fills every @BHP_BOARD_*@ token
+ * from config/boards/frdm-imx8mp.env and refuses while FRDM-GATE-PIR values are
+ * UNMEASURED. The primary path is the stock gpio-keys node merged into the boot
+ * DTB (board/beaglebone-house-panel/frdm-imx8mp/dts/bhp-frdm-imx8mp-panel.dtso.in).
+ * Both claim the same pad: apply this overlay only to a DTB built without the
+ * gpio-keys node, never on top of imx8mp-frdm-bhp-panel.dtb.
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx8mp-pinfunc.h"
+
+&iomuxc {
+	bhp_custom_pir_default: bhp-custom-pir-default-grp {
+		fsl,pins = <
+			@BHP_BOARD_PIR_PAD_MUX@	@BHP_BOARD_PIR_PAD_CONTROL@
+		>;
+	};
+};
+
+@BHP_DERIVED_PIR_PAD_OWNER_FRAGMENT@
+
+&{/} {
+	presence-sensor-custom-pir {
+		compatible = "beagle,house-pir";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bhp_custom_pir_default>;
+		presence-gpios = <&@BHP_BOARD_PIR_GPIO_CONTROLLER@ @BHP_BOARD_PIR_GPIO_LINE@ @BHP_DERIVED_PIR_GPIO_FLAGS@>;
+		label = "@BHP_BOARD_PIR_CUSTOM_INPUT_NAME@";
+		wakeup-source;
+		status = "okay";
+	};
+};

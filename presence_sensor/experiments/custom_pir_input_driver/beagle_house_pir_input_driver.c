@@ -2,9 +2,11 @@
 /*
  * canonical: beagle_house_pir_input_driver -- experimental PIR GPIO input.
  *
- * This is an experimental house-panel driver. Runtime GPIO events do not prove
- * that an AM335x can wake from DeepSleep0; that path also depends on the chosen
- * pad, GPIO bank, parent IRQ, WKUP-M3 firmware, PM configuration, and board.
+ * This is an experimental, board-neutral house-panel driver built on gpiod and
+ * the generic wake-IRQ API. Runtime GPIO events do not prove that the board can
+ * wake from suspend-to-RAM; that also depends on the chosen pad, GPIO bank,
+ * parent/wake IRQ controller (AM335x: WKUP-M3 firmware; i.MX 8M Plus: GPC and
+ * PSCI firmware), PM configuration, and board.
  */
 
 #include <linux/device.h>
@@ -107,7 +109,7 @@ static int beagle_house_pir_configure_wakeup(struct beagle_house_pir *pir)
 				     "failed to register wakeup cleanup\n");
 
 	dev_warn(device,
-		 "experimental wake path armed; AM335x DeepSleep0 wake remains unverified on target hardware\n");
+		 "experimental wake path armed; suspend-to-RAM wake remains unverified on target hardware\n");
 
 	return 0;
 }

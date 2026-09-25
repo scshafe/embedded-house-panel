@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * @canonical frdm_imx8mp_project_overlay -- house-panel overlay applied on top of
+ * imx8mp-frdm.dtb + imx8mp-frdm-waveshare-7inch-c-panel.dtbo (nxp-imx/linux-imx
+ * lf-6.12.49-2.2.0), producing imx8mp-frdm-bhp-panel.dtb.
+ *
+ * TEMPLATE. scripts/boards/render_device_tree_overlay.sh substitutes every
+ * @BHP_BOARD_*@ token from config/boards/frdm-imx8mp.env and exits with
+ * BOARD_PROFILE.VALUE_UNMEASURED while any of them is still UNMEASURED, so the
+ * image build fails until FRDM-GATE-PIR evidence exists. No pin is guessed here.
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/gpio-keys.h>
+#include <dt-bindings/input/input.h>
+#include "imx8mp-pinfunc.h"
+
+/*
+ * FRDM-GATE-PIR: the PIR must be a native SoC GPIO (gpio1..gpio5) so its
+ * interrupt reaches the GPC wake logic; the PCAL6416A expanders on i2c1 cannot
+ * wake suspend-to-RAM. The J18 header pin, its I/O voltage (must be 3.3 V for
+ * the PIR's 3.3 V output), the pad, and the active level come from
+ * hardware_tests/frdm/frdm_j18_gpio_inventory.sh evidence.
+ */
+&iomuxc {
+	bhp_pir_default: bhp-pir-default-grp {
+		fsl,pins = <
+			@BHP_BOARD_PIR_PAD_MUX@	@BHP_BOARD_PIR_PAD_CONTROL@
+		>;
+	};
+};
+
+@BHP_DERIVED_PIR_PAD_OWNER_FRAGMENT@
+
+&{/} {
+	bhp-presence-pir {
+		compatible = "gpio-keys";
+		/* EVIOCGNAME; the supervisor discovers the input by this exact name. */
+		label = "@BHP_BOARD_PIR_INPUT_NAME@";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bhp_pir_default>;
+
+		pir-presence-switch {
+			label = "bhp-frdm-pir-presence-switch";
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_FRONT_PROXIMITY>;
+			gpios = <&@BHP_BOARD_PIR_GPIO_CONTROLLER@ @BHP_BOARD_PIR_GPIO_LINE@ @BHP_DERIVED_PIR_GPIO_FLAGS@>;
+			debounce-interval = <5>;
+			wakeup-source;
+			wakeup-event-action = <EV_ACT_ANY>;
+		};
+	};
+};
+
+/*
+ * FRDM-GATE-BACKLIGHT: deliberately no backlight node. The NXP
+ * waveshare,dsi2dpi bridge driver (drivers/gpu/drm/bridge/waveshare-dsi.c)
+ * registers its own BACKLIGHT_RAW device named after the bridge's I2C client
+ * (<bus>-0045, max_brightness 255, writes 0xff - brightness to MCU register
+ * 0xab). A `backlight = <&...>` phandle on the panel would make panel-simple
+ * defer on a backlight that the bridge only registers after it has found the
+ * panel, a probe cycle. The gate closes only when evidence shows the node, its
+ * range, and that the off value really turns the backlight off.
+ *
+ * FRDM-GATE-TOUCH: documented gap. The GT911 interrupt line is not justified
+ * by any schematic available to this project (UM12340 has no J15 or display
+ * I2C pinout table), so no interrupt is declared and goodix.c polls every
+ * 17 ms. The NXP overlay also declares touchscreen-size 800x480 for a 1024x600
+ * panel; record the reported axis ranges with evtest before calibrating.
+ */
