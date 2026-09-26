@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-25",
+  "evidence": "simulation_not_hardware_evidence",
+  "code_commit": "0371af5",
+  "host": {
+    "os": "macOS 26.6.1",
+    "architecture": "arm64",
+    "ram_gib": 24
+  },
+  "guest": {
+    "distribution": "Debian 13 arm64",
+    "kernel": "6.12.107+deb13-arm64",
+    "qemu_version": "11.1.1",
+    "acceleration": "hvf",
+    "suspend": "disabled"
+  },
+  "verification": {
+    "make_verify": "passed",
+    "make_verify_docs": "passed",
+    "linux_ctest": {
+      "passed": 37,
+      "total": 37
+    },
+    "headless": {
+      "passed": 29,
+      "channel_tolerance": 0,
+      "maximum_changed_pixels": 0
+    },
+    "native": {
+      "passed": 29,
+      "exact_golden_matches": 29
+    },
+    "vm": {
+      "passed": 29,
+      "exact_golden_matches": 27,
+      "semantic_comparisons": [
+        "clock-untrusted",
+        "grace"
+      ],
+      "touch_protocols": [
+        "single",
+        "type_b"
+      ],
+      "post_touch_drm_commit_verified": true,
+      "pir_absence_backlight": 0
+    },
+    "mac_windows": {
+      "native_pointer": "verified",
+      "qemu_cocoa_pointer": "verified"
+    },
+    "guest_runtime_refresh_cycles": 2
+  },
+  "reports": [
+    ".build/virtual-panel-final-verify.log",
+    ".build/virtual-panel-final-docs.log",
+    ".build/screenshots/report.json",
+    ".build/sim/native/report.json",
+    ".build/sim/vm/report.json",
+    ".build/sim/provision.log",
+    ".build/sim/cocoa-pointer-proof.json",
+    ".build/sim/native-pointer-proof.json",
+    ".build/sim/runtime-refresh-test.json"
+  ],
+  "remaining_gates": [
+    "live Lexinet and Tailnet deployment evidence",
+    "production holder-claim/media IPC and microphone closure",
+    "AGENDA-011 and agenda feasibility Step 1",
+    "real companion and personal-data providers",
+    "Buildroot production release qualification",
+    "all physical FRDM gates"
+  ],
+  "optional_buildroot_qemu_image": "not_built"
+}

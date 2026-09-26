@@ -828,3 +828,34 @@ point-release pin before the supported-host build. Step 10 owns reconciliation
 of the suspend-trial populations and target confirmation of that kernel; kernel
 drift returns to Step 8 instead of inheriting evidence. No version was selected,
 no checkbox changed, and no hardware result is claimed.
+
+
+**Amended 2026-09-25 (virtual-panel software proof):** the
+[virtual-panel plan](2026-09-25-virtual-panel.md) records the bounded simulation
+tranche. Roadmap Step 3 now has a canonical study reducer, shared HTTP lifetime,
+typed verified-TLS fixture client, cancellable worker, bounded atomic cache and
+outbox, durable initial-create/sync identities, and successor/late-correction
+recovery. The isolated study commit `b5ca0b3` passed repository and documentation
+verification; `.build/study-commit-verify.log` and
+`.build/study-commit-docs.log` retain those results. The live Lexinet/Tailnet and
+full per-clause join gates remain open, so Step 3 is not checked.
+
+Step 4 now has one shell-owned LVGL display, subordinate vocabulary renderer,
+source-qualified reducer integration and a separate deterministic fake broker.
+The command catalog, artifact/policy chain, effect-admission checks and lease
+closure tests exist, but pronunciation/acoustic qualification, production
+broker provenance IPC and independently observed capture closure remain open.
+Lexinet Step 7b's host clause is complete; the broader Step 8 obligations keep
+this roadmap step open.
+
+Step 7 has synthetic agenda presentation only: today, stale/expired/unavailable,
+composer, recording, preview, confirmation and delivery-unknown screens. They
+provide no personal provider, recording, transcription, recipient or submission
+capability. Steps 5–7, their human decision gates and AGENDA-011 are unchanged.
+Step 8 has Debian AArch64 simulation services and all 29 guest/native scenarios
+passing, including both evdev touch protocols and PIR-driven zero brightness.
+This does not satisfy production Buildroot packaging, supported release builds,
+real cross-repository/provider fault matrices or any FRDM hardware measurement.
+The final combined working-tree `make verify` passed at
+`2026-09-26T05:58:55Z` in `.build/virtual-panel-final-verify.log`; its mapped
+host-verification clauses are recorded without closing the release milestone.

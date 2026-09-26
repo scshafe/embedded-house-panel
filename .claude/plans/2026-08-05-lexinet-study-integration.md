@@ -787,7 +787,7 @@ as the production default.
     disconnect or restart invalidates pending touch observations; packaging
     exposes one neutral UI entry point.
 
-- [ ] **Step 7b: Add the vocabulary surface to the neutral panel shell**
+- [x] **Step 7b: Add the vocabulary surface to the neutral panel shell**
   - Requires Lexinet Steps 6 and 7a. Consume their shell, envelope, worker,
     cache, and outbox; do not create peer capabilities.
   - Make a two-sided card and bounded browser-style history canonical in
@@ -1280,3 +1280,70 @@ destructive-denial, and cross-profile evidence remain pending, as does the
 panel choice between the SHA-256-pinned official ARM package and an approved
 source-build toolchain. The frozen `study.v1` fixture provenance is unchanged,
 no roadmap checkbox changed, and Step 5 stays unchecked.
+
+
+**Amended 2026-09-25 (panel-side implementation and bounded proof):**
+`b5ca0b3` implements the Step 6 data plane and shared HTTP runtime. The earlier
+warning that `verify_host_cpp.sh` cannot reach the adapter/runtime is now
+resolved: its vocabulary slice configures the HTTP-enabled `host-dev` target
+and runs those CTests. `.build/study-commit-verify.log` and
+`.build/study-commit-docs.log` record the isolated commit's passing repository
+and documentation gates. Tracked-source inspection reports `curl_global_init`
+and `curl_global_cleanup` only under `shared/http_runtime/`.
+
+Named tests cover strict wire validation, TLS/hostname/redirect/size refusal,
+whole-request deadlines, cancellation and joins, two-sided bounded history,
+source-qualified provisional observations, durable ratings and touch Undo,
+rejection recovery, cache eviction, five atomic-write process-death boundaries,
+and real fixture-HTTPS initial creation and synchronization response-loss
+replay. Initial and successor creation UUIDs are persisted before network use.
+The fixture roundtrip restarts both peers, retains the same client stream,
+converges idempotent successors and flushes a late predecessor correction.
+The per-clause map records the proven host cells; the live contract test
+against the external disposable Lexinet server remains open.
+No sibling repository or live Tailnet deployment was modified.
+
+Step 7b now routes touch and validated fake-broker intents through the same
+shell/controller/reducer and subordinate LVGL surface. The native/guest reports
+at `.build/sim/native/report.json` and `.build/sim/vm/report.json` each record
+29 passing scenarios. This visible integration does not by itself replace the
+step's complete reducer and shell-cancellation matrix. Step 8 has a persistent
+fake broker process, generated catalog/active-set/backend/policy artifacts,
+confusability fixtures, two-phase effect checks and one-shot lease/closure tests.
+Pronunciations are semantic fixtures; production authenticated lifecycle/claim
+IPC, independent capture closure, real capture and acoustic qualification remain
+unproven. `wish_recording` is disabled.
+
+Step 9 has simulation-specific Debian services, DRM page-flip completion,
+supervisor-only raw evdev, authenticated normalized forwarding, synthetic sysfs
+backlight and uinput presence. Both QEMU input protocols and the Mac Cocoa
+pointer path are exercised. Suspend remains disabled. This is not production
+Buildroot package/config evaluation, live Tailnet/authorization evidence, a real
+recognizer selection or any FRDM measurement. Steps 6, 8 and 9 remain
+unchecked until their remaining mapped obligations are recorded. Step 7b's
+complete host clause is recorded below.
+
+
+**Amended 2026-09-25 (guard proof completion):** follow-up host tests caught
+and fixed Back from completion losing the remembered card, an error at the first
+history boundary, and touch traversal into provisional history without durable
+prerequisite promotion. The focused nine-test CTest suite passes after those
+fixes. New cases prove replacement ratings only after an exact void,
+already-presented forward reuse, full-outbox touch refusal versus provisional
+voice, session-end discard and restart gates, duplicate acknowledgements,
+stream reprovisioning, reservation release across restart, a stable empty
+sentinel, injected ENOSPC preserving the committed payload, and rejection
+excluding successor creation even after local navigation reaches the end.
+Verified-TLS fixture tests additionally exercise conflicting create/sync
+idempotency payloads, same-batch presented/revealed/rated/void replay and
+server rejection of an unpresented predecessor. Shell integration proves
+boundary no-ops and real in-flight HTTPS cancellation on night/surface closure.
+These host proofs are recorded in the map. The final combined `make verify`
+completed at `2026-09-26T05:58:55Z` in `.build/virtual-panel-final-verify.log`,
+and the refreshed Debian guest passed 37/37 CTests. Step 7b is complete: its
+whole host clause covers touch semantics, face/history and boundary behavior,
+front-rating refusal, durable advance, exact touch Undo and replacement ratings,
+correction capacity/rejection, and shell-directed in-flight HTTPS cancellation.
+It consumes Step 6's implemented panel-side capabilities; the external disposable
+Lexinet run remains the unrecorded Step 6 join proof and is not implied by
+Step 7b's completion.

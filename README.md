@@ -17,15 +17,19 @@ The durable recovery findings are preserved in the self-contained [legacy recove
 
 ## Current status
 
-This is an executable scaffold, not a hardware-complete product.
+The display applications run in a native Mac window and a Linux virtual panel.
+This is not a hardware-complete product; production enablement still depends on
+real-provider and hardware evidence.
 
-| Work stream | First implementation | What remains hardware-dependent |
+| Work stream | Implemented software | Remaining gates |
 |---|---|---|
 | Presence/wake | Stock `gpio-keys` PIR node in the FRDM project overlay (pin is a build-failing placeholder) plus the custom input-driver experiment | PIR pin and J18 voltage, pad ownership, suspend-to-RAM wake proof |
-| Panel supervisor | Host-tested daemon, policy, offline solar math, evdev discovery, backlight/suspend, protocol-v2 presentation gate, and touch-provenance seams | Actual nodes, brightness, clock recovery, suspend behavior, raw-touch adapter, and display-commit correlation on the target |
-| Panel UI | Host-tested neutral shell/controller, intent registry, Unicode policy, headless renderer, protocol-v2 Unix client, and disabled fail-dark Buildroot entry point | Evidence-backed physical renderer, normalized-touch transport adapter, target service enablement, and calibrated display/touch |
-| Vocabulary panel | Host-tested flash-card scaffold and provenance-stamped `study.v1` consumer contract; Lexinet canonical study service/routes/CLI plus its local native-TLS scoped Tailnet boundary are implemented | Resilient panel data plane, real Tailnet identity/policy/revocation/certificate evidence, panel Tailscale packaging choice, integration beneath the neutral shell, target renderer, and calibrated touch |
-| Personal agenda | `AGENDA-001` through `AGENDA-010` accepted; provider-neutral birthday/meeting model, safe wish-composer flow, Mac companion boundary, and feasibility plan documented; `AGENDA-011` deferred | Agenda feasibility Step 1 review; EventKit/Contacts, Google, Tailnet, local STT, Messages measurements, and all feature implementation |
+| Panel supervisor | Policy/daemon, protocol-v2 presentation gate, sole evdev touch observation, and authenticated normalized-touch stream; Linux guest tests exercise tablet/Type-B input and backlight | Actual FRDM nodes, brightness, clock recovery, suspend behavior, touch calibration, and on-target display-commit correlation |
+| Panel UI | Neutral shell, canonical study reducer, shared LVGL renderer, headless/SDL/guest DRM backends, intent routing, Unicode policy, lifecycle and normalized-touch clients | Physical display-commit evidence, calibrated display/touch, production service enablement; production backend remains fail-dark |
+| Vocabulary panel | Study surface beneath `panel_ui`, cancellable HTTPS worker, durable create/retry identities, atomic cache/outbox recovery, and synthetic verified-TLS integration for `study.v1` | Real Lexinet/Tailnet identity, policy, revocation and certificate evidence; panel Tailscale packaging and credentials; target validation |
+| Spoken commands | Fake-only broker, content-addressed catalog/active sets/backend/policy, effect admission, replay/cooldown and lifecycle closure tests | Real recognizer/acoustic qualification, microphone ownership and independent closure, production holder-claim/media IPC; wish recording remains disabled |
+| Personal agenda | Synthetic agenda/birthday/wish-flow surfaces; `AGENDA-001` through `AGENDA-010` accepted and companion boundary documented | `AGENDA-011`, feasibility Step 1, real providers/companion, EventKit/Contacts, Google, Tailnet, local STT and Messages measurements |
+| Virtual panel | 29 headless and SDL scenarios, Debian arm64 QEMU/HVF guest with DRM completion, authenticated touch, synthetic PIR/backlight, and Cocoa interaction | Simulation only; no FRDM electrical, physical display, power, suspend or wake evidence |
 | System image | Pinned Buildroot external tree with FRDM i.MX 8M Plus production and bring-up defconfigs (NXP `linux-imx`/`uboot-imx` `lf-6.12.49-2.2.0`), board profiles, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | NXP firmware license decision, full image build, measured PIR/backlight/display values, and measured package/resource budget |
 | Board bring-up | `config/boards/` profiles, AArch64 cross build, `hardware_tests/frdm/` gate evidence scripts, and the board-arrival checklist | Every `FRDM-GATE-*` measurement |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
@@ -46,12 +50,12 @@ plans remain authoritative inside their work streams; the
 [FRDM hardware baseline](.claude/plans/2026-09-25-frdm-hardware-baseline.md)
 plan replaces the BeagleBone one for hardware work.
 
-With the shared product contracts accepted by ADR 0006 and the neutral host
-UI/protocol spine now implemented, the immediate sequence is to implement
-Lexinet study and offline behavior, run Mac feasibility in parallel, and produce a
-disabled-by-default Buildroot release candidate. GPIO, display, suspend/wake,
-microphone, battery, and final platform claims remain measured hardware gates
-rather than blockers to that software head start.
+The software lane now exercises study and offline behavior beneath the neutral
+shell, with deterministic visual tests and a running Linux guest. Next gates
+include real Lexinet deployment, Mac-companion feasibility, production capability
+boundaries, and the disabled-by-default Buildroot release candidate. GPIO,
+physical display, suspend/wake, microphone, battery, and final platform claims
+still require measured hardware evidence.
 
 No document or test result in this repository claims the saved legacy pin map is electrically safe or that suspend wake works on the actual assembly.
 
@@ -73,12 +77,11 @@ QCS6490 only after its sleep claim is made reproducible. See the
 [proposed two-domain power architecture](docs/architecture/power-domain-architecture.md),
 and [current investigation decision](docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md).
 
-Two gates intentionally remain before a product-like lit-screen test: the
-vocabulary session/HTTP/LVGL surface must be integrated beneath `panel_ui`, and
-the host-tested protocol-v2 handshake needs an evidence-backed physical
-display-commit backend plus on-target correlation. Until those exist, services
-stay disabled by default and the no-white-flash requirement is not claimed as
-proven.
+The vocabulary session/HTTP/LVGL surface is integrated beneath `panel_ui`, and
+the virtual guest correlates protocol-v2 acknowledgements with DRM completion.
+Physical display-commit evidence and on-target correlation remain gates before
+production services can be enabled. The production backend stays fail-dark,
+services stay disabled by default, and physical no-white-flash behavior is unproven.
 
 ## Architecture
 
@@ -94,7 +97,7 @@ flowchart LR
     SUPERVISOR --> SUSPEND["Linux suspend"]
     SUPERVISOR -->|"protocol v2 lifecycle + render gate"| UI["panel_ui\nneutral shell"]
     UI --> VOCABULARY["vocabulary panel\nsubordinate feature"]
-    VOCABULARY -->|"future study data plane"| LEXINET["Lexinet server"]
+    VOCABULARY -->|"study.v1 HTTP + cache/outbox"| LEXINET["Lexinet server"]
     BUILDROOT["Buildroot image"] --> PRESENCE
     BUILDROOT --> SUPERVISOR
     BUILDROOT --> UI
@@ -102,13 +105,13 @@ flowchart LR
     TAILSCALE --> LEXINET
 ```
 
-The accepted application boundary extends this host spine with touch
-provenance, voice, and sibling feature surfaces; it does not add agenda or
-vocabulary decisions to the supervisor:
+The accepted application boundary includes implemented touch provenance and
+fake spoken commands, plus the gated media and personal-context targets shown
+below. Agenda and vocabulary decisions stay outside the supervisor:
 
 ```mermaid
 flowchart LR
-    TOUCH["exact configured touch evdev"] -->|"future direct observation"| SUP["panel supervisor\nlifecycle + power + touch provenance"]
+    TOUCH["exact configured touch evdev"] -->|"sole raw observation"| SUP["panel supervisor\nlifecycle + power + touch provenance"]
     SUP -->|"day_active / night_red / suspended"| SHELL["panel_ui\nsole display + application touch router"]
     SUP -->|"normalized touch observation + opaque ID"| SHELL
     CATALOG["spoken-command catalog\nactive sets + backend projections"] --> BROKER["media broker\nsole microphone owner"]
@@ -128,11 +131,12 @@ flowchart LR
 ~~The earlier convergence sketch assigned the raw touch device to `panel_ui`
 and left touch provenance inside the process asking capability holders to
 act.~~ Accepted [ADR 0005](docs/decisions/0005-validate-touch-provenance-at-capability-holders.md)
-makes the supervisor the future raw-touch observer while leaving application
-hit testing in the UI. The packaging cutover must revoke the current UI service's
-raw `bhp-touch` access and use distinct exact service principals for broker and
-personal-context provenance claims. This is an accepted target contract, not
-current code or hardware evidence.
+makes the supervisor the sole raw-touch observer while leaving application hit
+testing in the UI. The normalized stream is implemented and Linux-tested, and
+packaging revokes the UI service's raw input access. Production broker and
+personal-context holder-claim IPC remain gated; the fake broker owns no physical
+microphone and synthetic agenda surfaces invoke no real provider. These tests
+produce no hardware evidence.
 
 See [system architecture](docs/architecture/system-architecture.md),
 [application capability ownership](docs/architecture/application-capability-ownership.md),
@@ -152,7 +156,9 @@ See [system architecture](docs/architecture/system-architecture.md),
 | `panel_supervisor/` | Presence, solar, display, and sleep policy |
 | `panel_ui/` | Neutral display shell, application hit testing, intent routing, and lifecycle client |
 | `vocabulary_panel/` | Lexinet client boundary and flash-card presentation |
-| `shared/` | Canonical application identity, lifecycle codec, normalized-touch stream, and structured logging capabilities |
+| `media_broker/` | Fake-only command-recognition leases and artifact-bound intent admission |
+| `simulator/` | Native window and deterministic display scenarios |
+| `shared/` | Canonical application identity, lifecycle codec, normalized-touch stream, spoken-command artifacts, and structured logging capabilities |
 | `config/` | Example build, deployment, and service configuration templates; secrets excluded |
 | `system_image/` | Buildroot external tree and target lifecycle |
 | `hardware_tests/` | Non-destructive discovery and on-device evidence capture |
@@ -174,6 +180,26 @@ cmake --preset host-debug
 cmake --build --preset host-debug
 ctest --preset host-debug --output-on-failure
 ```
+
+On the Mac, verify the headless images and open the native panel:
+
+```sh
+make verify-panel-goldens
+make sim-panel
+```
+
+For the Linux virtual panel, prepare the local QEMU dependency as described in
+[virtual-panel operations](scripts/sim/README.md), then run:
+
+```sh
+scripts/sim/run_virtual_panel.sh --execute
+# In another terminal, while the VM is running:
+python3 scripts/sim/provision_virtual_panel.py --execute
+```
+
+Omit `--execute` to preview either VM command. See
+[virtual-panel validation](docs/testing/virtual-panel-validation.md) for the
+headless, native-window and guest evidence, and their remaining gates.
 
 The Linux-only daemon paths and optional HTTP/LVGL adapters have a separate
 containerized host gate. It builds an explicit Linux x86_64 environment and
@@ -227,15 +253,14 @@ The current scaffold and every hardware-evidence gate remain unchanged.
   `deep` versus `s2idle` suspend-to-RAM on the FRDM (`FRDM-GATE-SUSPEND`); a
   future product may add an always-on MCU and full application-domain power-off.
 - Real Lexinet Tailnet deployment evidence, the panel Tailscale packaging
-  choice, and the resilient panel study data plane, integration, and packaging
-  work in its
+  choice, credentials, and production integration/packaging work in its
   [cross-repository plan](.claude/plans/2026-08-05-lexinet-study-integration.md).
 - Personal-agenda feasibility Step 1 review, feasibility measurement, and
   implementation of the accepted personal-agenda/Mac-companion boundary under
   its
   [feasibility plan](.claude/plans/2026-08-05-personal-agenda-feasibility.md);
-  especially `AGENDA-011`, Messages automation, local transcription, recipient
-  confirmation, and the neutral shared UI shell.
+  especially `AGENDA-011`, Messages automation, local transcription, and real
+  recipient confirmation beyond the synthetic shared-shell surfaces.
 - Local STT/gesture scope, microphone/camera hardware privacy controls,
   production update/rollback, and enclosure geometry.
 
@@ -279,3 +304,10 @@ and open decisions to the FRDM i.MX 8M Plus (ADR 0008): board profiles, FRDM
 Buildroot defconfigs, gate evidence scripts, and the board-arrival checklist.
 No hardware evidence exists yet; the NXP firmware license is an open human
 decision.
+
+**Amended 2026-09-25:** refreshed implemented software status for the virtual
+panel: shared study/display surfaces, durable HTTP/cache/outbox behavior,
+supervisor-owned raw touch, authenticated normalized observations, fake command
+admission, synthetic agenda, and three visual validation tiers. Added the Mac
+and QEMU quickstart. Real-provider, production capability, firmware-license and
+every `FRDM-GATE-*` obligation remain open; production services remain disabled.

@@ -391,3 +391,20 @@ touch-started-recording boundary, redaction allowlist, and eight manual stop
 points. Step 1 stays
 unchecked until explicit human safety review; no provider access, capture,
 Tailnet change, login-item change, or Messages handoff occurred.
+
+
+**Amended 2026-09-25 (fixture presentation only):** the separate
+[virtual-panel tranche](2026-09-25-virtual-panel.md) now renders synthetic agenda
+today, stale/expired/unavailable, composer, recording, text preview,
+confirmation and delivery-unknown screens beneath the shared `panel_ui` display.
+Headless, native Mac and Debian guest scenario reports prove those presentation
+states. The recording and confirmation states are inert fixture data; they do
+not enable audio capture, provider access, transcription, recipient resolution
+or Messages submission.
+
+No checkbox in this feasibility plan changes. The signed Mac companion,
+permission/source probes, separately approved bounded Messages experiment,
+local transcription/playback, signed Tailnet capability matrix and measured ADR
+remain pending. AGENDA-001–AGENDA-010 retain their prior accepted decisions;
+AGENDA-011 remains deferred to the reviewed production-planning gate. Simulation
+screens do not supply the missing human safety review or provider evidence.

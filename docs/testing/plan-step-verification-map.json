@@ -171,7 +171,7 @@
       "step": "Step 6",
       "verify_index": 1,
       "item_index": 4,
-      "clause_item": "a 24–72-hour masked-PIR/no-command soak classifies every spontaneous wake",
+      "clause_item": "a 24\u201372-hour masked-PIR/no-command soak classifies every spontaneous wake",
       "test_symbol": "plan.beaglebone-hardware-baseline.step-6.verify-1.item-4.a-24-72-hour-masked-pir-no-command-soak",
       "command": "on-target evidence procedure: .claude/plans/2026-08-05-beaglebone-hardware-baseline.md Step 6 [plan.beaglebone-hardware-baseline.step-6.verify-1.item-4.a-24-72-hour-masked-pir-no-command-soak]",
       "proof_kind": "hardware",
@@ -380,7 +380,7 @@
       "step": "Step 3",
       "verify_index": 1,
       "item_index": 1,
-      "clause_item": "Every exact verification clause in Lexinet Step 1b and Steps 2–6 passes, including the Shared HTTP runtime sub-step's intended host command, lifecycle/adapter tests, and tracked-source `curl_global_*` ownership assertion. The join gate additionally requires the live cross-repository contract test to accept an explicit Lexinet source path and `make verify` to pass in this repository.",
+      "clause_item": "Every exact verification clause in Lexinet Step 1b and Steps 2\u20136 passes, including the Shared HTTP runtime sub-step's intended host command, lifecycle/adapter tests, and tracked-source `curl_global_*` ownership assertion. The join gate additionally requires the live cross-repository contract test to accept an explicit Lexinet source path and `make verify` to pass in this repository.",
       "test_symbol": "plan.end-to-end-development-roadmap.step-3.verify-1.item-1.every-exact-verification-clause-in-lexinet-step-1b-and",
       "command": "delegated verification procedure: .claude/plans/2026-08-05-end-to-end-development-roadmap.md Step 3 [plan.end-to-end-development-roadmap.step-3.verify-1.item-1.every-exact-verification-clause-in-lexinet-step-1b-and]",
       "proof_kind": "delegated",
@@ -404,9 +404,9 @@
       "item_index": 2,
       "clause_item": "`make verify` passes. Do not select a real recognizer or claim microphone rail-off.",
       "test_symbol": "plan.end-to-end-development-roadmap.step-4.verify-1.item-2.make-verify-passes-do-not-select-a-real-recognizer",
-      "command": "PLANNED: make verify",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-end-to-end-development-roadmap.md",
@@ -481,9 +481,9 @@
       "item_index": 1,
       "clause_item": "`make verify` passes on the development host",
       "test_symbol": "plan.end-to-end-development-roadmap.step-8.verify-1.item-1.make-verify-passes-on-the-development-host",
-      "command": "PLANNED: make verify",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-end-to-end-development-roadmap.md",
@@ -1240,9 +1240,9 @@
       "item_index": 1,
       "clause_item": "after review-amendments Step 12 adds the `host-dev` reachability path, run `cmake --preset host-dev`, `cmake --build --preset host-dev`, `ctest --preset host-dev --output-on-failure -R 'http_runtime|http_lexinet_client'`, and `scripts/verification/verify_host_cpp.sh vocabulary_panel`.",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-1.after-review-amendments-step-12-adds-the-host-dev",
-      "command": "PLANNED: cmake --preset host-dev && cmake --build --preset host-dev && ctest --preset host-dev --output-on-failure -R 'http_runtime|http_lexinet_client' && scripts/verification/verify_host_cpp.sh vocabulary_panel",
+      "command": "scripts/verification/verify_host_cpp.sh vocabulary_panel",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1251,9 +1251,9 @@
       "item_index": 2,
       "clause_item": "init-before-handle ordering",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-2.init-before-handle-ordering",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-2.init-before-handle-ordering$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^http_runtime_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1262,9 +1262,9 @@
       "item_index": 3,
       "clause_item": "one process lifetime across multiple injected clients",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-3.one-process-lifetime-across-multiple-injected-clients",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-3.one-process-lifetime-across-multiple-injected-clients$'",
+      "command": "ctest --preset host-dev --output-on-failure -R 'http_runtime|http_lexinet_client'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1273,9 +1273,9 @@
       "item_index": 4,
       "clause_item": "validated-budget rejection",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-4.validated-budget-rejection",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-4.validated-budget-rejection$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^http_runtime_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1284,9 +1284,9 @@
       "item_index": 5,
       "clause_item": "cancellation unblocking",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-5.cancellation-unblocking",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-5.cancellation-unblocking$'",
+      "command": "ctest --preset host-dev --output-on-failure -R 'http_runtime|study_worker|http_lexinet_client'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1295,9 +1295,9 @@
       "item_index": 6,
       "clause_item": "worker join and handle destruction before cleanup",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-6.worker-join-and-handle-destruction-before-cleanup",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-6.worker-join-and-handle-destruction-before-cleanup$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^http_runtime_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1306,9 +1306,9 @@
       "item_index": 7,
       "clause_item": "fail-closed shutdown",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-7.fail-closed-shutdown",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-7.fail-closed-shutdown$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^http_runtime_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1317,9 +1317,9 @@
       "item_index": 8,
       "clause_item": "TLS verification",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-8.tls-verification",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-8.tls-verification$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_http_lexinet_client_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1328,9 +1328,9 @@
       "item_index": 9,
       "clause_item": "redirect refusal",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-9.redirect-refusal",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-9.redirect-refusal$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_http_lexinet_client_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1339,9 +1339,9 @@
       "item_index": 10,
       "clause_item": "response-size limits",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-10.response-size-limits",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-1.item-10.response-size-limits$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_http_lexinet_client_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1350,9 +1350,9 @@
       "item_index": 11,
       "clause_item": "A tracked-source assertion using `git grep -n -E 'curl_global_(init|cleanup)[[:space:]]*[(]' -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp'` must report both calls only below `shared/http_runtime/`",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-11.a-tracked-source-assertion-using-git-grep-n-e",
-      "command": "PLANNED: git grep -n -E 'curl_global_(init|cleanup)[[:space:]]*[(]' -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp'",
+      "command": "git grep -n -E 'curl_global_(init|cleanup)[[:space:]]*[(]' -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1361,9 +1361,9 @@
       "item_index": 12,
       "clause_item": "The current `host-debug` preset and `verify_host_cpp.sh` do not compile the HTTP adapter/runtime, so they are not evidence for this sub-step until that Step 12 verification work lands.",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-1.item-12.the-current-host-debug-preset-and-verify-host-cpp",
-      "command": "delegated verification procedure: .claude/plans/2026-08-05-lexinet-study-integration.md Step 6 [plan.lexinet-study-integration.step-6.verify-1.item-12.the-current-host-debug-preset-and-verify-host-cpp]",
-      "proof_kind": "delegated",
-      "proof_status": "planned"
+      "command": "scripts/verification/verify_host_cpp.sh vocabulary_panel",
+      "proof_kind": "automated",
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1372,9 +1372,9 @@
       "item_index": 1,
       "clause_item": "the Shared HTTP runtime sub-step's intended `host-dev`/tracked-source checks pass, and the Step 12-expanded `scripts/verification/verify_host_cpp.sh vocabulary_panel` runs the adapter, runtime, and vocabulary tests",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-1.the-shared-http-runtime-sub-step-s-intended-host",
-      "command": "PLANNED: cmake --preset host-dev && cmake --build --preset host-dev && ctest --preset host-dev --output-on-failure -R 'http_runtime|http_lexinet_client' && scripts/verification/verify_host_cpp.sh vocabulary_panel",
+      "command": "scripts/verification/verify_host_cpp.sh vocabulary_panel",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1383,9 +1383,9 @@
       "item_index": 2,
       "clause_item": "truncation",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-2.truncation",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-2.truncation$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_study_wire_codec_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1394,9 +1394,9 @@
       "item_index": 3,
       "clause_item": "malformed UTF-8/JSON",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-3.malformed-utf-8-json",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-3.malformed-utf-8-json$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_study_wire_codec_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1405,9 +1405,9 @@
       "item_index": 4,
       "clause_item": "unknown version",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-4.unknown-version",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-4.unknown-version$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_study_wire_codec_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1416,9 +1416,9 @@
       "item_index": 5,
       "clause_item": "timeout",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-5.timeout",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-5.timeout$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_http_lexinet_client_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1427,9 +1427,9 @@
       "item_index": 6,
       "clause_item": "cancellation",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-6.cancellation",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-6.cancellation$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_http_lexinet_client_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1438,9 +1438,9 @@
       "item_index": 7,
       "clause_item": "TLS failure",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-7.tls-failure",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-7.tls-failure$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_http_lexinet_client_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1449,9 +1449,9 @@
       "item_index": 8,
       "clause_item": "disk full",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-8.disk-full",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-8.disk-full$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1460,9 +1460,9 @@
       "item_index": 9,
       "clause_item": "atomic-write interruption at every boundary",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-9.atomic-write-interruption-at-every-boundary",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-9.atomic-write-interruption-at-every-boundary$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_study_store_crash_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1471,9 +1471,9 @@
       "item_index": 10,
       "clause_item": "corrupted cache",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-10.corrupted-cache",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-10.corrupted-cache$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1482,9 +1482,9 @@
       "item_index": 11,
       "clause_item": "duplicate acknowledgement",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-11.duplicate-acknowledgement",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-11.duplicate-acknowledgement$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1493,9 +1493,9 @@
       "item_index": 12,
       "clause_item": "idempotency conflict",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-12.idempotency-conflict",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-12.idempotency-conflict$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_fixture_https_roundtrip_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1504,9 +1504,9 @@
       "item_index": 13,
       "clause_item": "ordered retry",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-13.ordered-retry",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-13.ordered-retry$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1515,9 +1515,9 @@
       "item_index": 14,
       "clause_item": "same-batch presented/reveal/rating/void replay",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-14.same-batch-presented-reveal-rating-void-replay",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-14.same-batch-presented-reveal-rating-void-replay$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_fixture_https_roundtrip_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1526,9 +1526,9 @@
       "item_index": 15,
       "clause_item": "stream sequence/receipt persistence and reprovisioning",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-15.stream-sequence-receipt-persistence-and-reprovisioning",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-15.stream-sequence-receipt-persistence-and-reprovisioning$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1537,9 +1537,9 @@
       "item_index": 16,
       "clause_item": "pending-event non-eviction",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-16.pending-event-non-eviction",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-16.pending-event-non-eviction$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1548,9 +1548,9 @@
       "item_index": 17,
       "clause_item": "acknowledgement while Undo remains available",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-17.acknowledgement-while-undo-remains-available",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-17.acknowledgement-while-undo-remains-available$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1559,9 +1559,9 @@
       "item_index": 18,
       "clause_item": "grouped permanent-rejection disposition for all promotion/rating/successor constituents with preserved visible state plus exhaustion exclusion plus Undo release without a void",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-18.grouped-terminal-rejection-disposition",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-18.grouped-terminal-rejection-disposition$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1570,9 +1570,9 @@
       "item_index": 19,
       "clause_item": "final-card completion with Undo",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-19.final-card-completion-with-undo",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-19.final-card-completion-with-undo$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1581,9 +1581,9 @@
       "item_index": 20,
       "clause_item": "rating behavior across rating/Undo capacity plus provisional-prerequisite promotion capacity plus touch-successor durability versus voice-successor provisional handling and an already-presented forward successor",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-20.source-qualified-rating-capacity",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-20.source-qualified-rating-capacity$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1592,9 +1592,9 @@
       "item_index": 21,
       "clause_item": "reservation consume/release",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-21.reservation-consume-release",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-21.reservation-consume-release$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1603,9 +1603,9 @@
       "item_index": 22,
       "clause_item": "no reservation leakage across restart",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-22.no-reservation-leakage-across-restart",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-22.no-reservation-leakage-across-restart$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1614,9 +1614,9 @@
       "item_index": 23,
       "clause_item": "full-outbox touch fact/promotion/rating rejection versus visibly provisional voice presentation/reveal and fact-free history navigation plus exact-bound promotion with restart/session-end discard plus a non-card restart gate",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-23.full-outbox-provisional-voice-restart-gate",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-23.full-outbox-provisional-voice-restart-gate$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1625,9 +1625,9 @@
       "item_index": 24,
       "clause_item": "final-rating flush-before-successor ordering including an Undo racing the barrier",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-24.final-rating-flush-before-successor-ordering-including-an-undo",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-24.final-rating-flush-before-successor-ordering-including-an-undo$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1636,9 +1636,9 @@
       "item_index": 25,
       "clause_item": "server rejection of locally exhausted but authoritatively incomplete cycles",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-25.server-rejection-of-locally-exhausted-but-authoritatively-incomplete-cycles",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-25.server-rejection-of-locally-exhausted-but-authoritatively-incomplete-cycles$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_fixture_https_roundtrip_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1647,9 +1647,9 @@
       "item_index": 26,
       "clause_item": "one stable empty sentinel",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-26.one-stable-empty-sentinel",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-26.one-stable-empty-sentinel$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1658,9 +1658,9 @@
       "item_index": 27,
       "clause_item": "retained late correction",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-27.retained-late-correction",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-27.retained-late-correction$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_fixture_https_roundtrip_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1669,9 +1669,9 @@
       "item_index": 28,
       "clause_item": "bounded card eviction",
       "test_symbol": "plan.lexinet-study-integration.step-6.verify-2.item-28.bounded-card-eviction",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-6.verify-2.item-28.bounded-card-eviction$'",
+      "command": "ctest --preset host-dev --output-on-failure -R '^vocabulary_panel_flash_card_session_test$'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1746,9 +1746,9 @@
       "item_index": 1,
       "clause_item": "host tests prove touch semantics, face/history restoration, boundary no-ops, forward-history reuse, prefetch depletion, no implicit rating, rating rejection on the front, durable-before-advance, touch-only lease-resolved Undo with no arbitrary target that leaves the successor visible, final-card completion/refill state with Undo, one effective rating per session item with replacement only after void, outbox correction reservation and terminal-rejection release, and study-worker cancellation on shell-directed surface or lifecycle closure.",
       "test_symbol": "plan.lexinet-study-integration.step-7b.verify-1.item-1.host-tests-prove-touch-semantics-face-history-restoration-boundary",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-7b.verify-1.item-1.host-tests-prove-touch-semantics-face-history-restoration-boundary$'",
+      "command": "ctest --preset host-dev --output-on-failure -R 'vocabulary_panel_flash_card_session|vocabulary_panel_study_worker|panel_simulation_integration|panel_simulation_https_resume'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1768,9 +1768,9 @@
       "item_index": 2,
       "clause_item": "forbidden voice effects fail even with a pair waiver",
       "test_symbol": "plan.lexinet-study-integration.step-8.verify-1.item-2.forbidden-voice-effects-fail-even-with-a-pair-waiver",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-8.verify-1.item-2.forbidden-voice-effects-fail-even-with-a-pair-waiver$'",
+      "command": "python3 -m unittest discover -s media_broker/tests -p 'test_*.py'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1779,9 +1779,9 @@
       "item_index": 3,
       "clause_item": "active command sets and every backend projection reproduce deterministically and carry the exact artifact/policy chain",
       "test_symbol": "plan.lexinet-study-integration.step-8.verify-1.item-3.active-command-sets-and-every-backend-projection-reproduce-deterministically",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-8.verify-1.item-3.active-command-sets-and-every-backend-projection-reproduce-deterministically$'",
+      "command": "python3 -m unittest discover -s media_broker/tests -p 'test_*.py'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1790,9 +1790,9 @@
       "item_index": 4,
       "clause_item": "recognition-policy canonicalization reproduces its digest, mismatched policy/backend/model identities fail closed, and changing any decision-affecting recognition setting changes the policy digest",
       "test_symbol": "plan.lexinet-study-integration.step-8.verify-1.item-4.recognition-policy-canonicalization-reproduces-its-digest-mismatched-policy-backend",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-8.verify-1.item-4.recognition-policy-canonicalization-reproduces-its-digest-mismatched-policy-backend$'",
+      "command": "python3 -m unittest discover -s media_broker/tests -p 'test_*.py'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1801,9 +1801,9 @@
       "item_index": 5,
       "clause_item": "exact overlapping collisions fail",
       "test_symbol": "plan.lexinet-study-integration.step-8.verify-1.item-5.exact-overlapping-collisions-fail",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-8.verify-1.item-5.exact-overlapping-collisions-fail$'",
+      "command": "python3 -m unittest discover -s media_broker/tests -p 'test_*.py'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1812,9 +1812,9 @@
       "item_index": 6,
       "clause_item": "golden normalization and near-neighbor/candidate fixtures report independently reproducible vectors",
       "test_symbol": "plan.lexinet-study-integration.step-8.verify-1.item-6.golden-normalization-and-near-neighbor-candidate-fixtures-report-independently",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-8.verify-1.item-6.golden-normalization-and-near-neighbor-candidate-fixtures-report-independently$'",
+      "command": "python3 -m unittest discover -s media_broker/tests -p 'test_*.py'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1845,9 +1845,9 @@
       "item_index": 9,
       "clause_item": "Phase B proves that every voice projection excludes touch-only IDs, checks every reachable effect under the unchanged matrix, and rejects the projection if any effect is forbidden. No admitted voice-emittable ID reaches `capture_start`, external submission, power, or illumination. Broker tests cover the one-shot `armed -> active -> closed` state machine and structured repeat/closed/ expiry/binding failures.",
       "test_symbol": "plan.lexinet-study-integration.step-8.verify-1.item-9.phase-b-proves-that-every-voice-projection-excludes-touch",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-8.verify-1.item-9.phase-b-proves-that-every-voice-projection-excludes-touch$'",
+      "command": "python3 -m unittest discover -s media_broker/tests -p 'test_*.py'",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -1856,9 +1856,9 @@
       "item_index": 1,
       "clause_item": "`make verify`",
       "test_symbol": "plan.lexinet-study-integration.step-9.verify-1.item-1.make-verify",
-      "command": "PLANNED: ctest --preset host-dev --output-on-failure -R '^plan.lexinet-study-integration.step-9.verify-1.item-1.make-verify$'",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-08-05-lexinet-study-integration.md",
@@ -2228,7 +2228,7 @@
       "step": "Step 1",
       "verify_index": 1,
       "item_index": 1,
-      "clause_item": "human review — the executor stops here and does not continue until every answer above is written down.",
+      "clause_item": "human review \u2014 the executor stops here and does not continue until every answer above is written down.",
       "test_symbol": "plan.review-amendments.step-1.verify-1.item-1.human-review-the-executor-stops-here-and-does-not",
       "command": "human review procedure: .claude/plans/2026-08-06-review-amendments.md Step 1 [plan.review-amendments.step-1.verify-1.item-1.human-review-the-executor-stops-here-and-does-not]",
       "proof_kind": "human",
@@ -2734,7 +2734,7 @@
       "step": "Step 6",
       "verify_index": 1,
       "item_index": 3,
-      "clause_item": "a 24–72-hour masked-PIR soak classifies every spontaneous wake.",
+      "clause_item": "a 24\u201372-hour masked-PIR soak classifies every spontaneous wake.",
       "test_symbol": "plan.frdm-hardware-baseline.step-6.verify-1.item-3.a-24-72-hour-masked-pir-soak-classifies-every-spontaneous",
       "command": "on-target evidence procedure: .claude/plans/2026-09-25-frdm-hardware-baseline.md Step 6 [plan.frdm-hardware-baseline.step-6.verify-1.item-3.a-24-72-hour-masked-pir-soak-classifies-every-spontaneous]",
       "proof_kind": "hardware",
@@ -2870,7 +2870,7 @@
       "test_symbol": "plan.virtual-panel.step-2",
       "command": "make verify-panel-goldens",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-09-25-virtual-panel.md",
@@ -2881,7 +2881,7 @@
       "test_symbol": "plan.virtual-panel.step-3",
       "command": "scripts/verification/verify_host_cpp.sh vocabulary_panel",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-09-25-virtual-panel.md",
@@ -2892,7 +2892,7 @@
       "test_symbol": "plan.virtual-panel.step-4",
       "command": "scripts/verification/verify_host_cpp.sh panel_supervisor",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-09-25-virtual-panel.md",
@@ -2903,7 +2903,7 @@
       "test_symbol": "plan.virtual-panel.step-5",
       "command": "make verify-panel-simulator",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-09-25-virtual-panel.md",
@@ -2914,7 +2914,7 @@
       "test_symbol": "plan.virtual-panel.step-6",
       "command": "make verify-panel-media",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-09-25-virtual-panel.md",
@@ -2925,7 +2925,7 @@
       "test_symbol": "plan.virtual-panel.step-7",
       "command": "make verify-panel-vm",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-09-25-virtual-panel.md",
@@ -2936,7 +2936,7 @@
       "test_symbol": "plan.virtual-panel.step-8",
       "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     }
   ]
 }

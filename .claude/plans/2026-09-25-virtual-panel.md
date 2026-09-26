@@ -29,45 +29,45 @@ arrived. Further system-wide installation awaits the user's explicit response.
     source/dependency pins. Preserve the sole active FRDM profile.
   - Verify: `make verify-docs`
 
-- [ ] **Step 2: Render shared surfaces and deterministic goldens**
+- [x] **Step 2: Render shared surfaces and deterministic goldens**
   - Move LVGL lifetime/display ownership to the neutral shell. Render vocabulary,
     agenda fixtures, night, blank and degraded states into 1024x600 memory.
     Commit baseline PNGs and a review contact sheet. Compare exact pixels by
     default and emit a bounded tolerance report plus diff images on mismatch.
   - Verify: `make verify-panel-goldens`
 
-- [ ] **Step 3: Complete the study reducer and resilient data plane**
+- [x] **Step 3: Complete the study reducer and resilient data plane**
   - Execute the panel-side Lexinet Step 6 and 7b requirements together: shared
     HTTP lifetime, typed fixture HTTPS, cancellable work, bounded atomic state,
     two-sided history, source-qualified events, durable ratings and touch Undo.
   - Verify: `scripts/verification/verify_host_cpp.sh vocabulary_panel`
 
-- [ ] **Step 4: Forward supervisor-observed touch to the shell**
+- [x] **Step 4: Forward supervisor-observed touch to the shell**
   - Add exact-identity Linux evdev observation and bounded authenticated
     normalized forwarding with observer-measured contact duration. Keep raw
     input outside the UI and preserve lifecycle invalidation and fail-dark.
   - Verify: `scripts/verification/verify_host_cpp.sh panel_supervisor`
 
-- [ ] **Step 5: Run every scenario in the native simulator**
+- [x] **Step 5: Run every scenario in the native simulator**
   - Add the opt-in SDL2 binary, strict JSON scenario/input protocol, keyboard
     controls and capture mode. Use shared surface/controller code and clearly
     synthetic lifecycle, data, night color and commit observations.
   - Verify: `make verify-panel-simulator`
 
-- [ ] **Step 6: Add fake command recognition and effect admission**
+- [x] **Step 6: Add fake command recognition and effect admission**
   - Implement the shared fake-only broker, lifecycle closure, one-shot lease
     state, content-addressed command/policy artifacts and two-phase effect gate.
     Keep wish recording and all real capture disabled.
   - Verify: `make verify-panel-media`
 
-- [ ] **Step 7: Boot Debian and exercise real guest services**
+- [x] **Step 7: Boot Debian and exercise real guest services**
   - Prepare a pinned Debian arm64 guest with native application builds, real
     DRM page-flip completion, evdev, supervisor lifecycle sockets, simulated
     backlight class device and uinput PIR. Add dry-run-first QEMU/QMP scripts.
     Use suspend disabled unless a measured simulated wake trial succeeds.
   - Verify: `make verify-panel-vm`
 
-- [ ] **Step 8: Verify and publish simulation contact sheets**
+- [x] **Step 8: Verify and publish simulation contact sheets**
   - Capture every scenario in both visible tiers, machine-readable transcripts,
     reproducible launch commands, exact completed work and remaining gates.
   - Verify: `make verify`
@@ -83,3 +83,48 @@ their entire existing proof matrix is recorded, including external gates.
 **Amended 2026-09-25:** created from the complete user request. The user orders
 the useful visual tiers first while permitting the dependent study and touch
 work to proceed in parallel. No production or hardware gate is waived.
+
+
+**Amended 2026-09-25 (simulation proof record):** Steps 2–7 have their
+scoped software evidence. `.build/screenshots/report.json` records 29 exact
+headless golden matches with no baseline update. `.build/sim/native/report.json`
+and `.build/sim/vm/report.json` each record all 29 scenarios passing; the guest
+compares 27 rendered frames exactly, including blank and presentation failure,
+and separately checks grace (the real 70-to-60-percent transition) and the
+untrusted-clock fixture without spoofing lifecycle clock trust. `.build/sim/cocoa-pointer-proof.json` records a real
+click in the Mac QEMU Cocoa window reaching the guest's supervisor-observed
+input path. Guest verification also passes single-contact and Type-B touch and
+PIR absence with simulated backlight brightness zero. `.build/sim/provision.log`
+records 37/37 Linux CTests and the simulated backlight module build. Suspend is
+disabled; the logical suspended display mode is not Linux suspend/wake evidence.
+
+The isolated study commit passed `make verify` and `make verify-docs`, retained
+in `.build/study-commit-verify.log` and `.build/study-commit-docs.log`. This proves
+the canonical reducer, durable initial-create/sync retry identities, crash
+boundaries, fixture HTTPS, and shared HTTP runtime in that commit. The fake
+broker's 15-test suite and generated catalog/policy checks are software-only;
+pronunciations remain semantic fixtures. The final combined working-tree
+`make verify` completed at `2026-09-26T05:58:55Z`, recorded in
+`.build/virtual-panel-final-verify.log`. Step 8 is complete. These ignored
+reports are local evidence, not FRDM evidence; the committed
+[validation record](../../docs/testing/virtual-panel-validation.md) preserves
+commands, results and evidence limits.
+
+Lexinet Step 7b's host vocabulary-surface clause is complete, including shell
+cancellation and history/rating boundaries. Original Lexinet Steps 6, 8 and 9
+and roadmap Steps 3, 4, 7 and 8 retain their remaining proof obligations. The live disposable Lexinet/Tailnet matrix,
+production media IPC and microphone closure, signed companion/provider probes,
+Messages, reviewed agenda production plan, AGENDA-011, supported Buildroot
+release build and every FRDM hardware gate remain open. Fixture agenda recording
+and confirmation screens enable neither capture nor submission.
+
+
+**Amended 2026-09-25 (final combined gate):** all eight simulation steps are
+complete. The refreshed Debian guest passed 37/37 CTests; native and guest
+scenario reports each pass 29/29, and native golden comparison is exact. Both
+guest touch protocols produce a subsequent DRM page-flip commit. A real click
+in the rebuilt native Mac app changed front to back, and fresh Cocoa startup
+selected its absolute pointer through QMP without manual guest configuration.
+The native and guest contact sheets and reproducible launch instructions are
+published in the validation record. Suspend, production media/provider access,
+external Lexinet/Tailnet qualification and FRDM hardware remain gated as above.
