@@ -175,8 +175,8 @@ void PanelSimulation::pump_study(){
  if(auto completion=network_->worker->take_completion()){
   network_->in_flight=false;
   if(completion->error){study_->set_boundary_error(*completion->error);scene.acknowledgement=completion->error->error_code;network_->terminal_error=!completion->error->retryable;}
-  else if(completion->session){const auto previous=study_->snapshot().session_id;auto applied=study_->install_session(*completion->session);if(!applied.has_value())study_->set_boundary_error(applied.error());else if(!previous.empty())network_->successor_materialized_for=previous;}
-  else if(completion->synchronization){auto applied=study_->accept_sync(*completion->synchronization);if(!applied.has_value())study_->set_boundary_error(applied.error());}
+  else if(completion->session){const auto previous=study_->snapshot().session_id;auto applied=study_->install_session(*completion->session);if(!applied.has_value()){study_->set_boundary_error(applied.error());scene.acknowledgement=applied.error().error_code;network_->terminal_error=!applied.error().retryable;}else if(!previous.empty())network_->successor_materialized_for=previous;}
+  else if(completion->synchronization){auto applied=study_->accept_sync(*completion->synchronization);if(!applied.has_value()){study_->set_boundary_error(applied.error());scene.acknowledgement=applied.error().error_code;network_->terminal_error=!applied.error().retryable;}}
   project_study();render();network_->next_attempt=std::chrono::steady_clock::now()+std::chrono::seconds(1);
  }
  if(network_->terminal_error||network_->in_flight||std::chrono::steady_clock::now()<network_->next_attempt||scene.surface_id!="study"||scene.lifecycle.display_mode!=DisplayMode::DayActive||scene.lifecycle.presence_state==PresenceState::Absent)return;

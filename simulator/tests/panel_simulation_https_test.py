@@ -128,8 +128,55 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
         prove_shell_cancellation("surface-cancellation", {
             "type": "scenario", "path": str(root / "simulator/scenarios/agenda-today.json"),
         }, {"surface": "agenda", "fixture_override": True})
+
+        # This body passes HTTP/wire validation but contradicts the reducer's
+        # durably requested scope. It must remain a visible terminal error.
+        mismatched_session = json.loads((root / "vocabulary_panel/tests/fixtures/study_v1/examples/session-created.json").read_text())
+        mismatched_session["scope"]["topic_refs"].insert(1, "fixture-unrequested")
+        response_bytes = json.dumps(mismatched_session).encode()
+        received_requests = []
+
+        class MismatchedScope(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_POST(self):
+                received_requests.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(response_bytes)))
+                self.end_headers()
+                self.wfile.write(response_bytes)
+
+        mismatch = http.server.HTTPServer(("127.0.0.1", 0), MismatchedScope)
+        mismatch_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        mismatch_context.load_cert_chain(certificate, key)
+        mismatch.socket = mismatch_context.wrap_socket(mismatch.socket, server_side=True)
+        mismatch_thread = threading.Thread(target=mismatch.serve_forever, daemon=True)
+        mismatch_thread.start()
+        mismatch_config = directory / "mismatch.json"
+        mismatch_config.write_text(json.dumps({
+            "base_url": "https://127.0.0.1:" + str(mismatch.server_port),
+            "profile_ref": "fixture-default", "topic_refs": ["fixture-systems", "fixture-words"],
+            "fixture_ca_file": str(certificate),
+        }))
+        try:
+            rejected = subprocess.run([
+                str(renderer), "--scenario", str(root / "simulator/scenarios/day-front.json"),
+                "--lexinet-config", str(mismatch_config), "--state-directory", str(directory / "mismatch-client"),
+                "--exit-after-ms", "2200",
+            ], capture_output=True, text=True, timeout=10, check=True)
+            rejected_frames = [json.loads(line)["data"] for line in rejected.stdout.splitlines()]
+            assert any(frame.get("acknowledgement") == "STUDY.CREATE_RESPONSE_MISMATCH"
+                       for frame in rejected_frames), "reducer did not expose the mismatched scope"
+            assert len(received_requests) == 1, "terminal reducer rejection retried without explicit reload"
+        finally:
+            mismatch.shutdown()
+            mismatch.server_close()
+            mismatch_thread.join(timeout=2)
         print(json.dumps({"passed": True, "https_shell_resume_and_teardown": True,
                           "shell_lifecycle_and_surface_cancel_inflight_https": True,
+                          "terminal_reducer_rejection_does_not_retry": True,
                           "simulation_not_hardware_evidence": True}))
     finally:
         server.terminate()

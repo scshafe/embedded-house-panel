@@ -24,7 +24,7 @@ def main() -> None:
                         "-keyout", str(key), "-out", str(cert)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         os.chmod(key, 0o600)
         server = Path(__file__).resolve().parents[1] / "tools/fixture_study_server.py"
-        for scenario, initial_mode, expected_events in [("rollover", "create", 5), ("response-loss", "crash_after_send", 3), ("initial-create-loss", "crash_after_create", 5)]:
+        for scenario, initial_mode, expected_events in [("rollover", "create", 8), ("response-loss", "crash_after_send", 3), ("initial-create-loss", "crash_after_create", 8)]:
             server_state, client_state = root / (scenario + "-server"), root / (scenario + "-client")
             for iteration in range(2):
                 process = subprocess.Popen(["python3", str(server), "--certificate", str(cert), "--private-key", str(key),
@@ -48,7 +48,7 @@ def main() -> None:
                     else:
                         assert completed.returncode == 0, completed.stderr
                         result = json.loads(completed.stdout)
-                        assert result["saved"] and result["event_count"] == (5 if iteration == 0 or initial_mode == "crash_after_create" else 0)
+                        assert result["saved"] and result["event_count"] == (8 if iteration == 0 or initial_mode == "crash_after_create" else 0)
                     context = ssl.create_default_context(cafile=str(cert))
                     control = urllib.request.Request(url + "/fixture/control", data=b'{"offline":true}', headers={"Content-Type": "application/json"})
                     with urllib.request.urlopen(control, context=context) as response:
@@ -64,10 +64,10 @@ def main() -> None:
             if initial_mode == "crash_after_create":
                 assert len(persisted["creates"]) == 2  # One initial UUID plus its successor.
                 assert len(persisted["sessions"]) == 2
-            assert {event["event"]["kind"] for event in persisted["events"].values()} == ({"presented", "revealed", "rated", "rating_voided"} if expected_events == 5 else {"presented", "revealed", "rated"})
+            assert {event["event"]["kind"] for event in persisted["events"].values()} == ({"presented", "revealed", "rated", "rating_voided"} if expected_events == 8 else {"presented", "revealed", "rated"})
             assert len(persisted["streams"]) == 1
             assert next(iter(persisted["streams"].values()))["through"] == expected_events
-        print(json.dumps({"test": "study_fixture_https_roundtrip", "passed": True, "verified": ["TLS", "create", "same_batch_present_reveal_rate_void", "idempotent_replay", "client_restart", "server_restart", "stream_sequence", "flush_receipt", "offline_control", "server_authoritative_successor", "late_predecessor_correction", "stable_successor_replay", "server_commit_client_crash_replay", "initial_create_commit_client_crash_exact_replay"]}))
+        print(json.dumps({"test": "study_fixture_https_roundtrip", "passed": True, "verified": ["TLS", "create", "same_batch_present_reveal_rate_void", "idempotent_replay", "client_restart", "server_restart", "stream_sequence", "flush_receipt", "offline_control", "server_authoritative_successor", "late_predecessor_correction", "stable_successor_replay", "server_commit_client_crash_replay", "initial_create_commit_client_crash_exact_replay", "create_and_sync_idempotency_conflict", "unpresented_successor_rejected"]}))
 
 
 if __name__ == "__main__":

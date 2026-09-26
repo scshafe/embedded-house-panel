@@ -206,6 +206,14 @@ void test_grouped_terminal_rejection_preserves_visible_successor()
 	expect(s.restore().has_value() && s.snapshot().delivery == StudyDelivery::rejected &&
 		   s.snapshot().flash_card.has_value(),
 	       "content-free rejection and visible state survive restart");
+	act(s, StudyIntent::next, StudyInputSource::voice);
+	act(s, StudyIntent::next, StudyInputSource::voice);
+	auto successor = s.prepare_successor();
+	expect(
+	    s.snapshot().availability == StudyAvailability::refill_required &&
+		s.pending_events().empty() && !successor.has_value() &&
+		successor.error().error_code == "STUDY.SUCCESSOR_UNAVAILABLE",
+	    "rejected evidence cannot satisfy exhaustion even after local navigation reaches end");
 }
 void test_final_card_completion_retains_undo()
 {

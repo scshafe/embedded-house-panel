@@ -24,6 +24,11 @@ bool synchronize(FlashCardSession &session, HttpLexinetClient &client)
 	if (!replay.has_value() ||
 	    replay.value().flush_receipt_json != response.value().flush_receipt_json)
 		return false;
+	auto conflicting = request.value();
+	conflicting.limit = conflicting.limit == 64 ? 63 : 64;
+	auto conflict = client.sync(conflicting, "roundtrip-idempotency-conflict");
+	if (conflict.has_value() || conflict.error().error_code != "IDEMPOTENCY_CONFLICT")
+		return false;
 	auto accepted = session.accept_sync(response.value());
 	if (!accepted.has_value())
 		std::cerr << accepted.error().error_code;
@@ -32,6 +37,24 @@ bool synchronize(FlashCardSession &session, HttpLexinetClient &client)
 bool act(FlashCardSession &s, StudyIntent intent)
 {
 	return s.apply_intent(intent, StudyInputSource::touch, s.current_binding()).has_value();
+}
+bool rejects_unpresented_successor(HttpLexinetClient &client, const StudySession &created,
+				   const StudyCreateRequest &initial, const std::string &stream)
+{
+	StudySyncRequest empty;
+	empty.sync_id = new_study_uuid();
+	empty.client_stream_id = stream;
+	empty.session_id = created.session_id;
+	empty.expected_state_version = created.state_version;
+	auto flushed = client.sync(empty, "unpresented-flush");
+	if (!flushed.has_value())
+		return false;
+	auto successor = initial;
+	successor.creation_request_id = new_study_uuid();
+	successor.predecessor_session_id = created.session_id;
+	successor.predecessor_flush_receipt_json = flushed.value().flush_receipt_json;
+	auto rejected = client.create_or_resume(successor, "unpresented-successor");
+	return !rejected.has_value() && rejected.error().error_code == "STUDY_CYCLE_NOT_EXHAUSTED";
 }
 } // namespace
 int main(int argc, char **argv)
@@ -66,6 +89,15 @@ int main(int argc, char **argv)
 				return 1;
 			if (std::string(argv[4]) == "crash_after_create")
 				_exit(89);
+			auto conflicting = request.value();
+			conflicting.limit = 63;
+			auto conflict =
+			    client.create_or_resume(conflicting, "create-idempotency-conflict");
+			if (conflict.has_value() ||
+			    conflict.error().error_code != "IDEMPOTENCY_CONFLICT" ||
+			    !rejects_unpresented_successor(client, created.value(), request.value(),
+							   session.client_stream_id()))
+				return 1;
 			if (!session.install_session(created.value()).has_value() ||
 			    !act(session, StudyIntent::flip) ||
 			    !act(session, StudyIntent::rate_good))
@@ -112,6 +144,9 @@ int main(int argc, char **argv)
 			    !act(session, StudyIntent::next))
 				return 1;
 			if (session.snapshot().session_id != second.value().session_id ||
+			    !act(session, StudyIntent::flip) ||
+			    !act(session, StudyIntent::rate_easy) ||
+			    !act(session, StudyIntent::rating_undo) ||
 			    !synchronize(session, client))
 				return 1;
 		} else if (!synchronize(session, client))
@@ -123,7 +158,7 @@ int main(int argc, char **argv)
 		std::cout << "{\"saved\":true,\"event_count\":"
 			  << ((std::string(argv[4]) == "create" ||
 			       std::string(argv[4]) == "resume_create")
-				  ? 5
+				  ? 8
 				  : 0)
 			  << ",\"simulation_not_hardware_evidence\":true}\n";
 	}
