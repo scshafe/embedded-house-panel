@@ -129,6 +129,14 @@ BEGIN {
 	mice = 0
 	mouse = 0
 	touch = 0
+	sound = 0
+}
+$1 ~ /^snd\// {
+	# No principal may use the generic audio group. Capture opens only to the
+	# media broker group at its packaging cutover (service-principals.json).
+	print $1 "\troot:root 600"
+	sound += 1
+	next
 }
 $1 == "input/event[0-9]+" {
 	print "input/event[0-9]+\troot:root 600 @/usr/libexec/beaglebone-house-panel/classify-touch-input"
@@ -152,7 +160,7 @@ $1 == "input/ts[0-9]" {
 }
 { print }
 END {
-	if (!events || !mice || !mouse || !touch)
+	if (!events || !mice || !mouse || !touch || sound != 5)
 		exit 42
 	print ""
 	print "# BeagleBone House Panel direct-display devices"

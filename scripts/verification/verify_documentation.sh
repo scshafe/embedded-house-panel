@@ -280,15 +280,19 @@ require_fixed_count docs/decisions/README.md \
   '[0010](0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md)' 1 \
   VERIFY_DOCS.PANEL_TAILNET_RUNTIME_ADR_REGISTRY_ENTRY_INVALID
 
-# Both study.v1 examples carry node-capability configuration (ADR 0010), an
-# empty credential path, and none of the retired next-card adapter keys.
+# The development example and the image's reserved panel-ui template carry
+# node-capability study.v1 configuration (ADR 0010), an empty credential path,
+# and none of the retired next-card adapter keys.
+panel_ui_environment_template=system_image/buildroot_external/board/beaglebone-house-panel/service-environment/panel-ui.env.example.in
 for study_example in config/vocabulary-panel.env.example \
-  system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/vocabulary-panel.env.example; do
+  "$panel_ui_environment_template"; do
+  line_prefix=
+  [ "$study_example" = "$panel_ui_environment_template" ] && line_prefix='# '
   require_exact_line_count "$study_example" \
-    'BHP_VOCABULARY_PANEL_STUDY_AUTH_MODE=tailnet_node' 1 \
+    "${line_prefix}BHP_VOCABULARY_PANEL_STUDY_AUTH_MODE=tailnet_node" 1 \
     VERIFY_DOCS.STUDY_EXAMPLE_AUTH_MODE_INVALID
   require_exact_line_count "$study_example" \
-    'BHP_VOCABULARY_PANEL_CREDENTIAL_FILE=' 1 \
+    "${line_prefix}BHP_VOCABULARY_PANEL_CREDENTIAL_FILE=" 1 \
     VERIFY_DOCS.STUDY_EXAMPLE_CREDENTIAL_NOT_EMPTY
   require_fixed_count "$study_example" 'NEXT_CARD' 0 \
     VERIFY_DOCS.STUDY_EXAMPLE_RETIRED_ADAPTER_KEY

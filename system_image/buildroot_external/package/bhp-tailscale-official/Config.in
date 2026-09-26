@@ -1,0 +1,13 @@
+config BR2_PACKAGE_BHP_TAILSCALE_OFFICIAL
+	bool "bhp-tailscale-official"
+	depends on BR2_aarch64
+	depends on !BR2_PACKAGE_TAILSCALE
+	help
+	  Tailscale 1.102.2 from Tailscale's official static arm64
+	  archive, verified by SHA-256 (ADR 0010). Keeps the panel at
+	  version parity with Lexinet without a Buildroot host-Go
+	  upgrade. Node state and enrollment material are provisioned
+	  outside the image.
+
+comment "bhp-tailscale-official needs AArch64 and replaces the tailscale package"
+	depends on !BR2_aarch64 || BR2_PACKAGE_TAILSCALE

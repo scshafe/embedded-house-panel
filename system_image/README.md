@@ -86,11 +86,18 @@ from scratch. Consequently, a modified same-version Buildroot tree and
 - All evdev nodes remain `root:root` mode `0600`, including an exactly
   provisioned touch `name` plus `phys` pair. ADR 0005 reserves raw touch
   observation for the supervisor; the add-event helper revokes legacy group
-  grants. `vocabulary-panel` belongs only to `video`, never `bhp-touch` or
-  generic `input`. The neutral UI has no raw-device group and consumes only
-  normalized observations. DRM/fbdev nodes remain `root:video` mode `0660`.
+  grants. The neutral UI has no raw-device group and consumes only normalized
+  observations. DRM/fbdev nodes remain `root:video` mode `0660` with no member
+  until `panel-ui` joins `video` at the `FRDM-GATE-DISPLAY` cutover. Sound nodes
+  are `root:root` mode `0600`; no principal uses the generic `audio` group, and
+  the media broker gets its own `bhp-mic` group only when it is packaged. The
+  canonical matrix is [service-principals.json](service-principals.json),
+  checked by `scripts/verification/verify_service_principals.py`.
 - Tailscale runs in normal kernel TUN mode from an init script; provisioning is a separate operator action.
-- Buildroot 2026.05.1 currently packages Tailscale 1.78.1. That is sufficient to exercise image integration, not an approval for a networked product; confirm control-plane support and security status, then pin a reviewed version in the external tree before deployment.
+- ADR 0010: FRDM images install Tailscale `1.102.2` from the SHA-256-pinned
+  official static archive (`bhp-tailscale-official`), matching Lexinet's pin.
+  Buildroot's source-built 1.78.1 package remains only in the BeagleBone history
+  defconfigs.
 - Root filesystem read-only mode is deferred until a persistent-data partition and recovery/update design are tested.
 - No Tailscale auth key, node state, Lexinet credential, Wi-Fi secret, or SSH private key is present in the overlay.
 - Application init remains gated until real hardware configuration exists; an
@@ -145,3 +152,10 @@ then retire it after characterization. See
 selection, the NXP firmware license gate, and the PIR build gate (ADR 0008).
 The BeagleBone baseline is kept as deprecated history. No image has been built
 or booted on the FRDM.
+
+**Amended 2026-09-26:** FRDM images use the pinned official Tailscale archive
+(ADR 0010). The standalone `vocabulary-panel` principal and its S80 service are
+retired, because the vocabulary feature runs beneath `panel_ui`. Sound nodes are
+root-only. `service-principals.json` records every installed, reserved and
+retired principal and each device holder. This is static packaging evidence; the
+Mac-local QEMU image boot proves the running layout.

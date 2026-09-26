@@ -3,15 +3,16 @@ Runtime configuration is provisioned per device and is not embedded in the image
 Expected future files:
   presence-sensor.env    root:root             0600
   panel-supervisor.env   root:root             0600
-  vocabulary-panel.env  root:vocabulary-panel 0640
   panel-ui.env           root:panel-ui          0640
   touch-input.name       root:root             0644, exactly one observed line
   touch-input.phys       root:root             0644, exactly one observed line
 
 Every input event remains root:root 0600, including an exactly identified touch
 device. ADR 0005 reserves raw input for the supervisor; mdev revokes legacy
-group grants. Neither panel-ui nor vocabulary-panel may join bhp-touch, generic
-input, or another raw-device group. The UI consumes normalized observations.
+group grants. panel-ui may not join bhp-touch, generic input, audio, or another
+raw-device group. The UI consumes normalized observations and hosts the
+vocabulary feature; its study.v1 settings live in panel-ui.env. The service
+principal and device matrix is system_image/service-principals.json.
 
 Tailscale state and Lexinet credentials belong under /var/lib/beaglebone-house-panel
 or /var/lib/tailscale with mode 0600 and must never enter diagnostics or images.

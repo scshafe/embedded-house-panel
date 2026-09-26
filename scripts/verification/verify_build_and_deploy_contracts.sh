@@ -103,7 +103,13 @@ fi
 provenance_target=$temporary_root/provenance-target
 mkdir -p "$provenance_target/etc" \
 	"$provenance_target/usr/libexec/beaglebone-house-panel"
+# The five snd rules mirror Buildroot's stock package/busybox/mdev.conf.
 printf '%s\n' \
+	'snd/pcm.* root:audio 660' \
+	'snd/control.* root:audio 660' \
+	'snd/midi.* root:audio 660' \
+	'snd/seq root:audio 660' \
+	'snd/timer root:audio 660' \
 	'input/event[0-9]+ root:root 600' \
 	'input/mice root:root 600' \
 	'input/mouse[0-9] root:root 600' \
@@ -116,6 +122,32 @@ provenance_br2_config=$temporary_root/provenance-br2.config
 printf '%s\n' 'BR2_BHP_BOARD_ID="frdm-imx8mp"' >"$provenance_br2_config"
 BR2_CONFIG=$provenance_br2_config
 export BR2_CONFIG
+# An upstream change to the snd rule set must stop the build (exit 42), not
+# ship an image whose microphone permissions were never reviewed.
+drifted_sound_target=$temporary_root/drifted-sound-target
+mkdir -p "$drifted_sound_target/etc" \
+	"$drifted_sound_target/usr/libexec/beaglebone-house-panel"
+grep -v '^snd/timer ' "$provenance_target/etc/mdev.conf" \
+	>"$drifted_sound_target/etc/mdev.conf"
+install -m 0755 \
+	"$provenance_target/usr/libexec/beaglebone-house-panel/classify-touch-input" \
+	"$drifted_sound_target/usr/libexec/beaglebone-house-panel/classify-touch-input"
+if BR2_EXTERNAL_BHP_PATH=$PROJECT_ROOT/system_image/buildroot_external \
+	BR2_VERSION=2026.05.1 BR2_VERSION_FULL=2026.05.1 \
+	BHP_BUILDROOT_SOURCE_ID=$BHP_PINNED_BUILDROOT_SOURCE_ID \
+	BHP_BUILDROOT_ARCHIVE_SHA256=$BHP_PINNED_BUILDROOT_ARCHIVE_SHA256 \
+	"$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/post-build.sh" \
+	"$drifted_sound_target" >/dev/null 2>&1; then
+	drift_status=0
+else
+	drift_status=$?
+fi
+if [ "$drift_status" -ne 42 ]; then
+	bhp_fail VERIFY_BUILD_DEPLOY.SOUND_RULE_DRIFT_ACCEPTED \
+		"post-build.sh must stop with 42 when the snd rule set changes (got $drift_status)" \
+		"$TRACE_ID"
+	exit 1
+fi
 unknown_board_br2_config=$temporary_root/unknown-board-br2.config
 printf '%s\n' 'BR2_BHP_BOARD_ID="no-such-board"' >"$unknown_board_br2_config"
 if BR2_CONFIG=$unknown_board_br2_config \
@@ -233,6 +265,19 @@ done
 if grep -F 'root:input' "$provenance_target/etc/mdev.conf" >/dev/null; then
 	bhp_fail VERIFY_BUILD_DEPLOY.BROAD_INPUT_ACCESS_PRESENT \
 		"mdev policy must not grant generic input-group access" "$TRACE_ID"
+	exit 1
+fi
+for root_only_sound_rule in \
+	'snd/pcm.*	root:root 600' \
+	'snd/control.*	root:root 600' \
+	'snd/midi.*	root:root 600' \
+	'snd/seq	root:root 600' \
+	'snd/timer	root:root 600'; do
+	grep -F -x "$root_only_sound_rule" "$provenance_target/etc/mdev.conf" >/dev/null
+done
+if grep -F 'root:audio' "$provenance_target/etc/mdev.conf" >/dev/null; then
+	bhp_fail VERIFY_BUILD_DEPLOY.BROAD_AUDIO_ACCESS_PRESENT \
+		"mdev policy must not grant generic audio-group access" "$TRACE_ID"
 	exit 1
 fi
 
@@ -722,12 +767,12 @@ for release_buildroot_identity_contract in \
 		exit 1
 	}
 done
-grep -F ' - video BeagleBone vocabulary panel' \
-	"$PROJECT_ROOT/system_image/buildroot_external/package/bhp-vocabulary-panel/bhp-vocabulary-panel.mk" >/dev/null
-if grep -E 'video,(input|bhp-touch)' \
+# The vocabulary feature runs beneath panel_ui; its standalone principal and
+# display grant are retired (system_image/service-principals.json).
+if grep -F '_USERS' \
 	"$PROJECT_ROOT/system_image/buildroot_external/package/bhp-vocabulary-panel/bhp-vocabulary-panel.mk" >/dev/null; then
-	bhp_fail VERIFY_BUILD_DEPLOY.VOCABULARY_GENERIC_INPUT_GROUP_PRESENT \
-		"Vocabulary user must not join the generic input group" "$TRACE_ID"
+	bhp_fail VERIFY_BUILD_DEPLOY.VOCABULARY_PRINCIPAL_PRESENT \
+		"The retired vocabulary-panel principal must not return" "$TRACE_ID"
 	exit 1
 fi
 

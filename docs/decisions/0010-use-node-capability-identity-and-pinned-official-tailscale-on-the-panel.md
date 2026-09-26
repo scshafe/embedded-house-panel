@@ -52,10 +52,17 @@ This record changes no evidence gate. Production enablement still needs the
 sanitized real-Tailnet matrix from Lexinet Step 5 (tagged, untagged, wrong-tag,
 live grant/tag revocation, certificate/hostname/TLS), labelled
 `real_tailnet_not_panel_hardware`, and every applicable `FRDM-GATE-*` from
-ADR 0008. The archive digest was first recorded from the official `.sha256`
-file on 2026-09-26; the first Mac-local image build must re-download that file
-and fail closed on any mismatch. Buildroot's package hash check also fails
-closed.
+ADR 0008. The archive `tailscale_1.102.2_arm64.tgz` has SHA-256
+`2b64e9ade7e73034b5ec9e9bcd537f5ddd14ae3abb435e57e929e7486ae42660`, recorded
+from the official `.sha256` file on 2026-09-26. The first Mac-local image build
+must re-download that file and fail closed on any mismatch. Buildroot's package
+hash check also fails closed.
+
+The `bhp-tailscale-official` external-tree package implements item 2 and
+keeps Buildroot's install layout (`/usr/bin/tailscale`, `/usr/bin/tailscaled`
+and the `/usr/sbin/tailscaled` link) and kernel configuration fixups.
+`make verify-docs` fails if the package version, its hash line and this record
+disagree.
 
 ## Alternatives
 

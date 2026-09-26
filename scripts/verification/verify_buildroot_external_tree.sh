@@ -53,6 +53,9 @@ package/bhp-nxp-iw612-firmware/bhp-nxp-iw612-firmware.mk
 package/bhp-nxp-iw612-firmware/bhp-nxp-iw612-firmware.hash
 package/lvgl/Config.in
 package/lvgl/lvgl.mk
+package/bhp-tailscale-official/Config.in
+package/bhp-tailscale-official/bhp-tailscale-official.mk
+package/bhp-tailscale-official/bhp-tailscale-official.hash
 "
 for relative_path in $common_required_files; do
   test -s "$external_tree/$relative_path" || {
@@ -60,6 +63,30 @@ for relative_path in $common_required_files; do
     exit 1
   }
 done
+
+# ADR 0010 records the pinned Tailscale archive; the package version, its
+# single hash line and the ADR must agree.
+tailscale_package_directory=$external_tree/package/bhp-tailscale-official
+tailscale_version=$(sed -n 's/^BHP_TAILSCALE_OFFICIAL_VERSION = //p' \
+  "$tailscale_package_directory/bhp-tailscale-official.mk")
+tailscale_digest=$(awk -v archive="tailscale_${tailscale_version}_arm64.tgz" \
+  '$1 == "sha256" && $3 == archive { print $2 }' \
+  "$tailscale_package_directory/bhp-tailscale-official.hash")
+tailscale_adr=$PROJECT_ROOT/docs/decisions/0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md
+case "$tailscale_digest" in
+  [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;;
+  *)
+    bhp_fail VERIFY_BUILDROOT.TAILSCALE_HASH_MISSING "tailscale_${tailscale_version}_arm64.tgz" "$TRACE_ID"
+    exit 1
+    ;;
+esac
+if [ "${#tailscale_digest}" -ne 64 ] ||
+  ! grep -F "\`$tailscale_digest\`" "$tailscale_adr" >/dev/null ||
+  ! grep -F "\`$tailscale_version\`" "$tailscale_adr" >/dev/null; then
+  bhp_fail VERIFY_BUILDROOT.TAILSCALE_PIN_UNRECORDED \
+    "bhp-tailscale-official $tailscale_version must match ADR 0010" "$TRACE_ID"
+  exit 1
+fi
 
 # NXP-licensed firmware never appears in a checked-in defconfig; only the
 # human-decision fragment may select it.
@@ -179,6 +206,19 @@ for board_profile_path in "$PROJECT_ROOT"/config/boards/*.env; do
           exit 1
         }
       done
+      # ADR 0010: AArch64 panel images install the pinned official Tailscale
+      # archive, never Buildroot's older source-built package.
+      for defconfig_name in "$BHP_BOARD_BUILDROOT_DEFCONFIG_PRODUCTION" \
+        "$BHP_BOARD_BUILDROOT_DEFCONFIG_BRINGUP"; do
+        require_line "$external_tree/configs/$defconfig_name" \
+          BR2_PACKAGE_BHP_TAILSCALE_OFFICIAL=y VERIFY_BUILDROOT.DEFCONFIG_VALUE_MISSING
+        if grep -F -x 'BR2_PACKAGE_TAILSCALE=y' \
+          "$external_tree/configs/$defconfig_name" >/dev/null; then
+          bhp_fail VERIFY_BUILDROOT.SOURCE_TAILSCALE_SELECTED \
+            "$board_id: $defconfig_name must use bhp-tailscale-official (ADR 0010)" "$TRACE_ID"
+          exit 1
+        fi
+      done
       ;;
   esac
 
@@ -236,7 +276,6 @@ evaluate_board()
     'BR2_PACKAGE_BHP_PRESENCE_SENSOR=y' \
     'BR2_PACKAGE_LVGL=y' \
     'BR2_PACKAGE_CHRONY=y' \
-    'BR2_PACKAGE_TAILSCALE=y' \
     'BR2_TARGET_ROOTFS_EXT2_SIZE="512M"' \
     "BR2_SYSTEM_DHCP=\"$BHP_BOARD_BRINGUP_DHCP_INTERFACE\""; do
     grep -F -x "$expected_config_line" "$output_directory/.config" >/dev/null || {
@@ -252,6 +291,7 @@ evaluate_board()
       'BR2_TOOLCHAIN_EXTERNAL_BOOTLIN_AARCH64_GLIBC_STABLE=y' \
       'BR2_PACKAGE_BHP_BOARD_DEVICE_TREE=y' \
       'BR2_PACKAGE_BHP_NXP_MWIFIEX=y' \
+      'BR2_PACKAGE_BHP_TAILSCALE_OFFICIAL=y' \
       'BR2_LINUX_KERNEL_DTB_OVERLAY_SUPPORT=y' \
       'BR2_TARGET_ARM_TRUSTED_FIRMWARE_PLATFORM="imx8mp"' \
       "BR2_TARGET_UBOOT_BOARD_DEFCONFIG=\"$BHP_BOARD_UBOOT_DEFCONFIG\""; do
@@ -330,9 +370,11 @@ evaluate_board()
     BR2_DL_DIR="$output_directory/downloads" \
     BR2_EXTERNAL="$external_tree" \
     show-targets)
-  expected_targets="bhp-presence-sensor chrony lvgl tailscale"
+  expected_targets="bhp-presence-sensor chrony lvgl"
   if [ "$BHP_BOARD_TARGET_ARCH" = aarch64 ]; then
-    expected_targets="$expected_targets bhp-board-device-tree bhp-nxp-mwifiex arm-trusted-firmware uboot"
+    expected_targets="$expected_targets bhp-board-device-tree bhp-nxp-mwifiex bhp-tailscale-official arm-trusted-firmware uboot"
+  else
+    expected_targets="$expected_targets tailscale"
   fi
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ]; then
     expected_targets="$expected_targets bhp-panel-supervisor bhp-panel-ui bhp-vocabulary-panel"

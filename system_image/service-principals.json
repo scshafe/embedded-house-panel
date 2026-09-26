@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "canonical": "service-principal-device-matrix",
+  "evidence": "static_packaging_contract_not_boot_evidence",
+  "principals": [
+    {
+      "role": "supervisor",
+      "installed": true,
+      "service": "S70panel_supervisord",
+      "package": "bhp-panel-supervisor",
+      "user": "root",
+      "uid": 0,
+      "supplementary_groups": [],
+      "state_paths": [],
+      "sockets": [
+        {"path": "/run/beaglebone-house-panel/panel-mode.sock", "owner": "root:panel-ui", "mode": "0660"}
+      ],
+      "restart": {"attempts": 3, "backoff_seconds": 5},
+      "owns": ["touch", "raw_input", "backlight", "suspend"]
+    },
+    {
+      "role": "panel_ui",
+      "installed": true,
+      "enabled_by_default": false,
+      "service": "S75bhp-panel-ui",
+      "package": "bhp-panel-ui",
+      "user": "panel-ui",
+      "uid": 1102,
+      "group": "panel-ui",
+      "gid": 1102,
+      "supplementary_groups": [],
+      "state_paths": [],
+      "sockets": [],
+      "restart": "not_started: fail-dark until FRDM-GATE-DISPLAY evidence",
+      "owns": [],
+      "cutover": "Joins video (display) and gains an owner-only study state path at the FRDM-GATE-DISPLAY cutover; it hosts the vocabulary feature and its study.v1 client."
+    },
+    {
+      "role": "presence_sensor",
+      "installed": true,
+      "service": "S31bhp-presence-sensor",
+      "package": "bhp-presence-sensor",
+      "user": "root",
+      "uid": 0,
+      "supplementary_groups": [],
+      "state_paths": [],
+      "sockets": [],
+      "restart": "not_applicable: loads the PIR input driver and exits",
+      "owns": []
+    },
+    {
+      "role": "tailscaled",
+      "installed": true,
+      "service": "S50tailscaled",
+      "package": "bhp-tailscale-official",
+      "user": "root",
+      "uid": 0,
+      "supplementary_groups": [],
+      "state_paths": [{"path": "/var/lib/tailscale", "owner": "root:root", "mode": "0700", "provisioned": "outside the image (ADR 0010)"}],
+      "sockets": [{"path": "/run/tailscale/tailscaled.sock", "owner": "root:root", "mode": "0700 directory"}],
+      "restart": "pending: bounded restart supervision is reviewed with the Mac-local image boot",
+      "owns": ["tun"]
+    },
+    {
+      "role": "media_broker",
+      "installed": false,
+      "reserved_user": "bhp-media",
+      "reserved_uid": 1103,
+      "reserved_group": "bhp-mic",
+      "reserved_gid": 1103,
+      "owns": [],
+      "cutover": "The only principal allowed to open the exactly classified microphone, through bhp-mic, once the production broker is packaged."
+    },
+    {
+      "role": "personal_context_client",
+      "installed": false,
+      "reserved_user": "bhp-context",
+      "reserved_uid": 1104,
+      "reserved_group": "bhp-context",
+      "reserved_gid": 1104,
+      "owns": [],
+      "cutover": "Reserved for the agenda work after the human safety review; no service or device access."
+    }
+  ],
+  "retired": [
+    {
+      "role": "vocabulary_panel",
+      "user": "vocabulary-panel",
+      "service": "S80bhp-vocabulary-panel",
+      "retired": "2026-09-26",
+      "reason": "The vocabulary feature runs beneath panel_ui (Lexinet Step 7b); its standalone principal held the only display grant."
+    }
+  ],
+  "devices": [
+    {"class": "touch", "mdev": "input/event[0-9]+\troot:root 600 @/usr/libexec/beaglebone-house-panel/classify-touch-input", "holders": ["supervisor"]},
+    {"class": "raw_input", "mdev": "input/mice\troot:root 600", "holders": ["supervisor"]},
+    {"class": "raw_input", "mdev": "input/mouse[0-9]\troot:root 600", "holders": ["supervisor"]},
+    {"class": "raw_input", "mdev": "input/ts[0-9]\troot:root 600", "holders": ["supervisor"]},
+    {"class": "display", "mdev": "dri/card[0-9]+\troot:video 660", "holders": [], "planned_holders": ["panel_ui"], "gate": "FRDM-GATE-DISPLAY"},
+    {"class": "display", "mdev": "dri/renderD[0-9]+\troot:video 660", "holders": [], "planned_holders": ["panel_ui"], "gate": "FRDM-GATE-DISPLAY"},
+    {"class": "display", "mdev": "fb[0-9]+\troot:video 660", "holders": [], "planned_holders": ["panel_ui"], "gate": "FRDM-GATE-DISPLAY"},
+    {"class": "sound", "mdev_pattern": "snd/*\troot:root 600", "holders": [], "planned_holders": ["media_broker"], "gate": "FRDM-GATE-AUDIO"},
+    {"class": "backlight", "sysfs": "/sys/class/backlight/*/brightness", "writers": ["supervisor"]},
+    {"class": "suspend", "sysfs": "/sys/power/state", "writers": ["supervisor"]}
+  ],
+  "forbidden_groups": ["audio", "input", "bhp-touch"]
+}

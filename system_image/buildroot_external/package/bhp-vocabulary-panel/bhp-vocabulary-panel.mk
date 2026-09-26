@@ -27,12 +27,8 @@ BHP_VOCABULARY_PANEL_CONF_OPTS = \
 	-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON \
 	-DBHP_BUILD_LVGL_RENDERER=ON
 
-# ADR 0005: only the supervisor observes raw input. The retained standalone
-# vocabulary fixture has display access but no raw touch/input membership.
-# Automatic IDs are acceptable for this prototype; allocate fixed IDs before
-# the state directory becomes persistent.
-define BHP_VOCABULARY_PANEL_USERS
-	vocabulary-panel -1 vocabulary-panel -1 * /var/lib/beaglebone-house-panel - video BeagleBone vocabulary panel
-endef
+# The vocabulary feature runs beneath the neutral bhp-panel-ui shell, so this
+# package installs only fixtures and libraries. It defines no service principal
+# and grants no device group (system_image/service-principals.json).
 
 $(eval $(cmake-package))

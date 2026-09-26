@@ -11,12 +11,12 @@ Public Buildroot interface:
 - Kconfig symbol: `BR2_PACKAGE_BHP_VOCABULARY_PANEL`
 - package target: `bhp-vocabulary-panel`
 - dependencies: `lvgl`, `libcurl`, and `json-for-modern-cpp`
-- target user: `vocabulary-panel` (non-login, `video` group only)
+- target user: none (retired 2026-09-26)
 - installed fixture executable: `/usr/bin/vocabulary_panel_terminal`
 
-No graphical controller executable exists yet, so
-`S80bhp-vocabulary-panel` is disabled and expects the future
-`/usr/bin/bhp-vocabulary-panel`. Local-source builds reflect the exact outer
+The vocabulary feature runs beneath the neutral `bhp-panel-ui` shell, so this
+package installs fixtures and libraries only, with no service or principal.
+Local-source builds reflect the exact outer
 repository checkout. Release verification uses a fresh output named by the
 exact project content ID, preventing an earlier local-package stamp from being
 accepted.
@@ -26,3 +26,10 @@ group. All evdev nodes remain root-only, including an exactly provisioned touch
 device; only the supervisor may observe them. The neutral UI consumes the
 separate normalized observation socket. Production services remain disabled
 and fail-dark pending FRDM display/touch evidence.
+
+**Amended 2026-09-26:** retired the standalone `vocabulary-panel` principal,
+its `S80bhp-vocabulary-panel` service and its environment example. The
+vocabulary feature is hosted by `panel_ui`, whose reserved `panel-ui.env`
+section carries the `study.v1` settings. This also removes the image's only
+display grant. `panel-ui` joins `video` at the `FRDM-GATE-DISPLAY` cutover
+(`system_image/service-principals.json`).

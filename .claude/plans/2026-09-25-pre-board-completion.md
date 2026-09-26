@@ -202,3 +202,18 @@ broker capture closure and the Step 8 fault matrix pass in the VM; and
 The Buildroot archive digest and source identity, and the QEMU kernel pin, are
 applied in the Mac-local session, where the archives can be downloaded and
 verified. A newer release is never adopted implicitly.
+
+**Amended 2026-09-26 (Step 9 progress):** FRDM defconfigs install Tailscale
+`1.102.2` from the SHA-256-pinned official archive (`bhp-tailscale-official`,
+ADR 0010). Buildroot 2026.05.1 and 2026.08 both still package the source-built
+1.78.1. The standalone `vocabulary-panel` principal, its S80 service and its
+environment example are retired; `panel-ui.env` reserves the `study.v1`
+settings. Sound nodes are root-only. `system_image/service-principals.json`
+records installed, reserved (media broker 1103, personal-context client 1104)
+and retired principals and every device holder;
+`verify_service_principals.py` enforces it with fail-closed tests. All four
+defconfigs evaluate with no dropped symbols against the Buildroot 2026.05.1 git
+tag (`cb857ba4`, not the release archive). The mdev rewrite also holds against
+the 2026.08 default rules. Still open: bounded restart supervision for
+`tailscaled`, reviewed with the Mac-local image boot (Step 10). Step 9 stays
+unchecked until then.

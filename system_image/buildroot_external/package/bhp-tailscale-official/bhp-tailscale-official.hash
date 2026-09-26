@@ -1,0 +1,4 @@
+# From https://pkgs.tailscale.com/stable/tailscale_1.102.2_arm64.tgz.sha256,
+# recorded 2026-09-26 (ADR 0010). The first Mac-local build re-downloads that
+# file and must match; BR2_DOWNLOAD_FORCE_CHECK_HASHES fails closed otherwise.
+sha256  2b64e9ade7e73034b5ec9e9bcd537f5ddd14ae3abb435e57e929e7486ae42660  tailscale_1.102.2_arm64.tgz

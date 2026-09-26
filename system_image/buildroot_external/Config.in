@@ -16,5 +16,6 @@ source "$BR2_EXTERNAL_BHP_PATH/package/bhp-board-device-tree/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-nxp-mwifiex/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/bhp-nxp-iw612-firmware/Config.in"
 source "$BR2_EXTERNAL_BHP_PATH/package/lvgl/Config.in"
+source "$BR2_EXTERNAL_BHP_PATH/package/bhp-tailscale-official/Config.in"
 
 endmenu
