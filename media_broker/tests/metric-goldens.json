@@ -1,0 +1,6 @@
+[
+  {"left": [], "right": [], "expected": {"distance": 0, "similarity": [1,1], "prefix": [1,1], "suffix": [1,1], "containment": true}},
+  {"left": [], "right": ["S"], "expected": {"distance": 1, "similarity": [0,1], "prefix": [0,1], "suffix": [0,1], "containment": false}},
+  {"left": ["S","EH","N","D"], "right": ["EH","N","D"], "expected": {"distance": 1, "similarity": [3,4], "prefix": [0,3], "suffix": [3,3], "containment": true}},
+  {"left": ["F","L","IH","P"], "right": ["F","L","AE","P"], "expected": {"distance": 1, "similarity": [3,4], "prefix": [2,4], "suffix": [1,4], "containment": false}}
+]

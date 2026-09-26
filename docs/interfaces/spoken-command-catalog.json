@@ -1,0 +1,795 @@
+{
+  "acoustic_evidence": [],
+  "catalog_revision": "sha256:0897a6798851588ebb865a9be1f31e26e837ef8861967cc455f466debd9471f8",
+  "catalog_schema_version": 1,
+  "intents": [
+    {
+      "effect_class": "bounded_learning_observation",
+      "intent_id": "study.flip",
+      "owner": "study",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_front",
+            "study_back"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi flip",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "F",
+                "L",
+                "IH1",
+                "P"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "study.flip.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "study.flip.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "bounded_learning_observation",
+      "intent_id": "study.next",
+      "owner": "study",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_front",
+            "study_back"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi next",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "N",
+                "EH1",
+                "K",
+                "S",
+                "T"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "study.next.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "study.next.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "reversible_local",
+      "intent_id": "study.back",
+      "owner": "study",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_history"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi back",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "B",
+                "AE1",
+                "K"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "study.back.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "study.back.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "correctable_learning",
+      "intent_id": "study.rate.again",
+      "owner": "study",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_back"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi again",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "AH0",
+                "G",
+                "EH1",
+                "N"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "study.rate.again.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "study.rate.again.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "correctable_learning",
+      "intent_id": "study.rate.hard",
+      "owner": "study",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_back"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi hard",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "HH",
+                "AA1",
+                "R",
+                "D"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "study.rate.hard.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "study.rate.hard.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "correctable_learning",
+      "intent_id": "study.rate.good",
+      "owner": "study",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_back"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi good",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "G",
+                "UH1",
+                "D"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "study.rate.good.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "study.rate.good.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "correctable_learning",
+      "intent_id": "study.rate.easy",
+      "owner": "study",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_back"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi easy",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "IY1",
+                "Z",
+                "IY0"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "study.rate.easy.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "study.rate.easy.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "correctable_learning",
+      "intent_id": "study.rating.undo",
+      "owner": "study",
+      "spoken_forms": [],
+      "status": "reserved_disabled",
+      "touch_only": true
+    },
+    {
+      "effect_class": "reversible_local",
+      "intent_id": "agenda.prepare_wish",
+      "owner": "agenda",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "agenda_selected"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi send birthday wish",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "S",
+                "EH1",
+                "N",
+                "D",
+                "B",
+                "ER1",
+                "TH",
+                "D",
+                "EY2",
+                "W",
+                "IH1",
+                "SH"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "agenda.prepare_wish.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "agenda.prepare_wish.form1"
+        },
+        {
+          "contexts": [
+            "agenda_selected"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi record birthday wish",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "R",
+                "IH0",
+                "K",
+                "AO1",
+                "R",
+                "D",
+                "B",
+                "ER1",
+                "TH",
+                "D",
+                "EY2",
+                "W",
+                "IH1",
+                "SH"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "agenda.prepare_wish.form2.fixture"
+            }
+          ],
+          "spoken_form_id": "agenda.prepare_wish.form2"
+        }
+      ],
+      "status": "reserved_disabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "capture_stop",
+      "intent_id": "agenda.stop_wish_recording",
+      "owner": "agenda",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "wish_recording"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi finish recording",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "F",
+                "IH1",
+                "N",
+                "IH0",
+                "SH",
+                "R",
+                "IH0",
+                "K",
+                "AO1",
+                "R",
+                "D",
+                "IH0",
+                "NG"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "agenda.stop_wish_recording.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "agenda.stop_wish_recording.form1"
+        }
+      ],
+      "status": "reserved_disabled",
+      "touch_only": false
+    },
+    {
+      "effect_class": "capture_start",
+      "intent_id": "agenda.start_wish_recording",
+      "owner": "agenda",
+      "spoken_forms": [],
+      "status": "reserved_disabled",
+      "touch_only": true
+    },
+    {
+      "effect_class": "external_submission",
+      "intent_id": "agenda.submit_wish",
+      "owner": "agenda",
+      "spoken_forms": [],
+      "status": "reserved_disabled",
+      "touch_only": true
+    }
+  ],
+  "invocation": {
+    "form_id": "invocation.lexi",
+    "phones": [
+      "L",
+      "EH1",
+      "K",
+      "S",
+      "IY0"
+    ],
+    "provenance": "project-semantic-fixture-v1; household pronunciation review and acoustic qualification pending",
+    "text": "Lexi"
+  },
+  "language_tag": "en-US",
+  "pair_reviews": [
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "study.next.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "study.back.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "study.rate.again.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "study.rate.hard.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "study.rate.good.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "study.rate.easy.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "agenda.prepare_wish.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.flip.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "study.back.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "study.rate.again.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "study.rate.hard.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "study.rate.good.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "study.rate.easy.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "agenda.prepare_wish.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.next.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.back.form1",
+        "study.rate.again.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.back.form1",
+        "study.rate.hard.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.back.form1",
+        "study.rate.good.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.back.form1",
+        "study.rate.easy.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.back.form1",
+        "agenda.prepare_wish.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.back.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.back.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.again.form1",
+        "study.rate.hard.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.again.form1",
+        "study.rate.good.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.again.form1",
+        "study.rate.easy.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.again.form1",
+        "agenda.prepare_wish.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.again.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.again.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.hard.form1",
+        "study.rate.good.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.hard.form1",
+        "study.rate.easy.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.hard.form1",
+        "agenda.prepare_wish.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.hard.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.hard.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.good.form1",
+        "study.rate.easy.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.good.form1",
+        "agenda.prepare_wish.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.good.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.good.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.easy.form1",
+        "agenda.prepare_wish.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.easy.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "study.rate.easy.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "agenda.prepare_wish.form1",
+        "agenda.prepare_wish.form2"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "agenda.prepare_wish.form1",
+        "agenda.stop_wish_recording.form1"
+      ]
+    },
+    {
+      "disposition": "accepted_only_for_fixture_measurement",
+      "evidence": "semantic_fixture_review_not_acoustic_qualification",
+      "form_ids": [
+        "agenda.prepare_wish.form2",
+        "agenda.stop_wish_recording.form1"
+      ]
+    }
+  ],
+  "status": "fixture_only_acoustically_unvalidated"
+}

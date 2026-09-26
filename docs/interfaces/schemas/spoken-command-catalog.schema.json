@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "acoustic_evidence": {
+      "items": {},
+      "type": "array"
+    },
+    "catalog_revision": {
+      "type": "string"
+    },
+    "catalog_schema_version": {
+      "const": 1
+    },
+    "intents": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "effect_class": {
+            "enum": [
+              "reversible_local",
+              "bounded_learning_observation",
+              "correctable_learning",
+              "capture_stop",
+              "capture_start",
+              "external_submission",
+              "power_or_illumination"
+            ]
+          },
+          "intent_id": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "spoken_forms": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "contexts": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "invocation_form_id": {
+                  "type": "string"
+                },
+                "phrase": {
+                  "type": "string"
+                },
+                "pronunciations": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "dialect": {
+                        "type": "string"
+                      },
+                      "notation": {
+                        "type": "string"
+                      },
+                      "phones": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "review_status": {
+                        "type": "string"
+                      },
+                      "source_version": {
+                        "type": "string"
+                      },
+                      "variant_id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "dialect",
+                      "notation",
+                      "phones",
+                      "review_status",
+                      "source_version",
+                      "variant_id"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "spoken_form_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contexts",
+                "invocation_form_id",
+                "phrase",
+                "pronunciations",
+                "spoken_form_id"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "status": {
+            "type": "string"
+          },
+          "touch_only": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "effect_class",
+          "intent_id",
+          "owner",
+          "spoken_forms",
+          "status",
+          "touch_only"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "invocation": {
+      "additionalProperties": false,
+      "properties": {
+        "form_id": {
+          "type": "string"
+        },
+        "phones": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "provenance": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "form_id",
+        "phones",
+        "provenance",
+        "text"
+      ],
+      "type": "object"
+    },
+    "language_tag": {
+      "const": "en-US"
+    },
+    "pair_reviews": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "disposition": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "form_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "disposition",
+          "evidence",
+          "form_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "status": {
+      "const": "fixture_only_acoustically_unvalidated"
+    }
+  },
+  "required": [
+    "acoustic_evidence",
+    "catalog_revision",
+    "catalog_schema_version",
+    "intents",
+    "invocation",
+    "language_tag",
+    "pair_reviews",
+    "status"
+  ],
+  "title": "Fixture-only canonical spoken command catalog",
+  "type": "object"
+}

@@ -1,0 +1,25 @@
+{
+  "cooldown_ms": 300,
+  "debounce_ms": 150,
+  "endpointing": {
+    "complete_phrase_only": true,
+    "maximum_utterance_ms": 5000
+  },
+  "postprocessing": {
+    "allow_substring": false,
+    "maximum_intents_per_utterance": 1,
+    "normalization_version": "nfc-casefold-punctuation-space-arpabet-unit-levenshtein-v1"
+  },
+  "schema_version": 1,
+  "silence": {
+    "timeout_ms": 1500
+  },
+  "thresholds": {
+    "minimum_confidence_milli": 950,
+    "minimum_margin_milli": 200
+  },
+  "vad": {
+    "enabled": false,
+    "minimum_speech_ms": 100
+  }
+}

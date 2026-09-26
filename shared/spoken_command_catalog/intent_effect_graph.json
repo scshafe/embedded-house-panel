@@ -1,0 +1,114 @@
+{
+  "endpoints": {
+    "agenda.prepare_local": [
+      "reversible_local"
+    ],
+    "media.capture_start": [
+      "capture_start"
+    ],
+    "media.capture_stop": [
+      "capture_stop"
+    ],
+    "personal_context.dispatch": [
+      "external_submission"
+    ],
+    "study.navigate": [
+      "reversible_local"
+    ],
+    "study.provisional_observe": [
+      "bounded_learning_observation"
+    ],
+    "study.rate_correctable": [
+      "correctable_learning"
+    ],
+    "study.undo": [
+      "correctable_learning"
+    ]
+  },
+  "handlers": {
+    "agenda.prepare_wish.handler": [
+      "agenda.prepare_local"
+    ],
+    "agenda.start_wish_recording.handler": [
+      "media.capture_start"
+    ],
+    "agenda.stop_wish_recording.handler": [
+      "media.capture_stop"
+    ],
+    "agenda.submit_wish.handler": [
+      "personal_context.dispatch"
+    ],
+    "study.back.handler": [
+      "study.navigate"
+    ],
+    "study.flip.handler": [
+      "study.navigate",
+      "study.provisional_observe"
+    ],
+    "study.next.handler": [
+      "study.navigate",
+      "study.provisional_observe"
+    ],
+    "study.rate.again.handler": [
+      "study.navigate",
+      "study.provisional_observe",
+      "study.rate_correctable"
+    ],
+    "study.rate.easy.handler": [
+      "study.navigate",
+      "study.provisional_observe",
+      "study.rate_correctable"
+    ],
+    "study.rate.good.handler": [
+      "study.navigate",
+      "study.provisional_observe",
+      "study.rate_correctable"
+    ],
+    "study.rate.hard.handler": [
+      "study.navigate",
+      "study.provisional_observe",
+      "study.rate_correctable"
+    ],
+    "study.rating.undo.handler": [
+      "study.undo"
+    ]
+  },
+  "intents": {
+    "agenda.prepare_wish": [
+      "agenda.prepare_wish.handler"
+    ],
+    "agenda.start_wish_recording": [
+      "agenda.start_wish_recording.handler"
+    ],
+    "agenda.stop_wish_recording": [
+      "agenda.stop_wish_recording.handler"
+    ],
+    "agenda.submit_wish": [
+      "agenda.submit_wish.handler"
+    ],
+    "study.back": [
+      "study.back.handler"
+    ],
+    "study.flip": [
+      "study.flip.handler"
+    ],
+    "study.next": [
+      "study.next.handler"
+    ],
+    "study.rate.again": [
+      "study.rate.again.handler"
+    ],
+    "study.rate.easy": [
+      "study.rate.easy.handler"
+    ],
+    "study.rate.good": [
+      "study.rate.good.handler"
+    ],
+    "study.rate.hard": [
+      "study.rate.hard.handler"
+    ],
+    "study.rating.undo": [
+      "study.rating.undo.handler"
+    ]
+  }
+}

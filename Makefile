@@ -32,3 +32,8 @@ aarch64-verification-sysroot:
 
 verify-release-candidate:
 	./scripts/verification/verify_release_candidate_image.sh
+
+.PHONY: verify-panel-media
+
+verify-panel-media:
+	python3 -m unittest discover -s media_broker/tests -p 'test_*.py'

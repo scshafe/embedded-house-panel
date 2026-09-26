@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "backend_artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "cooldown_ms": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "debounce_ms": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "endpointing": {
+      "additionalProperties": false,
+      "properties": {
+        "complete_phrase_only": {
+          "type": "boolean"
+        },
+        "maximum_utterance_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "complete_phrase_only",
+        "maximum_utterance_ms"
+      ],
+      "type": "object"
+    },
+    "postprocessing": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_substring": {
+          "type": "boolean"
+        },
+        "maximum_intents_per_utterance": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "normalization_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "allow_substring",
+        "maximum_intents_per_utterance",
+        "normalization_version"
+      ],
+      "type": "object"
+    },
+    "recognition_policy_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "recognizer_build_model_identity": {
+      "const": "deterministic-fake-v1/no-acoustic-model"
+    },
+    "schema_version": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "silence": {
+      "additionalProperties": false,
+      "properties": {
+        "timeout_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timeout_ms"
+      ],
+      "type": "object"
+    },
+    "thresholds": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum_confidence_milli": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minimum_margin_milli": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minimum_confidence_milli",
+        "minimum_margin_milli"
+      ],
+      "type": "object"
+    },
+    "vad": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minimum_speech_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "minimum_speech_ms"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "cooldown_ms",
+    "debounce_ms",
+    "endpointing",
+    "postprocessing",
+    "schema_version",
+    "silence",
+    "thresholds",
+    "vad",
+    "backend_artifact_digest",
+    "recognizer_build_model_identity",
+    "recognition_policy_digest"
+  ],
+  "title": "Strict fake recognition policy including exact artifact chain",
+  "type": "object"
+}

@@ -427,13 +427,13 @@ if ! ownership_registry_error=$(awk -F '|' \
   }
   in_registry { in_registry = 0 }
   END {
-    if (header_count != 1 || registry_rows == 0 || absent_status_rows != 4) {
-      fail("registry must have one status header and exactly four absent-path rows")
+    if (header_count != 1 || registry_rows == 0 || absent_status_rows != 1) {
+      fail("registry must have one status header and exactly one absent-path row")
     }
     require_status(http, "Host runtime implemented — process lifetime, cancellation, transport budgets, and worker joins tested")
-    require_status(media, absent_status)
-    require_status(spoken, absent_status)
-    require_status(recognition, absent_status)
+    require_status(media, "Fake-only host broker implemented — real microphone capture and independent hardware quiescence evidence pending")
+    require_status(spoken, "Host catalog and deterministic fake projection implemented — real recognizer selection and evidence pending")
+    require_status(recognition, "Fake recognition policy validation implemented — real recognition policy evidence pending")
     require_status(personal_context, absent_status)
     require_token(display, "`panel_ui/`")
     require_token(display, "Neutral host shell")
@@ -475,25 +475,23 @@ if ! ownership_registry_error=$(awk -F '|' \
   exit 1
 fi
 
-test -d "$PROJECT_ROOT/shared/http_runtime" || {
-  bhp_fail VERIFY_DOCS.OWNERSHIP_IMPLEMENTED_PATH_MISSING shared/http_runtime "$TRACE_ID"
-  exit 1
-}
+for implemented_registry_path in shared/http_runtime media_broker \
+  shared/spoken_command_catalog docs/interfaces/spoken-command-catalog.json \
+  config/voice/recognition-policies docs/interfaces/schemas/recognition-policy.schema.json; do
+  test -e "$PROJECT_ROOT/$implemented_registry_path" || {
+    bhp_fail VERIFY_DOCS.OWNERSHIP_IMPLEMENTED_PATH_MISSING \
+      "$implemented_registry_path is declared implemented but absent" "$TRACE_ID"
+    exit 1
+  }
+done
 
-for absent_registry_path in \
-  media_broker \
-  shared/spoken_command_catalog \
-  docs/interfaces/spoken-command-catalog.json \
-  config/voice/recognition-policies \
-  docs/interfaces/schemas/recognition-policy.schema.json \
-  personal_context_client; do
+absent_registry_path=personal_context_client
   test ! -e "$PROJECT_ROOT/$absent_registry_path" || {
     bhp_fail VERIFY_DOCS.OWNERSHIP_DECLARED_ABSENT_PATH_PRESENT \
       "$absent_registry_path exists but the ownership registry declares its path absent" \
       "$TRACE_ID"
     exit 1
   }
-done
 
 for decision_id in \
   LEXI-001 LEXI-002 LEXI-003 LEXI-004 LEXI-005 LEXI-006 LEXI-007; do
