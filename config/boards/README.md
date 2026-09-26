@@ -11,6 +11,15 @@ backlight, touch, PIR, suspend, audio, or Wi-Fi value.
 |---|---|---|
 | [`frdm-imx8mp.env`](frdm-imx8mp.env) | `active` (the default when `BHP_BOARD` is unset) | ADR 0008 |
 | [`beaglebone-black.env`](beaglebone-black.env) | `history` (board lost; builds kept evaluating) | ADR 0003, superseded by ADR 0008 |
+| [`qemu-aarch64-virt.env`](qemu-aarch64-virt.env) | `simulation` (explicit selection only) | ADR 0009 |
+
+Simulation profiles have their own required-key set and never supply production
+build or device-tree inputs. They cannot be active, contain `FRDM-GATE-*`, or
+close a hardware gate. Their observations are always
+`simulation_not_hardware_evidence`.
+
+**Amended 2026-09-25:** added the isolated QEMU simulation profile under ADR
+0009. FRDM remains the sole active board and every hardware gate remains open.
 
 ## Format
 

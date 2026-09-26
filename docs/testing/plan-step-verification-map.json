@@ -2849,6 +2849,94 @@
       "command": "human review procedure: .claude/plans/2026-09-25-frdm-hardware-baseline.md Step 10 [plan.frdm-hardware-baseline.step-10.verify-1.item-3.the-factory-emmc-backup-remains-restorable]",
       "proof_kind": "human",
       "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 1",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`make verify-docs`",
+      "test_symbol": "plan.virtual-panel.step-1",
+      "command": "make verify-docs",
+      "proof_kind": "automated",
+      "proof_status": "recorded"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 2",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`make verify-panel-goldens`",
+      "test_symbol": "plan.virtual-panel.step-2",
+      "command": "make verify-panel-goldens",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 3",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`scripts/verification/verify_host_cpp.sh vocabulary_panel`",
+      "test_symbol": "plan.virtual-panel.step-3",
+      "command": "scripts/verification/verify_host_cpp.sh vocabulary_panel",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 4",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`scripts/verification/verify_host_cpp.sh panel_supervisor`",
+      "test_symbol": "plan.virtual-panel.step-4",
+      "command": "scripts/verification/verify_host_cpp.sh panel_supervisor",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 5",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`make verify-panel-simulator`",
+      "test_symbol": "plan.virtual-panel.step-5",
+      "command": "make verify-panel-simulator",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 6",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`make verify-panel-media`",
+      "test_symbol": "plan.virtual-panel.step-6",
+      "command": "make verify-panel-media",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 7",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`make verify-panel-vm`",
+      "test_symbol": "plan.virtual-panel.step-7",
+      "command": "make verify-panel-vm",
+      "proof_kind": "automated",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-09-25-virtual-panel.md",
+      "step": "Step 8",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`make verify`",
+      "test_symbol": "plan.virtual-panel.step-8",
+      "command": "make verify",
+      "proof_kind": "automated",
+      "proof_status": "planned"
     }
   ]
 }

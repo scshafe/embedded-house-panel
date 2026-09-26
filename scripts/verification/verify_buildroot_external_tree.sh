@@ -98,6 +98,8 @@ for board_profile_path in "$PROJECT_ROOT"/config/boards/*.env; do
     bhp_fail "$BHP_BOARD_PROFILE_ERROR_CODE" "$BHP_BOARD_PROFILE_ERROR_DETAIL" "$TRACE_ID"
     exit 1
   }
+  # Debian/QEMU simulation has no production image recipe or hardware gates.
+  [ "$BHP_BOARD_STATUS" != simulation ] || continue
   board_directory=$BHP_BOARD_BUILDROOT_BOARD_DIRECTORY
   kernel_fragment=$BHP_BOARD_SUSPEND_KCONFIG_FRAGMENT
   test -d "$external_tree/$board_directory" || {

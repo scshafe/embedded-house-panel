@@ -18,8 +18,12 @@ still occupy their filename and are never treated as a free number.
 | [0006](0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md) | Accepted | Accept product semantics and atomic protocol-v2 cutover |
 | [0007](0007-validate-complete-protocol-v2-commitments.md) | Accepted | Validate complete protocol-v2 commitments |
 | [0008](0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md) | Accepted; hardware-gated | Adopt FRDM i.MX 8M Plus and Waveshare 7-inch DSI as the development platform |
+| [0009](0009-add-an-isolated-virtual-panel-target.md) | Accepted for simulation | Share application code across headless, SDL2, and Debian/QEMU tiers |
 
 No later number is reserved by a plan.
+
+**Amended 2026-09-25:** registered ADR 0009 for the user-requested isolated
+virtual-panel target. Simulation never closes an FRDM hardware gate.
 
 ## Collision-safe allocation
 

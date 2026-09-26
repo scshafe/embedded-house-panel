@@ -28,7 +28,8 @@
   "reserved_keys_reason": "Deployment variables share the BHP_BOARD_ prefix; a profile must never shadow them.",
   "status_values": [
     "active",
-    "history"
+    "history",
+    "simulation"
   ],
   "exactly_one_active": true,
   "required_keys": {
@@ -154,5 +155,29 @@
     "BHP_BOARD_BUILDROOT_BOARD_DIRECTORY": "system_image/buildroot_external/{value}",
     "BHP_BOARD_SUSPEND_KCONFIG_FRAGMENT": "system_image/buildroot_external/{value}"
   },
-  "cmake_preset_reference": "BHP_BOARD_CMAKE_PRESET"
+  "cmake_preset_reference": "BHP_BOARD_CMAKE_PRESET",
+  "simulation_board_ids": [
+    "qemu-aarch64-virt"
+  ],
+  "required_keys_when_simulation": {
+    "BHP_BOARD_PROFILE_SCHEMA": "^1$",
+    "BHP_BOARD_ID": "^qemu\\-aarch64\\-virt$",
+    "BHP_BOARD_STATUS": "^simulation$",
+    "BHP_BOARD_DECISION": "^ADR\\-0009$",
+    "BHP_BOARD_SIMULATION_EVIDENCE": "^simulation_not_hardware_evidence$",
+    "BHP_BOARD_TARGET_ARCH": "^aarch64$",
+    "BHP_BOARD_TARGET_ELF_MACHINE": "^183$",
+    "BHP_BOARD_CMAKE_SYSTEM_PROCESSOR": "^aarch64$",
+    "BHP_BOARD_QEMU_MACHINE": "^virt$",
+    "BHP_BOARD_QEMU_CPU": "^host$",
+    "BHP_BOARD_DISPLAY_BACKEND": "^drm$",
+    "BHP_BOARD_DISPLAY_RESOLUTION": "^1024x600$",
+    "BHP_BOARD_BACKLIGHT_SYSFS_DIR": "^/sys/class/backlight/bhp\\-sim$",
+    "BHP_BOARD_BACKLIGHT_OFF_VALUE": "^0$",
+    "BHP_BOARD_PIR_INPUT_NAME": "^bhp\\-sim\\-pir$",
+    "BHP_BOARD_TOUCH_INPUT_NAME": "^QEMU%20Virtio%20Tablet$",
+    "BHP_BOARD_TOUCH_MULTITOUCH_INPUT_NAME": "^QEMU%20Virtio%20MultiTouch$",
+    "BHP_BOARD_SUSPEND_STATE": "^disabled$",
+    "BHP_BOARD_NXP_FIRMWARE_EULA": "^not\\-required$"
+  }
 }

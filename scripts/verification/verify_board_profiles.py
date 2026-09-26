@@ -86,6 +86,22 @@ def validate_profile(
     if not re.match(schema["board_id_pattern"], board_id):
         raise ProfileError("ID_INVALID", board_id)
     status = values.get("BHP_BOARD_STATUS", "")
+    if board_id in schema.get("simulation_board_ids", []) and status != "simulation":
+        raise ProfileError("SIMULATION_CANNOT_BE_ACTIVE", board_id)
+    if status == "simulation":
+        required = schema["required_keys_when_simulation"]
+        if board_id not in schema["simulation_board_ids"]:
+            raise ProfileError("SIMULATION_ID_UNKNOWN", board_id)
+        if any("FRDM-GATE-" in value for value in values.values()):
+            raise ProfileError("SIMULATION_HARDWARE_GATE_FORBIDDEN", board_id)
+        for key, pattern in required.items():
+            if key not in values or re.fullmatch(pattern, values[key]) is None:
+                raise ProfileError("SIMULATION_VALUE_INVALID", f"{board_id}: {key}")
+        if set(values) != set(required):
+            raise ProfileError("SIMULATION_KEY_UNKNOWN", board_id)
+        if values["BHP_BOARD_ID"] != board_id:
+            raise ProfileError("ID_MISMATCH", board_id)
+        return []
     required = dict(schema["required_keys"])
     if status == "active":
         required.update(schema["required_keys_when_active"])
@@ -200,6 +216,21 @@ def run_negative_fixtures(schema: dict, gates: set[str], presets) -> int:
         raise ProfileError("SELF_TEST_FIXTURE_STALE", "percent_encoded_touch_name")
     validate_profile("frdm-imx8mp", parse_profile(encoded_name, schema, "encoded"),
                      schema, gates, presets, check_files=False)
+    simulation = parse_profile((BOARD_DIRECTORY / "qemu-aarch64-virt.env").read_text(),
+                               schema, "simulation")
+    for label, replacement in (
+        ("simulation_active", {"BHP_BOARD_STATUS": "active"}),
+        ("simulation_hardware_gate", {"BHP_BOARD_BACKLIGHT_SYSFS_DIR":
+                                      "UNMEASURED:FRDM-GATE-BACKLIGHT"}),
+        ("simulation_false_evidence", {"BHP_BOARD_SIMULATION_EVIDENCE": "hardware_pass"}),
+    ):
+        try:
+            validate_profile("qemu-aarch64-virt", {**simulation, **replacement},
+                             schema, gates, presets, check_files=False)
+        except ProfileError:
+            count += 1
+        else:
+            raise ProfileError("SELF_TEST_ACCEPTED", label)
     return count
 
 
@@ -256,7 +287,8 @@ def main() -> int:
             if not SHELL_LOADER.exists() or not shell_loader_accepts(path.read_text(encoding="utf-8")):
                 raise ProfileError("SHELL_LOADER_REJECTED", path.name)
             placeholders = validate_profile(board_id, values, schema, gates, presets)
-            check_pir_consumers(board_id, values, schema)
+            if values["BHP_BOARD_STATUS"] != "simulation":
+                check_pir_consumers(board_id, values, schema)
             if values["BHP_BOARD_STATUS"] == "active":
                 active.append(board_id)
             report[board_id] = {
