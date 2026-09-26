@@ -91,3 +91,7 @@ claim changed.
 completion. Unchecked steps may retain exact recorded evidence alongside
 pending clauses, while a checked step still fails closed unless every active
 mapped clause is recorded.
+
+**Amended 2026-09-26:** added the [roadmap Step 8 fault matrix](fault-matrix.md).
+`check_fault_matrix.py` ties each fault row to exact test functions, needles
+and recorded real-Lexinet scenarios, and fails closed when they drift.

@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "canonical": "roadmap-step-8-fault-matrix",
+  "evidence": "simulation_not_hardware_evidence",
+  "source": ".claude/plans/2026-08-05-end-to-end-development-roadmap.md Step 8",
+  "boundaries": {
+    "presence": "fake evdev source and LD_PRELOAD evdev fixture (panel_supervisor/tests)",
+    "clock": "fake clock and adjtimex readiness observations",
+    "display": "fail-dark and headless renderers; lifecycle acknowledgement fakes",
+    "capture": "fixture procfs trees and real processes holding a stand-in capture node",
+    "lexinet": "fixture study server, and the real Lexinet on loopback with disposable PostgreSQL",
+    "companion": "not implemented: agenda feasibility Step 1 is a pending human safety review",
+    "storage": "temporary owner-only directories with injected write, flush and capacity failures",
+    "tailnet": "node-capability auth mode configuration only; the real Tailnet run is Mac-local (plan Step 7)"
+  },
+  "rows": [
+    {
+      "id": "cold_boot",
+      "roadmap_text": "cold boot",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "initial_absence_applies_outputs_before_requesting_suspend", "needle": "start("},
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "initial_active_mode_is_notified_before_nonzero_backlight", "needle": "start("},
+        {"file": "scripts/verification/verify_panel_supervisord_smoke.sh", "function": null, "needle": "daemon_started"},
+        {"file": "panel_ui/tests/panel_ui_service_test.cpp", "function": "connection_failure_waits_then_reconnects_without_exiting_service", "needle": "reconnect"},
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_initial_creation_is_durable_and_scope_changes_fail_closed", "needle": "restart"}
+      ],
+      "real_lexinet_evidence": ["create_resume"],
+      "vm_repeat": "Reboot the guest and record that the supervisor blanks before any output and the UI waits for the lifecycle socket."
+    },
+    {
+      "id": "untrusted_clock",
+      "roadmap_text": "untrusted clock",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "panel_supervisor/tests/system_clock_test.cpp", "function": "synchronization_observation_rejects_untrusted_clock", "needle": "SystemClockUntrusted"},
+        {"file": "panel_supervisor/tests/system_clock_test.cpp", "function": "live_adapter_never_returns_an_unverified_clock", "needle": "SystemClockUntrusted"},
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "retryable_untrusted_startup_clock_can_be_retried_without_intermediate_output", "needle": "SystemClockUntrusted"},
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "safety_blank_turns_off_a_lit_backlight_after_runtime_clock_failure", "needle": "ClockReadFailed"},
+        {"file": "panel_supervisor/tests/panel_policy_test.cpp", "function": "backward_clock_returns_typed_clock_error", "needle": "ClockMovedBackward"},
+        {"file": "simulator/scenarios/clock-untrusted.json", "function": null, "needle": "\"lifecycle\": \"clock_untrusted\""}
+      ],
+      "real_lexinet_evidence": [],
+      "vm_repeat": "Stop chrony and step the guest clock; record the startup retry and that no solar state or time is shown."
+    },
+    {
+      "id": "sunrise_sunset_rollover",
+      "roadmap_text": "sunrise/sunset rollover",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "active_day_to_night_change_blanks_before_exact_presentation_then_lights", "needle": "Night"},
+        {"file": "panel_supervisor/tests/offline_solar_calculator_test.cpp", "function": "standard_sunrise_threshold_changes_london_state", "needle": "SolarState::"},
+        {"file": "panel_supervisor/tests/offline_solar_calculator_test.cpp", "function": "equinox_noon_and_midnight_use_utc_solar_elevation", "needle": "SolarState::"}
+      ],
+      "real_lexinet_evidence": [],
+      "vm_repeat": "Run the guest across a configured sunset with the fixture coordinates and capture both screens."
+    },
+    {
+      "id": "absence_during_work",
+      "roadmap_text": "absence during work",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "panel_supervisor/tests/panel_policy_test.cpp", "function": "absence_before_deadline_returns_grace_night_outputs", "needle": "Grace"},
+        {"file": "panel_supervisor/tests/panel_policy_test.cpp", "function": "absence_at_deadline_returns_suspended_outputs", "needle": "Suspended"},
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "resume_while_still_absent_requests_suspend_again", "needle": "resume("},
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_inflight_identity_survives_restart_and_local_undo_wins_barrier", "needle": "restart"}
+      ],
+      "real_lexinet_evidence": ["create_resume", "resume_after_server_restart"],
+      "vm_repeat": "Clear PIR mid-study, let grace expire, restore presence, and record that the same session resumes."
+    },
+    {
+      "id": "suspend_preparation",
+      "roadmap_text": "suspend preparation",
+      "status": "partial",
+      "host_evidence": [
+        {"file": "panel_supervisor/tests/capture_closure_test.cpp", "function": "graceful_termination_closes_capture_before_suspend", "needle": "inner.calls == 1"},
+        {"file": "panel_supervisor/tests/capture_closure_test.cpp", "function": "closure_deadline_refuses_suspend", "needle": "CaptureClosureUnverified"},
+        {"file": "panel_supervisor/tests/capture_closure_test.cpp", "function": "terminator_signals_only_the_exact_broker_uid", "needle": "SIGKILL"},
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "explicitly_failed_presentation_still_reaches_suspend_with_zero_brightness", "needle": "suspend"},
+        {"file": "panel_supervisor/tests/panel_supervisor_test.cpp", "function": "rejected_suspend_request_remains_a_fatal_cycle_error", "needle": "SuspendRequestFailed"},
+        {"file": "panel_supervisor/tests/rate_limited_stop_aware_suspend_test.cpp", "function": "stop_request_suppresses_configured_suspend_call", "needle": "request_suspend"},
+        {"file": "panel_supervisor/tests/sysfs_suspend_test.cpp", "function": "unconfirmed_selection_fails_closed", "needle": "MemSleepSelectionFailed"},
+        {"file": "scripts/sim/tests/test_capture_closure_matrix.py", "function": "test_plan_covers_every_gate_outcome_and_starts_and_ends_closed", "needle": "CAPTURE_TERMINATION_UNAVAILABLE"}
+      ],
+      "real_lexinet_evidence": [],
+      "residual": "The real snd-aloop capture matrix and the s2idle attempt run in the Mac-local guest; microphone rail-off is an FRDM gate.",
+      "vm_repeat": "Run scripts/sim/guest/capture_closure_matrix.py --execute and attempt s2idle with a host-triggered wake."
+    },
+    {
+      "id": "crash_restart",
+      "roadmap_text": "crash/restart",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "vocabulary_panel/tests/study_store_crash_test.cpp", "function": null, "needle": "fork"},
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_released_undo_and_empty_sentinel_remain_stable_after_restart", "needle": "restart"},
+        {"file": "panel_ui/tests/unix_socket_lifecycle_client_test.cpp", "function": "sequence_session_and_challenge_are_connection_local_and_restart_resets_state", "needle": "session"},
+        {"file": "panel_supervisor/tests/unix_socket_ui_mode_notifier_test.cpp", "function": "supervisor_restart_invalidates_prior_session_acknowledgement", "needle": "session"},
+        {"file": "scripts/verification/verify_build_and_deploy_contracts.sh", "function": null, "needle": "BHP_PANEL_SUPERVISOR.RESTART_LIMIT_EXHAUSTED"}
+      ],
+      "real_lexinet_evidence": ["crash_after_send", "resume_after_server_restart"],
+      "vm_repeat": "Kill panel_ui and panel_supervisord in the guest; record reconnection, fail-dark and the bounded restart count."
+    },
+    {
+      "id": "offline_queues",
+      "roadmap_text": "offline queues",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_full_outbox_provisional_history_requires_capacity_for_touch_promotion", "needle": "outbox"},
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_bounded_cache_eviction_preserves_pending_and_history", "needle": "pending"}
+      ],
+      "real_lexinet_evidence": ["offline_queue", "recover"],
+      "vm_repeat": "Stop the fixture or real Lexinet during study, rate cards, restart it, and record the flushed outbox."
+    },
+    {
+      "id": "stale_data",
+      "roadmap_text": "stale data",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "vocabulary_panel/tests/http_lexinet_client_test.cpp", "function": "test_redirect_size_and_schema", "needle": "LEXINET.SNAPSHOT_STALE"},
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_stale_binding_and_front_rating_rejected", "needle": "stale"},
+        {"file": "panel_ui/tests/shell_controller_test.cpp", "function": "test_stale_generation_context_and_surface_are_rejected", "needle": "generation"},
+        {"file": "simulator/scenarios/study-offline.json", "function": null, "needle": "offline"},
+        {"file": "simulator/scenarios/home-weather-stale.json", "function": null, "needle": "stale"}
+      ],
+      "real_lexinet_evidence": ["study_and_sync"],
+      "vm_repeat": "Keep Lexinet unreachable past the snapshot age and record the visible stale status."
+    },
+    {
+      "id": "corrupted_state",
+      "roadmap_text": "corrupted state",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_flush_receipt_barrier_and_corruption_fail_visible", "needle": "corrupt"},
+        {"file": "panel_ui/tests/unix_socket_lifecycle_client_test.cpp", "function": "receive_timeout_truncated_eof_and_digest_mismatch_fail_dark", "needle": "digest"},
+        {"file": "panel_supervisor/tests/unix_socket_ui_mode_notifier_test.cpp", "function": "coalesced_extra_acknowledgement_bytes_fail_closed", "needle": "fail"}
+      ],
+      "real_lexinet_evidence": ["atomic_rejection"],
+      "vm_repeat": "Truncate the guest study state file while stopped and record the fail-visible recovery state."
+    },
+    {
+      "id": "disk_full",
+      "roadmap_text": "disk full",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "vocabulary_panel/tests/flash_card_session_test.cpp", "function": "test_disk_full_preserves_durable_payload_and_retryable_local_action", "needle": "ENOSPC"}
+      ],
+      "real_lexinet_evidence": [],
+      "vm_repeat": "Fill a small tmpfs mounted over the guest study state directory and record the retryable local action."
+    },
+    {
+      "id": "tls_failure",
+      "roadmap_text": "TLS failure",
+      "status": "covered",
+      "host_evidence": [
+        {"file": "vocabulary_panel/tests/http_lexinet_client_test.cpp", "function": "test_tls", "needle": "LEXINET."}
+      ],
+      "real_lexinet_evidence": [],
+      "residual": "Real Tailnet certificate, hostname and handshake evidence is plan Step 7 (Mac-local, human-assisted).",
+      "vm_repeat": "Serve the fixture with a wrong-host certificate and record the typed TLS failure."
+    },
+    {
+      "id": "credential_capability_denial",
+      "roadmap_text": "credential/capability denial",
+      "status": "partial",
+      "host_evidence": [
+        {"file": "panel_ui/tests/unix_socket_lifecycle_client_test.cpp", "function": "release_and_peer_uid_mismatches_close_without_acknowledgement", "needle": "uid"},
+        {"file": "panel_supervisor/tests/unix_socket_ui_mode_notifier_test.cpp", "function": "wrong_uid_client_is_closed_without_receiving_a_snapshot", "needle": "uid"},
+        {"file": "panel_supervisor/tests/touch_observation_authority_test.cpp", "function": "personal_context_redemption_is_role_bound_outside_the_claim", "needle": "redeem"},
+        {"file": "panel_supervisor/tests/capture_closure_test.cpp", "function": "terminator_signals_only_the_exact_broker_uid", "needle": "other_role"},
+        {"file": "panel_ui/tests/shell_controller_test.cpp", "function": "test_reserved_agenda_effects_remain_touch_only_and_disabled", "needle": "agenda"}
+      ],
+      "real_lexinet_evidence": ["auth_failure"],
+      "residual": "Node-capability grant, tag and revocation denial over the real Tailnet is plan Step 7 (Mac-local, human-assisted).",
+      "vm_repeat": "Revoke the fixture credential and record the typed auth failure with retained events."
+    }
+  ]
+}

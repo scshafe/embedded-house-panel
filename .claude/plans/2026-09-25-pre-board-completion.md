@@ -234,3 +234,13 @@ media IPC. That IPC is the supervisor-to-broker lifecycle publication, the
 UI-to-broker lease socket and the provenance-claim endpoint, with socket paths
 and modes allocated as ADR 0005 requires; the fake broker keeps its private
 pipes until then. Step 12 stays unchecked.
+
+**Amended 2026-09-26 (Step 13 progress):** the
+[roadmap Step 8 fault matrix](../../docs/testing/fault-matrix.md) maps all twelve
+fault rows to exact host test functions and recorded real-Lexinet scenarios.
+`check_fault_matrix.py` runs in `make verify-docs` and `make verify` and fails
+closed on drift. Ten rows are covered. Two are partial. Suspend preparation
+waits on the guest `snd-aloop` and s2idle runs. Credential/capability denial
+waits on the real Tailnet (Step 7). The companion boundary has no code until
+agenda Step 1 is approved. Every row names its Mac-local `vm_repeat` procedure
+(Verify item 2). Step 13 stays unchecked.
