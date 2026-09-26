@@ -3013,7 +3013,7 @@
       "test_symbol": "plan.pre-board-completion.step-1b",
       "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     }
   ]
 }

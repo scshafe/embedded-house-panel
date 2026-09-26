@@ -34,7 +34,7 @@ to implement the seven already accepted changes.
     committed outputs without requiring a generator or network.
   - Verify: `make verify`
 
-- [ ] **Step 1b: Restore complete multitouch kernel state**
+- [x] **Step 1b: Restore complete multitouch kernel state**
   - Preserve idle slot coordinates and the kernel's selected slot when the
     supervisor opens the Type-B device. Retain held-contact cancellation and
     validate the first new contact after reopening at unchanged coordinates.
@@ -69,3 +69,9 @@ initialization without changing touch authority or weakening lifecycle checks.
 Step 1 passed isolated `make verify` and `make verify-docs`; logs are under
 `.build/pre-board-font-{verify,docs}.log`. Generated font integrity and
 byte-for-byte regeneration checks also passed.
+
+Step 1b passed isolated `make verify` (40 CTests) and `make verify-docs`,
+the combined guest's 41 CTests, and fresh single-touch/Type-B lifecycle commits
+after reopening at the same coordinates. The isolated logs are
+`.build/pre-board-touch-{verify,docs}.log`; guest evidence is recorded with the
+UI validation milestone below.

@@ -37,6 +37,37 @@ Result<EvdevTouchParser> EvdevTouchParser::create(TouchEvdevConfiguration config
 		return Result<EvdevTouchParser>::failure(touch_error("configuration_invalid"));
 	return Result<EvdevTouchParser>::success(EvdevTouchParser(std::move(configuration)));
 }
+Result<void> EvdevTouchParser::initialize_type_b_state(const TypeBKernelState &state) {
+	auto reject = [this](const char *reason) {
+		failed_ = true; cancel_until_idle(); return Result<void>::failure(touch_error(reason));
+	};
+	if (failed_ || consumed_events_ || initialized_type_b_
+		|| configuration_.protocol != TouchEvdevProtocol::TypeB)
+		return reject("initial_slot_state_not_permitted");
+	if (state.slot_count != configuration_.slot_count || state.selected_slot < 0
+		|| static_cast<std::uint32_t>(state.selected_slot) >= configuration_.slot_count)
+		return reject("initial_slot_state_invalid");
+	// Validate the entire bounded snapshot before changing parser state. Even idle
+	// slots retain axes: evdev may omit unchanged coordinates on the next contact.
+	for (std::uint32_t i = 0; i < state.slot_count; ++i) {
+		const auto &slot = state.slots[i];
+		if (slot.tracking_id < -1 || slot.x < configuration_.x_minimum
+			|| slot.x > configuration_.x_maximum || slot.y < configuration_.y_minimum
+			|| slot.y > configuration_.y_maximum)
+			return reject("initial_slot_state_invalid");
+		for (std::uint32_t prior = 0; prior < i; ++prior)
+			if (slot.tracking_id >= 0 && slot.tracking_id == state.slots[prior].tracking_id)
+				return reject("initial_slot_tracking_id_repeated");
+	}
+	for (std::uint32_t i = 0; i < state.slot_count; ++i) {
+		const auto &slot = state.slots[i];
+		slots_[i] = {slot.tracking_id, slot.x, slot.y, true, true};
+	}
+	selected_slot_ = static_cast<std::uint32_t>(state.selected_slot);
+	initialized_type_b_ = true;
+	cancel_until_idle();
+	return Result<void>::success();
+}
 void EvdevTouchParser::cancel_until_idle() noexcept {
 	cancelled_ = std::any_of(slots_.begin(), slots_.end(), [](const Slot &slot) { return slot.tracking >= 0; });
 	started_ = false;
@@ -46,6 +77,7 @@ Result<std::optional<RawTouchContact>> EvdevTouchParser::consume(
 	using Output = Result<std::optional<RawTouchContact>>;
 	auto reject = [this](const char *reason) { failed_ = true; cancel_until_idle(); return Output::failure(touch_error(reason)); };
 	if (failed_) return reject("parser_failed_reopen_required");
+	consumed_events_ = true;
 	if (type == kSyn && code == kDropped) return reject("synchronization_dropped");
 	const bool mt = configuration_.protocol == TouchEvdevProtocol::TypeB;
 	if (type == kAbs && mt && code == kSlot) {
@@ -133,13 +165,14 @@ Result<std::unique_ptr<EvdevTouchSource>> EvdevTouchSource::create(TouchEvdevCon
 		const auto bytes = static_cast<int>((configuration.slot_count + 1) * sizeof(std::int32_t));
 		if (::ioctl(descriptor, EVIOCGMTSLOTS(bytes), ids.data()) != 0
 			|| ::ioctl(descriptor, EVIOCGMTSLOTS(bytes), xs.data()) != 0
-			|| ::ioctl(descriptor, EVIOCGMTSLOTS(bytes), ys.data()) != 0) return reject("initial_slot_state_unavailable");
+			|| ::ioctl(descriptor, EVIOCGMTSLOTS(bytes), ys.data()) != 0
+			|| ::ioctl(descriptor, EVIOCGABS(ABS_MT_SLOT), &slots) != 0)
+			return reject("initial_slot_state_unavailable");
+		TypeBKernelState state{slots.value, configuration.slot_count, {}};
 		for (std::uint32_t i = 0; i < configuration.slot_count; ++i) {
-			if (!parser.value().consume(kAbs, kSlot, static_cast<std::int32_t>(i))
-				|| !parser.value().consume(kAbs, kTracking, ids[i + 1])) return reject("initial_slot_state_invalid");
-			if (ids[i + 1] >= 0 && (!parser.value().consume(kAbs, kMtX, xs[i + 1])
-				|| !parser.value().consume(kAbs, kMtY, ys[i + 1]))) return reject("initial_axes_invalid");
+			state.slots[i] = {ids[i + 1], xs[i + 1], ys[i + 1]};
 		}
+		if (!parser.value().initialize_type_b_state(state)) return reject("initial_slot_state_invalid");
 	} else {
 		std::array<unsigned char, (KEY_MAX + 8) / 8> keys{};
 		if (::ioctl(descriptor, EVIOCGKEY(keys.size()), keys.data()) < 0) return reject("initial_key_state_unavailable");

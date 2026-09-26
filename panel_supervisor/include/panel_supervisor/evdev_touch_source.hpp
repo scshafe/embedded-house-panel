@@ -20,6 +20,14 @@ struct RawTouchContact {
 	bhp::touch_observation_protocol::ContactState state;
 	std::int32_t x, y;
 };
+struct TypeBKernelSlotState {
+	std::int32_t tracking_id, x, y;
+};
+struct TypeBKernelState {
+	std::int32_t selected_slot;
+	std::uint32_t slot_count;
+	std::array<TypeBKernelSlotState, 32> slots;
+};
 /** Bounded Linux event reducer, also host-testable without Linux headers.
  * Multi-contact frames cancel the gesture; they never become a single proven tap.
  * SYN_DROPPED or malformed framing fails closed; reopening requires new idle evidence.
@@ -27,6 +35,9 @@ struct RawTouchContact {
 class EvdevTouchParser final {
 public:
 	[[nodiscard]] static Result<EvdevTouchParser> create(TouchEvdevConfiguration configuration);
+	/** One startup snapshot, before any events. Idle slots retain their kernel axes;
+	 * held slots require release. Invalid or repeated initialization fails closed. */
+	[[nodiscard]] Result<void> initialize_type_b_state(const TypeBKernelState &state);
 	[[nodiscard]] Result<std::optional<RawTouchContact>> consume(
 		std::uint16_t type, std::uint16_t code, std::int32_t value);
 	/** Cancels in-flight measurement; a held contact must release before a new start. */
@@ -39,6 +50,7 @@ private:
 	std::uint32_t selected_slot_{0};
 	std::uint32_t active_slot_{0};
 	bool started_{false}, cancelled_{true}, failed_{false};
+	bool consumed_events_{false}, initialized_type_b_{false};
 	std::int32_t active_tracking_{-1};
 	RawTouchContact latest_{bhp::touch_observation_protocol::ContactState::Started, 0, 0};
 };
