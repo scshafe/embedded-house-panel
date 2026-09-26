@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "font_family": "House Panel Latin (Montserrat Medium subset)",
+  "source": {
+    "path": "shared/panel_fonts/fonts/Montserrat-Medium.ttf",
+    "url": "https://raw.githubusercontent.com/lvgl/lvgl/v9.5.0/scripts/built_in_font/Montserrat-Medium.ttf",
+    "sha256": "421f26b23e2be6b98373d32acd3cb2897b154d4bf0a77d26534ce476e4cbed53",
+    "upstream_archive_url": "https://codeload.github.com/lvgl/lvgl/tar.gz/refs/tags/v9.5.0",
+    "upstream_archive_sha256": "34a955cdf3a2d005507b704e87357af669a114523b6d3f77b5344fdc68717bc6",
+    "license": "OFL-1.1",
+    "license_path": "shared/panel_fonts/fonts/OFL.txt",
+    "license_url": "https://raw.githubusercontent.com/lvgl/lvgl/v9.5.0/scripts/built_in_font/font_license/Montserrat/OFL.txt",
+    "license_sha256": "c728a3aba1e525cd21a459a13dcc23c89c1b04bbefc5f11a0e2b6b9b9ccb77ce",
+    "license_upstream_sha256": "41f82bb4d24b304f30f7136bc47abdd083782e4265c984160f5649d1e78ea49c",
+    "license_normalization": "Strip trailing ASCII spaces and tabs from each line; preserve all words and line breaks."
+  },
+  "generator": {
+    "package": "lv_font_conv",
+    "version": "1.5.3",
+    "lock_path": "scripts/fonts/package-lock.json",
+    "lock_sha256": "ec1d7c9c5d8d4708ec3dc9df4f759838a129bdaa85a251d115285c6e83499ce5",
+    "format": "lvgl",
+    "bpp": 4,
+    "compress": false,
+    "prefilter": false,
+    "kerning": "classes",
+    "hinting": "light"
+  },
+  "sizes_px": [
+    24,
+    28,
+    36,
+    40,
+    48
+  ],
+  "glyph_ranges": [
+    [
+      32,
+      126
+    ],
+    [
+      160,
+      383
+    ],
+    [
+      8211,
+      8212
+    ],
+    [
+      8216,
+      8217
+    ],
+    [
+      8220,
+      8221
+    ],
+    [
+      8226,
+      8226
+    ],
+    [
+      8230,
+      8230
+    ],
+    [
+      8242,
+      8243
+    ],
+    [
+      8364,
+      8364
+    ],
+    [
+      8482,
+      8482
+    ]
+  ],
+  "layout_controls": [
+    10
+  ],
+  "normalization": "none; only encoded supported scalars are accepted",
+  "scope": "Printable Basic Latin, Latin-1 Supplement, Latin Extended-A, en/em dash, curly quotes, bullet, ellipsis, prime/double prime, euro and trademark. No CJK, emoji, combining-mark coverage or full-Unicode claim.",
+  "generated_sha256": {
+    "shared/panel_fonts/generated/bhp_font_24.c": "55715f9684e05991bf8923a85514690c68adf98d564c712cb76d18e9e7cad22a",
+    "shared/panel_fonts/generated/bhp_font_28.c": "b60fd63338d2568dd30ef7ef6c0ba1a49c793f83ad468c7ead517fb343f78fe1",
+    "shared/panel_fonts/generated/bhp_font_36.c": "f314f3c6ea0da7987131d3c76f5f7ee957e3c99c0907868f0158d507d0a23ae6",
+    "shared/panel_fonts/generated/bhp_font_40.c": "36adeeb085d69296201a14767bd9e5d9a4c72cd8a761cc02d55bd6da8d5256a4",
+    "shared/panel_fonts/generated/bhp_font_48.c": "b3965ea71698d01aea7bbfccd8852287200d0109a6c27df0ba368354388f359c",
+    "shared/panel_fonts/generated/glyph_ranges.inc": "5fe29f4a6bc9b8c804a5b19d7c308d4c9c1975cdb7d04503af4ea5796bc8ab51"
+  }
+}

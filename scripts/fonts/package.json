@@ -1,0 +1,9 @@
+{
+  "name": "bhp-panel-font-generation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned development-only LVGL font converter; generated assets are committed.",
+  "dependencies": {
+    "lv_font_conv": "1.5.3"
+  }
+}

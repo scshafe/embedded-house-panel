@@ -9,7 +9,7 @@ add_library(vocabulary_panel_lvgl_renderer STATIC src/lvgl_flash_card_renderer.c
 add_library(vocabulary_panel::lvgl_renderer ALIAS vocabulary_panel_lvgl_renderer)
 target_include_directories(vocabulary_panel_lvgl_renderer PUBLIC include)
 target_compile_features(vocabulary_panel_lvgl_renderer PUBLIC cxx_std_17)
-target_link_libraries(vocabulary_panel_lvgl_renderer PUBLIC ${BHP_LVGL_SURFACE_TARGET})
+target_link_libraries(vocabulary_panel_lvgl_renderer PUBLIC ${BHP_LVGL_SURFACE_TARGET} bhp::panel_fonts)
 if(NOT TARGET lvgl::lvgl)
  target_compile_definitions(vocabulary_panel_lvgl_renderer PRIVATE LV_KCONFIG_IGNORE LV_CONF_INCLUDE_SIMPLE)
 endif()
