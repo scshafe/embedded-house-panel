@@ -43,6 +43,9 @@ endif()
 add_library(panel_supervisor_linux_adapters STATIC
   src/daemon_stop_controller.cpp
   src/evdev_presence_source.cpp
+  src/evdev_touch_source.cpp
+  src/touch_runtime_configuration.cpp
+  src/touch_observation_runtime.cpp
   src/exact_file_writer.cpp
   src/offline_solar_calculator.cpp
   src/panel_supervisord_config.cpp
@@ -84,6 +87,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 
 if(BHP_BUILD_TESTS)
+  add_executable(evdev_touch_source_test tests/evdev_touch_source_test.cpp)
+  target_link_libraries(evdev_touch_source_test PRIVATE panel_supervisor_linux_adapters)
+  add_test(NAME evdev_touch_source_test COMMAND evdev_touch_source_test)
   add_executable(panel_policy_test tests/panel_policy_test.cpp)
   target_link_libraries(panel_policy_test PRIVATE panel_supervisor)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")

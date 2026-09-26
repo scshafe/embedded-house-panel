@@ -7,6 +7,10 @@
 namespace bhp::touch_observation_protocol {
 
 enum class ErrorCode {
+	WireInvalid,
+	SocketUnavailable,
+	SocketUntrusted,
+	PlatformUnsupported,
 	ConfigurationInvalid,
 	AllocationFailed,
 	SynchronizationFailed,
@@ -31,6 +35,14 @@ enum class ErrorCode {
 [[nodiscard]] constexpr std::string_view to_string(const ErrorCode code) noexcept
 {
 	switch (code) {
+	case ErrorCode::WireInvalid:
+		return "TOUCH_OBSERVATION_PROTOCOL.WIRE_INVALID";
+	case ErrorCode::SocketUnavailable:
+		return "TOUCH_OBSERVATION_PROTOCOL.SOCKET_UNAVAILABLE";
+	case ErrorCode::SocketUntrusted:
+		return "TOUCH_OBSERVATION_PROTOCOL.SOCKET_UNTRUSTED";
+	case ErrorCode::PlatformUnsupported:
+		return "TOUCH_OBSERVATION_PROTOCOL.PLATFORM_UNSUPPORTED";
 	case ErrorCode::ConfigurationInvalid:
 		return "TOUCH_OBSERVATION_PROTOCOL.CONFIGURATION_INVALID";
 	case ErrorCode::AllocationFailed:

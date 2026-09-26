@@ -11,7 +11,7 @@ Public Buildroot interface:
 - Kconfig symbol: `BR2_PACKAGE_BHP_VOCABULARY_PANEL`
 - package target: `bhp-vocabulary-panel`
 - dependencies: `lvgl`, `libcurl`, and `json-for-modern-cpp`
-- target user: `vocabulary-panel` (non-login, `video` and `bhp-touch` groups)
+- target user: `vocabulary-panel` (non-login, `video` group only)
 - installed fixture executable: `/usr/bin/vocabulary_panel_terminal`
 
 No graphical controller executable exists yet, so
@@ -19,5 +19,10 @@ No graphical controller executable exists yet, so
 `/usr/bin/bhp-vocabulary-panel`. Local-source builds reflect the exact outer
 repository checkout. Release verification uses a fresh output named by the
 exact project content ID, preventing an earlier local-package stamp from being
-accepted. The `bhp-touch` group receives only the exact provisioned evdev
-name+phys pair; it never receives blanket access to `/dev/input/event*`.
+accepted.
+
+**Amended 2026-09-25:** ADR 0005 removes the legacy vocabulary user's raw-touch
+group. All evdev nodes remain root-only, including an exactly provisioned touch
+device; only the supervisor may observe them. The neutral UI consumes the
+separate normalized observation socket. Production services remain disabled
+and fail-dark pending FRDM display/touch evidence.

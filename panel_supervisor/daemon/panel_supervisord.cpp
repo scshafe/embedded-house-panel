@@ -12,6 +12,7 @@
 #include "panel_supervisor/sysfs_suspend.hpp"
 #include "panel_supervisor/system_clock.hpp"
 #include "panel_supervisor/unix_socket_ui_mode_notifier.hpp"
+#include "panel_supervisor/touch_observation_runtime.hpp"
 
 #include "bhp/application_identity.h"
 
@@ -19,6 +20,7 @@
 #include "bhp/structured_logger.h"
 
 #include <cstdint>
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <limits>
@@ -246,11 +248,22 @@ int run_daemon(bhp::StructuredLogger &logger)
 	OfflineSolarCalculator solar_calculator = std::move(solar_result).value();
 	std::unique_ptr<UnixSocketUiModeNotifier> ui_mode_notifier =
 		std::move(notifier_result).value();
+	std::unique_ptr<TouchObservationRuntime> touch_runtime;
+	if (config.touch_configuration()) {
+		auto touch_result = TouchObservationRuntime::create(*config.touch_configuration(),
+			config.panel_ui_uid(), *ui_mode_notifier);
+		if (touch_result) touch_runtime = std::move(touch_result).value();
+		else logger.log(bhp::StructuredLogLevel::warn, "touch_observer_disabled", "panel-supervisord-startup",
+			{{"error_code", std::string(to_string(touch_result.error().code()))},
+			 {"error_message", touch_result.error().message()}, {"degraded", "true"}});
+	}
+	UiModeNotifier &notifier = touch_runtime ? static_cast<UiModeNotifier &>(*touch_runtime)
+		: static_cast<UiModeNotifier &>(*ui_mode_notifier);
 	SystemClock clock;
 	RateLimitedStopAwareSuspend stop_aware_suspend(
 		*suspend, *stop_controller, config.suspend_retry_backoff());
 	PanelSupervisor supervisor(config.supervisor_config(), PanelPolicy{}, presence_source,
-				   clock, solar_calculator, backlight, *ui_mode_notifier,
+				   clock, solar_calculator, backlight, notifier,
 				   stop_aware_suspend, logger);
 
 	logger.log(bhp::StructuredLogLevel::info, "daemon_started", "panel-supervisord-startup",
@@ -305,7 +318,24 @@ int run_daemon(bhp::StructuredLogger &logger)
 	}
 
 	while (!stop_controller->stop_requested()) {
-		const auto wait_result = stop_controller->wait_for(config.poll_interval());
+		// Raw input is observed during the policy sleep, with fixed bounded work per
+		// pass. Touch cannot extend the next policy deadline or suppress stop signals.
+		auto wait_with_observations = [&]() -> Result<bool> {
+			if (!touch_runtime) return stop_controller->wait_for(config.poll_interval());
+			const auto deadline = std::chrono::steady_clock::now() + config.poll_interval();
+			while (std::chrono::steady_clock::now() < deadline) {
+				auto observed = touch_runtime->poll_observations();
+				if (!observed) logger.log(bhp::StructuredLogLevel::warn, "touch_observation_degraded",
+					"panel-supervisord-touch", {{"error_code", std::string(to_string(observed.error().code()))},
+					{"error_message", observed.error().message()}, {"degraded", "true"}});
+				const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
+				if (remaining.count() <= 0) break;
+				auto waited = stop_controller->wait_for(std::min(remaining, std::chrono::milliseconds(5)));
+				if (!waited || waited.value()) return waited;
+			}
+			return Result<bool>::success(false);
+		};
+		const auto wait_result = wait_with_observations();
 		if (!wait_result) {
 			return fail_after_backlight_construction(
 				logger, backlight, "daemon_poll_wait_failed",

@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstring>
 #include <fcntl.h>
+#include <grp.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -629,6 +630,17 @@ bool invalid_configuration_returns_before_creating_a_path()
 	return true;
 }
 
+bool root_ui_identity_is_rejected_without_creating_a_socket()
+{
+	test_fixture::TemporaryDirectory directory;
+	const std::string path = directory.child_path("mode.sock");
+	const auto result = UnixSocketUiModeNotifier::create(path, 0U, std::string(kReleaseId));
+	TEST_REQUIRE(!result.has_value());
+	TEST_REQUIRE(result.error().code() == ErrorCode::UiSocketConfigurationInvalid);
+	TEST_REQUIRE(::access(path.c_str(), F_OK) != 0);
+	return true;
+}
+
 using TestFunction = bool (*)();
 
 } // namespace
@@ -637,7 +649,15 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 17> tests{{
+	// These same-process lifecycle fixtures intentionally use an unprivileged UI
+	// identity. Root CTest runs still exercise the separate privileged touch socket
+	// tests, while this executable drops privilege before creating any fixture.
+	if (::geteuid() == 0 &&
+	    (::setgroups(0, nullptr) != 0 || ::setgid(65534) != 0 || ::setuid(65534) != 0)) {
+		std::cerr << "failed to drop privilege for notifier test fixtures\n";
+		return 1;
+	}
+	const std::array<std::pair<std::string_view, TestFunction>, 18> tests{{
 		{"exact acknowledgement",
 		 exact_acknowledgement_commits_and_every_ack_binds_release},
 		{"release mismatch", first_release_mismatch_fails_dark_and_closes_connection},
@@ -662,6 +682,7 @@ int main()
 		{"stale socket recovery", same_owner_stale_socket_is_recovered},
 		{"active socket preservation", active_socket_is_preserved},
 		{"invalid configuration", invalid_configuration_returns_before_creating_a_path},
+		{"root UI identity", root_ui_identity_is_rejected_without_creating_a_socket},
 	}};
 	for (const auto &[name, test] : tests) {
 		if (!test()) {

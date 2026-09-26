@@ -49,3 +49,39 @@ observation ID, raw coordinate, or other supplied value.
 
 The component depends only on the canonical `panel_mode_protocol` types for the
 lifecycle version and safe-integer bound.
+
+**Amended 2026-09-25:** `touch_observation_codec.h` adds bounded canonical
+JSON-Lines encoding of the existing record (maximum 2048 bytes). The wire
+grammar uses the encoder's exact field order, spelling, integer spelling, and
+single trailing LF; unknown fields, duplicate fields, escaped identifiers,
+multiple frames, and noncanonical numbers are rejected. Binding fields are
+flattened into the JSON object without changing their meanings.
+
+`unix_touch_observation_socket.h` adds the Linux-only cross-process transport.
+`UnixTouchObservationServer::create(path, exact_ui_uid)` admits one exact
+nonzero UID from `SO_PEERCRED`. `pump()` makes at most four accept attempts and
+one reverse-traffic check. The reverse direction permits no bytes. Each
+`try_publish()` is one nonblocking whole-frame send with a bounded kernel send
+buffer; partial writes, backpressure, and disconnected peers close delivery.
+The supervisor producer must invalidate its authority evidence on every such
+failure. An old socket path is preserved rather than removed speculatively;
+the service runtime-directory lifecycle owns stale-file cleanup.
+
+`UnixTouchObservationClient::connect(path, exact_supervisor_uid)` reciprocally
+checks kernel credentials, a root-owned socket, and every parent directory:
+root-owned, no symlinks, no group/other write. The client rechecks the socket
+inode after connecting. The server requires the same trusted parent and root
+effective UID. A setgid root-owned parent with the dedicated UI group and mode
+`2750` permits connection to the inherited-group `0660` socket without giving
+the UI permission to replace it. The client sends no bytes; `try_receive()`
+returns one validated observation or an empty optional, using a bounded 2048
+byte incremental buffer and strictly increasing delivery sequences. Consumers
+must additionally match the complete binding to their current committed frame.
+
+The socket implementation returns an explicit unsupported-platform error on
+macOS; native simulation cannot silently weaken this production boundary. The
+Linux root CTest fixture forks distinct numeric UIDs and covers authenticated
+delivery, wrong UID, forbidden reverse bytes, disconnect, and nonblocking
+backpressure. A non-root Linux run reports that the UID fixture requires root;
+macOS tests only the unsupported-platform rejection. These are software tests,
+never touch hardware evidence.

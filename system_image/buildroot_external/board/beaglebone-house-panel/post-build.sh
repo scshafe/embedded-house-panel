@@ -114,8 +114,8 @@ touch_classifier=$target_directory/usr/libexec/beaglebone-house-panel/classify-t
 
 # Buildroot's stock mdev policy makes all input nodes root-only and has no
 # explicit DRM/fbdev rules. Keep every input node root-only. An add-event helper
-# may grant one exact provisioned name+phys identity to the dedicated touch
-# group; unknown devices and the PIR identities remain root-only.
+# revokes legacy UI grants even for an exactly provisioned name+phys identity.
+# ADR 0005 reserves raw touch and PIR input for the supervisor.
 # Fail if the upstream file shape changes instead of silently shipping an image
 # whose UI cannot open its configured devices.
 test -f "$mdev_configuration"

@@ -83,15 +83,12 @@ from scratch. Consequently, a modified same-version Buildroot tree and
   base image. The serial console remains useful for boot logs but is not an
   authentication bypass. The separate, visibly non-production bring-up profile
   below is the only Buildroot SSH iteration route.
-- All evdev nodes begin as `root:root` mode `0600`. Since static `mdev` rules
-  cannot safely classify a device by evdev identity, an add-event helper grants
-  only a provisioned exact touch `name` plus `phys` pair to `bhp-touch` mode
-  `0660`; both known PIR identities are hard-denied. `vocabulary-panel` belongs
-  to `bhp-touch` and `video`, never the generic `input` group. If the cape
-  driver has no unique nonempty `phys`, touch remains root-only until a tested
-  udev-like classifier or narrower broker exists. DRM/fbdev nodes remain
-  `root:video` mode `0660`. Device removal remains fail-closed; run `mdev -s`
-  after removing a duplicate because target removal-event ordering is unproven.
+- All evdev nodes remain `root:root` mode `0600`, including an exactly
+  provisioned touch `name` plus `phys` pair. ADR 0005 reserves raw touch
+  observation for the supervisor; the add-event helper revokes legacy group
+  grants. `vocabulary-panel` belongs only to `video`, never `bhp-touch` or
+  generic `input`. The neutral UI has no raw-device group and consumes only
+  normalized observations. DRM/fbdev nodes remain `root:video` mode `0660`.
 - Tailscale runs in normal kernel TUN mode from an init script; provisioning is a separate operator action.
 - Buildroot 2026.05.1 currently packages Tailscale 1.78.1. That is sufficient to exercise image integration, not an approval for a networked product; confirm control-plane support and security status, then pin a reviewed version in the external tree before deployment.
 - Root filesystem read-only mode is deferred until a persistent-data partition and recovery/update design are tested.

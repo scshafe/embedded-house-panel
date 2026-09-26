@@ -59,6 +59,8 @@ public:
 	[[nodiscard]] const std::string &socket_path() const noexcept;
 	[[nodiscard]] std::uint64_t event_sequence() const noexcept;
 	[[nodiscard]] bool has_connected_client() const noexcept;
+	/** Nonblocking liveness probe between policy cycles; bytes remain for the acknowledgement parser. */
+	[[nodiscard]] bool observe_client_liveness() noexcept;
 
 	/** Hard per-call accept syscall budget; connection floods cannot monopolize policy. */
 	[[nodiscard]] static constexpr std::size_t

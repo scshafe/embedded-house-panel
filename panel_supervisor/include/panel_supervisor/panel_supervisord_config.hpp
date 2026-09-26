@@ -3,6 +3,7 @@
 #include "panel_supervisor/result.hpp"
 #include "panel_supervisor/supervisor_config.hpp"
 #include "panel_supervisor/suspend_mode.hpp"
+#include "panel_supervisor/touch_runtime_configuration.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -52,8 +53,10 @@ public:
 	[[nodiscard]] const std::string &mem_sleep_state() const noexcept;
 	[[nodiscard]] std::chrono::milliseconds poll_interval() const noexcept;
 	[[nodiscard]] std::chrono::milliseconds suspend_retry_backoff() const noexcept;
+	[[nodiscard]] const std::optional<TouchRuntimeConfiguration> &touch_configuration() const noexcept { return touch_configuration_; }
 
 private:
+	std::optional<TouchRuntimeConfiguration> touch_configuration_;
 	PanelSupervisordConfig(SupervisorConfig supervisor_config, double latitude_degrees,
 			       double longitude_degrees, std::string presence_input_path,
 			       std::string presence_input_name,

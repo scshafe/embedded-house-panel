@@ -229,11 +229,64 @@ queue saturation or producer contention invalidates the stream instead of
 blocking panel policy or delivering a plausible partial contact. Coordinates
 remain signed raw-axis evidence with no scale, orientation, range, calibration,
 resolution, or gesture inference. This is host software evidence: no raw-touch
-device adapter, cross-process claim transport, exact-holder-UID admission
+hardware evidence, cross-process claim transport, exact-holder-UID admission
 adapter, target permission cutover, or physical touch behavior is claimed yet.
 The role-bound entry points must not be exposed directly to an untrusted request
 parser; the future adapter must derive which one is callable from exact kernel
 peer credentials.
+
+**Amended 2026-09-25:** the optional `TouchObservationRuntime` wraps the real
+lifecycle notifier and owns one `EvdevTouchSource`. No touch configuration means
+disabled. Supplying any touch key requires all of these explicit values before
+startup hardware actions:
+
+| `BHP_PANEL_SUPERVISOR_` suffix | Contract |
+| --- | --- |
+| `TOUCH_INPUT_PATH` | Exact absolute evdev node; no discovery or symlink following |
+| `TOUCH_INPUT_NAME` | Exact `EVIOCGNAME` identity |
+| `TOUCH_PROTOCOL` | `single` (tablet) or `type_b` (multitouch slots) |
+| `TOUCH_X_MIN`, `TOUCH_X_MAX`, `TOUCH_Y_MIN`, `TOUCH_Y_MAX` | Signed 32-bit raw bounds, minimum below maximum; must match kernel `EVIOCGABS` |
+| `TOUCH_CONTACT_KEY` | `272` (`BTN_LEFT`) or `330` (`BTN_TOUCH`) for single; `0` for Type B |
+| `TOUCH_SLOTS` | `1` for single; explicit 1 through 32 Type B slots, kernel slot bounds must match |
+| `TOUCH_SOCKET` | Dedicated absolute socket, distinct from the lifecycle path |
+| `TOUCH_TTL_MILLISECONDS` | Explicit 1 through 5000 ms observation TTL |
+| `TOUCH_MAX_CONTACT_MILLISECONDS` | Explicit 1 through 60000 ms contact bound |
+| `TOUCH_MAX_OBSERVATIONS` | Explicit 1 through 1024 retained observations |
+
+The adapter exclusively grabs that device, verifies raw bounds and required
+capabilities, and samples the initial kernel contact state. A contact already
+held at startup or cancelled during a lifecycle transition must release before
+it can start again. Type B tracking identities and all configured slots are
+observed; simultaneous contacts cancel the gesture rather than selecting a
+finger arbitrarily. SYN_DROPPED, malformed input, read failures, and an exhausted
+256-event work budget disable the input observer visibly. The UI alone applies
+coordinate calibration and hit testing.
+
+The main daemon services observations in at most 5 ms stop-aware slices between
+policy cycles. Every lifecycle publication first invalidates the authority and
+active contact. Events queued while awaiting a new committed frame are drained
+without forwarding; only subsequent contacts on that exact day/present
+commitment can yield observations. Disconnect, absence/grace, night, suspend
+preparation, backpressure, and contact failure invalidate evidence. Authority
+duration comes from its own monotonic reads, never evdev or UI timestamps.
+Start/update forwarding IDs cannot be redeemed; only completion registers the
+new unpredictable authority ID. Forwarding sequence numbers count all records.
+
+The dedicated shared Unix observation server enforces exact UI credentials and
+reverse silence. Its root-owned parent path must not be writable by the UI;
+use a setgid directory with the UI group and mode `2750` for an inherited-group
+`0660` socket. Touch failure logs a structured degraded result and never changes
+the lifecycle acknowledgement, faults policy, grants brightness, or delays
+suspend. Raw axes and observation identities never appear in those logs.
+
+The current policy publishes a new lifecycle snapshot each poll. A contact may
+not span that boundary; a local feature render also requires the UI to reject
+the prior binding until its next lifecycle acknowledgement. Virtual tap scripts
+must wait for the current commitment and use a configured poll interval suited
+to their interaction. No generation, duration, calibration, or raw-device
+permissions are guessed. The separate capability-holder claim IPC and
+production permission cutover remain gated; this implementation does not grant
+the UI access to the authority's redemption endpoints.
 
 ## Suspend and shutdown behavior
 

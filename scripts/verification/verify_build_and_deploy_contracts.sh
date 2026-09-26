@@ -192,7 +192,8 @@ done
 # variables must name exactly the same keys (commented keys included).
 python3 - "$PROJECT_ROOT/config/panel-supervisor.env.example" \
 	"$rendered_environment_directory/panel-supervisor.env.example" \
-	"$PROJECT_ROOT/panel_supervisor/src/panel_supervisord_config.cpp" <<'PY_SERVICE_KEYS' || {
+	"$PROJECT_ROOT/panel_supervisor/src/panel_supervisord_config.cpp" \
+	"$PROJECT_ROOT/panel_supervisor/include/panel_supervisor/touch_runtime_configuration.hpp" <<'PY_SERVICE_KEYS' || {
 import re
 import sys
 
@@ -200,6 +201,7 @@ def keys(path):
     return set(re.findall(r"^#? ?(BHP_PANEL_SUPERVISOR_[A-Z_]+)=", open(path).read(), re.MULTILINE))
 
 daemon = set(re.findall(r'"(BHP_PANEL_SUPERVISOR_[A-Z_]+)"', open(sys.argv[3]).read()))
+daemon.update(re.findall(r'"(BHP_PANEL_SUPERVISOR_[A-Z_]+)"', open(sys.argv[4]).read()))
 daemon.add("BHP_PANEL_SUPERVISOR_ENABLED")
 host, rendered = keys(sys.argv[1]), keys(sys.argv[2])
 if not (host == rendered == daemon):
@@ -278,18 +280,17 @@ BHP_MDEV_TEST_SYS_CLASS_INPUT=$classifier_sys \
 BHP_MDEV_TEST_DEVICE_ROOT=$classifier_dev \
 BHP_MDEV_TEST_TOUCH_GROUP=$test_group \
 MDEV=input/event0 "$classifier"
-python3 -c 'import os,stat,sys; value=os.stat(sys.argv[1]); assert stat.S_IMODE(value.st_mode) == 0o660; assert value.st_gid == os.getgid()' \
+python3 -c 'import os,stat,sys; value=os.stat(sys.argv[1]); assert stat.S_IMODE(value.st_mode) == 0o600; assert value.st_gid == os.getgid()' \
 	"$classifier_dev/input/event0"
 
-# A non-touch add still recomputes globally and restores the one legitimate
-# touch grant after revoking all prior event permissions.
+# A non-touch add still revokes every legacy grant; even exact touch is root-only.
 BHP_MDEV_TEST_MODE=1 \
 BHP_MDEV_TEST_CONFIGURATION_ROOT=$classifier_configuration \
 BHP_MDEV_TEST_SYS_CLASS_INPUT=$classifier_sys \
 BHP_MDEV_TEST_DEVICE_ROOT=$classifier_dev \
 BHP_MDEV_TEST_TOUCH_GROUP=$test_group \
 MDEV=input/event1 "$classifier"
-python3 -c 'import os,stat,sys; assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o660; assert stat.S_IMODE(os.stat(sys.argv[2]).st_mode) == 0o600' \
+python3 -c 'import os,stat,sys; assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o600; assert stat.S_IMODE(os.stat(sys.argv[2]).st_mode) == 0o600' \
 	"$classifier_dev/input/event0" "$classifier_dev/input/event1"
 
 # A later device with the same name+phys pair revokes the earlier grant and is
@@ -721,9 +722,9 @@ for release_buildroot_identity_contract in \
 		exit 1
 	}
 done
-grep -F 'video,bhp-touch' \
+grep -F ' - video BeagleBone vocabulary panel' \
 	"$PROJECT_ROOT/system_image/buildroot_external/package/bhp-vocabulary-panel/bhp-vocabulary-panel.mk" >/dev/null
-if grep -F 'video,input' \
+if grep -E 'video,(input|bhp-touch)' \
 	"$PROJECT_ROOT/system_image/buildroot_external/package/bhp-vocabulary-panel/bhp-vocabulary-panel.mk" >/dev/null; then
 	bhp_fail VERIFY_BUILD_DEPLOY.VOCABULARY_GENERIC_INPUT_GROUP_PRESENT \
 		"Vocabulary user must not join the generic input group" "$TRACE_ID"

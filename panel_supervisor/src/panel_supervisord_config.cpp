@@ -141,6 +141,10 @@ Result<PanelSupervisordConfig> PanelSupervisordConfig::from_environment()
 			configuration_fields.emplace(field_name, value);
 		}
 	}
+	for (const char *field_name : kTouchRuntimeEnvironmentFields) {
+		const char *value = std::getenv(field_name);
+		if (value != nullptr) configuration_fields.emplace(field_name, value);
+	}
 	return create(configuration_fields);
 }
 
@@ -148,6 +152,8 @@ Result<PanelSupervisordConfig>
 PanelSupervisordConfig::create(const std::map<std::string, std::string> &configuration_fields)
 {
 	std::map<std::string, std::string> invalid_fields;
+	auto touch_result = TouchRuntimeConfiguration::parse(configuration_fields);
+	if (!touch_result) merge_error_context(invalid_fields, touch_result.error());
 	const std::string *latitude_text =
 		require_field(configuration_fields, kLatitude, invalid_fields);
 	const std::string *longitude_text =
@@ -349,6 +355,10 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 	if (mode_socket_path != nullptr && !is_explicit_path(*mode_socket_path)) {
 		invalid_fields[kModeSocket] = "must_be_absolute_and_placeholder_free";
 	}
+	if (touch_result && touch_result.value() && mode_socket_path != nullptr
+	    && touch_result.value()->socket_path == *mode_socket_path) {
+		invalid_fields["BHP_PANEL_SUPERVISOR_TOUCH_SOCKET"] = "must_be_separate_from_lifecycle_socket";
+	}
 	if (power_state_path != nullptr && !power_state_path->empty() &&
 	    !is_explicit_path(*power_state_path)) {
 		invalid_fields[kPowerStatePath] = "must_be_absolute_and_placeholder_free";
@@ -405,7 +415,7 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 			supervisor_config_result.error()));
 	}
 
-	return Result<PanelSupervisordConfig>::success(PanelSupervisordConfig(
+	auto configuration = PanelSupervisordConfig(
 		supervisor_config_result.value(), latitude_degrees, longitude_degrees,
 		has_presence_path ? *presence_path : std::string{},
 		has_presence_name ? *presence_name : std::string{}, *backlight_path,
@@ -415,7 +425,9 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		has_mem_sleep_path ? *mem_sleep_path : std::string{},
 		has_mem_sleep_state ? *mem_sleep_state : std::string{},
 		std::chrono::milliseconds(poll_interval_milliseconds),
-		std::chrono::milliseconds(suspend_retry_backoff_milliseconds)));
+		std::chrono::milliseconds(suspend_retry_backoff_milliseconds));
+	configuration.touch_configuration_ = touch_result.value();
+	return Result<PanelSupervisordConfig>::success(std::move(configuration));
 }
 
 PanelSupervisordConfig::PanelSupervisordConfig(

@@ -829,4 +829,13 @@ bool UnixSocketUiModeNotifier::has_connected_client() const noexcept
 	return client_socket_ >= 0;
 }
 
+bool UnixSocketUiModeNotifier::observe_client_liveness() noexcept
+{
+	if (client_socket_ < 0) return false;
+	char byte{};
+	const auto count = ::recv(client_socket_, &byte, 1, MSG_PEEK | MSG_DONTWAIT);
+	if (count == 0 || (count < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) close_client();
+	return client_socket_ >= 0;
+}
+
 } // namespace house_panel::supervisor

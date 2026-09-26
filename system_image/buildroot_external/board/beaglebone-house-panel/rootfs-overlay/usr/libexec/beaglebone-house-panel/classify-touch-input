@@ -1,5 +1,5 @@
 #!/bin/sh
-# Grants the vocabulary UI access only to one provisioned evdev identity.
+# ADR 0005: revokes legacy UI grants and retains root-only raw touch ownership.
 # mdev creates every event node root-only before invoking this helper.
 
 set -eu
@@ -10,7 +10,6 @@ case "${BHP_MDEV_TEST_MODE:-0}" in
 		configuration_root=/etc/beaglebone-house-panel
 		sys_class_input=/sys/class/input
 		device_root=/dev
-		touch_group=bhp-touch
 		reset_group=root
 		require_root_configuration=1
 		;;
@@ -22,7 +21,6 @@ case "${BHP_MDEV_TEST_MODE:-0}" in
 		configuration_root=$BHP_MDEV_TEST_CONFIGURATION_ROOT
 		sys_class_input=$BHP_MDEV_TEST_SYS_CLASS_INPUT
 		device_root=$BHP_MDEV_TEST_DEVICE_ROOT
-		touch_group=$BHP_MDEV_TEST_TOUCH_GROUP
 		reset_group=$BHP_MDEV_TEST_TOUCH_GROUP
 		require_root_configuration=0
 		;;
@@ -142,5 +140,6 @@ if [ "${BHP_MDEV_TEST_MODE:-0}" = 1 ]; then
 else
 	[ -c "$device_node" ] || exit 0
 fi
-chgrp "$touch_group" "$device_node" || exit 0
-chmod 0660 "$device_node" || exit 0
+# Exact identity remains useful provisioning evidence, never a UI access grant.
+chgrp "$reset_group" "$device_node" || exit 0
+chmod 0600 "$device_node" || exit 0

@@ -113,6 +113,11 @@ compile_supervisor()
 			"$PROJECT_ROOT/panel_supervisor/src/touch_observation_authority.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/ui_mode.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/daemon_stop_controller.cpp" \
+			"$PROJECT_ROOT/panel_supervisor/src/evdev_touch_source.cpp" \
+			"$PROJECT_ROOT/panel_supervisor/src/touch_runtime_configuration.cpp" \
+			"$PROJECT_ROOT/panel_supervisor/src/touch_observation_runtime.cpp" \
+			"$PROJECT_ROOT/shared/touch_observation_protocol/src/touch_observation_codec.cpp" \
+			"$PROJECT_ROOT/shared/touch_observation_protocol/src/unix_touch_observation_socket.cpp" \
 			"$evdev_source" \
 			"$PROJECT_ROOT/panel_supervisor/src/exact_file_writer.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/offline_solar_calculator.cpp" \
