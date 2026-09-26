@@ -161,3 +161,33 @@ The generated fonts cover a declared Latin/punctuation subset and a separate
 digits/colon clock subset, not all Unicode.
 Missing glyphs and text that exceeds its reserved layout bounds fail explicitly
 instead of clipping, shrinking or substituting plausible content.
+
+## Home catalog configuration
+
+All display tiers load `panel_ui/config/applications.json` at startup. Direct
+renderer, native simulator and guest DRM invocations accept `--launcher-config FILE`
+for an explicit alternate catalog. The native launch script accepts the same
+option. The guest launcher passes the repository catalog explicitly; editing its
+source copy requires restarting the guest UI or reprovisioning.
+
+See [Home configuration and extension](../panel_ui/README.md#configuring-and-extending-home)
+for fields and new-app registration. Catalog order determines grid order; hidden
+apps have neither tiles nor Home launch routes. Pages use registered
+`shell.apps_previous` / `shell.apps_next` intents and preserve lifecycle gating.
+Scenario loads reset the page but retain the configured catalog. Ordinary Home
+navigation retains its page and canonical study session.
+
+`simulator/tests/fixtures/application_grid/seven_apps.json` exercises a populated
+3×2 grid and overflow page. Its numbered entries are explicitly layout fixtures
+that route to the existing study/Agenda previews, not seven implemented products.
+For a local layout inspection:
+
+```sh
+.build/panel-headless/simulator/bhp-panel-render \
+  --scenario simulator/scenarios/home.json \
+  --launcher-config simulator/tests/fixtures/application_grid/seven_apps.json \
+  --output .build/application-grid.png
+```
+
+The default catalog exposes only the two implemented surfaces. No future-app
+placeholders, extra permissions or production providers are enabled.

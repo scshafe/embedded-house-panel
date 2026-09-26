@@ -54,7 +54,7 @@ int run_simulation_drm(int argc,char **argv){try{
  const auto min_x=std::stoll(options.at("--touch-min-x")),max_x=std::stoll(options.at("--touch-max-x")),min_y=std::stoll(options.at("--touch-min-y")),max_y=std::stoll(options.at("--touch-max-y"));
  if(max_x<=min_x||max_y<=min_y)throw std::runtime_error("SIMULATOR.TOUCH_CALIBRATION_INVALID");
  const auto uid=static_cast<std::uint32_t>(std::stoul(options.at("--supervisor-uid")));
- bhp::simulator::PanelSimulation app(false,options.count("--state-directory")?options.at("--state-directory"):"",options.count("--lexinet-config")?options.at("--lexinet-config"):"");
+ bhp::simulator::PanelSimulation app(false,options.count("--state-directory")?options.at("--state-directory"):"",options.count("--lexinet-config")?options.at("--lexinet-config"):"",options.count("--launcher-config")?options.at("--launcher-config"):"");
  app.load(bhp::simulator::read_scenario(options.at("--scenario")));app.accept_lifecycle(app.supervisor.publish("blank"));app.render();
  if(options.count("--clock-preview")&&options.at("--clock-preview")=="on")app.enable_preview_clock(true);
  DrmPageFlipDisplay drm(options.at("--drm-device"),static_cast<std::uint32_t>(std::stoul(options.at("--drm-connector-id"))));

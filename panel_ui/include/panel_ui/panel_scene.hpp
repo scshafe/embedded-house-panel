@@ -1,5 +1,6 @@
 #pragma once
 #include "bhp/panel_mode_protocol/types.h"
+#include "panel_ui/application_catalog.hpp"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -13,6 +14,8 @@ struct PanelScene {
  bhp::panel_mode_protocol::Snapshot lifecycle;
  std::string scenario_id;
  std::string surface_id{"study"};
+ ApplicationCatalog applications;
+ std::size_t home_page{0};
  std::string clock_text{"07:42"};
  // Clock/forecast provenance is independent of the study transport or content.
  std::string clock_source{"fixture"};

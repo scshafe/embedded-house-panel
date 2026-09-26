@@ -1,4 +1,5 @@
 #include "simulator/panel_simulation.hpp"
+#include "simulator/application_catalog_configuration.hpp"
 #include "bhp/application_identity.h"
 #include "bhp/panel_mode_protocol/codec.h"
 #include "vocabulary_panel/fixture_lexinet_client.h"
@@ -100,14 +101,18 @@ Snapshot ScriptedPanelSupervisor::publish(const std::string &state) {
 }
 void ScriptedPanelSupervisor::observe_pointer(bool down,int x,int y){if(x<0||x>=1024||y<0||y>=600){contact_active_=false;return;}if(down)contact_active_=true;else if(contact_active_){contact_active_=false;if(contacts_.size()<16)contacts_.emplace_back(x,y);}}
 std::optional<std::pair<int,int>> ScriptedPanelSupervisor::take_contact(){if(contacts_.empty())return std::nullopt;auto contact=contacts_.front();contacts_.pop_front();return contact;}
-PanelSimulation::PanelSimulation(bool window,std::string state_directory,std::string lexinet_configuration_path):display(window) {
+PanelSimulation::PanelSimulation(bool window,std::string state_directory,std::string lexinet_configuration_path,std::string application_catalog_path):display(window) {
+ application_catalog_=read_application_catalog(application_catalog_path.empty()?std::string(BHP_SIMULATOR_SOURCE_ROOT)+"/panel_ui/config/applications.json":application_catalog_path);
  store_=state_directory.empty()?std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::MemoryStudyStore>()):std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::FileStudyStore>(state_directory));
  persistent_store_=store_;
  study_=std::make_unique<vocabulary_panel::FlashCardSession>(store_);
  PanelIntentRegistry registry;std::vector<std::string> routes;
  for(const auto &d:registry.definitions())if(d.enabled&&d.intent_id.rfind("study.",0)==0)routes.push_back(d.intent_id);
  routes.push_back("shell.home");
- auto made=ShellController::create({std::chrono::milliseconds(100),"simulation-fixture-not-measured",8,true},std::nullopt,{{"home",{"shell.home","shell.open_study","shell.open_agenda"}},{"study",routes},{"agenda",{"shell.home","agenda.start_wish_recording","agenda.submit_wish"}}},clock_);
+ std::set<std::string> home_route_set{"shell.home","shell.apps_previous","shell.apps_next"};
+ for(const auto &app:application_catalog_.applications)if(app.enabled)home_route_set.insert(app.launch_intent);
+ const std::vector<std::string> home_routes(home_route_set.begin(),home_route_set.end());
+ auto made=ShellController::create({std::chrono::milliseconds(100),"simulation-fixture-not-measured",8,true},std::nullopt,{{"home",home_routes},{"study",routes},{"agenda",{"shell.home","agenda.start_wish_recording","agenda.submit_wish"}}},clock_);
  if(!made)throw std::runtime_error(std::string(made.error().code_string()));controller_=std::move(made).value();
  if(!lexinet_configuration_path.empty()){if(state_directory.empty())throw std::runtime_error("SIMULATOR.HTTPS_REQUIRES_DURABLE_STORE");network_=std::make_unique<StudyNetwork>(lexinet_configuration_path);}
  scene.lifecycle=supervisor.publish("day");
@@ -131,7 +136,7 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
  store_=fixture_override_?std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::MemoryStudyStore>()):persistent_store_;
  const bool network_active=network_&&!fixture_override_;
 
- scene=PanelScene{scene.lifecycle};scene.scenario_id=j.at("scenario_id").get<std::string>();scene.surface_id=j.value("surface","study");scene.clock_text=j.value("fixture_clock","07:42");
+ scene=PanelScene{scene.lifecycle};scene.applications=application_catalog_;scene.scenario_id=j.at("scenario_id").get<std::string>();scene.surface_id=j.value("surface","study");scene.clock_text=j.value("fixture_clock","07:42");
  preview_clock_enabled_=false;clock_animation_live_=false;
  preview_clock_.reset(scene.clock_text,0,false);
  scene.fixture_data=scene.surface_id!="study"||!network_active||network_->fixture_data;
@@ -259,9 +264,16 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
  auto result=controller_->process_intent(intent,{context_nonce_,scene.surface_id,scene.lifecycle.display_mode,scene.presentation_failure||scene.fixture_clock_untrusted||!lifecycle_available_?ShellTransitionState::Loading:ShellTransitionState::Stable,render_generation});
  scene.acknowledgement=result.disposition==IntentDisposition::Accepted?"Action accepted":result.disposition==IntentDisposition::Duplicate?"Already handled":result.disposition==IntentDisposition::Conflict?"Please try again":"Action unavailable";
  if(result.disposition==IntentDisposition::Accepted){
-  const std::map<std::string,std::string> surfaces{{"shell.home","home"},{"shell.open_study","study"},{"shell.open_agenda","agenda"}};
-  const auto surface=surfaces.find(id);
-  if(surface!=surfaces.end()){switch_surface(surface->second);render();return;}
+  const PanelIntentRegistry registry;
+  const auto *definition=registry.find(id);
+  if(definition&&!definition->navigation_surface_id.empty()){switch_surface(definition->navigation_surface_id);render();return;}
+  if(id=="shell.apps_previous"||id=="shell.apps_next"){
+   const auto page=application_grid_page(scene.applications,scene.home_page);
+   if(id=="shell.apps_next"&&scene.home_page+1<page.page_count)++scene.home_page;
+   else if(id=="shell.apps_previous"&&scene.home_page>0)--scene.home_page;
+   else scene.acknowledgement=id=="shell.apps_next"?"Last page":"First page";
+   context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();render();return;
+  }
   const std::map<std::string,vocabulary_panel::StudyIntent> mapping{{"study.flip",vocabulary_panel::StudyIntent::flip},{"study.next",vocabulary_panel::StudyIntent::next},{"study.back",vocabulary_panel::StudyIntent::back},{"study.rate.again",vocabulary_panel::StudyIntent::rate_again},{"study.rate.hard",vocabulary_panel::StudyIntent::rate_hard},{"study.rate.good",vocabulary_panel::StudyIntent::rate_good},{"study.rate.easy",vocabulary_panel::StudyIntent::rate_easy},{"study.rating.undo",vocabulary_panel::StudyIntent::rating_undo}};
   auto it=mapping.find(id);if(it!=mapping.end()){
    auto semantic=scene.study_state=="resume"?vocabulary_panel::StudyIntent::resume:it->second;
@@ -366,5 +378,5 @@ void PanelSimulation::pump_voice(){
   }
  }}catch(const std::exception &){voice_.reset();voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;scene.acknowledgement="Voice unavailable - touch remains ready";render();}
 }
-Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"clock_text",scene.clock_text},{"clock_source",scene.clock_source},{"clock_previous_text",scene.clock_previous_text},{"clock_transition_milli",scene.clock_transition_milli},{"clock_preview_running",preview_clock_enabled_},{"weather_available",scene.weather_available},{"weather_stale",scene.weather_stale},{"weather_fixture",scene.weather_fixture},{"weather_temperature_unit",scene.weather_temperature_unit},{"simulation_not_hardware_evidence",true}};}
+Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"home_page",scene.home_page},{"home_page_count",application_grid_page(scene.applications,scene.home_page).page_count},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"clock_text",scene.clock_text},{"clock_source",scene.clock_source},{"clock_previous_text",scene.clock_previous_text},{"clock_transition_milli",scene.clock_transition_milli},{"clock_preview_running",preview_clock_enabled_},{"weather_available",scene.weather_available},{"weather_stale",scene.weather_stale},{"weather_fixture",scene.weather_fixture},{"weather_temperature_unit",scene.weather_temperature_unit},{"simulation_not_hardware_evidence",true}};}
 }

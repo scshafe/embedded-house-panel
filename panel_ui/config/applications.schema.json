@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "House panel application catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "columns",
+    "rows",
+    "applications"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "columns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2
+    },
+    "applications": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "application_id",
+          "title",
+          "launch_intent",
+          "icon",
+          "icon_color"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,47}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 48
+          },
+          "launch_intent": {
+            "type": "string",
+            "description": "Enabled canonical navigation intent targeting an implemented feature; never a command or executable."
+          },
+          "icon": {
+            "enum": [
+              "book",
+              "calendar",
+              "monogram"
+            ]
+          },
+          "icon_color": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{6}$"
+          },
+          "monogram": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{1,2}$"
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "preview": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "icon": {
+                  "const": "monogram"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "monogram"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "monogram"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -12,6 +12,9 @@
     "personal_context.dispatch": [
       "external_submission"
     ],
+    "shell.page_apps": [
+      "reversible_local"
+    ],
     "shell.switch_surface": [
       "reversible_local"
     ],
@@ -40,6 +43,12 @@
     ],
     "agenda.submit_wish.handler": [
       "personal_context.dispatch"
+    ],
+    "shell.apps_next.handler": [
+      "shell.page_apps"
+    ],
+    "shell.apps_previous.handler": [
+      "shell.page_apps"
     ],
     "shell.home.handler": [
       "shell.switch_surface"
@@ -97,6 +106,12 @@
     ],
     "agenda.submit_wish": [
       "agenda.submit_wish.handler"
+    ],
+    "shell.apps_next": [
+      "shell.apps_next.handler"
+    ],
+    "shell.apps_previous": [
+      "shell.apps_previous.handler"
     ],
     "shell.home": [
       "shell.home.handler"

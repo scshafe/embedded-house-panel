@@ -72,7 +72,7 @@ class CatalogTest(unittest.TestCase):
 
     def test_shell_navigation_is_registered_reversible_and_never_projected(self):
         projected = {form["intent_id"] for form in self.bundle["active"]["forms"]}
-        for intent in ("shell.home", "shell.open_study", "shell.open_agenda"):
+        for intent in ("shell.home", "shell.open_study", "shell.open_agenda", "shell.apps_previous", "shell.apps_next"):
             with self.subTest(intent=intent):
                 self.assertEqual(self.bundle["phase_a"][intent]["effects"], ["reversible_local"])
                 self.assertNotIn(intent, projected)

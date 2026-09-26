@@ -52,6 +52,8 @@ struct IntentDefinition {
 	bool allow_touch;
 	bool allow_voice;
 	bool allow_host_fixture;
+	// Empty for local feature actions and launcher paging; never supplied by an input envelope.
+	std::string navigation_surface_id{};
 };
 
 } // namespace house_panel::panel_ui

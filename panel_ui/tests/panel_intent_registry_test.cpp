@@ -15,14 +15,17 @@ struct ExpectedDefinition {
 	bool allow_touch;
 	bool allow_voice;
 	bool allow_host_fixture;
+	std::string navigation_surface_id{};
 };
 
 int test_registry_contains_exact_version_one_union()
 {
 	const std::map<std::string, ExpectedDefinition> expected{
-		{"shell.home", {IntentEffectClass::Navigation, true, true, false, true}},
-		{"shell.open_study", {IntentEffectClass::Navigation, true, true, false, true}},
-		{"shell.open_agenda", {IntentEffectClass::Navigation, true, true, false, true}},
+		{"shell.home", {IntentEffectClass::Navigation, true, true, false, true, "home"}},
+		{"shell.open_study", {IntentEffectClass::Navigation, true, true, false, true, "study"}},
+		{"shell.open_agenda", {IntentEffectClass::Navigation, true, true, false, true, "agenda"}},
+		{"shell.apps_previous", {IntentEffectClass::Navigation, true, true, false, true}},
+		{"shell.apps_next", {IntentEffectClass::Navigation, true, true, false, true}},
 		{"study.flip", {IntentEffectClass::Navigation, true, true, true, true}},
 		{"study.next", {IntentEffectClass::Navigation, true, true, true, true}},
 		{"study.back", {IntentEffectClass::Navigation, true, true, true, true}},
@@ -47,7 +50,8 @@ int test_registry_contains_exact_version_one_union()
 		    definition->enabled != expected_definition.enabled ||
 		    definition->allow_touch != expected_definition.allow_touch ||
 		    definition->allow_voice != expected_definition.allow_voice ||
-		    definition->allow_host_fixture != expected_definition.allow_host_fixture) {
+		    definition->allow_host_fixture != expected_definition.allow_host_fixture ||
+            definition->navigation_surface_id != expected_definition.navigation_surface_id) {
 			return 1;
 		}
 	}

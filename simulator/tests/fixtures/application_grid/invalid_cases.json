@@ -1,0 +1,42 @@
+[
+  {
+    "file": "rating_route.json",
+    "code": "APP_CATALOG_ROUTE_INVALID"
+  },
+  {
+    "file": "home_route.json",
+    "code": "APP_CATALOG_ROUTE_INVALID"
+  },
+  {
+    "file": "unknown_route.json",
+    "code": "APP_CATALOG_ROUTE_INVALID"
+  },
+  {
+    "file": "unknown_icon.json",
+    "code": "APP_CATALOG_ICON_INVALID"
+  },
+  {
+    "file": "unsupported_label.json",
+    "code": "APP_CATALOG_GLYPH_UNSUPPORTED"
+  },
+  {
+    "file": "numeric_enabled.json",
+    "code": "APP_CATALOG_SCHEMA_INVALID"
+  },
+  {
+    "file": "invalid_color.json",
+    "code": "APP_CATALOG_COLOR_INVALID"
+  },
+  {
+    "file": "duplicate_id.json",
+    "code": "APP_CATALOG_ID_INVALID"
+  },
+  {
+    "file": "zero_columns.json",
+    "code": "APP_CATALOG_SCHEMA_INVALID"
+  },
+  {
+    "file": "unknown_field.json",
+    "code": "APP_CATALOG_FIELD_UNKNOWN"
+  }
+]

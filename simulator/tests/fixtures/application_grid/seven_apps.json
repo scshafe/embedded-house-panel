@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "columns": 3,
+  "rows": 2,
+  "applications": [
+    {
+      "application_id": "fixture-1",
+      "title": "Fixture 1",
+      "subtitle": "Layout only",
+      "launch_intent": "shell.open_study",
+      "icon": "book",
+      "icon_color": "376662",
+      "enabled": true,
+      "preview": true
+    },
+    {
+      "application_id": "fixture-2",
+      "title": "Fixture 2",
+      "subtitle": "Layout only",
+      "launch_intent": "shell.open_agenda",
+      "icon": "calendar",
+      "icon_color": "3a526c",
+      "preview": true,
+      "enabled": true
+    },
+    {
+      "application_id": "fixture-3",
+      "title": "Fixture 3",
+      "subtitle": "Layout only",
+      "launch_intent": "shell.open_study",
+      "icon": "monogram",
+      "icon_color": "376662",
+      "enabled": true,
+      "monogram": "3",
+      "preview": true
+    },
+    {
+      "application_id": "fixture-4",
+      "title": "Fixture 4",
+      "subtitle": "Layout only",
+      "launch_intent": "shell.open_agenda",
+      "icon": "monogram",
+      "icon_color": "3a526c",
+      "preview": true,
+      "enabled": true,
+      "monogram": "4"
+    },
+    {
+      "application_id": "fixture-5",
+      "title": "Fixture 5",
+      "subtitle": "Layout only",
+      "launch_intent": "shell.open_study",
+      "icon": "monogram",
+      "icon_color": "376662",
+      "enabled": true,
+      "monogram": "5",
+      "preview": true
+    },
+    {
+      "application_id": "fixture-6",
+      "title": "Fixture 6",
+      "subtitle": "Layout only",
+      "launch_intent": "shell.open_agenda",
+      "icon": "monogram",
+      "icon_color": "3a526c",
+      "preview": true,
+      "enabled": true,
+      "monogram": "6"
+    },
+    {
+      "application_id": "fixture-7",
+      "title": "Fixture 7",
+      "subtitle": "Layout only",
+      "launch_intent": "shell.open_study",
+      "icon": "monogram",
+      "icon_color": "376662",
+      "enabled": true,
+      "monogram": "7",
+      "preview": true
+    }
+  ]
+}

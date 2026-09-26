@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "columns": 3,
+  "rows": 2,
+  "applications": [
+    {
+      "application_id": "lexinet",
+      "title": "\u5b66\u7fd2",
+      "subtitle": "Vocabulary",
+      "launch_intent": "shell.open_study",
+      "icon": "book",
+      "icon_color": "376662",
+      "enabled": true
+    },
+    {
+      "application_id": "agenda",
+      "title": "Agenda",
+      "subtitle": "Preview",
+      "launch_intent": "shell.open_agenda",
+      "icon": "calendar",
+      "icon_color": "3a526c",
+      "preview": true,
+      "enabled": true
+    }
+  ]
+}

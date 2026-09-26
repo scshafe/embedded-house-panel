@@ -169,3 +169,44 @@ household timezone, weather provider/location and physical calibration remain
 unresolved. See the [virtual panel contract](../simulator/README.md) for preview
 controls and deterministic capture fields. None of these changes produces FRDM
 hardware evidence.
+
+## Configuring and extending Home
+
+The ordered startup catalog is [config/applications.json](config/applications.json),
+validated against [its schema](config/applications.schema.json) and the canonical
+intent registry. Change `columns` (1–4), `rows` (1–2), array order, `enabled`,
+`title`, `subtitle`, `icon`, `icon_color` and `preview` there. Restart the preview
+to apply it. The default is a 3×2 grid that retains the approved spacious layout
+when only two apps are present. More apps automatically get pages; Home remembers
+the current page when returning from an app. Up to 64 catalog entries are allowed.
+An empty or entirely disabled catalog shows “No apps enabled”.
+
+Icons can be `book`, `calendar`, or `monogram`. A monogram supplies one or two
+uppercase ASCII letters/digits in `monogram`; `icon_color` is six hexadecimal RGB
+digits. Labels use the existing pinned font/Unicode rules and must fit at the
+configured grid size. Unsupported glyphs, invalid catalogs and overflowing labels
+fail explicitly rather than shrinking silently. The `preview` flag colors an
+app's subtitle; it does not promote fixture content to live data.
+
+`@extension-point panel_application_catalog` and `@canonical panel_application_grid`
+are in `application_catalog.hpp` / `application_catalog.cpp`. The same computed
+tile bounds place artwork, labels and hit targets. `LvglPanelDisplay` iterates
+these entries without application-specific launcher branches. Reordering, hiding,
+renaming or changing the grid requires no rendering code changes.
+
+For a new functional app:
+
+1. Implement its sibling surface/feature capability under the existing shell
+   contracts; keep feature state owned by that feature.
+2. Register its namespaced navigation intent in `PanelIntentRegistry`, including
+   `navigation_surface_id`, and declare its effect graph. Navigation destination
+   metadata is authoritative here; the catalog cannot redirect an intent.
+3. Register the implemented surface and its allowed intent contract in the runtime
+   assembly, and add its subordinate feature rendering branch. The simulator's
+   `simulation_feature_surfaces` marker identifies this registration boundary.
+4. Add the app's catalog entry with that `launch_intent`. A monogram works without
+   editing the icon renderer. Run the grid, lifecycle and feature tests.
+
+The catalog is presentation configuration, not an executable/plugin loader. It
+cannot authorize arbitrary commands, routes or voice actions. Existing feature
+reducers, touch provenance and supervisor policy remain authoritative.

@@ -37,6 +37,7 @@ if(NOT TARGET bhp_touch_observation_protocol)
 endif()
 
 add_library(panel_ui_core STATIC
+  src/application_catalog.cpp
   src/bounded_unicode_text_policy.cpp
   src/fail_dark_lifecycle_display_commit_backend.cpp
   src/headless_renderer.cpp

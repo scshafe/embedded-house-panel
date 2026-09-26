@@ -4,9 +4,11 @@ namespace house_panel::panel_ui {
 
 PanelIntentRegistry::PanelIntentRegistry()
 	: definitions_{{
-		{"shell.home", IntentEffectClass::Navigation, true, true, false, true},
-		{"shell.open_study", IntentEffectClass::Navigation, true, true, false, true},
-		{"shell.open_agenda", IntentEffectClass::Navigation, true, true, false, true},
+		{"shell.home", IntentEffectClass::Navigation, true, true, false, true, "home"},
+		{"shell.open_study", IntentEffectClass::Navigation, true, true, false, true, "study"},
+		{"shell.open_agenda", IntentEffectClass::Navigation, true, true, false, true, "agenda"},
+		{"shell.apps_previous", IntentEffectClass::Navigation, true, true, false, true},
+		{"shell.apps_next", IntentEffectClass::Navigation, true, true, false, true},
 		{"study.flip", IntentEffectClass::Navigation, true, true, true, true},
 		{"study.next", IntentEffectClass::Navigation, true, true, true, true},
 		{"study.back", IntentEffectClass::Navigation, true, true, true, true},

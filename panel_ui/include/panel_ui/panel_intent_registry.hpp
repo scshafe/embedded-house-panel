@@ -10,7 +10,7 @@ namespace house_panel::panel_ui {
 // @canonical panel_intent_registry -- the complete closed version-1 semantic ID set.
 class PanelIntentRegistry final {
 public:
-	static constexpr std::size_t kDefinitionCount = 13;
+	static constexpr std::size_t kDefinitionCount = 15;
 
 	PanelIntentRegistry();
 

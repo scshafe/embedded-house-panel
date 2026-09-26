@@ -39,7 +39,7 @@ private:std::uint64_t ticks_{1000};
 /** Same fixture shell assembly for memory, SDL and explicitly selected guest simulation. */
 class PanelSimulation final {
 public:
- explicit PanelSimulation(bool window,std::string state_directory={},std::string lexinet_configuration_path={});
+ explicit PanelSimulation(bool window,std::string state_directory={},std::string lexinet_configuration_path={},std::string application_catalog_path={});
  ~PanelSimulation();
  void load(const Json &scenario,bool update_lifecycle=true,bool fixture_override=false);
  void accept_lifecycle(const bhp::panel_mode_protocol::Snapshot &snapshot);
@@ -72,6 +72,7 @@ private:
  void cancel_clock_animation();
  void utterance(const std::string &phrase);
  void route_intent(const house_panel::panel_ui::InteractionIntentEnvelope &intent);
+ house_panel::panel_ui::ApplicationCatalog application_catalog_;
  std::unique_ptr<FakeVoiceConnection> voice_;
  bool voice_pending_{false};
  std::uint64_t utterance_sequence_{0};

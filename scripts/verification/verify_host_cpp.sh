@@ -267,6 +267,7 @@ compile_panel_ui()
 			-I"$PROJECT_ROOT/panel_ui/include" \
 			"$PROJECT_ROOT/shared/panel_mode_protocol/src/codec.cpp" \
 			"$PROJECT_ROOT/shared/panel_mode_protocol/src/framing.cpp" \
+			"$PROJECT_ROOT/panel_ui/src/application_catalog.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/bounded_unicode_text_policy.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/fail_dark_lifecycle_display_commit_backend.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/headless_renderer.cpp" \

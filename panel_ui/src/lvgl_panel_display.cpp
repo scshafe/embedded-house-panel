@@ -106,22 +106,23 @@ void home_icon(lv_obj_t *parent) {
  box(parent, 22, 31, 24, 22, 0xdbe5df, 1);
  box(parent, 30, 39, 8, 14, 0x293f43);
 }
-void launcher_icon(lv_obj_t *parent, bool agenda) {
- auto *icon = box(parent, 56, 16, 144, 144, agenda ? 0x3a526c : 0x376662, 30);
- if(agenda) {
-  box(icon, 27, 36, 90, 82, 0xf4f0e8, 7);
-  box(icon, 27, 48, 90, 12, 0xe9c480);
-  box(icon, 44, 26, 9, 24, 0xf4f0e8, 4);
-  box(icon, 91, 26, 9, 24, 0xf4f0e8, 4);
-  for(int row = 0; row < 2; ++row) for(int col = 0; col < 3; ++col)
-   box(icon, 42 + col * 24, 73 + row * 22, 12, 10, 0x3a526c, 2);
+void launcher_icon(lv_obj_t *parent, const ApplicationDescriptor &app, const ApplicationTile &tile) {
+ const auto scale=[&](int value){return static_cast<int>(std::lround(value*tile.icon_size/144.0));};
+ auto *icon=box(parent,(tile.width-tile.icon_size)/2,tile.icon_y,tile.icon_size,tile.icon_size,app.icon_color,scale(30));
+ const auto shape=[&](int x,int y,int w,int h,std::uint32_t color,int radius=0){
+  box(icon,scale(x),scale(y),std::max(1,scale(w)),std::max(1,scale(h)),color,scale(radius));
+ };
+ if(app.icon=="calendar") {
+  shape(27,36,90,82,0xf4f0e8,7);shape(27,48,90,12,0xe9c480);
+  shape(44,26,9,24,0xf4f0e8,4);shape(91,26,9,24,0xf4f0e8,4);
+  for(int row=0;row<2;++row)for(int col=0;col<3;++col)shape(42+col*24,73+row*22,12,10,app.icon_color,2);
+ } else if(app.icon=="book") {
+  shape(23,34,46,82,0xf4f0e8,7);shape(75,34,46,82,0xf4f0e8,7);
+  for(int row=0;row<3;++row){shape(32,51+row*17,27,3,app.icon_color,1);shape(85,51+row*17,27,3,app.icon_color,1);}
  } else {
-  box(icon, 23, 34, 46, 82, 0xf4f0e8, 7);
-  box(icon, 75, 34, 46, 82, 0xf4f0e8, 7);
-  for(int row = 0; row < 3; ++row) {
-   box(icon, 32, 51 + row * 17, 27, 3, 0x376662, 1);
-   box(icon, 85, 51 + row * 17, 27, 3, 0x376662, 1);
-  }
+  const auto *font=tile.icon_size>=100?&bhp_font_40:&bhp_font_28;
+  const auto line_height=lv_font_get_line_height(font);
+  label(icon,app.monogram,0,(tile.icon_size-line_height)/2,tile.icon_size,line_height,font,0xf4f0e8,LV_TEXT_ALIGN_CENTER);
  }
 }
 std::string acknowledgement_text(const std::string &value) {
@@ -162,6 +163,10 @@ std::vector<std::string> scene_text(const PanelScene &s) {
  if(s.lifecycle.display_mode == DisplayMode::Diagnostic || s.fixture_clock_untrusted) return {};
  std::vector<std::string> result{status_text(s), acknowledgement_text(s.acknowledgement)};
  if(clock_available(s)) result.push_back(s.clock_text);
+ if(s.surface_id=="home")for(const auto &tile:application_grid_page(s.applications,s.home_page).tiles){
+  const auto &app=s.applications.applications.at(tile.application_index);
+  result.push_back(app.title);result.push_back(app.subtitle);result.push_back(app.monogram);
+ }
  if(s.surface_id == "study" && (s.study_state == "front" || s.study_state == "back")) {
   result.push_back(s.card_word);
   if(s.study_state == "back") { result.push_back(s.card_definition); result.push_back(s.card_example); }
@@ -271,16 +276,25 @@ void LvglPanelDisplay::draw_scene(const PanelScene &s) {
  if(!acknowledgement.empty()) label(screen, acknowledgement, 40, 107, 650, 31, &bhp_font_24, 0xe9c480);
  if(s.surface_id == "home") {
   label(content, "Home", 24, 16, 896, 52, &bhp_font_40, 0xf4f0e8);
-  for(int index = 0; index < 2; ++index) {
-   const int tile_x = index == 0 ? 128 : 560;
-   auto *tile = box(content, tile_x, 88, 256, 300, 0x1c2d31, 12);
-   launcher_icon(tile, index == 1);
-   label(tile, index == 0 ? "Lexinet" : "Agenda", 0, 178, 256, 37,
-         &bhp_font_28, 0xf4f0e8, LV_TEXT_ALIGN_CENTER);
-   label(tile, index == 0 ? "Vocabulary" : "Preview", 0, 226, 256, 31,
-         &bhp_font_24, index == 0 ? 0xaab8b7 : 0xe9c480, LV_TEXT_ALIGN_CENTER);
-   hit_targets_.push_back({layout::content_x + tile_x, layout::content_y + 88, 256, 300,
-                           index == 0 ? "shell.open_study" : "shell.open_agenda"});
+  const auto page=application_grid_page(s.applications,s.home_page);
+  if(page.tiles.empty()) label(content,"No apps enabled",24,178,896,37,&bhp_font_28,0xaab8b7,LV_TEXT_ALIGN_CENTER);
+  for(const auto &placement:page.tiles){
+   const auto &app=s.applications.applications.at(placement.application_index);
+   auto *tile=box(content,placement.x,placement.y,placement.width,placement.height,0x1c2d31,12);
+   launcher_icon(tile,app,placement);
+   label(tile,app.title,0,placement.title_y,placement.width,37,&bhp_font_28,0xf4f0e8,LV_TEXT_ALIGN_CENTER);
+   label(tile,app.subtitle,0,placement.subtitle_y,placement.width,31,&bhp_font_24,app.preview?0xe9c480:0xaab8b7,LV_TEXT_ALIGN_CENTER);
+   hit_targets_.push_back({layout::content_x+placement.x,layout::content_y+placement.y,placement.width,placement.height,app.launch_intent});
+  }
+  if(page.page_count>1){
+   const auto page_button=[&](int x,const std::string &title,const std::string &intent){
+    auto *control=box(content,x,360,176,64,0x293f43,12);
+    label(control,title,0,13,176,37,&bhp_font_28,0xdbe5df,LV_TEXT_ALIGN_CENTER);
+    hit_targets_.push_back({layout::content_x+x,layout::content_y+360,176,64,intent});
+   };
+   if(s.home_page>0)page_button(24,"Previous","shell.apps_previous");
+   if(s.home_page+1<page.page_count)page_button(744,"Next","shell.apps_next");
+   label(content,std::to_string(s.home_page+1)+" / "+std::to_string(page.page_count),224,373,496,37,&bhp_font_28,0xaab8b7,LV_TEXT_ALIGN_CENTER);
   }
  } else if(s.surface_id == "study") {
   vocabulary_panel::gui::lvgl::render_vocabulary_surface(content,
