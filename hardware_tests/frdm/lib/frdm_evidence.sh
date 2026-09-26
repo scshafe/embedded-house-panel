@@ -77,6 +77,9 @@ bhp_evidence_parse_common_arguments()
 			*) return 2 ;;
 		esac
 		[ -d "$BHP_EVIDENCE_ROOT" ] || return 2
+		# macOS /var aliases /private/var. Match readlink's physical prefix so
+		# fixture sysfs links still resolve to target-relative paths.
+		BHP_EVIDENCE_ROOT=$(CDPATH='' cd -P -- "$BHP_EVIDENCE_ROOT" && pwd -P) || return 2
 	fi
 	return 0
 }
