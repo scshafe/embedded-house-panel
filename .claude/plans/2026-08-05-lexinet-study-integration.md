@@ -1347,3 +1347,9 @@ correction capacity/rejection, and shell-directed in-flight HTTPS cancellation.
 It consumes Step 6's implemented panel-side capabilities; the external disposable
 Lexinet run remains the unrecorded Step 6 join proof and is not implied by
 Step 7b's completion.
+
+**Amended 2026-09-26:** the user selected the SHA-256-pinned official ARM
+static Tailscale archive at `1.102.2` and node-capability panel authentication
+(panel ADR 0010). This settles Step 5's packaging choice only. The real tagged,
+untagged, wrong-tag, live-revocation and certificate evidence remains open, so
+Step 5 stays unchecked.

@@ -346,3 +346,9 @@ destructive/cross-profile, certificate issuance, MagicDNS/hostname/handshake,
 invalid-certificate behavior, and panel Tailscale packaging remain pending.
 The `study.v1` contract provenance and roadmap checkboxes are unchanged; Step 5
 stays unchecked.
+
+**Amended 2026-09-26:** ADR 0010 selects node-capability panel authentication,
+so no study credential is stored on the physically accessible panel, and pins
+the official Tailscale `1.102.2` arm64 archive by SHA-256. Tailnet node state
+remains an identity-bearing secret outside the image. Real Tailnet evidence
+remains pending.

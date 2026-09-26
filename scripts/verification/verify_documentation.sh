@@ -35,6 +35,7 @@ docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md
 docs/decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md
 docs/decisions/0007-validate-complete-protocol-v2-commitments.md
 docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md
+docs/decisions/0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
@@ -267,6 +268,17 @@ for frdm_gate_id in \
   require_fixed_count "$development_platform_adr" \
     "| \`$frdm_gate_id\` |" 1 VERIFY_DOCS.DEVELOPMENT_PLATFORM_GATE_ROW_INVALID
 done
+
+panel_tailnet_runtime_adr=docs/decisions/0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md
+require_exact_line_count "$panel_tailnet_runtime_adr" \
+  '<!-- @canonical panel-tailnet-runtime-decision -->' 1 \
+  VERIFY_DOCS.PANEL_TAILNET_RUNTIME_ADR_CANONICAL_MARKER_INVALID
+require_exact_line_count "$panel_tailnet_runtime_adr" \
+  '# ADR 0010: Use Node-Capability Identity and Pinned Official Tailscale on the Panel' 1 \
+  VERIFY_DOCS.PANEL_TAILNET_RUNTIME_ADR_TITLE_INVALID
+require_fixed_count docs/decisions/README.md \
+  '[0010](0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md)' 1 \
+  VERIFY_DOCS.PANEL_TAILNET_RUNTIME_ADR_REGISTRY_ENTRY_INVALID
 
 # The FRDM bring-up doc is agent-executable: every gate has a gate-map row,
 # the checklist is numbered contiguously, and every script it names exists.
