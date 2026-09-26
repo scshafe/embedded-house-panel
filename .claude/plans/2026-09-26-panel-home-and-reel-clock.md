@@ -40,7 +40,7 @@ or touch readiness. Night, blanking, distrust and disconnection cancel input.
     frames with explicit monotonic sampling. Preserve failure/lifecycle gates.
   - Verify: `make verify`
 
-- [ ] **Step 3: Review all tiers and publish visual evidence**
+- [x] **Step 3: Review all tiers and publish visual evidence**
   - Include before/after images with changed goldens. Capture deterministic
     animation samples plus a viewable animation, and leave Mac windows running.
   - Verify: `make verify-panel-goldens`
@@ -57,3 +57,9 @@ all repository gates pass; local commits and visual artifacts are available.
 
 **Amended 2026-09-26:** created for the user's explicit follow-up request. The
 prior pre-board UI milestone remains complete; broader Phases 2–7 remain separate.
+
+**Completed 2026-09-26:** all steps verified. Host and Linux suites each pass
+44 CTests; all 43 scenarios pass across headless/native/guest tiers. Guest Home
+navigation and 10 intermediate DRM animation frames are recorded in
+[validation](../../docs/testing/home-reel-ui-validation.md). Native and QEMU
+previews remain running on Home with explicitly simulated time/weather.

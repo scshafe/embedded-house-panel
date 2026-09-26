@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-26",
+  "status": "completed",
+  "scope": "Home launcher, daytime forecast bar and upward digit reels",
+  "evidence": "simulation_not_hardware_evidence",
+  "baseline_before_commit": "5171b65",
+  "screens": 43,
+  "rendering": {
+    "night": "full configured dim-red field #180000; black 192 px digit subset; no chrome",
+    "day": "Home at top left; centered 48 px clock; High/Low temperature-colored values at top right",
+    "animation": "400ms smoothstep, only changed digits; monotonic samples each produce an ordinary render generation"
+  },
+  "provenance": {
+    "clock": "explicit advancing simulation clock, not household civil time",
+    "weather": "explicit fixtures or unavailable/stale; no live forecast provider/location",
+    "agenda": "preview; provider gates unchanged"
+  },
+  "verification": {
+    "font_integrity": "passed",
+    "headless_ctests": {
+      "passed": 44,
+      "total": 44,
+      "log": ".build/reel-headless-final-tests.log"
+    },
+    "headless_images": {
+      "passed": 43,
+      "total": 43
+    },
+    "native_images": {
+      "passed": 43,
+      "total": 43,
+      "comparison": "exact pixels",
+      "report": ".build/home-reel/native-report.json"
+    },
+    "repository": {
+      "status": "passed",
+      "log": ".build/reel-repository-verification.log",
+      "ctests_passed": 43,
+      "additional_final_clock_runtime_test": "passed in headless44 and Linux44 suites"
+    },
+    "linux_guest": {
+      "status": "passed",
+      "report": ".build/home-reel/vm-report.json",
+      "scenarios": 43,
+      "exact_pixel_matches": 41,
+      "declared_semantic_checks": [
+        "clock-untrusted",
+        "grace"
+      ],
+      "touch_protocols": [
+        "single",
+        "type_b"
+      ],
+      "launcher_touch_steps": 5,
+      "intermediate_animation_commits": 10,
+      "absence_brightness": 0
+    },
+    "linux_ctests": {
+      "passed": 44,
+      "total": 44,
+      "log": ".build/reel-guest-provision.log"
+    },
+    "documentation": {
+      "status": "passed",
+      "log": ".build/reel-docs-final-verification.log"
+    },
+    "golden_comparison": {
+      "status": "passed",
+      "log": ".build/reel-golden-verification.log",
+      "exact_images": 43,
+      "report": ".build/home-reel/golden-comparison.json"
+    },
+    "declared_skips": [
+      "FRDM AArch64 cross compiler unavailable",
+      "presence kernel build KERNEL_DIR not configured",
+      "no physical hardware execution"
+    ],
+    "gate_execution": "Headless/native build and verification recipes were executed separately to serialize compilation; VM and documentation make targets were executed directly."
+  },
+  "review": {
+    "independent_source_review": "passed after daytime reel and privileged-control recovery fixes",
+    "visual_qa": "seven representative actual captures passed; no unintended clipping or overlap",
+    "before_after": "panel_ui/tests/golden/review/home-reel-before-after.png",
+    "animation_manifest": ".build/home-reel/motion/manifest.json",
+    "pdf": "output/pdf/house-panel-home-clock-screens.pdf",
+    "pdf_visual_qa": "all 43 rendered pages passed",
+    "overview": ".build/home-reel/review/house-panel-four-screen-overview.png"
+  },
+  "remaining": "Live data providers, household timezone, physical brightness/readability and FRDM evidence remain outside this simulation milestone.",
+  "font_commit": "da30482",
+  "implementation_commit": "60caa79",
+  "native_live": {
+    "status": "running",
+    "state_directory": ".build/sim/native-home-review-20260926",
+    "scenario": "home-weather",
+    "clock_preview": true,
+    "keyboard_navigation": "Home/Lexinet/Agenda/night verified with CUA screenshots",
+    "night_intermediate_frames_observed": 11,
+    "pointer_automation": "CUA noWindowsAvailable; no new Mac pointer proof claimed",
+    "log": ".build/home-reel/native-live.jsonl"
+  },
+  "guest_live": {
+    "scenario": "home-weather",
+    "clock_preview": true,
+    "touch_protocol": "single",
+    "suspend": "disabled"
+  }
+}
