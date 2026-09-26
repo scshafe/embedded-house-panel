@@ -3,7 +3,8 @@
 #include <map>
 #include <string>
 
-namespace vocabulary_panel {
+namespace vocabulary_panel
+{
 
 struct VocabularyPanelError {
 	std::string error_code;
@@ -13,4 +14,3 @@ struct VocabularyPanelError {
 };
 
 } // namespace vocabulary_panel
-

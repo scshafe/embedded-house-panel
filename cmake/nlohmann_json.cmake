@@ -1,0 +1,28 @@
+# @canonical panel_json_dependency -- one pinned header for CMake and direct checks.
+if(NOT TARGET nlohmann_json::nlohmann_json)
+  find_package(nlohmann_json 3.12.0 QUIET)
+  if(NOT TARGET nlohmann_json::nlohmann_json)
+    set(BHP_JSON_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../.build/dependencies/nlohmann/include")
+    set(BHP_JSON_HEADER "${BHP_JSON_INCLUDE}/nlohmann/json.hpp")
+    set(BHP_JSON_SHA256 aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63)
+    file(MAKE_DIRECTORY "${BHP_JSON_INCLUDE}/nlohmann")
+    if(EXISTS "${BHP_JSON_HEADER}")
+      file(SHA256 "${BHP_JSON_HEADER}" BHP_JSON_ACTUAL_SHA256)
+      if(NOT BHP_JSON_ACTUAL_SHA256 STREQUAL BHP_JSON_SHA256)
+        message(FATAL_ERROR "BHP_JSON.HASH_MISMATCH: ${BHP_JSON_HEADER}")
+      endif()
+    else()
+      file(DOWNLOAD
+        https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json.hpp
+        "${BHP_JSON_HEADER}" EXPECTED_HASH "SHA256=${BHP_JSON_SHA256}"
+        TLS_VERIFY ON STATUS BHP_JSON_DOWNLOAD_STATUS)
+      list(GET BHP_JSON_DOWNLOAD_STATUS 0 BHP_JSON_DOWNLOAD_CODE)
+      if(NOT BHP_JSON_DOWNLOAD_CODE EQUAL 0)
+        message(FATAL_ERROR "BHP_JSON.DOWNLOAD_FAILED: ${BHP_JSON_DOWNLOAD_STATUS}")
+      endif()
+    endif()
+    add_library(bhp_nlohmann_json INTERFACE)
+    target_include_directories(bhp_nlohmann_json SYSTEM INTERFACE "${BHP_JSON_INCLUDE}")
+    add_library(nlohmann_json::nlohmann_json ALIAS bhp_nlohmann_json)
+  endif()
+endif()

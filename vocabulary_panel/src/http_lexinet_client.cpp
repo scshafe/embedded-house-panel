@@ -1,302 +1,337 @@
 #include "vocabulary_panel/http_lexinet_client.h"
-
 #include "bhp/structured_logger.h"
-
-#include <curl/curl.h>
-#include <nlohmann/json.hpp>
-
+#include "vocabulary_panel/study_wire_codec.h"
+#include <algorithm>
+#include <cerrno>
 #include <chrono>
-#include <fstream>
-#include <sstream>
+#include <curl/curl.h>
+#include <fcntl.h>
+#include <regex>
 #include <stdexcept>
-#include <utility>
-
-namespace {
-
-using Json = nlohmann::json;
-constexpr std::size_t RESPONSE_BODY_LIMIT_DEFAULT = 262144;
-
+#include <sys/stat.h>
+#include <thread>
+#include <unistd.h>
+namespace vocabulary_panel
+{
+namespace
+{
+using Clock = std::chrono::steady_clock;
 struct ResponseBuffer {
-	std::string response_body;
-	std::size_t maximum_response_bytes{RESPONSE_BODY_LIMIT_DEFAULT};
-	bool response_size_limit_exceeded{false};
+	std::string body;
+	std::size_t limit;
+	bool oversized{false};
+	bhp::http_runtime::CancellationToken local, global;
 };
-
-std::size_t append_response(char *contents, std::size_t size, std::size_t count, void *user_data)
+std::size_t append_response(char *data, std::size_t size, std::size_t count, void *opaque)
 {
-	auto &buffer = *static_cast<ResponseBuffer *>(user_data);
-	if (count != 0 && size > buffer.maximum_response_bytes / count) {
-		buffer.response_size_limit_exceeded = true;
+	auto &r = *static_cast<ResponseBuffer *>(opaque);
+	if (r.local.cancelled() || r.global.cancelled())
+		return 0;
+	if (count && size > r.limit / count) {
+		r.oversized = true;
 		return 0;
 	}
-	const std::size_t byte_count = size * count;
-	if (byte_count > buffer.maximum_response_bytes - buffer.response_body.size()) {
-		buffer.response_size_limit_exceeded = true;
+	const auto n = size * count;
+	if (n > r.limit - r.body.size()) {
+		r.oversized = true;
 		return 0;
 	}
-	buffer.response_body.append(contents, byte_count);
-	return byte_count;
+	r.body.append(data, n);
+	return n;
 }
-
-std::string read_credential_file(const std::string &credential_file_path)
+int progress(void *opaque, curl_off_t, curl_off_t, curl_off_t, curl_off_t)
 {
-	if (credential_file_path.empty())
+	const auto &r = *static_cast<ResponseBuffer *>(opaque);
+	return r.local.cancelled() || r.global.cancelled();
+}
+std::string read_credential(const std::string &path)
+{
+	if (path.empty())
 		return {};
-	std::ifstream credential_file(credential_file_path);
-	if (!credential_file)
+	int fd = open(path.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+	struct stat s{};
+	if (fd < 0)
 		throw std::runtime_error("LEXINET.CREDENTIAL_FILE_OPEN_FAILED");
-	std::string credential;
-	std::getline(credential_file, credential);
-	if (credential.empty())
-		throw std::runtime_error("LEXINET.CREDENTIAL_FILE_EMPTY");
-	return credential;
+	if (fstat(fd, &s) != 0 || !S_ISREG(s.st_mode) || (s.st_uid != geteuid() && s.st_uid != 0) ||
+	    (s.st_mode & 0077) != 0 || s.st_size < 1 || s.st_size > 4096) {
+		close(fd);
+		throw std::runtime_error("LEXINET.CREDENTIAL_FILE_INVALID");
+	}
+	std::string value(static_cast<std::size_t>(s.st_size), '\0');
+	const auto count = read(fd, value.data(), value.size());
+	close(fd);
+	if (count != s.st_size)
+		throw std::runtime_error("LEXINET.CREDENTIAL_FILE_READ_FAILED");
+	if (!value.empty() && value.back() == '\n')
+		value.pop_back();
+	if (value.empty() || value.find_first_of("\r\n") != std::string::npos)
+		throw std::runtime_error("LEXINET.CREDENTIAL_FILE_INVALID");
+	return value;
 }
-
-std::string review_rating_json_name(const vocabulary_panel::ReviewRating rating)
+VocabularyPanelError cancelled()
 {
-	return vocabulary_panel::review_rating_name(rating);
+	return {"LEXINET.CANCELLED", "Lexinet request cancelled", {}, false};
 }
-
-bool is_tls_certificate_verification_failure(const CURLcode curl_result)
-{
-	return curl_result == CURLE_PEER_FAILED_VERIFICATION ||
-	       curl_result == CURLE_SSL_ISSUER_ERROR;
-}
-
-bool is_loopback_https_url(const std::string &url)
-{
-	constexpr const char *loopback_prefix = "https://127.0.0.1:";
-	if (url.rfind(loopback_prefix, 0) != 0)
-		return false;
-	const std::string port = url.substr(std::char_traits<char>::length(loopback_prefix));
-	return !port.empty() && port.find_first_not_of("0123456789") == std::string::npos;
-}
-
 } // namespace
-
-namespace vocabulary_panel {
-
 struct HttpLexinetClient::Implementation {
-	explicit Implementation(HttpLexinetConfig initial_config, bhp::StructuredLogger &initial_logger)
-		: config(std::move(initial_config)), logger(initial_logger),
-		  credential(read_credential_file(config.credential_file_path))
-	{
-		if (config.lexinet_base_url.empty() || config.next_card_path.empty() ||
-		    config.review_path.empty() || config.request_timeout_ms <= 0 ||
-		    config.maximum_response_bytes == 0) {
-			throw std::invalid_argument("LEXINET.CONFIG_INVALID");
-		}
-		if (!config.allow_insecure_http_for_tests &&
-		    config.lexinet_base_url.rfind("https://", 0) != 0) {
-			throw std::invalid_argument("LEXINET.HTTPS_REQUIRED");
-		}
-		if (!config.trusted_ca_certificate_pem_for_tests.empty() &&
-		    !is_loopback_https_url(config.lexinet_base_url)) {
-			throw std::invalid_argument("LEXINET.TEST_CA_REQUIRES_LOOPBACK_HTTPS");
-		}
-		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
-			throw std::runtime_error("LEXINET.CURL_GLOBAL_INIT_FAILED");
-	}
-
-	~Implementation() { curl_global_cleanup(); }
-
-	VocabularyPanelResult<Json> request(const std::string &method,
-					    const std::string &url,
-					    const std::string &request_body,
-					    const std::string &idempotency_key,
-					    const std::string &trace_id)
-	{
-		CURL *curl = curl_easy_init();
-		if (curl == nullptr) {
-			return VocabularyPanelResult<Json>::failure({
-				"LEXINET.CURL_INIT_FAILED", "Failed to initialize HTTP request",
-				{{"method", method}, {"target", config.lexinet_base_url}}, true});
-		}
-
-		ResponseBuffer response{{}, config.maximum_response_bytes, false};
-		curl_slist *headers = nullptr;
-		headers = curl_slist_append(headers, "Accept: application/json");
-		headers = curl_slist_append(headers, ("X-Request-Id: " + trace_id).c_str());
-		if (!credential.empty())
-			headers = curl_slist_append(headers, ("Authorization: Bearer " + credential).c_str());
-		if (method == "POST") {
-			headers = curl_slist_append(headers, "Content-Type: application/json");
-			headers = curl_slist_append(headers, ("Idempotency-Key: " + idempotency_key).c_str());
-			curl_easy_setopt(curl, CURLOPT_POST, 1L);
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
-					 static_cast<long>(request_body.size()));
-		}
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, config.request_timeout_ms);
-		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, config.request_timeout_ms);
-		curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-		curl_blob trusted_ca_certificate{
-			config.trusted_ca_certificate_pem_for_tests.data(),
-			config.trusted_ca_certificate_pem_for_tests.size(), CURL_BLOB_COPY};
-		if (!config.trusted_ca_certificate_pem_for_tests.empty())
-			curl_easy_setopt(curl, CURLOPT_CAINFO_BLOB, &trusted_ca_certificate);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, append_response);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "beaglebone-house-panel/0.1");
-
-		const auto started_at = std::chrono::steady_clock::now();
-		const CURLcode curl_result = curl_easy_perform(curl);
-		long status_code = 0;
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
-		const auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-			std::chrono::steady_clock::now() - started_at).count();
-		curl_slist_free_all(headers);
-		curl_easy_cleanup(curl);
-
-		logger.log(bhp::StructuredLogLevel::info, "lexinet_http_call", trace_id,
-			   {{"target", config.lexinet_base_url},
-			    {"method", method},
-			    {"duration_ms", std::to_string(duration_ms)},
-			    {"status", std::to_string(status_code)}});
-
-		if (response.response_size_limit_exceeded) {
-			return VocabularyPanelResult<Json>::failure({
-				"LEXINET.RESPONSE_SIZE_LIMIT_EXCEEDED",
-				"Lexinet response exceeded the configured byte limit",
-				{{"method", method},
-				 {"target", config.lexinet_base_url},
-				 {"maximum_response_bytes",
-				  std::to_string(config.maximum_response_bytes)}},
-				false});
-		}
-		if (is_tls_certificate_verification_failure(curl_result)) {
-			return VocabularyPanelResult<Json>::failure({
-				"LEXINET.TLS_CERTIFICATE_VERIFICATION_FAILED",
-				"Lexinet TLS peer or hostname verification failed",
-				{{"method", method},
-				 {"target", config.lexinet_base_url},
-				 {"curl_code",
-				  std::to_string(static_cast<int>(curl_result))}},
-				false});
-		}
-		if (curl_result != CURLE_OK) {
-			return VocabularyPanelResult<Json>::failure({
-				"LEXINET.HTTP_TRANSPORT_FAILED", curl_easy_strerror(curl_result),
-				{{"method", method}, {"target", config.lexinet_base_url}}, true});
-		}
-		if (status_code < 200 || status_code >= 300) {
-			return VocabularyPanelResult<Json>::failure({
-				"LEXINET.HTTP_STATUS_REJECTED", "Lexinet returned a non-success status",
-				{{"method", method},
-				 {"target", config.lexinet_base_url},
-				 {"status", std::to_string(status_code)}},
-				status_code == 429 || status_code >= 500});
-		}
-		try {
-			return VocabularyPanelResult<Json>::success(Json::parse(response.response_body));
-		} catch (const Json::exception &error) {
-			return VocabularyPanelResult<Json>::failure({
-				"LEXINET.RESPONSE_JSON_INVALID", error.what(),
-				{{"method", method}, {"target", config.lexinet_base_url}}, false});
-		}
-	}
-
+	std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime;
 	HttpLexinetConfig config;
 	bhp::StructuredLogger &logger;
+	Clock::time_point clock_origin{Clock::now()};
 	std::string credential;
-};
-
-HttpLexinetClient::HttpLexinetClient(HttpLexinetConfig config, bhp::StructuredLogger &logger)
-	: implementation_(std::make_unique<Implementation>(std::move(config), logger))
-{
-}
-
-HttpLexinetClient::~HttpLexinetClient() = default;
-
-VocabularyPanelResult<std::optional<FlashCard>>
-HttpLexinetClient::fetch_next_card(const std::string &review_cursor,
-				   const std::string &trace_id)
-{
-	std::string url = implementation_->config.lexinet_base_url +
-			  implementation_->config.next_card_path;
-	if (!review_cursor.empty()) {
-		CURL *escape_handle = curl_easy_init();
-		if (escape_handle == nullptr)
-			return VocabularyPanelResult<std::optional<FlashCard>>::failure(
-				{"LEXINET.CURL_INIT_FAILED", "Failed to encode review cursor", {}, true});
-		char *escaped = curl_easy_escape(escape_handle, review_cursor.c_str(),
-					 static_cast<int>(review_cursor.size()));
-		if (escaped == nullptr) {
-			curl_easy_cleanup(escape_handle);
-			return VocabularyPanelResult<std::optional<FlashCard>>::failure(
-				{"LEXINET.CURSOR_ENCODING_FAILED", "Failed to encode review cursor", {}, false});
+	Implementation(std::shared_ptr<bhp::http_runtime::HttpRuntime> r, HttpLexinetConfig c,
+		       bhp::StructuredLogger &l)
+	    : runtime(std::move(r)), config(std::move(c)), logger(l)
+	{
+		if (!runtime ||
+		    !bhp::http_runtime::validate_budget(config.transport_budget).has_value() ||
+		    config.transport_budget.maximum_response_bytes > 1048576 ||
+		    config.maximum_snapshot_age_seconds == 0)
+			throw std::invalid_argument("LEXINET.CONFIG_INVALID");
+		const std::regex secure("^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$");
+		const std::regex loopback_http("^http://127\\.0\\.0\\.1:[0-9]{1,5}$");
+		const std::regex loopback_https("^https://127\\.0\\.0\\.1:[0-9]{1,5}$");
+		if (!std::regex_match(config.lexinet_base_url, secure) &&
+		    !(config.allow_insecure_http_for_tests &&
+		      std::regex_match(config.lexinet_base_url, loopback_http)))
+			throw std::invalid_argument("LEXINET.HTTPS_REQUIRED");
+		if (!config.trusted_ca_certificate_pem_for_tests.empty() &&
+		    !std::regex_match(config.lexinet_base_url, loopback_https) &&
+		    !(config.allow_qemu_host_test_ca &&
+		      std::regex_match(config.lexinet_base_url,
+				       std::regex("^https://10\\.0\\.2\\.2:[0-9]{1,5}$"))))
+			throw std::invalid_argument("LEXINET.TEST_CA_REQUIRES_LOOPBACK_HTTPS");
+		if (config.clock_trusted && config.current_utc_seconds <= 0)
+			throw std::invalid_argument("LEXINET.CLOCK_CONFIG_INVALID");
+		credential = read_credential(config.credential_file_path);
+	}
+	VocabularyPanelResult<std::string> request(const std::string &path, const std::string &body,
+						   const std::string &trace,
+						   bhp::http_runtime::CancellationToken local)
+	{
+		using Result = VocabularyPanelResult<std::string>;
+		if (trace.empty() || trace.size() > 128 ||
+		    trace.find_first_not_of(
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.") !=
+			std::string::npos)
+			return Result::failure({"LEXINET.TRACE_ID_INVALID",
+						"Trace ID cannot contain header control characters",
+						{},
+						false});
+		auto global = runtime->cancellation();
+		const auto started = Clock::now(),
+			   deadline = started + std::chrono::milliseconds(
+						    config.transport_budget.request_timeout_ms);
+		for (int attempt = 0; attempt < 3; ++attempt) {
+			if (local.cancelled() || global.cancelled())
+				return Result::failure(cancelled());
+			const auto remaining =
+			    std::chrono::duration_cast<std::chrono::milliseconds>(deadline -
+										  Clock::now())
+				.count();
+			if (remaining <= 0)
+				return Result::failure({"LEXINET.TIMEOUT",
+							"Lexinet whole-request budget exhausted",
+							{},
+							true});
+			auto allocated = runtime->create_handle();
+			if (!allocated.has_value())
+				return Result::failure(
+				    {allocated.error().code, allocated.error().message, {}, false});
+			auto handle = allocated.value();
+			auto *curl = static_cast<CURL *>(handle->native_handle());
+			ResponseBuffer response{{},
+						config.transport_budget.maximum_response_bytes,
+						false,
+						local,
+						global};
+			curl_slist *headers = nullptr;
+			headers = curl_slist_append(headers, "Accept: application/json");
+			headers = curl_slist_append(headers, "Content-Type: application/json");
+			headers = curl_slist_append(headers, ("X-Request-ID: " + trace).c_str());
+			if (!credential.empty())
+				headers = curl_slist_append(
+				    headers, ("Authorization: Bearer " + credential).c_str());
+			const auto url = config.lexinet_base_url + path;
+			curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+			curl_easy_setopt(curl, CURLOPT_POST, 1L);
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.data());
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+					 static_cast<long>(body.size()));
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, static_cast<long>(remaining));
+			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS,
+					 std::min(config.transport_budget.connect_timeout_ms,
+						  static_cast<long>(remaining)));
+			curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
+			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, append_response);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+			curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress);
+			curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &response);
+			curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+			curl_blob ca{config.trusted_ca_certificate_pem_for_tests.data(),
+				     config.trusted_ca_certificate_pem_for_tests.size(),
+				     CURL_BLOB_COPY};
+			if (!config.trusted_ca_certificate_pem_for_tests.empty())
+				curl_easy_setopt(curl, CURLOPT_CAINFO_BLOB, &ca);
+			auto status = curl_easy_perform(curl);
+			long http = 0;
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http);
+			char *type = nullptr;
+			curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &type);
+			const std::string content_type = type ? type : "";
+			curl_slist_free_all(headers);
+			logger.log(
+			    bhp::StructuredLogLevel::info, "lexinet_http_call", trace,
+			    {{"target", "configured_lexinet_study_endpoint"},
+			     {"method", "POST"},
+			     {"duration_ms",
+			      std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+						 Clock::now() - started)
+						 .count())},
+			     {"status", std::to_string(http)},
+			     {"attempt", std::to_string(attempt + 1)}});
+			if (local.cancelled() || global.cancelled())
+				return Result::failure(cancelled());
+			if (response.oversized)
+				return Result::failure(
+				    {"LEXINET.RESPONSE_SIZE_LIMIT_EXCEEDED",
+				     "Lexinet response exceeded configured byte ceiling",
+				     {},
+				     false});
+			if (status == CURLE_PEER_FAILED_VERIFICATION ||
+			    status == CURLE_SSL_ISSUER_ERROR)
+				return Result::failure(
+				    {"LEXINET.TLS_CERTIFICATE_VERIFICATION_FAILED",
+				     "Lexinet TLS certificate or hostname verification failed",
+				     {},
+				     false});
+			const bool retryable =
+			    status == CURLE_COULDNT_CONNECT ||
+			    status == CURLE_COULDNT_RESOLVE_HOST ||
+			    status == CURLE_OPERATION_TIMEDOUT || status == CURLE_RECV_ERROR ||
+			    status == CURLE_SEND_ERROR || http == 429 || http >= 500;
+			if (retryable && attempt < 2) {
+				const auto until = std::min(
+				    deadline,
+				    Clock::now() + std::chrono::milliseconds(50 * (attempt + 1)));
+				while (Clock::now() < until) {
+					if (local.cancelled() || global.cancelled())
+						return Result::failure(cancelled());
+					std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				}
+				continue;
+			}
+			if (status != CURLE_OK)
+				return Result::failure(
+				    {status == CURLE_OPERATION_TIMEDOUT
+					 ? "LEXINET.TIMEOUT"
+					 : "LEXINET.HTTP_TRANSPORT_FAILED",
+				     "Lexinet transport failed",
+				     {{"curl_code", std::to_string(static_cast<int>(status))}},
+				     retryable});
+			if (http >= 300 && http < 400)
+				return Result::failure({"LEXINET.HTTP_STATUS_REJECTED",
+							"Lexinet redirect refused",
+							{{"status", std::to_string(http)}},
+							false});
+			if (content_type.rfind("application/json", 0) != 0)
+				return Result::failure({"LEXINET.CONTENT_TYPE_INVALID",
+							"Lexinet response is not JSON",
+							{},
+							false});
+			if (http < 200 || http >= 300)
+				return Result::failure(decode_study_error(response.body, http));
+			return Result::success(std::move(response.body));
 		}
-		url += "?cursor=" + std::string(escaped);
-		curl_free(escaped);
-		curl_easy_cleanup(escape_handle);
+		return Result::failure(
+		    {"LEXINET.TIMEOUT", "Lexinet whole-request budget exhausted", {}, true});
 	}
-
-	const auto response = implementation_->request("GET", url, "", "", trace_id);
-	if (!response.has_value())
-		return VocabularyPanelResult<std::optional<FlashCard>>::failure(response.error());
-	try {
-		const Json &envelope = response.value();
-		if (!envelope.contains("error") || !envelope.at("error").is_null())
-			return VocabularyPanelResult<std::optional<FlashCard>>::failure(
-				{"LEXINET.RESPONSE_ERROR_PRESENT", "Lexinet response contains an error", {}, false});
-		if (!envelope.contains("data"))
-			return VocabularyPanelResult<std::optional<FlashCard>>::failure({
-				"LEXINET.RESPONSE_SCHEMA_INVALID",
-				"Lexinet success response is missing the required data member",
-				{{"operation", "fetch_next_card"}}, false});
-		if (envelope.at("data").is_null())
-			return VocabularyPanelResult<std::optional<FlashCard>>::success(std::nullopt);
-		const Json &data = envelope.at("data");
-		FlashCard card{
-			data.at("vocabulary_card_id").get<std::string>(),
-			data.at("word").get<std::string>(),
-			data.at("definition").get<std::string>(),
-			data.at("example_sentence").get<std::string>(),
-			data.value("review_cursor", ""),
-		};
-		return VocabularyPanelResult<std::optional<FlashCard>>::success(std::move(card));
-	} catch (const Json::exception &error) {
-		return VocabularyPanelResult<std::optional<FlashCard>>::failure({
-			"LEXINET.RESPONSE_SCHEMA_INVALID", error.what(),
-			{{"operation", "fetch_next_card"}}, false});
+	std::optional<VocabularyPanelError> freshness(const StudySession &s)
+	{
+		if (!config.clock_trusted)
+			return std::nullopt;
+		auto parsed = study_timestamp_seconds(s.generated_at);
+		if (!parsed.has_value())
+			return parsed.error();
+		const auto now =
+		    config.current_utc_seconds +
+		    std::chrono::duration_cast<std::chrono::seconds>(Clock::now() - clock_origin)
+			.count();
+		const auto delta = now - parsed.value();
+		if ((delta >= 0 &&
+		     static_cast<std::uint64_t>(delta) > config.maximum_snapshot_age_seconds) ||
+		    (delta < 0 &&
+		     static_cast<std::uint64_t>(-delta) > config.allowed_clock_skew_seconds))
+			return VocabularyPanelError{
+			    "LEXINET.SNAPSHOT_STALE",
+			    "Lexinet snapshot is outside configured freshness bounds",
+			    {},
+			    false};
+		return std::nullopt;
 	}
-}
-
-VocabularyPanelResult<ReviewReceipt>
-HttpLexinetClient::submit_review(const ReviewCommand &review_command,
-				 const std::string &trace_id)
+};
+HttpLexinetClient::HttpLexinetClient(std::shared_ptr<bhp::http_runtime::HttpRuntime> r,
+				     HttpLexinetConfig c, bhp::StructuredLogger &l)
+    : implementation_(std::make_unique<Implementation>(std::move(r), std::move(c), l))
 {
-	const Json request_body = {
-		{"vocabulary_card_id", review_command.vocabulary_card_id},
-		{"review_rating", review_rating_json_name(review_command.review_rating)},
-		{"reviewed_at", review_command.reviewed_at_utc},
-	};
-	const auto response = implementation_->request(
-		"POST", implementation_->config.lexinet_base_url + implementation_->config.review_path,
-		request_body.dump(), review_command.idempotency_key, trace_id);
-	if (!response.has_value())
-		return VocabularyPanelResult<ReviewReceipt>::failure(response.error());
-	try {
-		const Json &envelope = response.value();
-		if (!envelope.contains("error") || !envelope.at("error").is_null())
-			return VocabularyPanelResult<ReviewReceipt>::failure(
-				{"LEXINET.RESPONSE_ERROR_PRESENT", "Lexinet response contains an error", {}, false});
-		const Json &data = envelope.at("data");
-		return VocabularyPanelResult<ReviewReceipt>::success({
-			data.at("vocabulary_review_result_id").get<std::string>(),
-			data.at("vocabulary_card_id").get<std::string>(),
-			data.at("saved_at").get<std::string>(),
-		});
-	} catch (const Json::exception &error) {
-		return VocabularyPanelResult<ReviewReceipt>::failure({
-			"LEXINET.RESPONSE_SCHEMA_INVALID", error.what(),
-			{{"operation", "submit_review"}}, false});
-	}
 }
-
+HttpLexinetClient::~HttpLexinetClient() = default;
+VocabularyPanelResult<StudySession>
+HttpLexinetClient::create_or_resume(const StudyCreateRequest &request, const std::string &trace,
+				    bhp::http_runtime::CancellationToken cancel)
+{
+	auto wire = encode_study_create(request);
+	if (!wire.has_value())
+		return VocabularyPanelResult<StudySession>::failure(wire.error());
+	auto response =
+	    implementation_->request("/api/v1/study/sessions", wire.value(), trace, cancel);
+	if (!response.has_value())
+		return VocabularyPanelResult<StudySession>::failure(response.error());
+	auto parsed = decode_study_session(response.value());
+	if (cancel.cancelled() || implementation_->runtime->cancellation().cancelled())
+		return VocabularyPanelResult<StudySession>::failure(cancelled());
+	if (parsed.has_value()) {
+		if (parsed.value().profile_ref != request.profile_ref)
+			return VocabularyPanelResult<StudySession>::failure(
+			    {"LEXINET.PROFILE_MISMATCH",
+			     "Session response profile differs from request",
+			     {},
+			     false});
+		if (auto e = implementation_->freshness(parsed.value()))
+			return VocabularyPanelResult<StudySession>::failure(*e);
+	}
+	return parsed;
+}
+VocabularyPanelResult<StudySyncResponse>
+HttpLexinetClient::sync(const StudySyncRequest &request, const std::string &trace,
+			bhp::http_runtime::CancellationToken cancel)
+{
+	auto wire = encode_study_sync(request);
+	if (!wire.has_value())
+		return VocabularyPanelResult<StudySyncResponse>::failure(wire.error());
+	auto response = implementation_->request(
+	    "/api/v1/study/sessions/" + request.session_id + "/sync", wire.value(), trace, cancel);
+	if (!response.has_value())
+		return VocabularyPanelResult<StudySyncResponse>::failure(response.error());
+	auto parsed = decode_study_sync(response.value());
+	if (cancel.cancelled() || implementation_->runtime->cancellation().cancelled())
+		return VocabularyPanelResult<StudySyncResponse>::failure(cancelled());
+	if (parsed.has_value()) {
+		if (parsed.value().session.session_id != request.session_id ||
+		    parsed.value().sync_id != request.sync_id ||
+		    parsed.value().client_stream_id != request.client_stream_id)
+			return VocabularyPanelResult<StudySyncResponse>::failure(
+			    {"LEXINET.SYNC_IDENTITY_MISMATCH",
+			     "Sync response does not identify the submitted transaction",
+			     {},
+			     false});
+		if (auto e = implementation_->freshness(parsed.value().session))
+			return VocabularyPanelResult<StudySyncResponse>::failure(*e);
+	}
+	return parsed;
+}
 } // namespace vocabulary_panel

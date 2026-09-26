@@ -4,11 +4,13 @@
 #include <memory>
 #include <string>
 
-namespace vocabulary_panel::test_fixture {
+namespace vocabulary_panel::test_fixture
+{
 
 /** Loopback-only HTTP fixture with an ephemeral in-memory TLS identity. */
-class LoopbackHttpServer final {
-public:
+class LoopbackHttpServer final
+{
+      public:
 	enum class Transport {
 		http,
 		https,
@@ -18,10 +20,11 @@ public:
 		localhost_dns,
 	};
 
-	LoopbackHttpServer(Transport transport, int response_status_code,
-			   std::string response_body, std::string redirect_location = {},
-			   TlsCertificateIdentity tls_certificate_identity =
-				   TlsCertificateIdentity::loopback_ip);
+	LoopbackHttpServer(
+	    Transport transport, int response_status_code, std::string response_body,
+	    std::string redirect_location = {},
+	    TlsCertificateIdentity tls_certificate_identity = TlsCertificateIdentity::loopback_ip,
+	    unsigned response_delay_ms = 0);
 	~LoopbackHttpServer();
 
 	LoopbackHttpServer(const LoopbackHttpServer &) = delete;
@@ -33,7 +36,7 @@ public:
 	std::string trusted_ca_certificate_pem() const;
 	std::string server_error() const;
 
-private:
+      private:
 	class Implementation;
 	std::unique_ptr<Implementation> implementation_;
 };

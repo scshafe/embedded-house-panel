@@ -1,20 +1,21 @@
 #pragma once
-
-#include <cstddef>
+#include "bhp/http_runtime/http_runtime.h"
+#include <cstdint>
 #include <string>
-
-namespace vocabulary_panel {
-
+namespace vocabulary_panel
+{
 struct HttpLexinetConfig {
 	std::string lexinet_base_url;
-	std::string next_card_path;
-	std::string review_path;
 	std::string credential_file_path;
-	long request_timeout_ms{5000};
-	std::size_t maximum_response_bytes{262144};
+	bhp::http_runtime::TransportBudget transport_budget;
 	bool allow_insecure_http_for_tests{false};
-	// Test-only in-memory trust anchor; accepted only for 127.0.0.1 HTTPS.
 	std::string trusted_ca_certificate_pem_for_tests;
+	std::uint64_t maximum_snapshot_age_seconds{0};
+	std::uint64_t allowed_clock_skew_seconds{0};
+	bool clock_trusted{false};
+	// Simulator-only explicit QEMU user-network host; ordinary production CA policy is
+	// unchanged.
+	bool allow_qemu_host_test_ca{false};
+	std::int64_t current_utc_seconds{0};
 };
-
 } // namespace vocabulary_panel

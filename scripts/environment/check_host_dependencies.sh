@@ -16,7 +16,6 @@ TRACE_ID=$(bhp_new_trace_id)
 profile=host
 strict=false
 host_compiler_command=
-host_operating_system=
 
 usage()
 {
@@ -56,12 +55,8 @@ done
 
 case "$profile" in
   host)
-    required_commands="git make python3 rg shellcheck"
+    required_commands="git make python3 rg shellcheck cc cmake ctest ninja pkg-config"
     host_compiler_command=${CXX:-c++}
-    host_operating_system=$(uname -s)
-    if [ "$host_operating_system" = Linux ]; then
-      required_commands="$required_commands cc cmake ctest pkg-config"
-    fi
     ;;
   buildroot) required_commands="git make gcc g++ cmake tar xz patch rsync bc bison flex perl python3 file wget curl cpio unzip dtc" ;;
   deploy) required_commands="ssh scp rsync shasum" ;;
@@ -94,7 +89,7 @@ if [ -n "$host_compiler_command" ]; then
   fi
 fi
 
-if [ "$profile" = host ] && [ "$host_operating_system" = Linux ]; then
+if [ "$profile" = host ]; then
   for versioned_command in cmake pkg-config; do
     command -v "$versioned_command" >/dev/null 2>&1 || continue
     if command_version=$(read_first_version_line \

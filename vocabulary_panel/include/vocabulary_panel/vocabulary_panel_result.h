@@ -6,10 +6,12 @@
 #include <utility>
 #include <variant>
 
-namespace vocabulary_panel {
+namespace vocabulary_panel
+{
 
-template <typename Value> class VocabularyPanelResult final {
-public:
+template <typename Value> class VocabularyPanelResult final
+{
+      public:
 	static VocabularyPanelResult success(Value value)
 	{
 		return VocabularyPanelResult(std::move(value));
@@ -36,15 +38,11 @@ public:
 		return std::get<VocabularyPanelError>(storage_);
 	}
 
-private:
+      private:
 	explicit VocabularyPanelResult(Value value) : storage_(std::move(value)) {}
-	explicit VocabularyPanelResult(VocabularyPanelError error)
-		: storage_(std::move(error))
-	{
-	}
+	explicit VocabularyPanelResult(VocabularyPanelError error) : storage_(std::move(error)) {}
 
 	std::variant<Value, VocabularyPanelError> storage_;
 };
 
 } // namespace vocabulary_panel
-

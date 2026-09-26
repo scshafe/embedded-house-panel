@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compiles and runs the host-testable C++ slices without requiring CMake.
+# Compiles and runs host C++ slices and the shared LVGL/HTTP integration.
 # Inputs: optional all|panel_supervisor|panel_ui|vocabulary_panel.
 # Side effects: writes compiler products below .build/verification.
 # Idempotent: yes.
@@ -326,50 +326,13 @@ compile_panel_ui()
 
 compile_vocabulary_panel()
 {
-	compile_vocabulary_entrypoint()
-	{
-		entrypoint=$1
-		output_path=$2
-		"$cxx" -std=c++17 -Wall -Wextra -Wpedantic -Werror \
-			-I"$PROJECT_ROOT/shared/structured_logging/include" \
-			-I"$PROJECT_ROOT/vocabulary_panel/include" \
-			-I"$PROJECT_ROOT/vocabulary_panel/tests" \
-			"$PROJECT_ROOT/shared/structured_logging/src/structured_logger.cpp" \
-			"$PROJECT_ROOT/vocabulary_panel/src/fixture_lexinet_client.cpp" \
-			"$PROJECT_ROOT/vocabulary_panel/src/flash_card_session.cpp" \
-			"$entrypoint" -o "$output_path"
-	}
-
-	compile_vocabulary_entrypoint \
-		"$PROJECT_ROOT/vocabulary_panel/tests/flash_card_session_test.cpp" \
-		"$output_directory/vocabulary_panel_flash_card_session_test"
-	compile_vocabulary_entrypoint \
-		"$PROJECT_ROOT/vocabulary_panel/src/vocabulary_panel_terminal_main.cpp" \
-		"$output_directory/vocabulary_panel_terminal"
-
-  "$output_directory/vocabulary_panel_flash_card_session_test"
-  printf 'reveal\nagain\nquit\n' | "$output_directory/vocabulary_panel_terminal" >/dev/null
-  optional_adapters_verified=false
-  if [ "$(uname -s)" = Linux ]; then
-    cmake --preset host-dev
-    cmake --build --preset host-dev --parallel 1
-    ctest --preset host-dev --output-on-failure
-    cmake_version=$(cmake --version | sed -n '1p')
-    libcurl_version=$(pkg-config --modversion libcurl)
-    libdrm_version=$(pkg-config --modversion libdrm)
-    lvgl_version=$(pkg-config --modversion lvgl)
-    bhp_log info host_dev_verification_complete "$TRACE_ID" \
-      host_os "$(uname -s)" \
-      host_architecture "$(uname -m)" \
-      cmake_version "$cmake_version" \
-      libcurl_version "$libcurl_version" \
-      libdrm_version "$libdrm_version" \
-      lvgl_version "$lvgl_version" \
-      hardware_evidence not_performed
-    optional_adapters_verified=true
-  fi
+  (cd "$PROJECT_ROOT" && cmake --fresh --preset host-dev)
+  cmake --build "$PROJECT_ROOT/.build/host-dev" --parallel 6
+  ctest --test-dir "$PROJECT_ROOT/.build/host-dev" --output-on-failure
+  printf 'reveal\nagain\nquit\n' | \
+    "$PROJECT_ROOT/.build/host-dev/vocabulary_panel/vocabulary_panel_terminal" >/dev/null
   bhp_log info host_slice_verified "$TRACE_ID" slice vocabulary_panel \
-    optional_adapters_verified "$optional_adapters_verified"
+    optional_adapters_verified true hardware_evidence not_performed
 }
 
 case "$scope" in

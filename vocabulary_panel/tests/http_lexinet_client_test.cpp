@@ -1,174 +1,236 @@
+#include "bhp/structured_logger.h"
 #include "fixtures/loopback_http_server.h"
 #include "vocabulary_panel/http_lexinet_client.h"
-
-#include "bhp/structured_logger.h"
-
+#include "vocabulary_panel/study_wire_codec.h"
+#include "vocabulary_panel/study_worker.h"
 #include <csignal>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
-#include <string>
-#include <utility>
-
-namespace {
-
-int failures = 0;
-int assertions = 0;
-
-void expect(const bool condition, const std::string &scenario)
+#include <thread>
+using namespace vocabulary_panel;
+namespace
+{
+int failures = 0, assertions = 0;
+void expect(bool value, const char *message)
 {
 	++assertions;
-	if (condition)
-		return;
-	std::cerr << "FAILED: " << scenario << '\n';
-	++failures;
+	if (!value) {
+		++failures;
+		std::cerr << "FAILED: " << message << '\n';
+	}
 }
-
-vocabulary_panel::HttpLexinetConfig test_config(const std::string &base_url)
+std::string fixture(const std::string &name)
 {
-	return {
-		base_url,
-		"/next",
-		"/review",
-		"",
-		2000,
-		262144,
-		true,
-		"",
-	};
+	std::ifstream f(std::filesystem::path(__FILE__).parent_path() /
+			"fixtures/study_v1/examples" / name);
+	return {std::istreambuf_iterator<char>(f), {}};
 }
-
-void test_trusted_matching_tls_certificate_succeeds()
+HttpLexinetConfig config(const std::string &base)
 {
-	using vocabulary_panel::test_fixture::LoopbackHttpServer;
-	LoopbackHttpServer server(
-		LoopbackHttpServer::Transport::https, 200,
-		R"({"data":null,"error":null,"meta":{}})");
-	std::ostringstream log_output;
-	bhp::StructuredLogger logger("http_lexinet_client_test", log_output);
-	auto config = test_config(server.base_url());
-	config.allow_insecure_http_for_tests = false;
-	config.trusted_ca_certificate_pem_for_tests = server.trusted_ca_certificate_pem();
-	vocabulary_panel::HttpLexinetClient client(std::move(config), logger);
-
-	const auto result = client.fetch_next_card("", "trusted-tls-verification-test");
-	expect(result.has_value() && !result.value().has_value(),
-	       "a trusted certificate matching the loopback IP completes the request");
-	expect(server.accepted_connection_count() == 1,
-	       "the trusted TLS fixture accepted exactly one connection");
-	expect(server.tls_handshake_attempted(),
-	       "the trusted TLS fixture observed a handshake");
-	expect(server.server_error().empty(),
-	       "the trusted TLS fixture completed without server error");
+	HttpLexinetConfig c;
+	c.lexinet_base_url = base;
+	c.transport_budget = {500, 2000, 1048576};
+	c.maximum_snapshot_age_seconds = 3600;
+	c.allow_insecure_http_for_tests = true;
+	return c;
 }
-
-void test_untrusted_tls_certificate_is_rejected()
+StudyCreateRequest create_request()
 {
-	using vocabulary_panel::test_fixture::LoopbackHttpServer;
-	LoopbackHttpServer server(
-		LoopbackHttpServer::Transport::https, 200,
-		R"({"data":null,"error":null,"meta":{}})");
-	std::ostringstream log_output;
-	bhp::StructuredLogger logger("http_lexinet_client_test", log_output);
-	auto config = test_config(server.base_url());
-	config.allow_insecure_http_for_tests = false;
-	vocabulary_panel::HttpLexinetClient client(std::move(config), logger);
-
-	const auto result = client.fetch_next_card("", "tls-verification-test");
-	expect(!result.has_value() &&
-		       result.error().error_code ==
-			       "LEXINET.TLS_CERTIFICATE_VERIFICATION_FAILED" &&
-		       !result.error().retryable,
-	       "an untrusted certificate returns the typed non-retryable TLS error");
-	expect(server.tls_handshake_attempted(),
-	       "the TLS fixture observed a handshake before the request failed");
-	expect(server.server_error().empty(), "the TLS fixture completed without server error");
+	StudyCreateRequest r;
+	r.creation_request_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+	r.profile_ref = "fixture-default";
+	r.topic_refs = {"fixture-systems", "fixture-words"};
+	return r;
 }
-
-void test_trusted_certificate_with_mismatched_hostname_is_rejected()
+void test_tls(std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime)
 {
-	using vocabulary_panel::test_fixture::LoopbackHttpServer;
-	LoopbackHttpServer server(
-		LoopbackHttpServer::Transport::https, 200,
-		R"({"data":null,"error":null,"meta":{}})", {},
-		LoopbackHttpServer::TlsCertificateIdentity::localhost_dns);
-	std::ostringstream log_output;
-	bhp::StructuredLogger logger("http_lexinet_client_test", log_output);
-	auto config = test_config(server.base_url());
-	config.allow_insecure_http_for_tests = false;
-	config.trusted_ca_certificate_pem_for_tests = server.trusted_ca_certificate_pem();
-	vocabulary_panel::HttpLexinetClient client(std::move(config), logger);
-
-	const auto result = client.fetch_next_card("", "hostname-verification-test");
-	expect(!result.has_value() &&
-		       result.error().error_code ==
-			       "LEXINET.TLS_CERTIFICATE_VERIFICATION_FAILED" &&
-		       !result.error().retryable,
-	       "a trusted certificate with the wrong hostname returns the typed TLS error");
-	expect(server.tls_handshake_attempted(),
-	       "the mismatched-hostname fixture observed a TLS handshake");
-	expect(server.server_error().empty(),
-	       "the mismatched-hostname fixture completed without server error");
+	using Server = test_fixture::LoopbackHttpServer;
+	{
+		Server server(Server::Transport::https, 200, fixture("session-created.json"));
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		auto c = config(server.base_url());
+		c.allow_insecure_http_for_tests = false;
+		c.trusted_ca_certificate_pem_for_tests = server.trusted_ca_certificate_pem();
+		HttpLexinetClient client(runtime, c, logger);
+		auto result = client.create_or_resume(create_request(), "trusted-tls");
+		expect(result.has_value() && result.value().cards.size() == 1,
+		       "full exported study.v1 projection crosses verified HTTPS");
+		expect(server.tls_handshake_attempted() && server.server_error().empty(),
+		       "TLS fixture records clean handshake");
+	}
+	{
+		Server server(Server::Transport::https, 200, fixture("session-created.json"));
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		auto c = config(server.base_url());
+		c.allow_insecure_http_for_tests = false;
+		HttpLexinetClient client(runtime, c, logger);
+		auto result = client.create_or_resume(create_request(), "untrusted-tls");
+		expect(!result.has_value() && result.error().error_code ==
+						  "LEXINET.TLS_CERTIFICATE_VERIFICATION_FAILED",
+		       "untrusted TLS is rejected");
+	}
+	{
+		Server server(Server::Transport::https, 200, fixture("session-created.json"), {},
+			      Server::TlsCertificateIdentity::localhost_dns);
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		auto c = config(server.base_url());
+		c.trusted_ca_certificate_pem_for_tests = server.trusted_ca_certificate_pem();
+		HttpLexinetClient client(runtime, c, logger);
+		auto result = client.create_or_resume(create_request(), "wrong-hostname");
+		expect(!result.has_value() && result.error().error_code ==
+						  "LEXINET.TLS_CERTIFICATE_VERIFICATION_FAILED",
+		       "trusted wrong hostname rejected");
+	}
 }
-
-void test_redirect_response_is_refused_without_following_location()
+void test_redirect_size_and_schema(std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime)
 {
-	using vocabulary_panel::test_fixture::LoopbackHttpServer;
-	LoopbackHttpServer redirect_destination(
-		LoopbackHttpServer::Transport::http, 200,
-		R"({"data":null,"error":null,"meta":{}})");
-	LoopbackHttpServer redirect_source(
-		LoopbackHttpServer::Transport::http, 302, "{}",
-		redirect_destination.base_url() + "/redirect-target");
-	std::ostringstream log_output;
-	bhp::StructuredLogger logger("http_lexinet_client_test", log_output);
-	vocabulary_panel::HttpLexinetClient client(
-		test_config(redirect_source.base_url()), logger);
-
-	const auto result = client.fetch_next_card("", "redirect-refusal-test");
-	expect(!result.has_value() &&
-		       result.error().error_code == "LEXINET.HTTP_STATUS_REJECTED" &&
-		       result.error().error_context.at("status") == "302",
-	       "a redirect response is a structured rejected-status error");
-	expect(redirect_source.accepted_connection_count() == 1,
-	       "the adapter contacted the redirect source exactly once");
-	expect(redirect_destination.accepted_connection_count() == 0,
-	       "the adapter did not follow the redirect location");
+	using Server = test_fixture::LoopbackHttpServer;
+	{
+		Server destination(Server::Transport::http, 200, fixture("session-created.json"));
+		Server server(Server::Transport::http, 302, "{}",
+			      destination.base_url() + "/redirect");
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		HttpLexinetClient client(runtime, config(server.base_url()), logger);
+		auto result = client.create_or_resume(create_request(), "redirect");
+		expect(!result.has_value() &&
+			   result.error().error_code == "LEXINET.HTTP_STATUS_REJECTED" &&
+			   destination.accepted_connection_count() == 0,
+		       "redirect refused without credential forwarding");
+	}
+	{
+		Server server(Server::Transport::http, 200, std::string(65, 'x'));
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		auto c = config(server.base_url());
+		c.transport_budget.maximum_response_bytes = 64;
+		HttpLexinetClient client(runtime, c, logger);
+		auto result = client.create_or_resume(create_request(), "size-limit");
+		expect(!result.has_value() &&
+			   result.error().error_code == "LEXINET.RESPONSE_SIZE_LIMIT_EXCEEDED",
+		       "streaming response byte bound enforced");
+	}
+	{
+		Server server(Server::Transport::http, 200,
+			      fixture("invalid/session-unknown-required-semantic.json"));
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		HttpLexinetClient client(runtime, config(server.base_url()), logger);
+		auto result = client.create_or_resume(create_request(), "unknown-contract");
+		expect(!result.has_value() &&
+			   result.error().error_code == "LEXINET.RESPONSE_SCHEMA_INVALID",
+		       "unknown required semantic refused through HTTPS adapter boundary");
+	}
+	{
+		Server server(Server::Transport::http, 200, fixture("session-created.json"));
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		auto c = config(server.base_url());
+		c.clock_trusted = true;
+		c.current_utc_seconds = 1790294400;
+		HttpLexinetClient client(runtime, c, logger);
+		auto result = client.create_or_resume(create_request(), "stale-clock");
+		expect(!result.has_value() && result.error().error_code == "LEXINET.SNAPSHOT_STALE",
+		       "trusted clock rejects stale server projection");
+	}
 }
-
-void test_response_larger_than_configured_limit_is_rejected()
+void test_worker_and_cancellation(std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime)
 {
-	using vocabulary_panel::test_fixture::LoopbackHttpServer;
-	LoopbackHttpServer server(LoopbackHttpServer::Transport::http, 200,
-				  std::string(65, 'x'));
-	std::ostringstream log_output;
-	bhp::StructuredLogger logger("http_lexinet_client_test", log_output);
-	auto config = test_config(server.base_url());
-	config.maximum_response_bytes = 64;
-	vocabulary_panel::HttpLexinetClient client(std::move(config), logger);
-
-	const auto result = client.fetch_next_card("", "response-size-limit-test");
-	expect(!result.has_value() &&
-		       result.error().error_code ==
-			       "LEXINET.RESPONSE_SIZE_LIMIT_EXCEEDED" &&
-		       result.error().error_context.at("maximum_response_bytes") == "64" &&
-		       !result.error().retryable,
-	       "an oversized response returns the typed non-retryable size-limit error");
-	expect(server.server_error().empty(),
-	       "the oversized-response fixture completed without server error");
+	using Server = test_fixture::LoopbackHttpServer;
+	Server server(Server::Transport::https, 200, fixture("session-created.json"));
+	std::ostringstream logs;
+	bhp::StructuredLogger logger("test.study", logs);
+	auto c = config(server.base_url());
+	c.trusted_ca_certificate_pem_for_tests = server.trusted_ca_certificate_pem();
+	auto client = std::make_shared<HttpLexinetClient>(runtime, c, logger);
+	{
+		bhp::http_runtime::CancellationToken cancel;
+		cancel.cancel();
+		auto result =
+		    client->create_or_resume(create_request(), "cancelled-before-request", cancel);
+		expect(!result.has_value() && result.error().error_code == "LEXINET.CANCELLED" &&
+			   server.accepted_connection_count() == 0,
+		       "cancellation prevents network work");
+	}
+	{
+		StudyWorker worker(runtime, client);
+		expect(worker.create_or_resume(create_request(), "worker-request").has_value(),
+		       "worker accepts bounded request");
+		expect(!worker.create_or_resume(create_request(), "busy-request").has_value(),
+		       "worker refuses queued future work");
+		std::optional<StudyWorkerCompletion> completion;
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+		while (!completion && std::chrono::steady_clock::now() < deadline) {
+			completion = worker.take_completion();
+			std::this_thread::yield();
+		}
+		expect(completion && completion->session && !completion->error,
+		       "worker completion returns parsed session to UI thread");
+	}
+}
+void test_request_deadline_and_inflight_cancellation(
+    std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime)
+{
+	using Server = test_fixture::LoopbackHttpServer;
+	{
+		Server server(Server::Transport::http, 200, fixture("session-created.json"), {},
+			      Server::TlsCertificateIdentity::loopback_ip, 250);
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		auto c = config(server.base_url());
+		c.transport_budget = {20, 60, 1048576};
+		HttpLexinetClient client(runtime, c, logger);
+		const auto start = std::chrono::steady_clock::now();
+		auto result = client.create_or_resume(create_request(), "request-deadline");
+		expect(!result.has_value() && result.error().error_code == "LEXINET.TIMEOUT",
+		       "whole request deadline returns typed timeout");
+		expect(std::chrono::steady_clock::now() - start < std::chrono::seconds(1),
+		       "retry does not reset whole request deadline");
+	}
+	{
+		Server server(Server::Transport::http, 200, fixture("session-created.json"), {},
+			      Server::TlsCertificateIdentity::loopback_ip, 500);
+		std::ostringstream logs;
+		bhp::StructuredLogger logger("test.study", logs);
+		HttpLexinetClient client(runtime, config(server.base_url()), logger);
+		bhp::http_runtime::CancellationToken cancel;
+		std::optional<VocabularyPanelResult<StudySession>> result;
+		std::thread request([&] {
+			result =
+			    client.create_or_resume(create_request(), "inflight-cancel", cancel);
+		});
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+		while (server.accepted_connection_count() == 0 &&
+		       std::chrono::steady_clock::now() < deadline)
+			std::this_thread::yield();
+		cancel.cancel();
+		request.join();
+		expect(result && !result->has_value() &&
+			   result->error().error_code == "LEXINET.CANCELLED",
+		       "inflight HTTP cancellation cannot publish parsed response");
+	}
 }
 
 } // namespace
-
 int main()
 {
 	std::signal(SIGPIPE, SIG_IGN);
-	test_trusted_matching_tls_certificate_succeeds();
-	test_untrusted_tls_certificate_is_rejected();
-	test_trusted_certificate_with_mismatched_hostname_is_rejected();
-	test_redirect_response_is_refused_without_following_location();
-	test_response_larger_than_configured_limit_is_rejected();
-	if (failures != 0)
+	auto created = bhp::http_runtime::HttpRuntime::create();
+	if (!created.has_value())
 		return 1;
-	std::cout << "http_lexinet_client: " << assertions << " assertions passed\n";
-	return 0;
+	auto runtime = created.value();
+	test_tls(runtime);
+	test_redirect_size_and_schema(runtime);
+	test_worker_and_cancellation(runtime);
+	test_request_deadline_and_inflight_cancellation(runtime);
+	expect(runtime->shutdown().has_value(),
+	       "all clients workers and handles destroyed before cleanup");
+	std::cout << "http_lexinet_client: " << assertions << " assertions, " << failures
+		  << " failures\n";
+	return failures ? 1 : 0;
 }

@@ -1,105 +1,148 @@
-# Vocabulary Panel
+# Vocabulary panel
 
-Owns the unprivileged Lexinet-backed study feature and its subordinate render
-surface. ~~The planned neutral `panel_ui` remains the sole display/touch
-owner.~~ The planned neutral `panel_ui` remains the sole display, application
-hit-testing, and touch-routing owner. Under accepted
-[ADR 0005](../docs/decisions/0005-validate-touch-provenance-at-capability-holders.md),
-the supervisor becomes the sole raw touch-device observer and provenance issuer
-at a later atomic packaging cutover; that cutover revokes the current
-vocabulary/UI service's raw `bhp-touch` access. The checked-in scaffold has not
-made that migration.
+This domain owns the unprivileged Lexinet study feature beneath `panel_ui`.
+Its subordinate render surface shares the shell-owned LVGL lifetime.
+`FlashCardSession` is the canonical reducer, durable outbox and browser-history
+owner. The shell owns input ordering, source authentication, routing and rendering;
+the supervisor alone observes raw touch and controls power (ADR 0005). A renderer
+consumes `FlashCardSnapshot` and cannot change learning state or power policy.
 
-## Public promises
+**Amended 2026-09-25:** replaced the historical four-stage next-card/review
+scaffold with the accepted two-sided `study.v1` model. The old `FlashCardStage`,
+`ReviewCommand`, `ReviewReceipt` and next-card HTTP methods were removed. This is
+host/fixture integration evidence; it does not close Tailnet deployment,
+production service enablement or any FRDM gate.
 
-- `FlashCardSession` is the canonical deterministic interaction state machine.
-- `LexinetClient` is the extension point for authoritative card/review storage.
-- A renderer consumes `FlashCardSnapshot`; it does not own learning state or power policy.
-- Loading, empty, offline/degraded, and error states are programmatically distinct.
+## Public interfaces
 
-The current terminal executable uses `FixtureLexinetClient` so the interaction
-can be exercised without the network. `HttpLexinetClient` is a guarded,
-optional adapter for the historical scaffold contract in
-`docs/interfaces/lexinet-contract.md`. ADR 0006 accepts the product semantics;
-Lexinet now owns a frozen machine-readable `study.v1` contract, decision,
-validator, and golden examples. This domain consumes a provenance-stamped
-export and verifies the exact protocol/schema identity and required semantics.
-Lexinet's persistence repository, atomic event adjudicator, merge rules, and
-successor boundary are implemented, as are its rating-aware scheduler,
-projectors, cycle materializer, canonical study service, strict routes, operator
-CLI, and post-commit-only shadow composition. This domain's resilient panel
-client is still pending. Lexinet's local native-TLS study-only router, fresh
-Tailnet identity, and scoped node-capability/token authorization are implemented
-at clean HEAD `ce42272df315f357e10998dd48e9ffd1a935c2ff`; real Tailnet policy,
-identity/revocation/certificate evidence and the panel Tailscale packaging
-choice remain Step 5 deployment gates. The Buildroot package compiles the
-historical adapter with certificate-verified TLS, but no target service may send
-real study requests until those later runtime, evidence, and packaging steps
-replace the scaffold.
+- `FlashCardSession::apply_intent` is the one semantic transition path for
+  flip, next, back, four ratings, touch-only Undo and resume. The exact current
+  session/item/content-revision/render-generation binding is mandatory.
+- `FlashCardSnapshot` separates availability, connectivity, face, delivery,
+  stale/clock status, provisional evidence and available actions. History is
+  bounded and restores each item's last visible face.
+- `StudyStore` commits a complete candidate state before publishing its effects.
+  `FileStudyStore` uses an owner-only directory and file, exclusive process lock,
+  bounded writes, temporary-file fsync, atomic rename and directory fsync.
+  Corrupt, incompatible and unwritable files fail visibly. A post-rename
+  directory-sync failure is explicitly indeterminate and requires restart.
+  The boundary observer is a test seam for actual process-death injection.
+- `MemoryStudyStore` is explicitly fixture-only. Its snapshots have
+  `durable_storage=false`; applications that need restart use `FileStudyStore`.
+- `LexinetClient` has typed `create_or_resume` and `sync` operations. The strict
+  `study_wire_codec` consumes Lexinet's frozen `study.v1` contract, including
+  required semantics, complete immutable cards, scheduler/source provenance,
+  UTF-8/string/page limits, error objects and terminal receipts. The external
+  contract authority remains the explicit `BHP_LEXINET_SOURCE_DIR` checkout.
+- `HttpLexinetClient` borrows the process's `shared/http_runtime` instance.
+  `StudyWorker` owns one bounded work/completion mailbox; rendering polls it and
+  never performs HTTP. Per-operation cancellation and shared shutdown both
+  interrupt work; generation cancellation suppresses stale completions.
 
-All network operations are synchronous at the adapter boundary. A production GUI controller must call them on a cancellable worker and feed results back into `FlashCardSession`; render/event threads must never perform HTTP.
+## Evidence and durability semantics
 
-## Host verification
+Non-voice entry and first touch presentation/reveal become durable events before
+display. Voice-only first presentation and dependent reveal remain visibly
+provisional, with no stream sequence or outbox entry. Exact-bound touch or a
+rating atomically promotes the active item's prerequisites. A newly displayed
+voice-rating successor stays provisional. Restart discards provisional markers
+and opens a non-card resume gate; touch resume records evidence before display.
+
+A rating atomically reserves its own slot, any prerequisite promotions and one
+future correction slot. A touch successor needs its own presented slot; otherwise
+it remains unseen behind the tracking-paused completion state. Undo resolves only
+the reducer's current durable rating UUID, appends `rating_voided`, consumes the
+reservation and leaves the successor visible. Acknowledgement does not release
+Undo. The next accepted non-Undo intent, surface exit or replacement does.
+Terminal group rejection preserves the rendered state, marks every constituent
+rejected and removes Undo without fabricating a void. Rejected evidence is never
+silently reissued or counted as cycle exhaustion.
+
+The random client stream, sequences, UUIDs, immutable event payloads, initial
+creation request, current sync request and successor creation request persist together. Retry and restart
+reuse their exact identities. No pending event is evicted. Refill can evict only
+acknowledged cards outside visible history and the Undo lease. If input races a
+refill and pins all candidates, acknowledgements still commit and the refill is
+explicitly deferred. Unconsumed items are requested again by their issued
+position; the panel does not invent scheduling order.
+
+`prepare_successor` serializes a durable creation request against the fresh
+predecessor flush receipt. The server decides exhaustion. A successor received
+while Undo is live is staged without replacing completion. A late Undo stays
+against the completed predecessor: the prior identical sync is replayed first
+to refresh its live state version, then the correction is sent in stream order.
+Next activates the staged successor after pending predecessor work clears.
+
+## Bounds and composition
+
+`StudyBounds` validates explicit card count per retained current/staged session
+(at most two sessions during a late-correction boundary), history count, shared byte count,
+pending-event count (at most the contract's 64), prefetch low-water and maximum
+offline retention. Defaults are host fixture values. Long-retained cache is
+marked stale. Trusted-clock HTTP use additionally requires an explicit maximum
+snapshot age and permitted skew; untrusted wall time never claims freshness.
+
+Composition order is runtime, client, worker, reducer/store, renderer. Shutdown
+cancels and destroys the worker before runtime cleanup and releases client
+handles. Runtime initialization, budget errors and repeated shutdown have typed
+outcomes. No feature owns `curl_global_init` or `curl_global_cleanup`.
+
+A UI loop calls `session.prepare_create(profile_ref, topic_refs)` before its
+first network request, submits that persisted request to
+`worker.create_or_resume(request, trace_id)` and polls `take_completion()`.
+It installs a successful session on the UI thread. A restart reuses the saved
+creation UUID and scope; changing that pending scope fails closed. For
+synchronization it calls `session.prepare_sync()`, submits the returned exact
+request to `worker.sync()`, and applies the returned synchronization with
+`session.accept_sync()`. At completion it may submit `prepare_successor()` through
+the same create operation; it must keep syncing pending late corrections. `needs_sync()` avoids polling a
+fully cached, acknowledged session; it also detects the configured prefetch low-water.
+
+## Fixture HTTPS server
 
 ```sh
-../scripts/verification/verify_host_cpp.sh vocabulary_panel
+python3 vocabulary_panel/tools/fixture_study_server.py \
+  --certificate .build/sim/fixture-ca.pem \
+  --private-key .build/sim/fixture-key.pem \
+  --state-directory .build/sim/fixture-study-state --port 9443
 ```
 
-Or with CMake:
+The server binds loopback only, requires an explicit owner-only private key and
+persists bounded synthetic state. It exposes the fixture profile `fixture-default`
+and sorted topics `fixture-systems`, `fixture-words`. Its schema-v2 fixture state
+supports idempotent create/sync, terminal suffix rejection, restart, flush
+receipts, 16 bounded synthetic cycles, server-authoritative exhaustion and late
+predecessor corrections. It is not Lexinet's scheduler or authorization service.
+`POST /fixture/control` accepts `offline`, `terminal_rejection` and `delay_ms`.
+
+The client still verifies peer and hostname. The test CA is accepted only for
+`https://127.0.0.1:<port>` or, with the explicit simulation-only
+`allow_qemu_host_test_ca` flag, `https://10.0.2.2:<port>`. Production HTTPS/Tailnet
+and credential policy remain unchanged. CA/private-key/state files are ignored
+build products and must never be committed.
+
+## Verification
+
+`make verify` reaches the vocabulary/runtime HTTP tests through the host-dev
+CMake configuration. Focused commands:
 
 ```sh
-cmake --preset host-debug
-cmake --build --preset host-debug
-ctest --preset host-debug --output-on-failure
+cmake --preset host-dev
+cmake --build --preset host-dev
+ctest --preset host-dev --output-on-failure -R 'http_runtime|vocabulary_panel'
 ```
 
-## Extension points
+Tests cover the reducer semantics and bounds, in-flight identity restart,
+owner-only file locking, corruption, failed commits, five actual process deaths
+(open/write/fsync/rename/directory-fsync), strict contract cases, verified TLS,
+CA/hostname refusal, redirects, response limits, cancellation and worker joins.
+The C++ HTTPS roundtrip test starts the persistent Python fixture, exercises
+rating/Undo, successor replay and late corrections, restarts both peers, and
+kills the client after initial creation or synchronization commits on the server
+but before local installation or acknowledgement to prove exact replay recovery.
+Fixture evidence is not a run against the external
+Lexinet/PostgreSQL deployment; that cross-repository evidence remains separate.
 
-- `@extension-point lexinet_client`: real HTTP, fixture, or explicit bounded offline cache.
-- `@extension-point flash_card_renderer`: the first concrete target implementation is the [LVGL 9.5 renderer](gui/lvgl/README.md), with explicit direct-DRM and fbdev transports; Qt remains a bounded fallback experiment.
-
-See [flash-card UX](../docs/behavior/flash-card-ux.md) and [GUI research](../docs/research/gui-strategies.md).
-
-**Amended 2026-08-07:** separated proposed application touch routing from raw
-touch observation/provenance under ADR 0005 without changing the current
-service, package, permissions, or hardware claims.
-
-**Amended 2026-08-16:** reconciled this domain boundary with ADR 0006 acceptance
-of the Lexinet study semantics and neutral shared-capability ownership. The
-Lexinet-owned `study.v1` wire contract and provenance-stamped panel fixtures are
-now frozen and verified. The server API implementation, resilient adapter,
-neutral-shell integration, and packaging migration remain unimplemented.
-
-**Amended 2026-08-17:** recorded the completed Lexinet Step 2 persistence layer
-at revision `158dea68bffb2b77321d20738afb1ddf99b19ad9`. This does not complete
-the Step 3 scheduler, Step 4 service/API, Step 6 resilient panel client, or any
-target integration gate.
-
-**Amended 2026-08-17:** recorded completed Lexinet Step 3 scheduling at revision
-`517da8a3823fbaa0d70018831be75ed734c2f96d` and repinned the exported contract
-provenance to that final source. Scheduler/projector/materializer behavior and
-the isolated shadow-runner seam are implemented; Step 4 public service/routes/
-CLI and production post-commit shadow composition, Step 6 resilient panel
-client, and every target integration gate remain pending. No accepted product
-decision changed.
-
-**Amended 2026-08-17:** recorded completed Lexinet Step 4 at revision
-`e8a9d52e35bdd55aa7451f4413c781f8371ebb8f` and repinned the unchanged contract
-bundle to that final Step 4 source. The canonical service, strict study routes,
-operator CLI/client, transitional operator authorization, and post-commit-only
-shadow path now have exact mapped normal, live-PostgreSQL, and race evidence.
-Step 5's real Tailnet deployment evidence and panel packaging choice, this
-domain's Step 6 resilient data plane, packaging, and every target integration
-gate remain pending.
-
-**Amended 2026-08-17:** recorded clean Lexinet HEAD
-`ce42272df315f357e10998dd48e9ffd1a935c2ff`, where native
-`tsnet.ListenTLS`, a separate create/resume-and-sync router, fresh per-request
-`WhoIs`, and mutually exclusive scoped node-capability/token authorization have
-landed locally. Verification Item 1 is recorded. The synthetic `ListenTLS`
-failure test proves wrapper cleanup only, not real certificate issuance or
-validation. Real tagged, untagged, wrong/extra-tag, live-revocation,
-MagicDNS/hostname/handshake/invalid-certificate, destructive-denial, and
-cross-profile evidence plus the panel Tailscale package selection remain
-pending. The exported `study.v1` provenance is not repinned, and Step 5 stays
-unchecked.
+Related: [subordinate LVGL surface](gui/lvgl/README.md),
+[flash-card semantics](../docs/behavior/flash-card-ux.md), and
+[shared HTTP runtime](../shared/http_runtime/README.md).

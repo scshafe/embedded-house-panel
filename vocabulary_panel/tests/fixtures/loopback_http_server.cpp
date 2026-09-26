@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -22,8 +23,10 @@
 #include <thread>
 #include <utility>
 
-namespace vocabulary_panel::test_fixture {
-namespace {
+namespace vocabulary_panel::test_fixture
+{
+namespace
+{
 
 std::string status_reason(const int status_code)
 {
@@ -45,8 +48,8 @@ std::string socket_error(const std::string &operation)
 void add_certificate_extension(X509 *certificate, const int extension_nid,
 			       const char *extension_value)
 {
-	X509_EXTENSION *extension = X509V3_EXT_conf_nid(
-		nullptr, nullptr, extension_nid, const_cast<char *>(extension_value));
+	X509_EXTENSION *extension = X509V3_EXT_conf_nid(nullptr, nullptr, extension_nid,
+							const_cast<char *>(extension_value));
 	if (extension == nullptr)
 		throw std::runtime_error("TEST_FIXTURE.TLS_EXTENSION_CREATE_FAILED");
 	const int add_result = X509_add_ext(certificate, extension, -1);
@@ -57,8 +60,7 @@ void add_certificate_extension(X509 *certificate, const int extension_nid,
 
 std::string certificate_pem(X509 *certificate)
 {
-	std::unique_ptr<BIO, decltype(&BIO_free)> certificate_bio(
-		BIO_new(BIO_s_mem()), BIO_free);
+	std::unique_ptr<BIO, decltype(&BIO_free)> certificate_bio(BIO_new(BIO_s_mem()), BIO_free);
 	if (!certificate_bio || PEM_write_bio_X509(certificate_bio.get(), certificate) != 1)
 		throw std::runtime_error("TEST_FIXTURE.TLS_CERTIFICATE_PEM_FAILED");
 	BUF_MEM *certificate_buffer = nullptr;
@@ -71,14 +73,17 @@ std::string certificate_pem(X509 *certificate)
 
 } // namespace
 
-class LoopbackHttpServer::Implementation final {
-public:
+class LoopbackHttpServer::Implementation final
+{
+      public:
 	Implementation(const Transport transport, const int response_status_code,
 		       std::string response_body, std::string redirect_location,
-		       const TlsCertificateIdentity tls_certificate_identity)
-		: transport_(transport), response_status_code_(response_status_code),
-		  response_body_(std::move(response_body)),
-		  redirect_location_(std::move(redirect_location))
+		       const TlsCertificateIdentity tls_certificate_identity,
+		       const unsigned response_delay_ms)
+	    : transport_(transport), response_status_code_(response_status_code),
+	      response_body_(std::move(response_body)),
+	      redirect_location_(std::move(redirect_location)),
+	      response_delay_ms_(response_delay_ms)
 	{
 		status_reason(response_status_code_);
 		if (response_status_code_ == 302 && redirect_location_.empty())
@@ -113,15 +118,9 @@ public:
 		return accepted_connection_count_.load();
 	}
 
-	bool tls_handshake_attempted() const noexcept
-	{
-		return tls_handshake_attempted_.load();
-	}
+	bool tls_handshake_attempted() const noexcept { return tls_handshake_attempted_.load(); }
 
-	std::string trusted_ca_certificate_pem() const
-	{
-		return trusted_ca_certificate_pem_;
-	}
+	std::string trusted_ca_certificate_pem() const { return trusted_ca_certificate_pem_; }
 
 	std::string server_error() const
 	{
@@ -129,27 +128,27 @@ public:
 		return server_error_;
 	}
 
-private:
+      private:
 	void initialize_tls(const TlsCertificateIdentity tls_certificate_identity)
 	{
 		std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> tls_context(
-			SSL_CTX_new(TLS_server_method()), SSL_CTX_free);
+		    SSL_CTX_new(TLS_server_method()), SSL_CTX_free);
 		if (!tls_context)
 			throw std::runtime_error("TEST_FIXTURE.TLS_CONTEXT_CREATE_FAILED");
 		if (SSL_CTX_set_min_proto_version(tls_context.get(), TLS1_2_VERSION) != 1)
 			throw std::runtime_error("TEST_FIXTURE.TLS_MINIMUM_VERSION_FAILED");
 
 		std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)> key_context(
-			EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr), EVP_PKEY_CTX_free);
+		    EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr), EVP_PKEY_CTX_free);
 		EVP_PKEY *generated_private_key = nullptr;
 		if (!key_context || EVP_PKEY_keygen_init(key_context.get()) <= 0 ||
-		    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(
-			    key_context.get(), NID_X9_62_prime256v1) <= 0 ||
+		    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(key_context.get(),
+							   NID_X9_62_prime256v1) <= 0 ||
 		    EVP_PKEY_keygen(key_context.get(), &generated_private_key) <= 0) {
 			throw std::runtime_error("TEST_FIXTURE.TLS_PRIVATE_KEY_CREATE_FAILED");
 		}
 		std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> private_key(
-			generated_private_key, EVP_PKEY_free);
+		    generated_private_key, EVP_PKEY_free);
 
 		std::unique_ptr<X509, decltype(&X509_free)> certificate(X509_new(), X509_free);
 		if (!certificate || X509_set_version(certificate.get(), 2) != 1 ||
@@ -163,8 +162,8 @@ private:
 		X509_NAME *subject = X509_get_subject_name(certificate.get());
 		const unsigned char common_name[] = "localhost";
 		if (subject == nullptr ||
-		    X509_NAME_add_entry_by_txt(subject, "CN", MBSTRING_ASC, common_name, -1,
-					   -1, 0) != 1 ||
+		    X509_NAME_add_entry_by_txt(subject, "CN", MBSTRING_ASC, common_name, -1, -1,
+					       0) != 1 ||
 		    X509_set_issuer_name(certificate.get(), subject) != 1) {
 			throw std::runtime_error("TEST_FIXTURE.TLS_SUBJECT_CREATE_FAILED");
 		}
@@ -174,11 +173,11 @@ private:
 		add_certificate_extension(certificate.get(), NID_key_usage,
 					  "critical,digitalSignature,keyCertSign");
 		add_certificate_extension(certificate.get(), NID_ext_key_usage, "serverAuth");
-		add_certificate_extension(
-			certificate.get(), NID_subject_alt_name,
-			tls_certificate_identity == TlsCertificateIdentity::loopback_ip
-				? "IP:127.0.0.1"
-				: "DNS:localhost");
+		add_certificate_extension(certificate.get(), NID_subject_alt_name,
+					  tls_certificate_identity ==
+						  TlsCertificateIdentity::loopback_ip
+					      ? "IP:127.0.0.1"
+					      : "DNS:localhost");
 		if (X509_sign(certificate.get(), private_key.get(), EVP_sha256()) <= 0 ||
 		    SSL_CTX_use_certificate(tls_context.get(), certificate.get()) != 1 ||
 		    SSL_CTX_use_PrivateKey(tls_context.get(), private_key.get()) != 1 ||
@@ -195,8 +194,8 @@ private:
 		if (listening_socket_ < 0)
 			throw std::runtime_error(socket_error("socket"));
 		const int reuse_address = 1;
-		if (::setsockopt(listening_socket_, SOL_SOCKET, SO_REUSEADDR,
-				 &reuse_address, sizeof(reuse_address)) != 0)
+		if (::setsockopt(listening_socket_, SOL_SOCKET, SO_REUSEADDR, &reuse_address,
+				 sizeof(reuse_address)) != 0)
 			throw std::runtime_error(socket_error("setsockopt"));
 
 		sockaddr_in address{};
@@ -308,11 +307,12 @@ private:
 
 	void write_plain_response(const int connection) const
 	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(response_delay_ms_));
 		const std::string value = response();
 		std::size_t offset = 0;
 		while (offset < value.size()) {
-			const ssize_t bytes_written = ::send(connection, value.data() + offset,
-						       value.size() - offset, 0);
+			const ssize_t bytes_written =
+			    ::send(connection, value.data() + offset, value.size() - offset, 0);
 			if (bytes_written <= 0)
 				return;
 			offset += static_cast<std::size_t>(bytes_written);
@@ -321,12 +321,12 @@ private:
 
 	void write_tls_response(SSL *tls) const
 	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(response_delay_ms_));
 		const std::string value = response();
 		std::size_t offset = 0;
 		while (offset < value.size()) {
 			const int bytes_written = SSL_write(
-				tls, value.data() + offset,
-				static_cast<int>(value.size() - offset));
+			    tls, value.data() + offset, static_cast<int>(value.size() - offset));
 			if (bytes_written <= 0)
 				return;
 			offset += static_cast<std::size_t>(bytes_written);
@@ -343,6 +343,7 @@ private:
 	int response_status_code_;
 	std::string response_body_;
 	std::string redirect_location_;
+	unsigned response_delay_ms_;
 	int listening_socket_{-1};
 	std::uint16_t port_{0};
 	SSL_CTX *tls_context_{nullptr};
@@ -355,23 +356,19 @@ private:
 	std::string server_error_;
 };
 
-LoopbackHttpServer::LoopbackHttpServer(const Transport transport,
-				       const int response_status_code,
-				       std::string response_body,
-				       std::string redirect_location,
-				       const TlsCertificateIdentity tls_certificate_identity)
-	: implementation_(std::make_unique<Implementation>(
-		  transport, response_status_code, std::move(response_body),
-		  std::move(redirect_location), tls_certificate_identity))
+LoopbackHttpServer::LoopbackHttpServer(const Transport transport, const int response_status_code,
+				       std::string response_body, std::string redirect_location,
+				       const TlsCertificateIdentity tls_certificate_identity,
+				       const unsigned response_delay_ms)
+    : implementation_(std::make_unique<Implementation>(
+	  transport, response_status_code, std::move(response_body), std::move(redirect_location),
+	  tls_certificate_identity, response_delay_ms))
 {
 }
 
 LoopbackHttpServer::~LoopbackHttpServer() = default;
 
-std::string LoopbackHttpServer::base_url() const
-{
-	return implementation_->base_url();
-}
+std::string LoopbackHttpServer::base_url() const { return implementation_->base_url(); }
 
 std::uint32_t LoopbackHttpServer::accepted_connection_count() const noexcept
 {
@@ -388,9 +385,6 @@ std::string LoopbackHttpServer::trusted_ca_certificate_pem() const
 	return implementation_->trusted_ca_certificate_pem();
 }
 
-std::string LoopbackHttpServer::server_error() const
-{
-	return implementation_->server_error();
-}
+std::string LoopbackHttpServer::server_error() const { return implementation_->server_error(); }
 
 } // namespace vocabulary_panel::test_fixture

@@ -427,10 +427,10 @@ if ! ownership_registry_error=$(awk -F '|' \
   }
   in_registry { in_registry = 0 }
   END {
-    if (header_count != 1 || registry_rows == 0 || absent_status_rows != 5) {
-      fail("registry must have one status header and exactly five absent-path rows")
+    if (header_count != 1 || registry_rows == 0 || absent_status_rows != 4) {
+      fail("registry must have one status header and exactly four absent-path rows")
     }
-    require_status(http, absent_status)
+    require_status(http, "Host runtime implemented — process lifetime, cancellation, transport budgets, and worker joins tested")
     require_status(media, absent_status)
     require_status(spoken, absent_status)
     require_status(recognition, absent_status)
@@ -475,8 +475,12 @@ if ! ownership_registry_error=$(awk -F '|' \
   exit 1
 fi
 
+test -d "$PROJECT_ROOT/shared/http_runtime" || {
+  bhp_fail VERIFY_DOCS.OWNERSHIP_IMPLEMENTED_PATH_MISSING shared/http_runtime "$TRACE_ID"
+  exit 1
+}
+
 for absent_registry_path in \
-  shared/http_runtime \
   media_broker \
   shared/spoken_command_catalog \
   docs/interfaces/spoken-command-catalog.json \

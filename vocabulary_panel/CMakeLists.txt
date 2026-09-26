@@ -1,11 +1,17 @@
+if(NOT TARGET nlohmann_json::nlohmann_json)
+ find_package(nlohmann_json REQUIRED)
+endif()
 add_library(vocabulary_panel_core STATIC
   src/fixture_lexinet_client.cpp
   src/flash_card_session.cpp
+  src/study_models.cpp
+  src/study_store.cpp
+  src/study_wire_codec.cpp
 )
 
-target_include_directories(vocabulary_panel_core PUBLIC include)
+target_include_directories(vocabulary_panel_core PUBLIC include "${PROJECT_SOURCE_DIR}/shared/http_runtime/include")
 target_compile_features(vocabulary_panel_core PUBLIC cxx_std_17)
-target_link_libraries(vocabulary_panel_core PUBLIC bhp_structured_logging)
+target_link_libraries(vocabulary_panel_core PUBLIC bhp_structured_logging nlohmann_json::nlohmann_json)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(vocabulary_panel_core PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -16,12 +22,11 @@ target_link_libraries(vocabulary_panel_terminal PRIVATE vocabulary_panel_core)
 
 if(BHP_BUILD_HTTP_LEXINET_CLIENT)
   find_package(CURL REQUIRED)
-  find_package(nlohmann_json REQUIRED)
-  add_library(vocabulary_panel_http_lexinet STATIC src/http_lexinet_client.cpp)
+  add_library(vocabulary_panel_http_lexinet STATIC src/http_lexinet_client.cpp src/study_worker.cpp)
   target_include_directories(vocabulary_panel_http_lexinet PUBLIC include)
   target_compile_features(vocabulary_panel_http_lexinet PUBLIC cxx_std_17)
   target_link_libraries(vocabulary_panel_http_lexinet
-    PUBLIC vocabulary_panel_core CURL::libcurl nlohmann_json::nlohmann_json)
+    PUBLIC vocabulary_panel_core bhp_http_runtime)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(vocabulary_panel_http_lexinet PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
@@ -44,6 +49,15 @@ if(BHP_BUILD_HTTP_LEXINET_CLIENT)
     endif()
     add_test(NAME vocabulary_panel_http_lexinet_client_test
       COMMAND vocabulary_panel_http_lexinet_client_test)
+    add_executable(vocabulary_panel_study_worker_test tests/study_worker_test.cpp)
+    target_link_libraries(vocabulary_panel_study_worker_test PRIVATE vocabulary_panel_http_lexinet)
+    add_test(NAME vocabulary_panel_study_worker_test COMMAND vocabulary_panel_study_worker_test)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_executable(vocabulary_panel_study_https_roundtrip_test tests/study_https_roundtrip_test.cpp)
+    target_link_libraries(vocabulary_panel_study_https_roundtrip_test PRIVATE vocabulary_panel_http_lexinet)
+    add_test(NAME vocabulary_panel_fixture_https_roundtrip_test
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixture_study_server_test.py"
+        --client "$<TARGET_FILE:vocabulary_panel_study_https_roundtrip_test>")
   endif()
 endif()
 
@@ -58,6 +72,13 @@ if(BHP_BUILD_TESTS)
   add_executable(vocabulary_panel_flash_card_session_test tests/flash_card_session_test.cpp)
   target_link_libraries(vocabulary_panel_flash_card_session_test PRIVATE vocabulary_panel_core)
   add_test(NAME vocabulary_panel_flash_card_session_test COMMAND vocabulary_panel_flash_card_session_test)
+  add_executable(vocabulary_panel_study_wire_codec_test tests/study_wire_codec_test.cpp)
+  target_link_libraries(vocabulary_panel_study_wire_codec_test PRIVATE vocabulary_panel_core)
+  add_test(NAME vocabulary_panel_study_wire_codec_test COMMAND vocabulary_panel_study_wire_codec_test)
+  add_executable(vocabulary_panel_study_store_crash_test tests/study_store_crash_test.cpp)
+  target_include_directories(vocabulary_panel_study_store_crash_test PRIVATE tests)
+  target_link_libraries(vocabulary_panel_study_store_crash_test PRIVATE vocabulary_panel_core)
+  add_test(NAME vocabulary_panel_study_store_crash_test COMMAND vocabulary_panel_study_store_crash_test)
   add_test(
     NAME vocabulary_panel_study_v1_contract_fixture_test
     COMMAND
