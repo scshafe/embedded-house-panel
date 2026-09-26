@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "House panel simulation scenario v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "surface": {
+      "enum": [
+        "study",
+        "agenda"
+      ]
+    },
+    "lifecycle": {
+      "enum": [
+        "day",
+        "grace",
+        "night",
+        "blank",
+        "clock_untrusted"
+      ]
+    },
+    "study_state": {
+      "enum": [
+        "front",
+        "back",
+        "loading",
+        "empty",
+        "offline",
+        "stale",
+        "error",
+        "queued",
+        "saved",
+        "rejected",
+        "provisional",
+        "refill",
+        "resume",
+        "tracking_paused",
+        "complete"
+      ]
+    },
+    "agenda_state": {
+      "enum": [
+        "today",
+        "stale",
+        "expired",
+        "composer",
+        "recording",
+        "text_preview",
+        "confirmation",
+        "delivery_unknown",
+        "unavailable"
+      ]
+    },
+    "presentation_failure": {
+      "type": "boolean"
+    },
+    "night_red_rgb888": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16777215
+    },
+    "fixture_clock": {
+      "type": "string",
+      "pattern": "^[0-2][0-9]:[0-5][0-9]$"
+    }
+  }
+}

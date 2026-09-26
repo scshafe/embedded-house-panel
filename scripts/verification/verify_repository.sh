@@ -70,6 +70,8 @@ shellcheck_version=$(read_shellcheck_version) || {
 }
 
 "$SCRIPT_DIRECTORY/verify_host_cpp.sh" all
+python3 "$SCRIPT_DIRECTORY/verify_panel_goldens.py" \
+  --renderer "$PROJECT_ROOT/.build/host-dev/simulator/bhp-panel-render"
 (cd "$PROJECT_ROOT" && python3 -m unittest discover -s media_broker/tests -p 'test_*.py')
 "$SCRIPT_DIRECTORY/verify_aarch64_cross_build.sh"
 "$SCRIPT_DIRECTORY/verify_shell_scripts.sh"

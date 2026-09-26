@@ -118,6 +118,14 @@ PanelUiResult<std::unique_ptr<ShellController>> ShellController::create(
 			std::move(sibling_surfaces), monotonic_clock)));
 }
 
+PanelUiResult<bool> ShellController::update_voice_binding(std::optional<VoiceCatalogBinding> binding)
+{
+ auto validated=create(configuration_,binding,sibling_surfaces_,monotonic_clock_);
+ if(!validated)return PanelUiResult<bool>::failure(validated.error());
+ voice_catalog_binding_=std::move(binding);
+ return PanelUiResult<bool>::success(true);
+}
+
 ShellController::ShellController(ShellControllerConfiguration configuration,
 				 std::optional<VoiceCatalogBinding> voice_catalog_binding,
 				 std::vector<SiblingSurfaceContract> sibling_surfaces,

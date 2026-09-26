@@ -61,6 +61,9 @@ public:
 	process_intent(const InteractionIntentEnvelope &intent,
 		       const ShellStateSnapshot &shell_state);
 
+	/** Rebinds a validated active voice artifact without resetting replay or intent order. */
+	[[nodiscard]] PanelUiResult<bool> update_voice_binding(std::optional<VoiceCatalogBinding> binding);
+
 private:
 	struct LastAcceptedIntent {
 		std::string intent_id;

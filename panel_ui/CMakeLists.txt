@@ -98,3 +98,10 @@ if(PANEL_UI_BUILD_TESTS)
     COMMAND sh -c "output=$(\"$0\" 2>&1); test \"$?\" -eq 2 && printf '%s\\n' \"$output\" | grep -F PANEL_UI.LIFECYCLE_SOCKET_CONFIGURATION_INVALID"
       $<TARGET_FILE:bhp-panel-ui>)
 endif()
+
+if(BHP_BUILD_PANEL_RENDERER OR BHP_BUILD_PANEL_SIMULATOR OR BHP_BUILD_PANEL_DRM)
+  find_package(PNG REQUIRED)
+  add_library(panel_ui_lvgl STATIC src/lvgl_panel_display.cpp)
+  target_include_directories(panel_ui_lvgl PUBLIC include)
+  target_link_libraries(panel_ui_lvgl PUBLIC panel_ui_core vocabulary_panel_lvgl_renderer lvgl::lvgl PNG::PNG)
+endif()

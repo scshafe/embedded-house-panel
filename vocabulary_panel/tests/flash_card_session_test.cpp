@@ -2,8 +2,11 @@
 #include "vocabulary_panel/fixture_lexinet_client.h"
 #include "vocabulary_panel/flash_card_session.h"
 #include "vocabulary_panel/study_wire_codec.h"
+#include <algorithm>
+#include <cerrno>
 #include <filesystem>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <unistd.h>
 using namespace vocabulary_panel;
 namespace
@@ -371,9 +374,208 @@ void test_initial_creation_is_durable_and_scope_changes_fail_closed()
 	       "changed scope cannot replace durable initial create request");
 }
 
+void test_history_boundaries_restore_last_face_without_future_action()
+{
+	FlashCardSession s;
+	install(s);
+	const auto first = s.snapshot().flash_card->session_item_id;
+	expect(act(s, StudyIntent::back).has_value() && !s.snapshot().error &&
+		   s.snapshot().flash_card->session_item_id == first &&
+		   s.pending_events().size() == 1,
+	       "first Back is a visible no-op without error or learning fact");
+	act(s, StudyIntent::next);
+	act(s, StudyIntent::next);
+	act(s, StudyIntent::flip);
+	const auto last = s.snapshot().flash_card->session_item_id;
+	const auto facts = s.pending_events().size();
+	act(s, StudyIntent::next);
+	expect(s.snapshot().availability == StudyAvailability::refill_required &&
+		   s.snapshot().can_back,
+	       "completion can navigate back to retained history");
+	expect(act(s, StudyIntent::next).has_value() && !s.snapshot().error &&
+		   s.snapshot().availability == StudyAvailability::refill_required &&
+		   s.pending_events().size() == facts,
+	       "depleted Next queues no future navigation or rating");
+	expect(act(s, StudyIntent::back).has_value() && s.snapshot().flash_card &&
+		   s.snapshot().flash_card->session_item_id == last &&
+		   s.snapshot().face == CardFace::back && s.pending_events().size() == facts,
+	       "Back from completion restores last face without new fact");
+}
+void test_effective_rating_replacement_requires_void_and_reuses_forward_history()
+{
+	FlashCardSession s;
+	install(s);
+	act(s, StudyIntent::flip);
+	act(s, StudyIntent::next);
+	act(s, StudyIntent::back);
+	const auto item = s.snapshot().flash_card->session_item_id;
+	expect(act(s, StudyIntent::rate_good).has_value() && s.pending_events().size() == 4,
+	       "rating reuses already-presented forward history without duplicate presentation");
+	const auto original = s.pending_events().back().event_id;
+	act(s, StudyIntent::rating_undo);
+	act(s, StudyIntent::back);
+	expect(s.snapshot().flash_card->session_item_id == item && s.snapshot().can_rate &&
+		   act(s, StudyIntent::rate_hard).has_value(),
+	       "void permits one replacement effective rating");
+	const auto count = s.pending_events().size();
+	act(s, StudyIntent::back);
+	expect(!s.snapshot().can_rate && !act(s, StudyIntent::rate_easy).has_value() &&
+		   s.pending_events().size() == count,
+	       "effective replacement cannot be rated again without void");
+	expect(std::count_if(s.pending_events().begin(), s.pending_events().end(),
+			     [](const auto &e) { return e.event_kind == "rated"; }) == 2 &&
+		   s.pending_events()[4].target_rating_event_id == original,
+	       "append-only stream has first rating, its exact void, and one replacement");
+}
+void test_full_outbox_provisional_history_requires_capacity_for_touch_promotion()
+{
+	StudyBounds b;
+	b.maximum_pending_events = 2;
+	auto store = std::make_shared<MemoryStudyStore>();
+	FlashCardSession s(store, b);
+	install(s);
+	act(s, StudyIntent::flip);
+	expect(!act(s, StudyIntent::next).has_value() && s.pending_events().size() == 2,
+	       "full outbox refuses unseen touch presentation");
+	act(s, StudyIntent::next, StudyInputSource::voice);
+	act(s, StudyIntent::flip, StudyInputSource::voice);
+	const auto provisional = s.snapshot().flash_card->session_item_id;
+	expect(s.snapshot().provisional && s.snapshot().face == CardFace::back &&
+		   s.pending_events().size() == 2,
+	       "full outbox permits visibly provisional voice observations only");
+	expect(!act(s, StudyIntent::flip).has_value() &&
+		   !act(s, StudyIntent::rate_good).has_value(),
+	       "touch promotion and rating reject atomically when outbox full");
+	act(s, StudyIntent::back, StudyInputSource::voice);
+	expect(
+	    !act(s, StudyIntent::next).has_value() &&
+		s.snapshot().flash_card->session_item_id != provisional,
+	    "touch forward history cannot expose provisional target without durable prerequisites");
+	FixtureLexinetClient client(test_fixture::three_cards());
+	auto request = s.prepare_sync();
+	s.accept_sync(client.sync(request.value(), "full-outbox").value());
+	expect(act(s, StudyIntent::next).has_value() && !s.snapshot().provisional &&
+		   s.snapshot().flash_card->session_item_id == provisional &&
+		   s.pending_events().size() == 2 &&
+		   s.pending_events()[0].event_kind == "presented" &&
+		   s.pending_events()[1].event_kind == "revealed",
+	       "touch restores exact history face only after both prerequisite facts commit");
+	act(s, StudyIntent::next, StudyInputSource::voice);
+	act(s, StudyIntent::flip, StudyInputSource::voice);
+	expect(s.leave_surface().has_value() && !s.snapshot().flash_card &&
+		   s.snapshot().availability == StudyAvailability::resume_required,
+	       "surface termination discards provisional render into non-card gate");
+	FlashCardSession restarted(store, b);
+	restarted.restore();
+	expect(restarted.snapshot().availability == StudyAvailability::resume_required &&
+		   !restarted.snapshot().flash_card && restarted.pending_events().size() == 2,
+	       "discarded provisional facts never acquire sequence or survive restart as card");
+}
+void test_duplicate_acknowledgement_and_same_batch_void_preserve_stream()
+{
+	FlashCardSession s;
+	install(s);
+	act(s, StudyIntent::flip);
+	act(s, StudyIntent::rate_good);
+	act(s, StudyIntent::rating_undo);
+	auto request = s.prepare_sync();
+	FixtureLexinetClient client(test_fixture::three_cards());
+	auto response = client.sync(request.value(), "same-batch").value();
+	expect(s.accept_sync(response).has_value() && s.pending_events().empty(),
+	       "same batch acknowledges presentation reveal rating successor and exact void");
+	const auto generation = s.snapshot().render_generation;
+	expect(!s.accept_sync(response).has_value() &&
+		   s.snapshot().render_generation == generation && s.pending_events().empty(),
+	       "duplicate local acknowledgement is non-destructive typed rejection");
+	act(s, StudyIntent::flip);
+	const auto newest = s.pending_events().back().event_id;
+	expect(!s.accept_sync(response).has_value() && s.pending_events().back().event_id == newest,
+	       "old acknowledgement cannot remove newer queued evidence");
+	expect(s.pending_events().back().client_sequence == 6,
+	       "acknowledged stream sequence remains contiguous");
+	FlashCardSession reprovisioned;
+	expect(reprovisioned.client_stream_id() != s.client_stream_id(),
+	       "reprovisioning creates a distinct stream UUID");
+}
+void test_released_undo_and_empty_sentinel_remain_stable_after_restart()
+{
+	auto store = std::make_shared<MemoryStudyStore>();
+	{
+		FlashCardSession s(store);
+		install(s);
+		act(s, StudyIntent::flip);
+		act(s, StudyIntent::rate_good);
+		expect(s.leave_surface().has_value() && !s.snapshot().can_undo,
+		       "surface exit releases correction reservation");
+	}
+	FlashCardSession restarted(store);
+	restarted.restore();
+	expect(!restarted.snapshot().can_undo &&
+		   !act(restarted, StudyIntent::rating_undo).has_value(),
+	       "released lease never reappears after restart");
+	auto empty_store = std::make_shared<MemoryStudyStore>();
+	FixtureLexinetClient client(std::vector<FlashCard>{});
+	FlashCardSession empty(empty_store);
+	auto create = empty.prepare_create("fixture-default", {"fixture-systems", "fixture-words"});
+	auto response = client.create_or_resume(create.value(), "empty").value();
+	expect(empty.install_session(response).has_value() &&
+		   empty.snapshot().availability == StudyAvailability::empty && !empty.needs_sync(),
+	       "waiting-for-corpus sentinel remains empty without polling");
+	FlashCardSession restored(empty_store);
+	restored.restore();
+	expect(restored.snapshot().session_id == response.session_id &&
+		   restored.snapshot().availability == StudyAvailability::empty &&
+		   !restored.needs_sync() && !restored.prepare_successor().has_value(),
+	       "restart reuses the one empty sentinel without new cycle");
+}
+class DiskFullStore final : public StudyStore
+{
+      public:
+	MemoryStudyStore storage;
+	bool full{false};
+	VocabularyPanelResult<std::optional<std::string>> read() override { return storage.read(); }
+	VocabularyPanelResult<bool> commit(const std::string &payload) override
+	{
+		if (full)
+			return VocabularyPanelResult<bool>::failure(
+			    {"STUDY.STORAGE_FAILED",
+			     "Injected disk full at persistence boundary",
+			     {{"operation", "write_temp"}, {"errno", std::to_string(ENOSPC)}},
+			     false});
+		return storage.commit(payload);
+	}
+	bool durable() const override { return false; }
+};
+void test_disk_full_preserves_durable_payload_and_retryable_local_action()
+{
+	auto store = std::make_shared<DiskFullStore>();
+	FlashCardSession s(store);
+	install(s);
+	act(s, StudyIntent::flip);
+	const auto durable = store->read().value();
+	const auto binding = s.current_binding();
+	store->full = true;
+	auto result = act(s, StudyIntent::rate_good);
+	expect(!result.has_value() &&
+		   result.error().error_context.at("errno") == std::to_string(ENOSPC) &&
+		   s.current_binding().render_generation == binding.render_generation &&
+		   store->read().value() == durable && !s.snapshot().can_undo,
+	       "injected disk-full preserves exact committed payload and visible item");
+	store->full = false;
+	expect(act(s, StudyIntent::rate_good).has_value() &&
+		   s.pending_events()[2].client_sequence == 3,
+	       "recovered disk accepts one rating without leaked sequence or reservation");
+}
+
 } // namespace
 int main()
 {
+	test_history_boundaries_restore_last_face_without_future_action();
+	test_effective_rating_replacement_requires_void_and_reuses_forward_history();
+	test_full_outbox_provisional_history_requires_capacity_for_touch_promotion();
+	test_duplicate_acknowledgement_and_same_batch_void_preserve_stream();
+	test_released_undo_and_empty_sentinel_remain_stable_after_restart();
+	test_disk_full_preserves_durable_payload_and_retryable_local_action();
 	test_initial_creation_is_durable_and_scope_changes_fail_closed();
 	test_two_faces_and_face_preserving_bounded_history();
 	test_stale_binding_and_front_rating_rejected();

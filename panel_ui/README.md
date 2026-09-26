@@ -123,3 +123,15 @@ budgets are required configuration. This domain provides no production values.
   supervisor observations without opening evdev or authoring provenance.
 - `@extension-point panel_surface_contract`: add a sibling feature surface and
   route only its registered namespaced intents.
+
+**Amended 2026-09-25:** `LvglPanelDisplay` now owns the LVGL lifetime, Unicode
+validation, shared study/agenda fixture composition, hit geometry, feature-neutral
+night color and black surface. `BHP_BUILD_PANEL_RENDERER` enables deterministic
+PNG rendering; `BHP_BUILD_PANEL_SIMULATOR` adds the native SDL2 window. Both are
+opt-in. The vocabulary renderer is subordinate and opens no display or raw input.
+`BHP_BUILD_PANEL_DRM` adds an explicitly selected `--simulation-drm` guest branch
+that uses the authenticated lifecycle client and supervisor touch stream.
+`DrmPageFlipDisplay` permits a positive commit only after the kernel page-flip
+completion event. The ordinary entry point retains its fail-dark backend and
+production service enablement remains blocked. See the
+[virtual panel contract](../simulator/README.md) for fixture scope and commands.

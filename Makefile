@@ -33,7 +33,23 @@ aarch64-verification-sysroot:
 verify-release-candidate:
 	./scripts/verification/verify_release_candidate_image.sh
 
-.PHONY: verify-panel-media
+.PHONY: sim-panel verify-panel-goldens update-panel-goldens verify-panel-simulator verify-panel-media
+
+sim-panel:
+	./scripts/sim/build_panel.sh native --execute
+	.build/panel-native/simulator/bhp-panel-sim --scenario simulator/scenarios/day-front.json
+
+verify-panel-goldens:
+	./scripts/sim/build_panel.sh headless --execute
+	python3 scripts/verification/verify_panel_goldens.py --renderer .build/panel-headless/simulator/bhp-panel-render
+
+update-panel-goldens:
+	./scripts/sim/build_panel.sh headless --execute
+	python3 scripts/verification/verify_panel_goldens.py --renderer .build/panel-headless/simulator/bhp-panel-render --update
+
+verify-panel-simulator:
+	./scripts/sim/build_panel.sh native --execute
+	python3 scripts/verification/verify_panel_simulator.py --simulator .build/panel-native/simulator/bhp-panel-sim
 
 verify-panel-media:
 	python3 -m unittest discover -s media_broker/tests -p 'test_*.py'

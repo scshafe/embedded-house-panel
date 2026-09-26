@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "scenario_id": "clock-untrusted",
+  "surface": "study",
+  "lifecycle": "clock_untrusted",
+  "study_state": "front",
+  "fixture_clock": "07:42",
+  "night_red_rgb888": 1572864
+}

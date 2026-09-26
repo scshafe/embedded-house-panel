@@ -1,3 +1,6 @@
+#ifdef BHP_PANEL_SIMULATION_DRM
+#include "panel_ui/simulation_drm_main.hpp"
+#endif
 #include "panel_ui/fail_dark_lifecycle_display_commit_backend.hpp"
 #include "panel_ui/headless_renderer.hpp"
 #include "panel_ui/monotonic_clock.hpp"
@@ -362,6 +365,10 @@ void print_usage()
 int main(const int argument_count, char **arguments)
 {
 	using namespace house_panel::panel_ui;
+#ifdef BHP_PANEL_SIMULATION_DRM
+	for(int index=1;index<argument_count;++index)
+		if(std::string_view(arguments[index])=="--simulation-drm")return run_simulation_drm(argument_count,arguments);
+#endif
 	if (argument_count == 2 && std::string_view(arguments[1]) == "--help") {
 		print_usage();
 		return 0;

@@ -443,7 +443,8 @@ struct FlashCardSession::Implementation {
 		view.flash_card.reset();
 		view.provisional = false;
 		view.can_flip = false;
-		view.can_back = false;
+		view.can_back = state.availability == StudyAvailability::refill_required &&
+				!state.history.empty();
 		view.can_next = state.availability == StudyAvailability::refill_required;
 		view.can_rate = false;
 		if (const auto *i = active(state)) {
@@ -586,6 +587,15 @@ struct FlashCardSession::Implementation {
 		if (!s.history.empty() && s.cursor + 1 < s.history.size()) {
 			++s.cursor;
 			s.availability = StudyAvailability::ready;
+			auto &target = *active(s);
+			if (source == StudyInputSource::touch &&
+			    !promote(s, target, group, target.face == CardFace::back)) {
+				if (!rating)
+					return false;
+				--s.cursor;
+				s.availability = StudyAvailability::refill_required;
+				s.tracking_paused = true;
+			}
 			return true;
 		}
 		if (s.next_item >= s.items.size()) {
@@ -776,6 +786,18 @@ Result FlashCardSession::apply_intent(StudyIntent intent, StudyInputSource sourc
 	// Only an accepted intent expires the lease: candidate state is isolated until commit.
 	s.undo.reset();
 	s.tracking_paused = false;
+	if (intent == StudyIntent::back && s.availability == StudyAvailability::refill_required &&
+	    !s.history.empty()) {
+		// The completion frame is after the last history entry, not another card.
+		s.availability = StudyAvailability::ready;
+		auto &target = *active(s);
+		if (source == StudyInputSource::touch &&
+		    !p.promote(s, target, group, target.face == CardFace::back))
+			return p.fail(error("STUDY.TRACKING_PAUSED",
+					    "No capacity for restored history evidence"),
+				      true);
+		return p.commit(std::move(s));
+	}
 	if (intent == StudyIntent::resume && s.availability == StudyAvailability::resume_required) {
 		if (s.history.empty())
 			return p.fail(error("STUDY.RESUME_INVALID", "No resumable item"));
@@ -847,9 +869,15 @@ Result FlashCardSession::apply_intent(StudyIntent intent, StudyInputSource sourc
 			    true);
 		break;
 	case StudyIntent::back:
-		if (s.cursor == 0)
-			return p.fail(error("STUDY.HISTORY_BOUNDARY", "No earlier retained card"));
-		--s.cursor;
+		if (s.cursor != 0) {
+			--s.cursor;
+			auto &target = *active(s);
+			if (source == StudyInputSource::touch &&
+			    !p.promote(s, target, group, target.face == CardFace::back))
+				return p.fail(error("STUDY.TRACKING_PAUSED",
+						    "No capacity for restored history evidence"),
+					      true);
+		}
 		break;
 	case StudyIntent::rate_again:
 	case StudyIntent::rate_hard:
