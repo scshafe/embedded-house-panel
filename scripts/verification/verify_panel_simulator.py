@@ -26,7 +26,16 @@ def main():
         records.append({'scenario':scenario.stem,'passed':passed,'returncode':result.returncode,
                         'golden_comparison':comparison,
                         'output':result.stdout[-4000:],'stderr':result.stderr[-1000:]})
-    report={'evidence':'simulation_not_hardware_evidence','passed':all(r['passed'] for r in records),'scenarios':records}
+    grid=[]
+    catalog=ROOT/'simulator/tests/fixtures/application_grid/seven_apps.json'
+    for page in (1,2):
+        event='' if page==1 else json.dumps({'type':'intent','intent_id':'shell.apps_next'})+'\n'
+        expected=output/f'grid-page-{page}-reference.png';actual=output/f'grid-page-{page}.png'
+        common=['--scenario',str(ROOT/'simulator/scenarios/home.json'),'--launcher-config',str(catalog),'--exit-after-ms','250']
+        subprocess.run([str(args.simulator.resolve().parent/'bhp-panel-render'),*common,'--output',str(expected)],input=event,capture_output=True,text=True,check=True,timeout=30)
+        subprocess.run([str(args.simulator.resolve()),*common,'--screenshot',str(actual)],input=event,capture_output=True,text=True,check=True,timeout=30)
+        grid.append({'page':page,**compare_png(expected,actual,output/f'grid-page-{page}-diff.png')})
+    report={'application_grid':grid,'evidence':'simulation_not_hardware_evidence','passed':all(r['passed'] for r in records+grid),'scenarios':records}
     (output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     if images: contact_sheet(images,output/'contact-sheet.png')
     print(json.dumps(report))

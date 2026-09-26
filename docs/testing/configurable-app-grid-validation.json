@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "evidence": "simulation_not_hardware_evidence",
+  "feature_commit": "af0e934",
+  "passed": true,
+  "repository_verification": "passed",
+  "documentation_verification": "passed",
+  "host_ctests": 45,
+  "linux_arm64_guest_ctests": 45,
+  "existing_scenarios": {
+    "headless_exact": 43,
+    "native_exact": 43,
+    "guest_exact": 41,
+    "guest_semantic": 2,
+    "approved_baselines_changed": false
+  },
+  "application_grid": {
+    "shapes_rendered": 8,
+    "maximum_entries_tested": 64,
+    "native_pages": [
+      {
+        "page": 1,
+        "passed": true,
+        "changed_pixels": 0,
+        "maximum_channel_delta": 0,
+        "channel_tolerance": 0,
+        "maximum_changed_pixels": 0
+      },
+      {
+        "page": 2,
+        "passed": true,
+        "changed_pixels": 0,
+        "maximum_channel_delta": 0,
+        "channel_tolerance": 0,
+        "maximum_changed_pixels": 0
+      }
+    ],
+    "guest_pages": [
+      {
+        "passed": true,
+        "changed_pixels": 0,
+        "maximum_channel_delta": 0,
+        "channel_tolerance": 0,
+        "maximum_changed_pixels": 0
+      },
+      {
+        "passed": true,
+        "changed_pixels": 0,
+        "maximum_channel_delta": 0,
+        "channel_tolerance": 0,
+        "maximum_changed_pixels": 0
+      }
+    ],
+    "guest_touch_actions": {
+      "next": true,
+      "app": true,
+      "return_home": true,
+      "previous": true
+    },
+    "catalog_restored": true
+  },
+  "optional_checks_skipped": [
+    "aarch64_cross_compiler_missing",
+    "KERNEL_DIR_not_set",
+    "BHP_BUILDROOT_DIR_not_set"
+  ],
+  "native_coordinate_click_proof": "unavailable; no new claim",
+  "hardware_evidence": "not_performed",
+  "local_reports": {
+    "native-report.json": {
+      "path": ".build/app-grid/native-report.json",
+      "sha256": "aa38d7781ec1cbb2705a60658f8a76256e33f47052e51e360cfa80a40909731d"
+    },
+    "vm-report.json": {
+      "path": ".build/app-grid/vm-report.json",
+      "sha256": "30f7b597c4f0de1ccd1516d485384dbd074fcd2603debf624ab3962ccf91e128"
+    }
+  },
+  "verification_logs": [
+    ".build/grid-repository-verification.log",
+    ".build/grid-native-build.log",
+    ".build/grid-native-verification.log",
+    ".build/grid-guest-provision.log",
+    ".build/grid-vm-verification.log",
+    ".build/grid-doc-verification.log"
+  ]
+}

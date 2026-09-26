@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'scripts/sim'))
@@ -142,6 +143,51 @@ def verify_clock_animation():
             'intermediate_commits':frames,'settled_lifecycle_commit':settled}
 
 
+def verify_application_grid():
+    """Exercise an alternate startup catalog in the isolated guest, restoring it always."""
+    output=SIM/'vm/application-grid';output.mkdir(parents=True,exist_ok=True)
+    catalog=ROOT/'simulator/tests/fixtures/application_grid/seven_apps.json'
+    references=[]
+    for page in (1,2):
+        path=output/f'page-{page}-reference.png'
+        event='' if page==1 else json.dumps({'type':'intent','intent_id':'shell.apps_next'})+'\n'
+        subprocess.run([str(ROOT/'.build/panel-headless/simulator/bhp-panel-render'),
+            '--scenario',str(ROOT/'simulator/scenarios/home.json'),'--launcher-config',str(catalog),
+            '--exit-after-ms','100','--output',str(path)],input=event,text=True,capture_output=True,check=True,timeout=20)
+        references.append(path)
+    # Only the task-owned guest copy changes. A unique backup and finally block
+    # restore the exact prior bytes even if rendering, input or comparison fails.
+    backup='/run/bhp-sim/catalog-verification-'+uuid.uuid4().hex+'.json'
+    target='/opt/bhp-sim/panel_ui/config/applications.json'
+    fixture='/opt/bhp-sim/simulator/tests/fixtures/application_grid/seven_apps.json'
+    def guest_script(script):
+        subprocess.run(['ssh',*ssh_arguments(2228),'paneladmin@127.0.0.1',
+            'sudo python3 -c '+shlex.quote(script)],check=True,timeout=25)
+    prepare=f"from pathlib import Path\nimport subprocess\nt=Path({target!r});b=Path({backup!r})\nb.write_bytes(t.read_bytes())\nt.write_bytes(Path({fixture!r}).read_bytes())\nsubprocess.run(['systemctl','restart','bhp-sim-ui'],check=True)\n"
+    restore=f"from pathlib import Path\nimport subprocess\nt=Path({target!r});b=Path({backup!r})\nif b.exists():\n t.write_bytes(b.read_bytes());b.unlink()\n subprocess.run(['systemctl','restart','bhp-sim-ui'],check=True)\n"
+    try:
+        guest_script(prepare)
+        run_action({'type':'scenario','scenario_id':'home'},True)
+        first=run_action({'type':'screenshot','name':'grid-page-1'},True)
+        comparisons=[compare_png(references[0],Path(first['data']['path']),output/'page-1-diff.png')]
+        next_page=verify_launcher_touch(872,536,'home','front')
+        if next_page['lifecycle_commit_after_touch']['ui']['home_page']!=1:
+            raise ValueError('PANEL_VM.GRID_NEXT_PAGE_MISSING')
+        second=run_action({'type':'screenshot','name':'grid-page-2'},True)
+        comparisons.append(compare_png(references[1],Path(second['data']['path']),output/'page-2-diff.png'))
+        opened=verify_launcher_touch(224,280,'study','front')
+        returned=verify_launcher_touch(100,40,'home','front')
+        if returned['lifecycle_commit_after_touch']['ui']['home_page']!=1:
+            raise ValueError('PANEL_VM.GRID_RETURN_PAGE_LOST')
+        previous=verify_launcher_touch(152,536,'home','front')
+        if previous['lifecycle_commit_after_touch']['ui']['home_page']!=0:
+            raise ValueError('PANEL_VM.GRID_PREVIOUS_PAGE_MISSING')
+        if not all(item['passed'] for item in comparisons):raise ValueError('PANEL_VM.GRID_IMAGE_MISMATCH')
+        return {'passed':True,'comparisons':comparisons,'next':next_page,'app':opened,'return_home':returned,'previous':previous}
+    finally:
+        guest_script(restore)
+
+
 def main():
     output=SIM/'vm';output.mkdir(parents=True,exist_ok=True)
     report={'evidence':EVIDENCE,'passed':False,'scenarios':[],'suspend':'disabled'}
@@ -153,6 +199,7 @@ def main():
         if any(value!='active' for value in status['services'].values()):raise ValueError('PANEL_VM.SERVICES_NOT_ACTIVE')
         report['touch']=[verify_touch('single'),verify_touch('type_b')]
         report['launcher']=verify_launcher()
+        report['application_grid']=verify_application_grid()
         report['clock']=verify_clock_animation()
         run_action({'type':'presence','present':False},True);time.sleep(4)
         report['absence_status']=guest_status()

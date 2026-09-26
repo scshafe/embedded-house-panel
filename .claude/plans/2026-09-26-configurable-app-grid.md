@@ -25,7 +25,7 @@ A paged grid preserves touch target sizes and the permanent daytime bar.
     how to add a future feature at the existing shell extension points.
   - Verify: `make verify`
 
-- [ ] **Step 3: Verify all display tiers and publish evidence**
+- [x] **Step 3: Verify all display tiers and publish evidence**
   - Confirm the approved default images remain unchanged, test a populated
     multi-page grid, and leave updated previews running. Make local commits.
   - Verify: `make verify-panel-simulator`
