@@ -33,11 +33,11 @@ aarch64-verification-sysroot:
 verify-release-candidate:
 	./scripts/verification/verify_release_candidate_image.sh
 
-.PHONY: sim-panel verify-panel-goldens update-panel-goldens verify-panel-simulator verify-panel-media
+.PHONY: sim-panel verify-panel-goldens update-panel-goldens verify-panel-simulator verify-panel-media verify-panel-vm
 
 sim-panel:
 	./scripts/sim/build_panel.sh native --execute
-	.build/panel-native/simulator/bhp-panel-sim --scenario simulator/scenarios/day-front.json
+	python3 scripts/sim/run_native_panel.py --execute
 
 verify-panel-goldens:
 	./scripts/sim/build_panel.sh headless --execute
@@ -53,3 +53,6 @@ verify-panel-simulator:
 
 verify-panel-media:
 	python3 -m unittest discover -s media_broker/tests -p 'test_*.py'
+
+verify-panel-vm:
+	python3 scripts/verification/verify_panel_vm.py

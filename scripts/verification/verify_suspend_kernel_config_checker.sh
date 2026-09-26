@@ -61,6 +61,7 @@ expect_rejection()
 for board_profile in "$PROJECT_ROOT"/config/boards/*.env; do
   board_id=${board_profile##*/}
   board_id=${board_id%.env}
+  if grep -q "^BHP_BOARD_STATUS=simulation$" "$board_profile"; then continue; fi
   symbol_list=$("$PROJECT_ROOT/scripts/boards/show_board_profile.sh" \
     --board "$board_id" --value BHP_BOARD_SUSPEND_KCONFIG_SYMBOLS)
   fragment_value=$("$PROJECT_ROOT/scripts/boards/show_board_profile.sh" \
