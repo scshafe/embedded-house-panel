@@ -20,6 +20,9 @@ struct ExpectedDefinition {
 int test_registry_contains_exact_version_one_union()
 {
 	const std::map<std::string, ExpectedDefinition> expected{
+		{"shell.home", {IntentEffectClass::Navigation, true, true, false, true}},
+		{"shell.open_study", {IntentEffectClass::Navigation, true, true, false, true}},
+		{"shell.open_agenda", {IntentEffectClass::Navigation, true, true, false, true}},
 		{"study.flip", {IntentEffectClass::Navigation, true, true, true, true}},
 		{"study.next", {IntentEffectClass::Navigation, true, true, true, true}},
 		{"study.back", {IntentEffectClass::Navigation, true, true, true, true}},

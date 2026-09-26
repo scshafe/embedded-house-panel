@@ -12,6 +12,9 @@
     "personal_context.dispatch": [
       "external_submission"
     ],
+    "shell.switch_surface": [
+      "reversible_local"
+    ],
     "study.navigate": [
       "reversible_local"
     ],
@@ -37,6 +40,15 @@
     ],
     "agenda.submit_wish.handler": [
       "personal_context.dispatch"
+    ],
+    "shell.home.handler": [
+      "shell.switch_surface"
+    ],
+    "shell.open_agenda.handler": [
+      "shell.switch_surface"
+    ],
+    "shell.open_study.handler": [
+      "shell.switch_surface"
     ],
     "study.back.handler": [
       "study.navigate"
@@ -85,6 +97,15 @@
     ],
     "agenda.submit_wish": [
       "agenda.submit_wish.handler"
+    ],
+    "shell.home": [
+      "shell.home.handler"
+    ],
+    "shell.open_agenda": [
+      "shell.open_agenda.handler"
+    ],
+    "shell.open_study": [
+      "shell.open_study.handler"
     ],
     "study.back": [
       "study.back.handler"

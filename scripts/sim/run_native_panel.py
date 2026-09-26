@@ -41,12 +41,12 @@ def prepare_bundle(source, bundle):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--execute',action='store_true')
-    parser.add_argument('--scenario',type=Path,default=ROOT/'simulator/scenarios/day-front.json')
+    parser.add_argument('--scenario',type=Path,default=ROOT/'simulator/scenarios/home.json')
     args=parser.parse_args()
     source=ROOT/'.build/panel-native/simulator/bhp-panel-sim'
     bundle=SIM/'HousePanelSimulator.app'
     command=[str(bundle/'Contents/MacOS/bhp-panel-sim'),'--scenario',str(args.scenario.resolve()),
-             '--state-directory',str(SIM/'native-study'),'--lexinet-config',str(SIM/'native-lexinet.json')]
+             '--clock-preview','on','--state-directory',str(SIM/'native-study'),'--lexinet-config',str(SIM/'native-lexinet.json')]
     print(json.dumps({'execute':args.execute,'command':command,'fixture_https':True,
                      'app_bundle':{'path':str(bundle),'source_executable':str(source),
                                    'bundle_id':'org.housepanel.native-simulation',

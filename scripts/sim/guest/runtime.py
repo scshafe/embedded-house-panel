@@ -94,8 +94,8 @@ def ui_command():
         '--drm-device',drm['path'],'--drm-connector-id',str(drm['connector_id']),
         '--touch-socket-path',str(RUN/'touch/observations.sock'),
         '--simulation-control-socket',str(RUN/'ui/control.sock'),
-        '--scenario',str(ROOT/'simulator/scenarios/day-front.json'),
-        '--state-directory',str(STATE/'study')]
+        '--scenario',str(ROOT/'simulator/scenarios/home.json'),
+        '--clock-preview','on','--state-directory',str(STATE/'study')]
     for name in ('min-x','max-x','min-y','max-y'):
         first,last=name.split('-');command+=['--touch-'+name,str(touch[last+'_'+first])]
     if (STATE/'lexinet.json').exists():command+=['--lexinet-config',str(STATE/'lexinet.json')]

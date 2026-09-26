@@ -106,7 +106,7 @@ def run_action(action:dict,execute:bool,port:int=2228) -> dict:
     if not isinstance(action,dict):raise ValueError('PANEL_CTL.ACTION_INVALID')
     kind=action['type']
     fields={'tap':({'type','x','y'},{'multitouch'}),'swipe':({'type','x','y','end_x','end_y'},{'multitouch'}),
-            'presence':({'type','present'},set()),'scenario':({'type','scenario_id'},set()),
+            'clock_preview':({'type','enabled'},set()),'clock_step':({'type'},set()),'presence':({'type','present'},set()),'scenario':({'type','scenario_id'},set()),
             'screenshot':({'type','name'},set()),'status':({'type'},set()),'select_touch':({'type','protocol'},set())}
     if kind not in fields:raise ValueError('PANEL_CTL.ACTION_UNKNOWN')
     required,optional=fields[kind]
@@ -122,12 +122,14 @@ def run_action(action:dict,execute:bool,port:int=2228) -> dict:
         if not (ROOT/'simulator/scenarios'/(action['scenario_id']+'.json')).is_file(): raise ValueError('PANEL_CTL.SCENARIO_UNKNOWN')
     elif kind=='presence':
         if type(action['present']) is not bool: raise ValueError('PANEL_CTL.PRESENCE_INVALID')
+    elif kind=='clock_preview':
+        if type(action['enabled']) is not bool:raise ValueError('PANEL_CTL.CLOCK_PREVIEW_INVALID')
     elif kind=='select_touch' and action['protocol'] not in ('single','type_b'):
         raise ValueError('PANEL_CTL.TOUCH_PROTOCOL_INVALID')
-    elif kind not in ('status','select_touch'):
+    elif kind not in ('status','select_touch','clock_step'):
         raise ValueError('PANEL_CTL.ACTION_UNKNOWN')
     if not execute: return {'execute':False,'action':action,'evidence':EVIDENCE}
-    if kind in ('presence','scenario','status','select_touch'):
+    if kind in ('presence','scenario','status','select_touch','clock_preview','clock_step'):
         result=guest_control(action,port)
     else:
         with QmpClient(qmp_path()) as qmp:
@@ -163,6 +165,8 @@ def main() -> int:
     for name in ('tap','swipe'):
         p=sub.add_parser(name); p.add_argument('x',type=int); p.add_argument('y',type=int); p.add_argument('--multitouch',action='store_true')
         if name=='swipe': p.add_argument('end_x',type=int); p.add_argument('end_y',type=int)
+    sub.add_parser('clock-preview').add_argument('state',choices=('on','off'))
+    sub.add_parser('clock-step')
     sub.add_parser('status')
     sub.add_parser('presence').add_argument('state',choices=('on','off'))
     sub.add_parser('scenario').add_argument('scenario_id')
@@ -180,6 +184,7 @@ def main() -> int:
         return 0
     action={k:v for k,v in values.items() if k not in ('execute','ssh_port','action')}
     action['type']=args.action.replace('-','_')
+    if args.action=='clock-preview':action={'type':'clock_preview','enabled':args.state=='on'}
     if args.action=='presence': action={'type':'presence','present':args.state=='on'}
     print(json.dumps(run_action(action,args.execute,args.ssh_port)))
     return 0

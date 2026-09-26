@@ -39,7 +39,7 @@ class BrokerTest(unittest.TestCase):
         self.assert_code("ABSTAIN", lambda: self.broker.utterance("Lexi undo", 6))
 
     def test_each_lifecycle_closure_erases_buffer_and_cancels_lease(self):
-        for key, value in (("display_mode", "night_red"), ("presence", False), ("surface", "agenda"),
+        for key, value in (("display_mode", "night_red"), ("presence", False), ("surface", "agenda"), ("surface", "home"),
                            ("idle", False), ("muted", True), ("consumer_connected", False)):
             with self.subTest(key=key):
                 self.broker.set_context(DAY)
@@ -48,6 +48,18 @@ class BrokerTest(unittest.TestCase):
                 self.assertEqual(result["state"], "closed")
                 self.assertEqual(self.broker.buffer, bytearray())
                 self.assertIsNone(self.broker.current_lease)
+
+    def test_home_context_is_valid_but_rejects_recognition_and_old_lease_restart(self):
+        lease = self.broker.current_lease
+        result = self.broker.set_context({**DAY, "surface": "home", "render_generation": 2})
+        self.assertIsNone(result["binding"])
+        self.assert_code("WINDOW_CLOSED", lambda: self.broker.utterance("Lexi flip", 1))
+        self.assert_code("LEASE_CLOSED", lambda: self.broker.start(lease, self.broker.peer))
+
+    def test_shell_navigation_has_no_spoken_form(self):
+        for sequence, phrase in enumerate(("Lexi home", "Lexi open study", "Lexi open agenda"), 1):
+            with self.subTest(phrase=phrase):
+                self.assert_code("ABSTAIN", lambda: self.broker.utterance(phrase, sequence))
 
     def test_one_shot_lease_start_closed_expiry_and_peer_binding(self):
         lease = self.broker.arm("command_recognition", self.broker.peer)

@@ -43,12 +43,14 @@ def apply(message):
         invoke('systemctl','stop','bhp-sim-ui','bhp-sim-supervisor')
         configure(message['protocol'],current['solar'])
         invoke('systemctl','start','bhp-sim-supervisor','bhp-sim-ui');time.sleep(2);return status()
+    if (kind=='clock_preview' and set(message)=={'type','enabled'} and type(message['enabled']) is bool) or (kind=='clock_step' and set(message)=={'type'}):
+        datagram(RUN/'ui/control.sock',json.dumps(message).encode());time.sleep(0.6);return status()
     if kind=='scenario' and set(message)=={'type','scenario_id'}:
         name=message['scenario_id']
         if not isinstance(name,str) or not re.fullmatch('[a-z0-9_-]{1,80}',name):raise ValueError('SIM_GUEST.SCENARIO_INVALID')
         path=ROOT/'simulator/scenarios'/(name+'.json')
-        json.loads(path.read_text())
-        solar='night' if name=='night' else 'day'
+        scenario=json.loads(path.read_text())
+        solar='night' if scenario.get('lifecycle')=='night' else 'day'
         current=json.loads((STATE/'runtime.json').read_text())
         if current['solar']!=solar:
             invoke('systemctl','stop','bhp-sim-ui','bhp-sim-supervisor');configure(current['touch']['protocol'],solar)

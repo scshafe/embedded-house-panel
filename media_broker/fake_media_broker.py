@@ -148,7 +148,7 @@ class FakeMediaBroker:
         for name in ("presence", "idle", "muted", "consumer_connected", "back_revealed", "history_available"):
             if type(context[name]) is not bool:
                 self.close("malformed_context"); raise BrokerError("CONTEXT_INVALID", "context")
-        if context["display_mode"] not in {"day_active", "night_red", "diagnostic", "blank", "suspended"} or context["surface"] not in {"study", "agenda", "night", "blank"} or type(context["render_generation"]) is not int or context["render_generation"] < 1 or not isinstance(context["active_context_nonce"], str) or not 1 <= len(context["active_context_nonce"]) <= 128:
+        if context["display_mode"] not in {"day_active", "night_red", "diagnostic", "blank", "suspended"} or context["surface"] not in {"home", "study", "agenda", "night", "blank"} or type(context["render_generation"]) is not int or context["render_generation"] < 1 or not isinstance(context["active_context_nonce"], str) or not 1 <= len(context["active_context_nonce"]) <= 128:
             self.close("malformed_context"); raise BrokerError("CONTEXT_INVALID", "context")
         if self.context != context:
             self.close("context_changed")

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "scenario_id": "home-weather",
+  "surface": "home",
+  "lifecycle": "day",
+  "fixture_clock": "07:42",
+  "weather": {
+    "state": "available",
+    "high_celsius": 24,
+    "low_celsius": 12,
+    "unit": "F"
+  }
+}

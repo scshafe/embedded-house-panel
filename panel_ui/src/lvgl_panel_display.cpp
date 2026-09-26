@@ -5,6 +5,7 @@
 #include <src/display/lv_display_private.h>
 #include <png.h>
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
@@ -29,7 +30,7 @@ void label(lv_obj_t *parent, const std::string &text, int x, int y, int w, int m
  lv_obj_set_style_text_line_space(o, 0, 0);
  lv_obj_update_layout(o);
  if(lv_obj_get_height(o) > maximum_height)
-  throw std::runtime_error("PANEL_UI.TEXT_LAYOUT_OVERFLOW");
+  throw std::runtime_error("PANEL_UI.TEXT_LAYOUT_OVERFLOW:x="+std::to_string(x)+",y="+std::to_string(y)+",width="+std::to_string(w)+",height="+std::to_string(lv_obj_get_height(o))+",limit="+std::to_string(maximum_height));
 }
 lv_obj_t *box(lv_obj_t *parent,int x,int y,int w,int h,std::uint32_t color,int radius=0) {
  auto *o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
@@ -37,13 +38,91 @@ lv_obj_t *box(lv_obj_t *parent,int x,int y,int w,int h,std::uint32_t color,int r
  lv_obj_set_style_radius(o,radius,0);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);return o;
 }
 bool clock_available(const PanelScene &s) {
- // The only supplied civil-time string is fixture data. Real clock provisioning
- // remains separate; unknown lifecycle time must never be presented as current.
- return s.fixture_data && !s.fixture_clock_untrusted &&
+ // Clock provenance is independent of study data. No civil-time provider is
+ // inferred from live study transport or an unavailable source.
+ return s.clock_source == "fixture" && !s.presentation_failure && !s.fixture_clock_untrusted &&
+        s.lifecycle.display_mode != DisplayMode::Suspended &&
         s.lifecycle.display_mode != DisplayMode::Diagnostic &&
         s.lifecycle.solar_state != SolarState::Unknown &&
         (s.lifecycle.display_mode != DisplayMode::NightRed || s.lifecycle.solar_state == SolarState::Night) &&
         s.lifecycle.system_state == SystemState::Active;
+}
+bool clock_text_valid(const std::string &text) {
+ if(text.size() != 5 || text[2] != ':') return false;
+ for(const auto index : {0, 1, 3, 4}) if(text[index] < '0' || text[index] > '9') return false;
+ return (text[0] - '0') * 10 + text[1] - '0' < 24 &&
+        (text[3] - '0') * 10 + text[4] - '0' < 60;
+}
+std::uint32_t temperature_color(int celsius) {
+ // Both forecast roles use the same actual-temperature scale. A day's high can
+ // be cold, and its low can be hot; the labels never determine their colors.
+ if(celsius <= 0) return 0x7faee8;
+ if(celsius <= 10) return 0x79c5d6;
+ if(celsius <= 20) return 0x9bc996;
+ if(celsius <= 30) return 0xe9c480;
+ return 0xec8b78;
+}
+std::string temperature_text(int celsius, const std::string &unit) {
+ const auto value = unit == "C" ? celsius : static_cast<int>(std::lround(celsius * 1.8 + 32));
+ return std::to_string(value) + "°" + unit;
+}
+void draw_clock(lv_obj_t *screen, const PanelScene &s, const lv_font_t *font, int digit_width, int center_y, std::uint32_t color) {
+ const int cell_height = lv_font_get_line_height(font);
+ lv_point_t colon_size{};
+ lv_text_get_size(&colon_size, ":", font, 0, 0, width, LV_TEXT_FLAG_NONE);
+ const int total_width = digit_width * 4 + colon_size.x;
+ int x = (width - total_width) / 2;
+ const int y = center_y - cell_height / 2;
+ const bool transition = s.clock_transition_milli < 1000;
+ const double progress = s.clock_transition_milli / 1000.0;
+ const int offset = static_cast<int>(std::lround(cell_height * progress * progress * (3 - 2 * progress)));
+ for(std::size_t index = 0; index < s.clock_text.size(); ++index) {
+  const int cell_width = index == 2 ? colon_size.x : digit_width;
+  auto *cell = lv_obj_create(screen);
+  lv_obj_remove_style_all(cell);
+  lv_obj_set_pos(cell, x, y);
+  lv_obj_set_size(cell, cell_width, cell_height);
+  lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_remove_flag(cell, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+  // Each cell clips its outgoing/upward and entering/below digit. The colon
+  // and unchanged digits are static, and no LVGL timer owns transition state.
+  if(transition && index != 2 && s.clock_text[index] != s.clock_previous_text[index]) {
+   label(cell, std::string(1, s.clock_previous_text[index]), 0, -offset, cell_width,
+         cell_height, font, color, LV_TEXT_ALIGN_CENTER);
+   label(cell, std::string(1, s.clock_text[index]), 0, cell_height - offset, cell_width,
+         cell_height, font, color, LV_TEXT_ALIGN_CENTER);
+  } else label(cell, std::string(1, s.clock_text[index]), 0, 0, cell_width,
+               cell_height, font, color, LV_TEXT_ALIGN_CENTER);
+  x += cell_width;
+ }
+}
+void home_icon(lv_obj_t *parent) {
+ static const lv_point_precise_t roof_points[]{{0, 17}, {17, 0}, {34, 17}};
+ auto *roof = lv_line_create(parent);
+ lv_line_set_points(roof, roof_points, 3);
+ lv_obj_set_pos(roof, 17, 14);
+ lv_obj_set_style_line_color(roof, lv_color_hex(0xdbe5df), 0);
+ lv_obj_set_style_line_width(roof, 4, 0);
+ box(parent, 22, 31, 24, 22, 0xdbe5df, 1);
+ box(parent, 30, 39, 8, 14, 0x293f43);
+}
+void launcher_icon(lv_obj_t *parent, bool agenda) {
+ auto *icon = box(parent, 56, 16, 144, 144, agenda ? 0x3a526c : 0x376662, 30);
+ if(agenda) {
+  box(icon, 27, 36, 90, 82, 0xf4f0e8, 7);
+  box(icon, 27, 48, 90, 12, 0xe9c480);
+  box(icon, 44, 26, 9, 24, 0xf4f0e8, 4);
+  box(icon, 91, 26, 9, 24, 0xf4f0e8, 4);
+  for(int row = 0; row < 2; ++row) for(int col = 0; col < 3; ++col)
+   box(icon, 42 + col * 24, 73 + row * 22, 12, 10, 0x3a526c, 2);
+ } else {
+  box(icon, 23, 34, 46, 82, 0xf4f0e8, 7);
+  box(icon, 75, 34, 46, 82, 0xf4f0e8, 7);
+  for(int row = 0; row < 3; ++row) {
+   box(icon, 32, 51 + row * 17, 27, 3, 0x376662, 1);
+   box(icon, 85, 51 + row * 17, 27, 3, 0x376662, 1);
+  }
+ }
 }
 std::string acknowledgement_text(const std::string &value) {
  if(value.empty() || value == "Action accepted" || value == "Already handled") return {};
@@ -75,8 +154,11 @@ std::string status_text(const PanelScene &s) {
 }
 std::vector<std::string> scene_text(const PanelScene &s) {
  if(s.presentation_failure || s.lifecycle.display_mode == DisplayMode::Suspended) return {};
- if(s.lifecycle.display_mode == DisplayMode::NightRed)
-  return clock_available(s) ? std::vector<std::string>{s.clock_text} : std::vector<std::string>{};
+ if(s.lifecycle.display_mode == DisplayMode::NightRed) {
+  if(!clock_available(s)) return {};
+  return s.clock_transition_milli < 1000 ? std::vector<std::string>{s.clock_text, s.clock_previous_text} :
+                                         std::vector<std::string>{s.clock_text};
+ }
  if(s.lifecycle.display_mode == DisplayMode::Diagnostic || s.fixture_clock_untrusted) return {};
  std::vector<std::string> result{status_text(s), acknowledgement_text(s.acknowledgement)};
  if(clock_available(s)) result.push_back(s.clock_text);
@@ -121,8 +203,12 @@ std::uint64_t LvglPanelDisplay::render(const PanelScene &s) {
  auto validated=text_renderer_->render({s.lifecycle.display_mode,ShellTransitionState::Stable,s.surface_id,scene_text(s)});
  if(!validated) throw std::runtime_error(std::string(validated.error().code_string()));
  for(const auto &text : validated.value().visible_text_runs)
-  if(!bhp::panel_fonts::validate_glyph_coverage(text).supported)
+  if(!bhp::panel_fonts::validate_glyph_coverage(text, s.lifecycle.display_mode == DisplayMode::NightRed ?
+       bhp::panel_fonts::FontSubset::Clock : bhp::panel_fonts::FontSubset::Latin).supported)
    throw std::runtime_error("PANEL_UI.FONT_GLYPH_UNSUPPORTED");
+ if(clock_available(s) && (!clock_text_valid(s.clock_text) || s.clock_transition_milli > 1000 ||
+    (s.clock_transition_milli < 1000 && !clock_text_valid(s.clock_previous_text))))
+  throw std::runtime_error("PANEL_UI.CLOCK_FRAME_INVALID");
  draw_scene(s);lv_obj_invalidate(lv_display_get_screen_active(display_));lv_refr_now(display_);
  return validated.value().render_generation;
 }
@@ -144,19 +230,37 @@ void LvglPanelDisplay::draw_scene(const PanelScene &s) {
  const auto mode = s.lifecycle.display_mode;
  if(s.presentation_failure || mode == DisplayMode::Suspended || mode == DisplayMode::NightRed) {
   lv_obj_set_style_bg_color(screen, lv_color_hex(0), 0);
-  if(mode == DisplayMode::NightRed && !s.presentation_failure && clock_available(s))
-   label(screen, s.clock_text, 40, (height - lv_font_get_line_height(&bhp_font_48)) / 2,
-         944, 62, &bhp_font_48, s.night_red_rgb888, LV_TEXT_ALIGN_CENTER);
+  if(mode == DisplayMode::NightRed && !s.presentation_failure && clock_available(s)) {
+   lv_obj_set_style_bg_color(screen, lv_color_hex(s.night_red_rgb888), 0);
+   draw_clock(screen, s, &bhp_clock_font_192, 128, height / 2, 0);
+  }
   return;
  }
  lv_obj_set_style_bg_color(screen, lv_color_hex(0x101c20), 0);
- label(screen, s.surface_id == "agenda" ? "Today" : "Vocabulary", 40, 16, 264, 52, &bhp_font_40, 0xdbe5df);
- if(clock_available(s))
-  label(screen, s.clock_text, 752, 10, 232, 62, &bhp_font_48, 0xf4f0e8, LV_TEXT_ALIGN_RIGHT);
- if(s.fixture_data) label(screen, "Preview · sample data", 320, 28, 400, 31, &bhp_font_24, 0x8db5a7);
+ const bool diagnostic = mode == DisplayMode::Diagnostic || s.fixture_clock_untrusted;
+ if(!diagnostic) {
+  auto *home = box(screen, 40, 8, 160, 64, 0x293f43, 12);
+  home_icon(home);
+  label(home, "Home", 60, 13, 96, 37, &bhp_font_28, 0xdbe5df);
+  hit_targets_.push_back({40, 8, 160, 64, "shell.home"});
+  const bool preview = s.fixture_data || s.clock_source == "fixture" || s.weather_fixture;
+  if(preview) label(screen, "Preview", 208, s.weather_stale ? 4 : 22, 192, 31, &bhp_font_24, 0x8db5a7);
+  if(s.weather_stale) label(screen, "Weather stale", 208, preview ? 37 : 22, 192, 31, &bhp_font_24, 0xe9c480);
+  if(clock_available(s)) draw_clock(screen, s, &bhp_font_48, 32, 33, 0xf4f0e8);
+  else label(screen, "—", 360, 6, 304, 62, &bhp_font_48, 0xf4f0e8, LV_TEXT_ALIGN_CENTER);
+  for(int index = 0; index < 2; ++index) {
+   const int x = index == 0 ? 712 : 856;
+   const int temperature = index == 0 ? s.weather_high_celsius : s.weather_low_celsius;
+   label(screen, index == 0 ? "High" : "Low", x, 2, 128, 31, &bhp_font_24, 0xaab8b7, LV_TEXT_ALIGN_RIGHT);
+   label(screen, s.weather_available ? temperature_text(temperature, s.weather_temperature_unit) : "—",
+         x, 33, 128, 37, &bhp_font_28, s.weather_available ? temperature_color(temperature) : 0xaab8b7,
+         LV_TEXT_ALIGN_RIGHT);
+  }
+ } else if(s.fixture_data || s.clock_source == "fixture")
+  label(screen, "Preview", 40, 22, 650, 31, &bhp_font_24, 0x8db5a7);
  auto *content = box(screen, layout::content_x, layout::content_y, layout::content_width,
                      layout::content_height, 0x1c2d31, 18);
- if(mode == DisplayMode::Diagnostic || s.fixture_clock_untrusted) {
+ if(diagnostic) {
   label(content, "Time unavailable", 24, 60, 896, 104, &bhp_font_40, 0xf4f0e8);
   label(content, "Waiting for the clock to be ready.", 24, 184, 896, 111, &bhp_font_28, 0xaab8b7);
   return;
@@ -165,7 +269,20 @@ void LvglPanelDisplay::draw_scene(const PanelScene &s) {
  if(!status.empty()) label(screen, status, 40, 72, 650, 31, &bhp_font_24, 0xe9c480);
  const auto acknowledgement = acknowledgement_text(s.acknowledgement);
  if(!acknowledgement.empty()) label(screen, acknowledgement, 40, 107, 650, 31, &bhp_font_24, 0xe9c480);
- if(s.surface_id == "study") {
+ if(s.surface_id == "home") {
+  label(content, "Home", 24, 16, 896, 52, &bhp_font_40, 0xf4f0e8);
+  for(int index = 0; index < 2; ++index) {
+   const int tile_x = index == 0 ? 128 : 560;
+   auto *tile = box(content, tile_x, 88, 256, 300, 0x1c2d31, 12);
+   launcher_icon(tile, index == 1);
+   label(tile, index == 0 ? "Lexinet" : "Agenda", 0, 178, 256, 37,
+         &bhp_font_28, 0xf4f0e8, LV_TEXT_ALIGN_CENTER);
+   label(tile, index == 0 ? "Vocabulary" : "Preview", 0, 226, 256, 31,
+         &bhp_font_24, index == 0 ? 0xaab8b7 : 0xe9c480, LV_TEXT_ALIGN_CENTER);
+   hit_targets_.push_back({layout::content_x + tile_x, layout::content_y + 88, 256, 300,
+                           index == 0 ? "shell.open_study" : "shell.open_agenda"});
+  }
+ } else if(s.surface_id == "study") {
   vocabulary_panel::gui::lvgl::render_vocabulary_surface(content,
    {s.study_state, s.card_word, s.card_definition, s.card_example, s.provisional, s.can_back, s.can_undo});
   const auto action_target = [this](int index, int target_width, const std::string &intent) {

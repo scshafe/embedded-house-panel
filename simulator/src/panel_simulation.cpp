@@ -61,16 +61,32 @@ Json read_scenario(const std::string &path) {
  std::ifstream file(path);if(!file)throw std::runtime_error("SIMULATOR.SCENARIO_READ_FAILED");
  std::string bytes((std::istreambuf_iterator<char>(file)),{});if(bytes.size()>65536)throw std::runtime_error("SIMULATOR.SCENARIO_TOO_LARGE");
  auto j=Json::parse(bytes);
- const std::set<std::string> fields{"schema_version","scenario_id","surface","lifecycle","study_state","agenda_state","presentation_failure","night_red_rgb888","fixture_clock"};
+ const std::set<std::string> fields{"schema_version","scenario_id","surface","lifecycle","study_state","agenda_state","presentation_failure","night_red_rgb888","fixture_clock","weather","clock_transition"};
  if(!j.is_object() || j.value("schema_version",0)!=1 || !j.contains("scenario_id") || !j.at("scenario_id").is_string())throw std::runtime_error("SIMULATOR.SCENARIO_SCHEMA_INVALID");
  if(!std::regex_match(j.at("scenario_id").get<std::string>(),std::regex("^[a-z0-9-]{1,64}$")))throw std::runtime_error("SIMULATOR.SCENARIO_ID_INVALID");
  if(j.contains("fixture_clock")&&(!j["fixture_clock"].is_string()||!std::regex_match(j["fixture_clock"].get<std::string>(),std::regex("^([01][0-9]|2[0-3]):[0-5][0-9]$"))))throw std::runtime_error("SIMULATOR.FIXTURE_CLOCK_INVALID");
+ if(j.contains("clock_transition")){
+  const auto &transition=j.at("clock_transition");
+  if(!transition.is_object()||transition.size()!=2||!transition.contains("previous")||!transition.contains("elapsed_ms")
+    ||!transition.at("previous").is_string()||!PreviewClock::valid_text(transition.at("previous").get<std::string>())
+    ||!transition.at("elapsed_ms").is_number_integer()||transition.at("elapsed_ms")<0||transition.at("elapsed_ms")>PreviewClock::transition_duration_ms)
+   throw std::runtime_error("SIMULATOR.CLOCK_TRANSITION_INVALID");
+ }
  for(auto it=j.begin();it!=j.end();++it)if(!fields.count(it.key()))throw std::runtime_error("SIMULATOR.SCENARIO_UNKNOWN_FIELD");
- member(j,"surface",{"study","agenda"});member(j,"lifecycle",{"day","grace","night","blank","clock_untrusted"});
+ member(j,"surface",{"home","study","agenda"});member(j,"lifecycle",{"day","grace","night","blank","clock_untrusted"});
  member(j,"study_state",{"front","back","loading","empty","offline","stale","error","queued","saved","rejected","provisional","refill","complete","resume","tracking_paused"});
  member(j,"agenda_state",{"today","stale","expired","composer","recording","text_preview","confirmation","delivery_unknown","unavailable"});
  if(j.contains("presentation_failure")&&!j["presentation_failure"].is_boolean())throw std::runtime_error("SIMULATOR.SCENARIO_SCHEMA_INVALID");
  if(j.contains("night_red_rgb888")&&(!j["night_red_rgb888"].is_number_unsigned()||j["night_red_rgb888"].get<unsigned>()>0xffffff))throw std::runtime_error("SIMULATOR.SCENARIO_COLOR_INVALID");
+ if(j.contains("weather")){
+  const auto &weather=j.at("weather");
+  const std::set<std::string> weather_fields{"state","high_celsius","low_celsius","unit"};
+  if(!weather.is_object()||!weather.contains("state"))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
+  for(auto it=weather.begin();it!=weather.end();++it)if(!weather_fields.count(it.key()))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
+  member(weather,"state",{"available","unavailable","stale"});member(weather,"unit",{"F","C"});
+  for(const auto *field:{"high_celsius","low_celsius"})if(weather.contains(field)&&(!weather.at(field).is_number_integer()||weather.at(field)<-80||weather.at(field)>60))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
+  if(weather.at("state")!="unavailable"&&(!weather.contains("high_celsius")||!weather.contains("low_celsius")||weather.at("high_celsius")<weather.at("low_celsius")))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
+ }
  return j;
 }
 Snapshot ScriptedPanelSupervisor::publish(const std::string &state) {
@@ -89,8 +105,9 @@ PanelSimulation::PanelSimulation(bool window,std::string state_directory,std::st
  persistent_store_=store_;
  study_=std::make_unique<vocabulary_panel::FlashCardSession>(store_);
  PanelIntentRegistry registry;std::vector<std::string> routes;
- for(const auto &d:registry.definitions())if(d.enabled)routes.push_back(d.intent_id);
- auto made=ShellController::create({std::chrono::milliseconds(100),"simulation-fixture-not-measured",8,true},std::nullopt,{{"study",routes},{"agenda",{"agenda.start_wish_recording","agenda.submit_wish"}}},clock_);
+ for(const auto &d:registry.definitions())if(d.enabled&&d.intent_id.rfind("study.",0)==0)routes.push_back(d.intent_id);
+ routes.push_back("shell.home");
+ auto made=ShellController::create({std::chrono::milliseconds(100),"simulation-fixture-not-measured",8,true},std::nullopt,{{"home",{"shell.home","shell.open_study","shell.open_agenda"}},{"study",routes},{"agenda",{"shell.home","agenda.start_wish_recording","agenda.submit_wish"}}},clock_);
  if(!made)throw std::runtime_error(std::string(made.error().code_string()));controller_=std::move(made).value();
  if(!lexinet_configuration_path.empty()){if(state_directory.empty())throw std::runtime_error("SIMULATOR.HTTPS_REQUIRES_DURABLE_STORE");network_=std::make_unique<StudyNetwork>(lexinet_configuration_path);}
  scene.lifecycle=supervisor.publish("day");
@@ -115,9 +132,18 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
  const bool network_active=network_&&!fixture_override_;
 
  scene=PanelScene{scene.lifecycle};scene.scenario_id=j.at("scenario_id").get<std::string>();scene.surface_id=j.value("surface","study");scene.clock_text=j.value("fixture_clock","07:42");
- scene.fixture_data=scene.surface_id=="agenda"||!network_active||network_->fixture_data;
+ preview_clock_enabled_=false;clock_animation_live_=false;
+ preview_clock_.reset(scene.clock_text,0,false);
+ scene.fixture_data=scene.surface_id!="study"||!network_active||network_->fixture_data;
+ if(j.contains("weather")){
+  const auto &weather=j.at("weather");
+  scene.weather_available=weather.at("state")!="unavailable";scene.weather_stale=weather.at("state")=="stale";
+  scene.weather_high_celsius=weather.value("high_celsius",0);scene.weather_low_celsius=weather.value("low_celsius",0);
+  scene.weather_temperature_unit=weather.value("unit","F");scene.weather_fixture=true;
+ }
  scene.fixture_clock_untrusted=fixture_override_&&j.value("lifecycle","day")=="clock_untrusted";
  scene.agenda_state=j.value("agenda_state","today");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
+ context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
  if(update_lifecycle)accept_lifecycle(supervisor.publish(j.value("lifecycle","day")));
  if(!store_->durable())store_=std::make_shared<vocabulary_panel::MemoryStudyStore>();
  study_=std::make_unique<vocabulary_panel::FlashCardSession>(store_);
@@ -141,7 +167,36 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
  project_study();
  if(state=="loading"||state=="empty"||state=="error"||state=="refill"||state=="complete"||state=="resume"||state=="tracking_paused")scene.study_state=state;
  if(scene.surface_id=="agenda"&&scene.agenda_state=="stale")scene.stale=true;
+ if(j.contains("clock_transition")){
+  PreviewClock sample;sample.reset(j.at("clock_transition").at("previous"),0,false);sample.change_to(scene.clock_text,0);
+  const auto frame=sample.sample(j.at("clock_transition").at("elapsed_ms").get<std::uint64_t>());
+  scene.clock_previous_text=frame.previous_text;scene.clock_transition_milli=frame.transition_milli;
+ }
  render();
+}
+void PanelSimulation::switch_surface(const std::string &surface_id){
+ if(surface_id==scene.surface_id)return;
+ if(scene.surface_id=="study"){
+#ifdef BHP_SIMULATOR_HTTPS
+  const auto boundary_error=study_->snapshot().error;
+#endif
+  const auto departed=study_->leave_surface();
+  if(!departed.has_value()){scene.acknowledgement=departed.error().error_code;return;}
+#ifdef BHP_SIMULATOR_HTTPS
+  // leave_surface commits local evidence, which clears transient reducer errors.
+  // A terminal server failure remains in force until an explicit scenario reload.
+  if(network_&&network_->terminal_error&&boundary_error)study_->set_boundary_error(*boundary_error);
+#endif
+ }
+#ifdef BHP_SIMULATOR_HTTPS
+ if(network_){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
+#endif
+ scene.surface_id=surface_id;
+ context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
+ project_study();
+ scene.fixture_data=surface_id!="study"||!network_||fixture_override_||network_->fixture_data;
+ if(surface_id=="agenda")scene.stale=scene.agenda_state=="stale";
+ scene.acknowledgement.clear();
 }
 void PanelSimulation::project_study(){
  const auto &s=study_->snapshot();
@@ -166,17 +221,22 @@ void PanelSimulation::project_study(){
  }
 }
 void PanelSimulation::accept_lifecycle(const Snapshot &s){
+ if(s.display_mode!=scene.lifecycle.display_mode||s.solar_state==SolarState::Unknown)cancel_clock_animation();
  lifecycle_available_=true;
 #ifdef BHP_SIMULATOR_HTTPS
  if(network_&&(s.display_mode!=DisplayMode::DayActive||s.presence_state==PresenceState::Absent)){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
 #endif
- if(voice_){
-  try{voice_->send({{"op","context"},{"context",{{"display_mode","suspended"},{"presence",false},{"surface",scene.surface_id},{"idle",false},{"muted",true},{"consumer_connected",true},{"active_context_nonce",context_nonce_},{"render_generation",render_generation},{"back_revealed",false},{"history_available",false}}}});}catch(const std::exception &){voice_.reset();}
-  voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;
- }
+ context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
  if(network_&&!fixture_override_)project_study();
- scene.lifecycle=s;context_nonce_="simulation-context-"+std::to_string(s.event_sequence);if(s.display_mode!=DisplayMode::DayActive)scene.acknowledgement.clear();}
+ scene.lifecycle=s;if(s.display_mode!=DisplayMode::DayActive)scene.acknowledgement.clear();}
+void PanelSimulation::close_voice_context(){
+ if(voice_){
+  try{voice_->send({{"op","context"},{"context",{{"display_mode","suspended"},{"presence",false},{"surface",scene.surface_id},{"idle",false},{"muted",true},{"consumer_connected",lifecycle_available_},{"active_context_nonce",context_nonce_},{"render_generation",render_generation},{"back_revealed",false},{"history_available",false}}}});}catch(const std::exception &){voice_.reset();}
+ }
+ voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;
+}
 void PanelSimulation::invalidate_lifecycle(){
+ cancel_clock_animation();
  lifecycle_available_=false;
 #ifdef BHP_SIMULATOR_HTTPS
  if(network_){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
@@ -199,6 +259,9 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
  auto result=controller_->process_intent(intent,{context_nonce_,scene.surface_id,scene.lifecycle.display_mode,scene.presentation_failure||scene.fixture_clock_untrusted||!lifecycle_available_?ShellTransitionState::Loading:ShellTransitionState::Stable,render_generation});
  scene.acknowledgement=result.disposition==IntentDisposition::Accepted?"Action accepted":result.disposition==IntentDisposition::Duplicate?"Already handled":result.disposition==IntentDisposition::Conflict?"Please try again":"Action unavailable";
  if(result.disposition==IntentDisposition::Accepted){
+  const std::map<std::string,std::string> surfaces{{"shell.home","home"},{"shell.open_study","study"},{"shell.open_agenda","agenda"}};
+  const auto surface=surfaces.find(id);
+  if(surface!=surfaces.end()){switch_surface(surface->second);render();return;}
   const std::map<std::string,vocabulary_panel::StudyIntent> mapping{{"study.flip",vocabulary_panel::StudyIntent::flip},{"study.next",vocabulary_panel::StudyIntent::next},{"study.back",vocabulary_panel::StudyIntent::back},{"study.rate.again",vocabulary_panel::StudyIntent::rate_again},{"study.rate.hard",vocabulary_panel::StudyIntent::rate_hard},{"study.rate.good",vocabulary_panel::StudyIntent::rate_good},{"study.rate.easy",vocabulary_panel::StudyIntent::rate_easy},{"study.rating.undo",vocabulary_panel::StudyIntent::rating_undo}};
   auto it=mapping.find(id);if(it!=mapping.end()){
    auto semantic=scene.study_state=="resume"?vocabulary_panel::StudyIntent::resume:it->second;
@@ -212,8 +275,38 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
  render();
 }
 void PanelSimulation::tap(int x,int y){if(scene.presentation_failure)return;for(auto it=display.hit_targets().rbegin();it!=display.hit_targets().rend();++it)if(x>=it->x&&x<it->x+it->width&&y>=it->y&&y<it->y+it->height){auto id=it->intent_id;semantic_intent(id,"touch");return;}}
-void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}
-void PanelSimulation::service(){display.service();pump_study();pump_voice();}
+void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="clock_preview")enable_preview_clock(e.at("enabled").get<bool>());else if(type=="clock_step")advance_preview_clock();else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}
+void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_clock();}
+namespace {
+std::uint64_t clock_monotonic_ms(){return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());}
+}
+void PanelSimulation::enable_preview_clock(bool enabled){
+ preview_clock_enabled_=enabled;clock_animation_live_=false;last_clock_sample_ms_=clock_monotonic_ms();
+ preview_clock_.reset(scene.clock_text,last_clock_sample_ms_,enabled);cancel_clock_animation();render();
+}
+void PanelSimulation::advance_preview_clock(){
+ if(scene.clock_source!="fixture")throw std::runtime_error("SIMULATOR.CLOCK_PREVIEW_REQUIRED");
+ const auto now=clock_monotonic_ms();
+ preview_clock_.reset(scene.clock_text,now,preview_clock_enabled_);
+ preview_clock_.change_to(PreviewClock::next_minute(scene.clock_text),now);clock_animation_live_=true;
+ scene.clock_previous_text=preview_clock_.frame().previous_text;scene.clock_text=preview_clock_.frame().text;
+ scene.clock_transition_milli=0;last_clock_sample_ms_=now;render();
+}
+void PanelSimulation::cancel_clock_animation(){
+ preview_clock_.cancel_transition();clock_animation_live_=false;scene.clock_previous_text.clear();scene.clock_transition_milli=1000;
+}
+void PanelSimulation::pump_clock(){
+ if(!preview_clock_enabled_&&!clock_animation_live_)return;
+ const auto now=clock_monotonic_ms();if(now-last_clock_sample_ms_<33)return;last_clock_sample_ms_=now;
+ const bool visible=lifecycle_available_&&!scene.presentation_failure&&!scene.fixture_clock_untrusted
+  &&scene.clock_source=="fixture"&&scene.lifecycle.solar_state!=SolarState::Unknown
+  &&scene.lifecycle.system_state==SystemState::Active
+  &&(scene.lifecycle.display_mode==DisplayMode::DayActive||scene.lifecycle.display_mode==DisplayMode::NightRed);
+ const auto frame=preview_clock_.sample(now,visible);
+ const bool changed=frame.text!=scene.clock_text||frame.previous_text!=scene.clock_previous_text||frame.transition_milli!=scene.clock_transition_milli;
+ scene.clock_text=frame.text;scene.clock_previous_text=frame.previous_text;scene.clock_transition_milli=frame.transition_milli;
+ clock_animation_live_=!frame.previous_text.empty();if(changed&&visible)render();
+}
 void PanelSimulation::pump_study(){
 #ifdef BHP_SIMULATOR_HTTPS
  if(!network_||fixture_override_||!lifecycle_available_)return;
@@ -273,5 +366,5 @@ void PanelSimulation::pump_voice(){
   }
  }}catch(const std::exception &){voice_.reset();voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;scene.acknowledgement="Voice unavailable - touch remains ready";render();}
 }
-Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"simulation_not_hardware_evidence",true}};}
+Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"clock_text",scene.clock_text},{"clock_source",scene.clock_source},{"clock_previous_text",scene.clock_previous_text},{"clock_transition_milli",scene.clock_transition_milli},{"clock_preview_running",preview_clock_enabled_},{"weather_available",scene.weather_available},{"weather_stale",scene.weather_stale},{"weather_fixture",scene.weather_fixture},{"weather_temperature_unit",scene.weather_temperature_unit},{"simulation_not_hardware_evidence",true}};}
 }

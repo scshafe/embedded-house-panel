@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 #include "simulator/fake_voice_connection.hpp"
+#include "simulator/preview_clock.hpp"
 
 namespace bhp::simulator {
 using Json=nlohmann::json;
@@ -49,6 +50,9 @@ public:
  void semantic_intent(const std::string &id,const std::string &source);
  std::uint64_t render();
  void service();
+ /** Explicit simulation clock; advances fixture minutes, never household civil time. */
+ void enable_preview_clock(bool enabled);
+ void advance_preview_clock();
  house_panel::panel_ui::LvglPanelDisplay display;
  house_panel::panel_ui::PanelScene scene;
  ScriptedPanelSupervisor supervisor;
@@ -56,10 +60,16 @@ public:
  std::uint64_t render_generation{0};
  Json status() const;
 private:
+ /** Routes an accepted app change without resetting the study session or outbox. */
+ void switch_surface(const std::string &surface_id);
+ /** Closes the fake recognition lease and clears the shell's active voice binding. */
+ void close_voice_context();
  void project_study();
  void seed_study();
  void pump_study();
  void pump_voice();
+ void pump_clock();
+ void cancel_clock_animation();
  void utterance(const std::string &phrase);
  void route_intent(const house_panel::panel_ui::InteractionIntentEnvelope &intent);
  std::unique_ptr<FakeVoiceConnection> voice_;
@@ -71,10 +81,14 @@ private:
  bool lifecycle_available_{true};
  std::shared_ptr<vocabulary_panel::StudyStore> persistent_store_;
  SimulationMonotonicClock clock_;
+ PreviewClock preview_clock_;
+ bool preview_clock_enabled_{false},clock_animation_live_{false};
+ std::uint64_t last_clock_sample_ms_{0};
  std::unique_ptr<house_panel::panel_ui::ShellController> controller_;
  std::unique_ptr<vocabulary_panel::FlashCardSession> study_;
  std::shared_ptr<vocabulary_panel::StudyStore> store_;
  std::uint64_t source_sequence_{0};
+ std::uint64_t context_sequence_{0};
  std::string context_nonce_{"simulation-context"};
 };
 }

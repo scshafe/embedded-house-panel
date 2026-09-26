@@ -14,6 +14,119 @@ std::string read_bytes(const std::filesystem::path &path){
  std::ifstream input(path,std::ios::binary);require(input.good(),"test state file must exist");
  return {std::istreambuf_iterator<char>(input),std::istreambuf_iterator<char>()};
 }
+void test_home_navigation_preserves_durable_requests(const std::filesystem::path &root){
+ using namespace vocabulary_panel;
+ const auto directory=std::filesystem::temp_directory_path()/("bhp-home-retention-"+new_study_uuid());
+ const auto state_file=directory/"study-state.json";
+ std::string request_bytes;
+ {
+  FlashCardSession session(std::make_shared<FileStudyStore>(directory.string()));
+  const auto fixture=decode_study_session(read_bytes(root/"vocabulary_panel/tests/fixtures/study_v1/examples/session-created.json"));
+  require(fixture.has_value()&&session.install_session(fixture.value()).has_value(),"navigation fixture installs durably");
+  for(const auto intent:{StudyIntent::flip,StudyIntent::rate_good})
+   require(session.apply_intent(intent,StudyInputSource::touch,session.current_binding()).has_value(),"navigation fixture has a pending rating");
+  const auto request=session.prepare_sync();require(request.has_value(),"navigation fixture persists a sync request");
+  const auto encoded=encode_study_sync(request.value());require(encoded.has_value(),"navigation fixture request encodes");request_bytes=encoded.value();
+ }
+ {
+  PanelSimulation app(false,directory.string());
+  app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string()));
+  const auto before=bhp::simulator::Json::parse(read_bytes(state_file));
+  const auto frame=app.scene.study_state;
+  const auto generation=app.render_generation;
+  app.semantic_intent("shell.home","touch");
+  require(app.scene.surface_id=="home"&&app.render_generation>generation,"Home receives a fresh shell generation");
+  require(!app.scene.can_undo&&app.status().at("pending_review_events")==1,"leaving study closes Undo without discarding the rating");
+  app.semantic_intent("shell.open_agenda","host_fixture");
+  require(app.scene.surface_id=="agenda","Home opens the Agenda preview through its surface contract");
+  app.semantic_intent("study.flip","host_fixture");
+  require(app.scene.study_state==frame,"Agenda cannot route study feature actions");
+  app.semantic_intent("shell.home","host_fixture");
+  app.semantic_intent("shell.open_study","touch");
+  require(app.scene.surface_id=="study"&&app.scene.study_state==frame,"Home returns to the retained study position");
+  const auto after=bhp::simulator::Json::parse(read_bytes(state_file));
+  for(const auto *field:{"stream","session","history","cursor","next_item","items","pending","in_flight","initial_request","successor_request","staged_successor","rejected_receipts"})
+   require(after.at(field)==before.at(field),"app navigation preserves durable study history, event bytes and request identities");
+ }
+ {
+  FlashCardSession restored(std::make_shared<FileStudyStore>(directory.string()));
+  require(restored.restore().has_value(),"navigated durable study restores");
+  const auto request=restored.prepare_sync();require(request.has_value(),"navigated request resumes");
+  const auto encoded=encode_study_sync(request.value());require(encoded.has_value()&&encoded.value()==request_bytes,"app switching and restart retain the exact original sync request");
+ }
+ std::filesystem::remove_all(directory);
+}
+void test_home_navigation_gates_and_retains_voice_state(const std::filesystem::path &root){
+ PanelSimulation app(false);
+ const auto home=bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string());
+ app.load(home);
+ require(app.scene.surface_id=="home"&&!app.scene.weather_available,"default Home has no invented weather");
+ app.semantic_intent("shell.open_study","voice");
+ require(app.scene.surface_id=="home","direct voice navigation is rejected");
+ for(const auto *state:{"night","blank","clock_untrusted"}){
+  app.event({{"type","lifecycle"},{"state",state}});
+  for(const auto *source:{"touch","host_fixture"})for(const auto *intent:{"shell.home","shell.open_study","shell.open_agenda"}){
+   app.semantic_intent(intent,source);
+   require(app.scene.surface_id=="home"&&app.scene.acknowledgement=="Action unavailable","non-day lifecycle rejects all shell navigation sources");
+  }
+ }
+ app.accept_lifecycle(app.supervisor.publish("day"));app.render();
+ app.invalidate_lifecycle();app.semantic_intent("shell.open_study","touch");
+ require(app.scene.surface_id=="home","lifecycle loss blocks app launch");
+ app.accept_lifecycle(app.supervisor.publish("day"));app.render();
+ app.scene.fixture_clock_untrusted=true;app.semantic_intent("shell.open_agenda","host_fixture");
+ require(app.scene.surface_id=="home","fixture diagnostic blocks app launch");
+ app.scene.fixture_clock_untrusted=false;
+ app.semantic_intent("shell.open_study","touch");
+ require(app.scene.surface_id=="study","fresh lifecycle permits app launch");
+ app.semantic_intent("study.flip","touch");app.semantic_intent("study.next","touch");
+ app.semantic_intent("shell.home","touch");app.semantic_intent("shell.open_study","touch");
+ app.semantic_intent("study.back","touch");
+ require(app.scene.study_state=="back"&&app.scene.card_word=="serendipity","study history and remembered card face survive app switching");
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string()));
+ auto generation=app.render_generation;
+ app.event({{"type","utterance"},{"phrase","Lexi flip"}});
+ for(int i=0;i<100&&app.render_generation==generation;++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(10));}
+ require(app.scene.provisional,"fresh unconfirmed voice reveal is provisional before departure");
+ app.semantic_intent("shell.home","touch");
+ require(!app.scene.provisional&&!app.scene.can_undo,"Home releases provisional evidence and Undo");
+ app.semantic_intent("shell.open_study","touch");
+ require(app.scene.study_state=="resume"&&!app.scene.provisional,"returning to voice-only evidence requires explicit resume");
+ app.semantic_intent("study.flip","touch");
+ require(app.scene.study_state=="back"&&!app.scene.provisional,"touch resume confirms the retained card");
+ app.semantic_intent("study.flip","touch");
+ std::this_thread::sleep_for(std::chrono::milliseconds(310));
+ app.event({{"type","utterance"},{"phrase","Lexi flip"}});
+ app.semantic_intent("shell.home","touch");app.semantic_intent("shell.open_study","touch");
+ for(int i=0;i<35;++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(10));}
+ require(app.scene.study_state=="front"&&!app.scene.provisional,"old voice result cannot act after leaving and returning to study");
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/study-rejected.json").string()));
+ app.semantic_intent("shell.home","touch");app.semantic_intent("shell.open_study","touch");
+ require(app.scene.delivery_status=="Not saved","app switching preserves terminal review rejection");
+}
+void test_home_weather_scenario_validation(const std::filesystem::path &root){
+ auto scenario=bhp::simulator::read_scenario((root/"simulator/scenarios/home-weather.json").string());
+ PanelSimulation app(false);app.load(scenario);
+ require(app.scene.weather_available&&!app.scene.weather_stale&&app.scene.weather_fixture&&app.scene.weather_high_celsius==24&&app.scene.weather_low_celsius==12&&app.scene.weather_temperature_unit=="F","Home projects only the explicitly supplied weather fixture");
+ const auto path=std::filesystem::temp_directory_path()/("bhp-home-weather-"+vocabulary_panel::new_study_uuid()+".json");
+ auto parse=[&](const auto &value){std::ofstream file(path);file<<value.dump();file.close();return bhp::simulator::read_scenario(path.string());};
+ for(const auto &weather:std::vector<bhp::simulator::Json>{
+  {{"state","available"},{"high_celsius",12}},
+  {{"state","stale"},{"high_celsius",12},{"low_celsius",24}},
+  {{"state","available"},{"high_celsius",61},{"low_celsius",12}},
+  {{"state","available"},{"high_celsius",24},{"low_celsius",-81}},
+  {{"state","available"},{"high_celsius",24.5},{"low_celsius",12}},
+  {{"state","available"},{"high_celsius",24},{"low_celsius",12},{"unit","K"}},
+  {{"state","unavailable"},{"provider","invented"}}}){
+  auto invalid=scenario;invalid["weather"]=weather;bool rejected=false;try{parse(invalid);}catch(const std::exception &){rejected=true;}require(rejected,"closed weather schema rejects invalid or fabricated observations");
+ }
+ scenario["weather"]["state"]="stale";scenario["weather"]["unit"]="C";app.load(parse(scenario));
+ require(app.scene.weather_available&&app.scene.weather_stale&&app.scene.weather_temperature_unit=="C","stale weather is explicitly marked and retains its unit");
+ scenario["weather"]={{"state","unavailable"}};app.load(parse(scenario));
+ require(!app.scene.weather_available&&!app.scene.weather_stale,"unavailable weather clears previous observations");
+ scenario["fixture_clock"]="24:00";bool rejected=false;try{parse(scenario);}catch(const std::exception &){rejected=true;}require(rejected,"fixture clock rejects out-of-range civil hour");
+ std::filesystem::remove(path);
+}
 void test_durable_delivery_fixture_isolation(const std::filesystem::path &root){
  using namespace vocabulary_panel;
  const auto directory=std::filesystem::temp_directory_path()/("bhp-delivery-isolation-"+new_study_uuid());
@@ -55,6 +168,9 @@ void test_durable_delivery_fixture_isolation(const std::filesystem::path &root){
 int main(){try{
  const auto root=std::filesystem::path(BHP_SIMULATOR_SOURCE_ROOT);
  test_durable_delivery_fixture_isolation(root);
+ test_home_navigation_preserves_durable_requests(root);
+ test_home_navigation_gates_and_retains_voice_state(root);
+ test_home_weather_scenario_validation(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);
@@ -112,13 +228,13 @@ int main(){try{
  app.event({{"type","lifecycle"},{"state","night"}});auto frame=app.scene.study_state;
  app.semantic_intent("study.flip","touch");require(app.scene.study_state==frame,"night rejects feature input");
  app.scene.card_word="\xFF";app.render();
- require((app.display.pixels().front()&0xffffff)==0,"night background is black");
- bool red_clock_visible=false;
+ require((app.display.pixels().front()&0xffffff)==app.scene.night_red_rgb888,"night background uses the configured red fixture field");
+ bool black_clock_visible=false;
  for(auto pixel:app.display.pixels()){
   require((pixel&0xffff)==0,"night pixels contain no green or blue");
-  if((pixel&0xff0000)!=0)red_clock_visible=true;
+  if((pixel&0xffffff)==0)black_clock_visible=true;
  }
- require(red_clock_visible&&app.display.hit_targets().empty(),"night shows only a red clock without feature inputs");
+ require(black_clock_visible&&app.display.hit_targets().empty(),"night shows black clock glyphs on red without feature inputs");
  app.scene.fixture_clock_untrusted=true;app.render();
  for(auto pixel:app.display.pixels())require((pixel&0xffffff)==0,"untrusted night time leaves a black display");
  app.scene.fixture_clock_untrusted=false;

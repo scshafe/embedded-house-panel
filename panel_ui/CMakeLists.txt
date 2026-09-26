@@ -78,6 +78,7 @@ if(PANEL_UI_BUILD_TESTS)
   endif()
   add_test(NAME panel_ui_core_smoke COMMAND panel_ui_core_smoke)
   foreach(test_name
+      lifecycle_presentation_barrier
       panel_intent_registry
       shell_controller
       bounded_unicode_text_policy

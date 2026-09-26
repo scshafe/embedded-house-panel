@@ -14,6 +14,16 @@ struct PanelScene {
  std::string scenario_id;
  std::string surface_id{"study"};
  std::string clock_text{"07:42"};
+ // Clock/forecast provenance is independent of the study transport or content.
+ std::string clock_source{"fixture"};
+ std::string clock_previous_text;
+ std::uint16_t clock_transition_milli{1000};
+ bool weather_available{false};
+ bool weather_stale{false};
+ bool weather_fixture{false};
+ int weather_high_celsius{0};
+ int weather_low_celsius{0};
+ std::string weather_temperature_unit{"F"};
  std::string study_state{"front"};
  std::string card_word{"serendipity"};
  std::string card_definition{"The discovery of something valuable when you were looking for something else."};

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "scenario_id": "home",
+  "surface": "home",
+  "lifecycle": "day",
+  "fixture_clock": "07:42"
+}

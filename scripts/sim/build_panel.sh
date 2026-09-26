@@ -20,7 +20,9 @@ configure=['cmake','-S',str(root),'-B',str(build),'-G','Ninja',
            '-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON',
            '-DBHP_BUILD_PANEL_SIMULATOR='+('ON' if mode=='native' else 'OFF'),
            '-DBHP_BUILD_PANEL_DRM='+('ON' if mode=='guest' else 'OFF')]
-commands=[configure,['cmake','--build',str(build),'--parallel',str(min(6,os.cpu_count() or 2))]]
+parallel=int(os.environ.get('CMAKE_BUILD_PARALLEL_LEVEL',min(6,os.cpu_count() or 2)))
+if parallel<1:raise ValueError('SIM_BUILD.PARALLEL_LEVEL_INVALID')
+commands=[configure,['cmake','--build',str(build),'--parallel',str(parallel)]]
 print(json.dumps({'mode':mode,'execute':execute,'commands':commands,'evidence':'simulation_not_hardware_evidence'}),flush=True)
 if execute:
     for command in commands:

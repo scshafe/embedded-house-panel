@@ -125,9 +125,9 @@ budgets are required configuration. This domain provides no production values.
   route only its registered namespaced intents.
 
 **Amended 2026-09-25:** `LvglPanelDisplay` now owns the LVGL lifetime, Unicode
-validation, shared study/agenda fixture composition, hit geometry, feature-neutral
-night color and black surface. `BHP_BUILD_PANEL_RENDERER` enables deterministic
-PNG rendering; `BHP_BUILD_PANEL_SIMULATOR` adds the native SDL2 window. Both are
+validation, shared Home/study/agenda fixture composition, hit geometry,
+night presentation and black surface. `BHP_BUILD_PANEL_RENDERER` enables
+deterministic PNG rendering; `BHP_BUILD_PANEL_SIMULATOR` adds the native SDL2 window. Both are
 opt-in. The vocabulary renderer is subordinate and opens no display or raw input.
 `BHP_BUILD_PANEL_DRM` adds an explicitly selected `--simulation-drm` guest branch
 that uses the authenticated lifecycle client and supervisor touch stream.
@@ -138,10 +138,34 @@ production service enablement remains blocked. See the
 
 **Amended 2026-09-25 (approved UI review):** the shared renderer uses pinned
 [project fonts](../shared/panel_fonts/README.md), a consistent layout grid,
-bounded text fitting and product copy. The approved night surface is a dim red
-time-only clock on black, hidden for untrusted time and without hit targets.
-It remains a fixed-time simulation preview; AGENDA-011, household civil time
-and physical calibration remain unresolved. All three display tiers share the
-same font assets, geometry and content rules.
+bounded text fitting and product copy. All three display tiers share the same
+font assets, geometry and content rules.
 The [UI validation record](../docs/testing/pre-board-ui-validation.md) links
 the reviewed screens and records the checks and remaining gates.
+
+**Amended 2026-09-26 (Home and clock review):** Home presents clickable Lexinet
+and Agenda icons; Agenda remains a labeled preview. The shared daytime bar
+places Home at the upper left, the time at the center and daily High/Low values
+at the upper right. Temperature colors follow the actual temperature, from
+blue for freezing values through cyan, green, amber and coral for hotter values.
+Missing forecasts display an em dash, and retained stale values are labeled.
+Home navigation routes registered shell intents without replacing the canonical
+study session: leaving study clears provisional voice presentation and Undo,
+while preserving committed study state, history and pending review events.
+
+The night surface now fills the display with the configured dim red fixture
+color and centers a black clock in the pinned 192px clock font. It has no bar or
+hit targets. Both daytime and night clocks move changed digits upward as their
+replacements enter from below over 400ms; unchanged digits and the colon remain
+still. The renderer consumes explicit transition state, so each sampled frame
+has its own render generation. Unknown or untrusted time, blanking and
+presentation failure retain the black night surface. Supervisor brightness and
+power policy remain authoritative.
+
+Clock and weather provenance are independent of study transport. The advancing
+preview clock starts from explicit fixture text; it is not household civil
+time. Weather values are explicit fixtures, not a live forecast. AGENDA-011,
+household timezone, weather provider/location and physical calibration remain
+unresolved. See the [virtual panel contract](../simulator/README.md) for preview
+controls and deterministic capture fields. None of these changes produces FRDM
+hardware evidence.

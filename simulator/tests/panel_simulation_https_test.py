@@ -146,6 +146,8 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
             ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:
                 assert request_started.wait(5), "shell HTTP request did not start"
+                durable_path = directory / name / "study-state.json"
+                before_navigation = json.loads(durable_path.read_text())
                 child.stdin.write(json.dumps(event) + "\n")
                 child.stdin.flush()
                 assert peer_closed.wait(1.5), name + " did not cancel in-flight TLS transfer"
@@ -156,6 +158,10 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
                            for frame in observed), name + " did not render its new shell state"
                 assert not any(frame.get("study_state") == "error" for frame in observed), \
                     "cancelled worker completion escaped into the new shell state"
+                after_navigation = json.loads(durable_path.read_text())
+                for field in ("stream", "session", "initial_request", "successor_request", "in_flight", "pending"):
+                    assert after_navigation[field] == before_navigation[field], \
+                        name + " changed durable study request or event identity during cancellation"
             finally:
                 if child.poll() is None:
                     child.kill()
@@ -165,6 +171,9 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
 
         prove_shell_cancellation("night-cancellation", {"type": "lifecycle", "state": "night"},
                                  {"display_mode": "night_red"})
+        prove_shell_cancellation("home-cancellation", {
+            "type": "intent", "intent_id": "shell.home", "source": "touch",
+        }, {"surface": "home", "fixture_override": False})
         prove_shell_cancellation("surface-cancellation", {
             "type": "scenario", "path": str(root / "simulator/scenarios/agenda-today.json"),
         }, {"surface": "agenda", "fixture_override": True})
@@ -201,15 +210,48 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
             "fixture_ca_file": str(certificate),
         }))
         try:
-            rejected = subprocess.run([
+            rejected = subprocess.Popen([
                 str(renderer), "--scenario", str(root / "simulator/scenarios/day-front.json"),
                 "--lexinet-config", str(mismatch_config), "--state-directory", str(directory / "mismatch-client"),
                 "--exit-after-ms", "2200",
-            ], capture_output=True, text=True, timeout=10, check=True)
-            rejected_frames = [json.loads(line)["data"] for line in rejected.stdout.splitlines()]
-            assert any(frame.get("acknowledgement") == "STUDY.CREATE_RESPONSE_MISMATCH"
-                       for frame in rejected_frames), "reducer did not expose the mismatched scope"
-            assert len(received_requests) == 1, "terminal reducer rejection retried without explicit reload"
+            ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            rejected_frames = []
+            terminal_observed = threading.Event()
+
+            def observe_terminal_frames():
+                for line in rejected.stdout:
+                    frame = json.loads(line)["data"]
+                    rejected_frames.append(frame)
+                    if frame.get("acknowledgement") == "STUDY.CREATE_RESPONSE_MISMATCH":
+                        terminal_observed.set()
+
+            frame_reader = threading.Thread(target=observe_terminal_frames, daemon=True)
+            frame_reader.start()
+            try:
+                assert terminal_observed.wait(3), "reducer did not expose the mismatched scope"
+                terminal_state = json.loads((directory / "mismatch-client/study-state.json").read_text())
+                for intent in ("shell.home", "shell.open_agenda", "shell.home", "shell.open_study"):
+                    rejected.stdin.write(json.dumps({"type": "intent", "intent_id": intent, "source": "touch"}) + "\n")
+                rejected.stdin.flush()
+                rejected.wait(timeout=6)
+                frame_reader.join(timeout=2)
+                assert rejected.returncode == 0, rejected.stderr.read()
+                assert any(frame.get("surface") == "home" for frame in rejected_frames)
+                assert any(frame.get("surface") == "agenda" for frame in rejected_frames)
+                assert rejected_frames[-1]["surface"] == "study" and rejected_frames[-1]["study_state"] == "error", \
+                    "returning through Home erased the terminal reducer failure"
+                assert len(received_requests) == 1, "app switching retried a terminal rejection without explicit reload"
+                returned_state = json.loads((directory / "mismatch-client/study-state.json").read_text())
+                assert returned_state["initial_request"] == terminal_state["initial_request"], \
+                    "terminal navigation replaced the retained creation request"
+            finally:
+                if rejected.poll() is None:
+                    rejected.kill()
+                    rejected.wait(timeout=3)
+                frame_reader.join(timeout=2)
+                rejected.stdin.close()
+                rejected.stdout.close()
+                rejected.stderr.close()
         finally:
             mismatch.shutdown()
             mismatch.server_close()

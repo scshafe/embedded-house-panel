@@ -327,7 +327,7 @@ compile_panel_ui()
 compile_vocabulary_panel()
 {
   (cd "$PROJECT_ROOT" && cmake --fresh --preset host-dev)
-  cmake --build "$PROJECT_ROOT/.build/host-dev" --parallel 6
+  cmake --build "$PROJECT_ROOT/.build/host-dev" --parallel "${CMAKE_BUILD_PARALLEL_LEVEL:-6}"
   ctest --test-dir "$PROJECT_ROOT/.build/host-dev" --output-on-failure
   printf 'reveal\nagain\nquit\n' | \
     "$PROJECT_ROOT/.build/host-dev/vocabulary_panel/vocabulary_panel_terminal" >/dev/null

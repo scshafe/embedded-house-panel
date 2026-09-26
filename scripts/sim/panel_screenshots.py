@@ -124,8 +124,14 @@ def contact_sheet(paths: list[Path], output: Path, columns: int=4) -> None:
     """Create ordered thumbnails and a labelled HTML companion for review."""
     if not paths:
         raise ValueError('PANEL_SCREENSHOT.EMPTY_CONTACT_SHEET')
-    tile_w,tile_h,gap=384,225,12
+    if not 1<=columns<=20:
+        raise ValueError('PANEL_SCREENSHOT.COLUMNS_INVALID')
+    gap=12
     rows=(len(paths)+columns-1)//columns
+    # Keep growing scenario reviews inside the bounded PNG reader/writer contract.
+    tile_h=min(225,(8192-gap)//rows-gap)
+    if tile_h<1:raise ValueError('PANEL_SCREENSHOT.CONTACT_SHEET_TOO_LARGE')
+    tile_w=tile_h*1024//600
     width,height=columns*(tile_w+gap)+gap,rows*(tile_h+gap)+gap
     canvas=bytearray(bytes((20,24,31,255))*width*height)
     for index,path in enumerate(paths):
