@@ -859,3 +859,9 @@ real cross-repository/provider fault matrices or any FRDM hardware measurement.
 The final combined working-tree `make verify` passed at
 `2026-09-26T05:58:55Z` in `.build/virtual-panel-final-verify.log`; its mapped
 host-verification clauses are recorded without closing the release milestone.
+
+**Amended 2026-09-26:** Step 3's join gate now has its live cross-repository
+contract test. `make verify-lexinet-live` accepts an explicit Lexinet source
+path, builds Lexinet `ce42272`, and passes against a disposable real server
+([validation](../../docs/testing/lexinet-live-contract-validation.md)). Step 3
+stays unchecked until Lexinet Step 5's real Tailnet evidence exists.

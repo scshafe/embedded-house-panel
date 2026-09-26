@@ -58,6 +58,16 @@ if(BHP_BUILD_HTTP_LEXINET_CLIENT)
     add_test(NAME vocabulary_panel_fixture_https_roundtrip_test
       COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixture_study_server_test.py"
         --client "$<TARGET_FILE:vocabulary_panel_study_https_roundtrip_test>")
+    # Live cross-repository study.v1 client. `make verify-lexinet-live` runs it
+    # against a disposable real Lexinet; it is never part of default CTest.
+    add_executable(vocabulary_panel_study_live_lexinet_contract_client
+      tests/study_live_lexinet_contract_client.cpp)
+    target_link_libraries(vocabulary_panel_study_live_lexinet_contract_client
+      PRIVATE vocabulary_panel_http_lexinet OpenSSL::Crypto)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+      target_compile_options(vocabulary_panel_study_live_lexinet_contract_client
+        PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
   endif()
 endif()
 

@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "evidence": "simulation_not_hardware_evidence",
+  "evidence_scope": "real_lexinet_loopback_disposable_postgres",
+  "started_at": "2026-09-26T22:19:21Z",
+  "scenarios": [
+    {
+      "scenario": "create_resume",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore_empty_store": true,
+        "prepare_create": true,
+        "create": true,
+        "cards_issued": true,
+        "create_replay_same_session": true,
+        "new_creation_id_resumes_active_scope": true,
+        "create_idempotency_conflict": true,
+        "install_session": true,
+        "ready_after_install": true
+      },
+      "facts": {
+        "session_id": "1355d808-ac79-4ceb-a44e-94187fba151c",
+        "state_version": 1,
+        "card_count": 3
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "study_and_sync",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "restored_session_matches": true,
+        "durable_storage": true,
+        "flip": true,
+        "rate_good": true,
+        "prepare_sync": true,
+        "all_events_accepted": true,
+        "replay_identical_receipts_and_flush": true,
+        "sync_idempotency_conflict": true,
+        "accept_sync": true,
+        "delivery_saved": true,
+        "stale_state_version_conflict": true
+      },
+      "facts": {
+        "event_count": 4,
+        "state_version_after": 2
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "auth_failure",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "create_unauthorized": true,
+        "flip": true,
+        "rate_hard": true,
+        "prepare_sync": true,
+        "sync_unauthorized": true,
+        "events_retained": true
+      },
+      "facts": {
+        "pending_sync_id": "7ff57f88-23c0-4452-bacf-8fa18fbf3ad9",
+        "pending_event_count": 3
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "offline_queue",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "outbox_survived_restart": true,
+        "prepare_sync": true,
+        "durable_sync_id_reused": true,
+        "transport_failure_is_retryable": true,
+        "snapshot_offline": true,
+        "events_retained": true
+      },
+      "facts": {
+        "sync_error": {
+          "code": "LEXINET.HTTP_TRANSPORT_FAILED",
+          "retryable": true
+        },
+        "pending_sync_id": "7ff57f88-23c0-4452-bacf-8fa18fbf3ad9",
+        "pending_event_count": 3,
+        "delivery": "syncing"
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "recover",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "outbox_survived_restart": true,
+        "recover.prepare_sync_0": true,
+        "recover.durable_sync_id_reused": true,
+        "recover.replay_identical_flush_receipt_0": true,
+        "recover.accept_0": true,
+        "recover.outbox_empty": true,
+        "delivery_saved": true
+      },
+      "facts": {
+        "recover.flush_receipt_sha256_0": "0ae6ed0d4aa32ca9598ceda260e37448ca41f05daf9c6cdf92ef0007d877a78c"
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "crash_after_send",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "third_card_active": true,
+        "flip": true,
+        "rate_good": true,
+        "prepare_sync": true,
+        "sync_committed_before_crash": true
+      },
+      "facts": {
+        "view_after_rating": {
+          "availability": "refill_required",
+          "delivery": "queued_locally",
+          "face": "back",
+          "history_size": 3,
+          "pending_event_count": 2,
+          "can_flip": false,
+          "can_next": true,
+          "can_rate": false,
+          "can_undo": true,
+          "has_card": false
+        },
+        "pending_sync_id": "a8cb5bf8-def5-48a8-a525-bc16415211cc",
+        "flush_receipt_sha256": "97c7865b09904f2a4e438b624b0978651989a6a7414043b2fdafbfffdeace12d"
+      },
+      "ok": true,
+      "exit_status": 86,
+      "passed": true
+    },
+    {
+      "scenario": "recover",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "outbox_survived_restart": true,
+        "recover.prepare_sync_0": true,
+        "recover.durable_sync_id_reused": true,
+        "recover.replay_identical_flush_receipt_0": true,
+        "recover.accept_0": true,
+        "recover.outbox_empty": true,
+        "delivery_saved": true
+      },
+      "facts": {
+        "recover.flush_receipt_sha256_0": "97c7865b09904f2a4e438b624b0978651989a6a7414043b2fdafbfffdeace12d"
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "resume_after_server_restart",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "server_state_survived_restart": true,
+        "undo_available": true,
+        "rating_undo": true,
+        "restart.prepare_sync_0": true,
+        "restart.replay_identical_flush_receipt_0": true,
+        "restart.accept_0": true,
+        "restart.outbox_empty": true,
+        "delivery_saved": true
+      },
+      "facts": {
+        "state_version": 4,
+        "view_after_undo": {
+          "availability": "refill_required",
+          "delivery": "queued_locally",
+          "face": "front",
+          "history_size": 3,
+          "pending_event_count": 1,
+          "can_flip": false,
+          "can_next": true,
+          "can_rate": false,
+          "can_undo": false,
+          "has_card": false
+        },
+        "restart.flush_receipt_sha256_0": "2e7cb3727105ba2a34649f05158d0423a7e485662fa2941456ea18c63a004b5d"
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "exhaust_and_successor",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "restore": true,
+        "exhaust.outbox_empty": true,
+        "prepare_successor": true,
+        "successor_created": true,
+        "successor_is_new_session": true,
+        "successor_links_predecessor": true,
+        "successor_replay_same_session": true,
+        "install_successor": true,
+        "successor.prepare_sync_0": true,
+        "successor.replay_identical_flush_receipt_0": true,
+        "successor.accept_0": true,
+        "successor.outbox_empty": true
+      },
+      "facts": {
+        "view_after_exhaustion": {
+          "availability": "refill_required",
+          "delivery": "saved",
+          "face": "front",
+          "history_size": 3,
+          "pending_event_count": 0,
+          "can_flip": false,
+          "can_next": true,
+          "can_rate": false,
+          "can_undo": false,
+          "has_card": false
+        },
+        "successor.flush_receipt_sha256_0": "7c6817543d3b4003f3e8c5dae0d5f7d9e680ec9e1f9fa99052ac79d9bc75d129",
+        "predecessor_session_id": "1355d808-ac79-4ceb-a44e-94187fba151c",
+        "successor_session_id": "fd552dee-a8fe-48f7-85f7-c2d7dc0ddf01"
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    },
+    {
+      "scenario": "atomic_rejection",
+      "evidence": "simulation_not_hardware_evidence",
+      "checks": {
+        "resume_active_session": true,
+        "two_items_available": true,
+        "whole_suffix_terminal_rejected": true,
+        "no_canonical_event_ingested": true,
+        "stream_positions_consumed": true,
+        "terminal_receipts_replay_identically": true
+      },
+      "facts": {
+        "rejection_code": "STUDY_CONTENT_REVISION_MISMATCH"
+      },
+      "ok": true,
+      "exit_status": 0,
+      "passed": true
+    }
+  ],
+  "cross_checks": {
+    "crash_replay_identical_flush_receipt": true,
+    "server_links_predecessor_to_successor": true,
+    "predecessor_not_active": true
+  },
+  "lexinet": {
+    "revision": "ce42272df315f357e10998dd48e9ffd1a935c2ff",
+    "go_version": "go version go1.26.5 linux/amd64",
+    "binary_sha256": "d1f0f66aa3f247abb13f433498ed88ccd9a43d6ab6e1e1a501db7600394b725e"
+  },
+  "postgres": {
+    "version": "postgres (PostgreSQL) 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)"
+  },
+  "corpus": {
+    "topic": "panel-live-contract-words",
+    "profile_ref": "panel-live-contract",
+    "cards": 3,
+    "synthetic": true
+  },
+  "ok": true,
+  "finished_at": "2026-09-26T22:19:24Z"
+}

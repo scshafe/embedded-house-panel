@@ -1353,3 +1353,14 @@ static Tailscale archive at `1.102.2` and node-capability panel authentication
 (panel ADR 0010). This settles Step 5's packaging choice only. The real tagged,
 untagged, wrong-tag, live-revocation and certificate evidence remains open, so
 Step 5 stays unchecked.
+
+**Amended 2026-09-26:** recorded the Step 6 join proof against an external,
+disposable Lexinet. `make verify-lexinet-live` builds Lexinet `ce42272` from an
+explicit `BHP_LEXINET_SOURCE_DIR`, serves loopback `study.v1` with disposable
+PostgreSQL 16 and a disposable bearer, and drives the panel's
+`HttpLexinetClient` and durable reducer. It covers create/resume, idempotent and
+crash replay, idempotency and state conflicts, authentication failure, server
+restart, offline recovery, successor linking and atomic suffix rejection
+([validation](../../docs/testing/lexinet-live-contract-validation.md)). The
+evidence is `simulation_not_hardware_evidence`. Step 5's real Tailnet evidence
+remains open, so Steps 5 and 6 stay unchecked.

@@ -70,7 +70,7 @@ to implement the seven already accepted changes.
   - Verify: `python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py --lexinet-source-dir <lexinet> --check`
   - Verify: `make verify`
 
-- [ ] **Step 6: Run the panel client against a disposable real Lexinet**
+- [x] **Step 6: Run the panel client against a disposable real Lexinet**
   - Build Lexinet from an explicit checkout, serve it on loopback with a
     disposable PostgreSQL 16 cluster and bearer under ignored `.build/lexinet/`,
     seed a synthetic corpus through its JSON CLI, and drive the C++ client and

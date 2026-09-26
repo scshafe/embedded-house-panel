@@ -56,3 +56,14 @@ verify-panel-media:
 
 verify-panel-vm:
 	python3 scripts/verification/verify_panel_vm.py
+
+.PHONY: verify-lexinet-live
+
+# Live study.v1 contract against a disposable real Lexinet. Needs an explicit
+# BHP_LEXINET_SOURCE_DIR checkout, Go matching its go.mod and PostgreSQL 16
+# server binaries. Never inferred and never part of `make verify`.
+verify-lexinet-live:
+	@test -n "$(BHP_LEXINET_SOURCE_DIR)" || { echo 'VERIFY_LEXINET_LIVE.SOURCE_REQUIRED: pass BHP_LEXINET_SOURCE_DIR=<lexinet checkout>' >&2; exit 2; }
+	cmake --preset host-dev >/dev/null
+	cmake --build .build/host-dev --target vocabulary_panel_study_live_lexinet_contract_client --parallel "$${CMAKE_BUILD_PARALLEL_LEVEL:-2}"
+	python3 scripts/lexinet/live_contract.py --execute --lexinet-source-dir "$(BHP_LEXINET_SOURCE_DIR)"

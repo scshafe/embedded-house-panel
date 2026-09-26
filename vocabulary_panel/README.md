@@ -121,6 +121,19 @@ The client still verifies peer and hostname. The test CA is accepted only for
 and credential policy remain unchanged. CA/private-key/state files are ignored
 build products and must never be committed.
 
+## Live Lexinet contract
+
+`make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=/absolute/path/to/lexinet`
+drives this client and the durable reducer against a real Lexinet built from an
+explicit checkout. `scripts/lexinet/live_contract.py` owns the disposable
+PostgreSQL 16 cluster, the loopback bearer and a synthetic corpus under ignored
+`.build/lexinet/`, and deletes the secrets and database at teardown. The runner
+defaults to a JSON dry run. `vocabulary_panel_study_live_lexinet_contract_client`
+prints one JSON report per scenario and is never part of default CTest. The
+[validation record](../docs/testing/lexinet-live-contract-validation.md) lists the
+scenarios. Results are `simulation_not_hardware_evidence`; Tailnet, certificate
+and FRDM evidence stay separate gates.
+
 ## Verification
 
 `make verify` reaches the vocabulary/runtime HTTP tests through the host-dev
