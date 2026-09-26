@@ -28,4 +28,11 @@ constexpr std::string_view malformed_text[] = {
 
 constexpr std::uint32_t unsupported_scalars[] = {0x6f22, 0x1f600, 0x0301};
 
+constexpr std::string_view supported_clock_text[] = {"07:42", "23:59", "0123456789:"};
+constexpr RejectedText unsupported_clock_text[] = {
+    {"07:42 AM", 5, 0x20}, {"07:42\n", 5, 0x0a}, {"é", 0, 0x00e9},
+    {"A", 0, 0x41}, {"07–42", 2, 0x2013}, {"\u00a0", 0, 0x00a0}
+};
+constexpr std::string_view clock_metric_text[] = {"07:42", "23:59", "88:88"};
+
 } // namespace font_fixtures

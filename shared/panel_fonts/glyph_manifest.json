@@ -81,11 +81,28 @@
   "normalization": "none; only encoded supported scalars are accepted",
   "scope": "Printable Basic Latin, Latin-1 Supplement, Latin Extended-A, en/em dash, curly quotes, bullet, ellipsis, prime/double prime, euro and trademark. No CJK, emoji, combining-mark coverage or full-Unicode claim.",
   "generated_sha256": {
+    "shared/panel_fonts/generated/bhp_clock_font_192.c": "910ab1aff0e432d571d439bab1e19730c2607c57bf7cbc35b00637ea1bfbe912",
     "shared/panel_fonts/generated/bhp_font_24.c": "55715f9684e05991bf8923a85514690c68adf98d564c712cb76d18e9e7cad22a",
     "shared/panel_fonts/generated/bhp_font_28.c": "b60fd63338d2568dd30ef7ef6c0ba1a49c793f83ad468c7ead517fb343f78fe1",
     "shared/panel_fonts/generated/bhp_font_36.c": "f314f3c6ea0da7987131d3c76f5f7ee957e3c99c0907868f0158d507d0a23ae6",
     "shared/panel_fonts/generated/bhp_font_40.c": "36adeeb085d69296201a14767bd9e5d9a4c72cd8a761cc02d55bd6da8d5256a4",
     "shared/panel_fonts/generated/bhp_font_48.c": "b3965ea71698d01aea7bbfccd8852287200d0109a6c27df0ba368354388f359c",
+    "shared/panel_fonts/generated/clock_glyph_ranges.inc": "bb353800613c464421adf1ddc06d3dcf66f28e4695b952bc0d2cbf5eb8435065",
     "shared/panel_fonts/generated/glyph_ranges.inc": "5fe29f4a6bc9b8c804a5b19d7c308d4c9c1975cdb7d04503af4ea5796bc8ab51"
-  }
+  },
+  "named_subsets": [
+    {
+      "name": "clock",
+      "font_symbol": "bhp_clock_font_192",
+      "size_px": 192,
+      "glyph_ranges": [
+        [
+          48,
+          58
+        ]
+      ],
+      "layout_controls": [],
+      "scope": "Clock-only ASCII digits 0–9 and colon. No Latin letters, whitespace, dates, symbols or fallback."
+    }
+  ]
 }

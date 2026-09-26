@@ -9,6 +9,9 @@ explicitly; no platform font, replacement box or fallback is selected.
 
 `panel_fonts/panel_fonts.h` exposes C symbols `bhp_font_24`, `bhp_font_28`,
 `bhp_font_36`, `bhp_font_40` and `bhp_font_48` through `bhp::panel_fonts`.
+The separate `bhp_clock_font_192` contains only ASCII digits `0`–`9` and colon.
+Its named manifest subset uses the same pinned source and rasterizer. It does
+not extend the general Latin sizes or promise 192px rendering for other text.
 The C++ `panel_fonts/glyph_coverage.hpp` API is independently available through
 `bhp::panel_font_coverage`; it needs neither LVGL nor a display. A failed check
 identifies the first scalar and byte offset without retaining personal text.
@@ -18,6 +21,10 @@ en/em dashes, curly quotes, bullet, ellipsis, prime/double prime, euro and
 trademark. LF is a layout control. This is **not full Unicode coverage**:
 CJK, emoji and decomposed combining sequences fail; precomposed supported
 characters such as `é` render. The renderer does not normalize user content.
+Coverage calls accept `FontSubset::Clock` to enforce the narrower clock glyph
+set; the default `FontSubset::Latin` preserves the general text contract.
+Clock coverage rejects whitespace and line breaks and does not itself validate
+time syntax, date context or clock trust.
 
 The source Montserrat Medium TTF is copied verbatim from the
 [official LVGL v9.5.0 font sources](https://github.com/lvgl/lvgl/tree/v9.5.0/scripts/built_in_font).
@@ -30,7 +37,7 @@ All tiers compile identical committed C assets with 4-bit antialiasing.
 
 Normal builds need no Node, npm, generator or font download. Host verification
 checks asset hashes and coverage. LVGL tests additionally resolve every
-manifest glyph in every size, reject blank substitutes and check unsupported
+manifest glyph in each applicable size/subset, reject blank substitutes and check unsupported
 scripts fail. The generator has JSON output and a dry-run default.
 
 To regenerate after an intentional recipe change, install the locked developer

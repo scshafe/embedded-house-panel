@@ -17,7 +17,7 @@ if(BHP_BUILD_LVGL_RENDERER)
   endif()
   add_library(bhp_panel_fonts STATIC
     generated/bhp_font_24.c generated/bhp_font_28.c generated/bhp_font_36.c
-    generated/bhp_font_40.c generated/bhp_font_48.c)
+    generated/bhp_font_40.c generated/bhp_font_48.c generated/bhp_clock_font_192.c)
   add_library(bhp::panel_fonts ALIAS bhp_panel_fonts)
   target_include_directories(bhp_panel_fonts PUBLIC include)
   target_link_libraries(bhp_panel_fonts PUBLIC bhp::panel_font_coverage ${BHP_PANEL_FONT_LVGL_TARGET})

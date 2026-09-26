@@ -1,18 +1,26 @@
 #include "panel_fonts/glyph_coverage.hpp"
 
 #include "glyph_ranges.inc"
+#include "clock_glyph_ranges.inc"
 
 namespace bhp::panel_fonts {
 
-bool has_glyph(const std::uint32_t code_point) noexcept
+bool has_glyph(const std::uint32_t code_point, const FontSubset subset) noexcept
 {
+    if (subset == FontSubset::Clock) {
+        for (const auto &range : clock_glyph_ranges) {
+            if (code_point >= range[0] && code_point <= range[1]) return true;
+        }
+        return false;
+    }
+    if (subset != FontSubset::Latin) return false;
     for (const auto &range : glyph_ranges) {
         if (code_point >= range[0] && code_point <= range[1]) return true;
     }
     return false;
 }
 
-GlyphCoverageResult validate_glyph_coverage(const std::string_view utf8) noexcept
+GlyphCoverageResult validate_glyph_coverage(const std::string_view utf8, const FontSubset subset) noexcept
 {
     std::size_t offset = 0;
     while (offset < utf8.size()) {
@@ -39,9 +47,9 @@ GlyphCoverageResult validate_glyph_coverage(const std::string_view utf8) noexcep
             (scalar >= 0xd800 && scalar <= 0xdfff)) return {false, offset, 0xffffffffU};
         bool is_layout_control = false;
         for (const auto control : layout_controls) {
-            if (control == scalar) is_layout_control = true;
+            if (subset == FontSubset::Latin && control == scalar) is_layout_control = true;
         }
-        if (!is_layout_control && !has_glyph(scalar)) return {false, offset, scalar};
+        if (!is_layout_control && !has_glyph(scalar, subset)) return {false, offset, scalar};
         offset += length;
     }
     return {true, utf8.size(), 0};

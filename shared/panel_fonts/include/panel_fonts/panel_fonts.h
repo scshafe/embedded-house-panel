@@ -14,6 +14,8 @@ extern const lv_font_t bhp_font_28;
 extern const lv_font_t bhp_font_36;
 extern const lv_font_t bhp_font_40;
 extern const lv_font_t bhp_font_48;
+// Clock-only subset: ASCII digits and colon, with no other Latin glyphs/fallback.
+extern const lv_font_t bhp_clock_font_192;
 
 #ifdef __cplusplus
 }
