@@ -90,7 +90,7 @@ flowchart TB
   socket setup/accept, encoding, and sequence failures remain explicit. A sequence-bound
   render-ready/page-flip acknowledgement is a required future protocol addition
   before nonzero-brightness ordering can be called presentation-safe.
-- `LexinetClient`: next-card and review-result operations expressed in Lexinet domain objects.
+- `LexinetClient`: `study.v1` create/resume and sync operations (`HttpLexinetClient`), executed only on the study worker.
 - `FlashCardView`: presentation model + user action, independent of DRM/LVGL/SDL/terminal implementation.
 
 Search for `@canonical` to find each authoritative implementation and `@extension-point` to add a hardware or display backend.

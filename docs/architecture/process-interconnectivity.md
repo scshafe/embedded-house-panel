@@ -46,14 +46,15 @@ sequenceDiagram
     S->>M: publish mode.v1 {display_mode: vocabulary}
     Note over M,U: no implemented client carries this snapshot to U
     S->>S: apply calibrated day brightness
-    U->>T: provisional HTTPS next-card request (not mode-triggered)
+    U->>T: study.v1 create/resume or sync over HTTPS (not mode-triggered)
     T->>L: route over tailnet
     L-->>U: validated response envelope
     U-->>U: word screen
 ```
 
-The `next-card` exchange above is fixture/provisional behavior, not an existing
-Lexinet endpoint or the planned `study.v1` session contract.
+The exchange above is Lexinet's frozen `study.v1` contract. Production panel
+study requests stay disabled until real Tailnet evidence and packaging are
+verified; the historical next-card adapter was removed on 2026-09-25.
 
 ## Absence and resume
 

@@ -280,6 +280,22 @@ require_fixed_count docs/decisions/README.md \
   '[0010](0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md)' 1 \
   VERIFY_DOCS.PANEL_TAILNET_RUNTIME_ADR_REGISTRY_ENTRY_INVALID
 
+# Both study.v1 examples carry node-capability configuration (ADR 0010), an
+# empty credential path, and none of the retired next-card adapter keys.
+for study_example in config/vocabulary-panel.env.example \
+  system_image/buildroot_external/board/beaglebone-house-panel/rootfs-overlay/etc/beaglebone-house-panel/vocabulary-panel.env.example; do
+  require_exact_line_count "$study_example" \
+    'BHP_VOCABULARY_PANEL_STUDY_AUTH_MODE=tailnet_node' 1 \
+    VERIFY_DOCS.STUDY_EXAMPLE_AUTH_MODE_INVALID
+  require_exact_line_count "$study_example" \
+    'BHP_VOCABULARY_PANEL_CREDENTIAL_FILE=' 1 \
+    VERIFY_DOCS.STUDY_EXAMPLE_CREDENTIAL_NOT_EMPTY
+  require_fixed_count "$study_example" 'NEXT_CARD' 0 \
+    VERIFY_DOCS.STUDY_EXAMPLE_RETIRED_ADAPTER_KEY
+  require_fixed_count "$study_example" 'REVIEW_PATH' 0 \
+    VERIFY_DOCS.STUDY_EXAMPLE_RETIRED_ADAPTER_KEY
+done
+
 # The FRDM bring-up doc is agent-executable: every gate has a gate-map row,
 # the checklist is numbered contiguously, and every script it names exists.
 frdm_bringup=docs/operations/frdm-bringup.md

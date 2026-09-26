@@ -311,3 +311,9 @@ supervisor-owned raw touch, authenticated normalized observations, fake command
 admission, synthetic agenda, and three visual validation tiers. Added the Mac
 and QEMU quickstart. Real-provider, production capability, firmware-license and
 every `FRDM-GATE-*` obligation remain open; production services remain disabled.
+
+**Amended 2026-09-26:** repinned the unchanged `study.v1` contract bundle to
+Lexinet `ce42272df315f357e10998dd48e9ffd1a935c2ff`, replaced both next-card
+environment examples with `study.v1` configuration (node-capability
+authentication, no stored credential; ADR 0010), and retired the remaining
+next-card documentation. Production services remain disabled.

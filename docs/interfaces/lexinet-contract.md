@@ -7,9 +7,9 @@ materializer, canonical study service, strict public routes, operator CLI, and
 post-commit-only shadow composition are implemented. Lexinet's separate native
 TLS Tailnet study router and scoped node-capability/token authorization are also
 implemented locally; real Tailnet policy/identity/revocation/certificate
-evidence, the panel Tailscale packaging choice, and the panel's resilient study
-client remain later gates. The historical next-card adapter is not a `study.v1`
-implementation.
+evidence remains a later gate. The panel's resilient study client is
+implemented with host and fixture evidence, ADR 0010 records the panel
+Tailscale packaging choice, and the historical next-card adapter was removed.
 
 The product behavior is defined in the
 [Lexinet study architecture](../architecture/lexinet-study-integration.md).
@@ -25,7 +25,7 @@ The checked-in fixture provenance pins:
 
 - protocol `study.v1` and schema version `1`;
 - Lexinet repository base revision
-  `e8a9d52e35bdd55aa7451f4413c781f8371ebb8f`;
+  `ce42272df315f357e10998dd48e9ffd1a935c2ff`;
 - OpenAPI SHA-256
   `422b4ed6e9336b642bd32b923c8d9989ee0d7e0d624883ae4593a8266d8eaa19`;
 - manifest SHA-256
@@ -229,19 +229,18 @@ mutually exclusive node-capability/scoped-token modes, and local
 create/resume-and-sync/profile authorization ceiling. Step 5 still owns the real
 deployment evidence and panel packaging decision.
 
-The panel's existing `fetch_next_card` / single-review adapter predates the
-Lexinet source audit. It has no issued session identity, correction stream,
-scheduler provenance, or safe reconciliation and remains a test scaffold.
-Production panel study requests stay disabled until the resilient client,
-outbox/cache, cross-repository live tests, real scoped Tailnet deployment
-evidence, and packaging steps are implemented and verified together.
+The historical `fetch_next_card` / single-review adapter was removed on
+2026-09-25; it had no issued session identity, correction stream, scheduler
+provenance, or safe reconciliation. Production panel study requests stay
+disabled until the cross-repository live tests, real scoped Tailnet deployment
+evidence, and packaging steps are verified together.
 
 Still-required deployment inputs are the explicit Lexinet MagicDNS endpoint and
 native TLS certificate evidence, learner profile and normalized topic set,
 deadline/freshness/cache bounds, exact Tailnet tag/app-capability policy, and
-mode-specific credential provisioning/revocation procedure. The panel must also
-select either the SHA-256-pinned official ARM Tailscale package or an approved
-pinned source-build toolchain.
+mode-specific credential provisioning/revocation procedure. ADR 0010 selects
+node-capability mode, so the panel provisions no study credential, and the
+SHA-256-pinned official ARM Tailscale `1.102.2` package.
 
 **Amended 2026-08-16:** replaced the provisional next-card transition document
 with the Lexinet-owned `study.v1` authority, deterministic provenance export,
@@ -286,3 +285,11 @@ real certificate issuance/MagicDNS/hostname/handshake/invalid-certificate
 proof. Real tagged, untagged, wrong/extra-tag, live-revocation,
 destructive/cross-profile, and certificate evidence plus the panel packaging
 choice remain pending; Step 5 stays unchecked.
+
+**Amended 2026-09-26:** repinned the unchanged `study.v1` contract bundle to
+Lexinet `ce42272df315f357e10998dd48e9ffd1a935c2ff` with the export tool; only
+`contract-provenance.json` changed. Recorded ADR 0010: the panel authenticates
+by node capability with no stored credential and installs the SHA-256-pinned
+official Tailscale `1.102.2` arm64 archive. Both `vocabulary-panel.env.example`
+files now carry `study.v1` configuration instead of next-card paths. Real
+Tailnet evidence and production enablement remain pending.

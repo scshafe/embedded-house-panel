@@ -1161,6 +1161,12 @@ Tailscale packaging choice remain pending. The frozen `study.v1` fixture
 provenance is unchanged, no roadmap checkbox changed, and Step 5 stays
 unchecked.
 
+**Amended 2026-09-26:** repinned the unchanged contract bundle to Lexinet
+`ce42272df315f357e10998dd48e9ffd1a935c2ff` and recorded ADR 0010's panel
+choices: node-capability authentication with no credential on the panel and the
+SHA-256-pinned official Tailscale `1.102.2` archive. Real Tailnet evidence
+remains pending.
+
 ## Additional primary scheduler references
 
 - [Open Spaced Repetition scheduler benchmark](https://github.com/open-spaced-repetition/srs-benchmark)

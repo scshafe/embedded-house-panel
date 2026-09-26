@@ -61,7 +61,7 @@ to implement the seven already accepted changes.
     run in a later Mac-local session.
   - Verify: `make verify-docs`
 
-- [ ] **Step 5: Repin study.v1 and replace the obsolete configuration**
+- [x] **Step 5: Repin study.v1 and replace the obsolete configuration**
   - Repin the unchanged contract bundle to Lexinet `ce42272`. Replace both
     next-card env examples with `study.v1` configuration: HTTPS base URL,
     profile and topic references, `tailnet_node` authentication and an empty
