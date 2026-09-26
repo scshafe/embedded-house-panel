@@ -69,7 +69,7 @@
       "reserved_group": "bhp-mic",
       "reserved_gid": 1103,
       "owns": [],
-      "cutover": "The only principal allowed to open the exactly classified microphone, through bhp-mic, once the production broker is packaged."
+      "cutover": "The only principal allowed to open the exactly classified microphone, through bhp-mic, once the production broker is packaged. The supervisor then sets BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID=1103 so its capture-closure gate can terminate only this UID."
     },
     {
       "role": "personal_context_client",

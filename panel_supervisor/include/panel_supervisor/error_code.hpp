@@ -67,6 +67,10 @@ enum class ErrorCode {
 	SystemClockSynchronizationQueryFailed,
 	SystemClockUntrusted,
 	SimulationInvalidArgument,
+	CaptureClosureProbeFailed,
+	CaptureClosureUnverified,
+	CaptureTerminationUnavailable,
+	MediaTerminationFailed,
 };
 
 /** Returns the stable dot-delimited machine code for an ErrorCode. */

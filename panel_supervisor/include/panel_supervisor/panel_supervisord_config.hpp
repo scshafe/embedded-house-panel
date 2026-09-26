@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 
 namespace house_panel::supervisor {
@@ -54,9 +55,16 @@ public:
 	[[nodiscard]] std::chrono::milliseconds poll_interval() const noexcept;
 	[[nodiscard]] std::chrono::milliseconds suspend_retry_backoff() const noexcept;
 	[[nodiscard]] const std::optional<TouchRuntimeConfiguration> &touch_configuration() const noexcept { return touch_configuration_; }
+	/**
+	 * The media broker's exact service UID when BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID is
+	 * set. It enables the capture-closure gate's bounded termination path; without it, open
+	 * microphone capture refuses every suspend. Never 0 and never the panel UI UID.
+	 */
+	[[nodiscard]] const std::optional<std::uint32_t> &media_broker_uid() const noexcept { return media_broker_uid_; }
 
 private:
 	std::optional<TouchRuntimeConfiguration> touch_configuration_;
+	std::optional<std::uint32_t> media_broker_uid_;
 	PanelSupervisordConfig(SupervisorConfig supervisor_config, double latitude_degrees,
 			       double longitude_degrees, std::string presence_input_path,
 			       std::string presence_input_name,

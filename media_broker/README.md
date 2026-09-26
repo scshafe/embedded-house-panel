@@ -1,5 +1,11 @@
 # Fake Media Broker
 
+**Amended 2026-09-26:** the supervisor now verifies kernel-visible capture
+closure before every enabled suspend write and can terminate only the exact
+broker UID (`BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID`; see
+`panel_supervisor/README.md`). This broker is still the fake below: it opens no
+device, and its closure replies remain telemetry.
+
 **Amended 2026-09-25:** host integration implements only a deterministic fake
 `command_recognition` broker. It opens no ALSA or other audio device and has no
 network/provider capability. `wish_recording` always returns

@@ -121,3 +121,34 @@ reused PID is rejected. Afterwards run
 `python3 scripts/sim/provision_virtual_panel.py --execute` to copy the new public
 CA to the guest, and restart any native panel with `make sim-panel`. Trust is
 never rotated automatically or installed in macOS trust.
+
+## Microphone capture closure
+
+`scripts/sim/guest/capture_closure_matrix.py` proves the supervisor's
+capture-closure gate against a real `snd-aloop` capture substream inside the
+guest. It runs as root and needs the guest's generic arm64 kernel. Each case
+opens the loopback capture node, hands the descriptor to a holder dropped to an
+exact numeric UID with `setpriv --clear-groups`, then runs the check-only
+`capture_closure_check` from the guest's CMake test build. That tool evaluates
+the daemon's `CaptureClosureGatedSuspend` with an inner suspend that never
+writes `/sys/power/state`. The six cases are:
+
+- closed baseline;
+- a broker-UID holder that exits on SIGTERM;
+- a broker-UID holder that ignores SIGTERM and is killed;
+- a foreign-UID holder, which refuses the suspend at the 2,000 ms deadline;
+- a holder with no termination path configured, which refuses at once;
+- closed again at the end.
+
+```sh
+python3 scripts/sim/guest/capture_closure_matrix.py --check-binary <build>/panel_supervisor/capture_closure_check            # JSON plan
+sudo python3 scripts/sim/guest/capture_closure_matrix.py --execute --check-binary <build>/panel_supervisor/capture_closure_check
+```
+
+The report goes to `/var/lib/bhp-sim/capture-closure-matrix.json`. It loads
+`snd-aloop` only if needed and unloads it afterwards. `--stand-in` swaps the
+device for a regular file at `/dev/snd/pcmC99D0c`, for hosts without ALSA. That
+proves holder discovery and the termination path but not kernel substream
+status, and the report says `kernel_substream_status: not_exercised`. Every
+result is `simulation_not_hardware_evidence`; microphone rail-off is an FRDM
+gate.

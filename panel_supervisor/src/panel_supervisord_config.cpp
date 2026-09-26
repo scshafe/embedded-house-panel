@@ -45,6 +45,7 @@ constexpr const char *kMemSleepState = "BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE";
 constexpr const char *kPollIntervalMilliseconds = "BHP_PANEL_SUPERVISOR_POLL_INTERVAL_MILLISECONDS";
 constexpr const char *kSuspendRetryBackoffMilliseconds =
 	"BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS";
+constexpr const char *kMediaBrokerUid = "BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID";
 
 constexpr long long kMinimumPollIntervalMilliseconds = 50;
 constexpr long long kMaximumPollIntervalMilliseconds = 5'000;
@@ -54,7 +55,7 @@ constexpr long long kMaximumSuspendRetryBackoffMilliseconds = 300'000;
 constexpr long long kMinimumPresentationTimeoutMilliseconds = 1;
 constexpr long long kMaximumPresentationTimeoutMilliseconds = 60'000;
 
-constexpr std::array<const char *, 21> kKnownEnvironmentVariables{
+constexpr std::array<const char *, 22> kKnownEnvironmentVariables{
 	kLatitude,
 	kLongitude,
 	kPresenceGraceSeconds,
@@ -76,6 +77,7 @@ constexpr std::array<const char *, 21> kKnownEnvironmentVariables{
 	kMemSleepState,
 	kPollIntervalMilliseconds,
 	kSuspendRetryBackoffMilliseconds,
+	kMediaBrokerUid,
 };
 
 const std::string *find_field(const std::map<std::string, std::string> &fields,
@@ -337,6 +339,24 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 			"when_present_must_be_decimal_milliseconds_between_1000_and_300000";
 	}
 
+	const std::string *media_broker_uid_text = find_field(configuration_fields, kMediaBrokerUid);
+	std::optional<std::uint32_t> media_broker_uid;
+	if (media_broker_uid_text != nullptr && !media_broker_uid_text->empty()) {
+		long long parsed_broker_uid = 0;
+		if (!parse_decimal_integer(*media_broker_uid_text, parsed_broker_uid) ||
+		    parsed_broker_uid < 1 ||
+		    static_cast<unsigned long long>(parsed_broker_uid) >
+			    std::numeric_limits<std::uint32_t>::max()) {
+			invalid_fields[kMediaBrokerUid] =
+				"when_present_must_be_decimal_uid_between_1_and_4294967295";
+		} else if (invalid_fields.find(kPanelUiUid) == invalid_fields.end() &&
+			   parsed_broker_uid == panel_ui_uid) {
+			invalid_fields[kMediaBrokerUid] = "must_differ_from_the_panel_ui_uid";
+		} else {
+			media_broker_uid = static_cast<std::uint32_t>(parsed_broker_uid);
+		}
+	}
+
 	if (has_presence_path && !is_explicit_path(*presence_path)) {
 		invalid_fields[kPresenceInputPath] = "must_be_absolute_and_placeholder_free";
 	}
@@ -427,6 +447,7 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		std::chrono::milliseconds(poll_interval_milliseconds),
 		std::chrono::milliseconds(suspend_retry_backoff_milliseconds));
 	configuration.touch_configuration_ = touch_result.value();
+	configuration.media_broker_uid_ = media_broker_uid;
 	return Result<PanelSupervisordConfig>::success(std::move(configuration));
 }
 

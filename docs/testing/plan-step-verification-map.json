@@ -3330,9 +3330,9 @@
       "item_index": 1,
       "clause_item": "`make verify`",
       "test_symbol": "plan.pre-board-completion.step-12.verify-1",
-      "command": "PLANNED: make verify",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-09-25-pre-board-completion.md",

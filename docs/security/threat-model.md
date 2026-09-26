@@ -352,3 +352,16 @@ so no study credential is stored on the physically accessible panel, and pins
 the official Tailscale `1.102.2` arm64 archive by SHA-256. Tailnet node state
 remains an identity-bearing secret outside the image. Real Tailnet evidence
 remains pending.
+
+**Amended 2026-09-26 (capture closure):** the supervisor-side capture-closure
+control is implemented as `CaptureClosureGatedSuspend` in `panel_supervisor`.
+Before every enabled suspend-state write it reads the kernel-visible ALSA
+capture substream status and the process descriptors that hold
+`/dev/snd/pcmC*D*c`, never broker telemetry. Open capture takes the bounded
+SIGTERM/SIGKILL path, 500 ms grace and 2,000 ms deadline, against processes
+whose real and effective UIDs are both the configured broker UID. The process is
+pinned with a pidfd. Otherwise the suspend is refused with a typed error. Host
+tests and a container stand-in run exercise the termination path; the real
+`snd-aloop` guest run is pending (Mac-local). The production lifecycle, lease
+and provenance-claim sockets, microphone rail-off evidence, and a packaged
+broker remain unimplemented.

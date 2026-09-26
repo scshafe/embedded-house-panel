@@ -3,8 +3,10 @@
 
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -244,6 +246,33 @@ bool mem_suspend_requires_an_explicit_mem_sleep_variant()
 	return true;
 }
 
+bool media_broker_uid_is_optional_exact_and_distinct()
+{
+	auto fields = complete_configuration();
+	const auto absent = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(absent.has_value());
+	TEST_REQUIRE(!absent.value().media_broker_uid().has_value());
+
+	fields["BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID"] = "1103";
+	const auto present = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(present.has_value());
+	TEST_REQUIRE(present.value().media_broker_uid() == std::optional<std::uint32_t>(1103U));
+
+	for (const char *invalid : {"0", "-1", "1103 ", "0x44f", "4294967296", "REPLACE_ME"}) {
+		fields["BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID"] = invalid;
+		const auto rejected = PanelSupervisordConfig::create(fields);
+		TEST_REQUIRE(!rejected.has_value());
+		TEST_REQUIRE(rejected.error().context().at("BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID") ==
+			     "when_present_must_be_decimal_uid_between_1_and_4294967295");
+	}
+	fields["BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID"] = "1102";
+	const auto shared = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!shared.has_value());
+	TEST_REQUIRE(shared.error().context().at("BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID") ==
+		     "must_differ_from_the_panel_ui_uid");
+	return true;
+}
+
 using TestFunction = bool (*)();
 
 } // namespace
@@ -252,7 +281,7 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 8> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 9> tests{{
 		{"complete configuration", complete_configuration_populates_every_runtime_value},
 		{"missing configuration",
 		 missing_configuration_reports_all_required_fields_before_action},
@@ -264,6 +293,7 @@ int main()
 		{"malformed aggregation",
 		 malformed_values_are_aggregated_without_logging_location_values},
 		{"mem_sleep variant", mem_suspend_requires_an_explicit_mem_sleep_variant},
+		{"media broker uid", media_broker_uid_is_optional_exact_and_distinct},
 	}};
 	for (const auto &[name, test] : tests) {
 		if (!test()) {

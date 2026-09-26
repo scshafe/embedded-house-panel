@@ -117,6 +117,22 @@ The production slice includes:
   unconfirmed selection (`PANEL_SUPERVISOR.MEM_SLEEP_SELECTION_FAILED`) stops
   before `/sys/power/state` is touched; the kernel's default variant is never
   inherited silently.
+- `CaptureClosureGatedSuspend`, which wraps `SysfsSuspend` whenever suspend is
+  enabled. After the display is blank and immediately before the suspend-state
+  write, `ProcfsCaptureClosureProbe` reads two kernel-visible signals: every
+  `/proc/asound/card*/pcm*c/sub*/status` (anything but exactly `closed` is
+  open) and every process descriptor linked to `/dev/snd/pcmC*D*c`. Broker
+  telemetry is never consulted. Open capture takes the bounded termination
+  path: SIGTERM, a 500 ms grace, SIGKILL, and a 2,000 ms deadline, polling every
+  50 ms. `UidScopedMediaTerminator` signals only processes whose real and
+  effective UIDs both equal `BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID`, pinning each
+  with a pidfd so a reused PID is never signalled; it never targets root.
+  Without that UID, open capture refuses the suspend
+  (`PANEL_SUPERVISOR.CAPTURE_TERMINATION_UNAVAILABLE`). Capture still open at
+  the deadline refuses it (`PANEL_SUPERVISOR.CAPTURE_CLOSURE_UNVERIFIED`), and
+  unreadable evidence refuses it (`PANEL_SUPERVISOR.CAPTURE_CLOSURE_PROBE_FAILED`).
+  The gate never guesses closure and never waits past the deadline. Microphone
+  rail-off evidence remains an FRDM gate.
 
 The clock adapter proves that Linux currently reports the clock synchronized;
 it cannot prove that an upstream server or saved clock was honest. The target
@@ -160,6 +176,7 @@ Set every required variable:
 | `BHP_PANEL_SUPERVISOR_MEM_SLEEP_STATE` | Required for `mem`, rejected otherwise; exactly `s2idle`, `shallow`, or `deep`, from the board profile's `BHP_BOARD_MEM_SLEEP_STATE` once `FRDM-GATE-SUSPEND` evidence exists |
 | `BHP_PANEL_SUPERVISOR_POLL_INTERVAL_MILLISECONDS` | 50 through 5,000 milliseconds |
 | `BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS` | Required for enabled suspend; 1,000 through 300,000 milliseconds |
+| `BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID` | Optional; the media broker's exact nonzero service UID, distinct from the UI UID. Enables the capture-closure termination path; unset, open capture refuses every suspend |
 
 `SUSPEND_MODE=disabled` is the explicit non-suspending configuration and does
 not require `POWER_STATE_PATH`. `scripts/boards/render_service_environment.sh`
@@ -300,7 +317,9 @@ backoff waits immediately interruptible. SIGINT/SIGTERM disables any new
 suspend write during the final resume and lets the foreground process exit
 instead of immediately sleeping again.
 
-The backoff controls a new suspend request after a successful suspend write has
+The capture-closure gate runs after the rate-limit wait and before every
+suspend-state write, so a refused closure is a failed suspend request. The
+backoff controls a new suspend request after a successful suspend write has
 returned and resume recomputation still finds the room absent. A failed suspend
 write is not retried: retryable and nonretryable suspend adapter errors both
 remain fatal so an unproven power transition cannot become an implicit loop.

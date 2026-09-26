@@ -41,6 +41,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 
 add_library(panel_supervisor_linux_adapters STATIC
+  src/capture_closure.cpp
   src/daemon_stop_controller.cpp
   src/evdev_presence_source.cpp
   src/evdev_touch_source.cpp
@@ -200,5 +201,32 @@ if(BHP_BUILD_TESTS)
   endif()
   add_test(NAME rate_limited_stop_aware_suspend_test
     COMMAND rate_limited_stop_aware_suspend_test
+  )
+
+  add_executable(capture_closure_test tests/capture_closure_test.cpp)
+  target_link_libraries(capture_closure_test PRIVATE panel_supervisor_linux_adapters)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(capture_closure_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME capture_closure_test COMMAND capture_closure_test)
+
+  # Check-only simulation tool: the daemon's gate with a suspend that never writes.
+  add_executable(capture_closure_check tools/capture_closure_check.cpp)
+  target_link_libraries(capture_closure_check PRIVATE panel_supervisor_linux_adapters)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(capture_closure_check PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  set(BHP_CAPTURE_CLOSURE_FIXTURES ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/capture_closure)
+  add_test(NAME capture_closure_check_closed_fixture
+    COMMAND capture_closure_check --proc-root ${BHP_CAPTURE_CLOSURE_FIXTURES}/closed
+  )
+  set_tests_properties(capture_closure_check_closed_fixture PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"message\":\"capture_closure_verified\""
+  )
+  add_test(NAME capture_closure_check_open_fixture
+    COMMAND capture_closure_check --proc-root ${BHP_CAPTURE_CLOSURE_FIXTURES}/open
+  )
+  set_tests_properties(capture_closure_check_open_fixture PROPERTIES
+    PASS_REGULAR_EXPRESSION "PANEL_SUPERVISOR\\.CAPTURE_TERMINATION_UNAVAILABLE"
   )
 endif()

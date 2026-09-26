@@ -112,6 +112,7 @@ compile_supervisor()
 			"$PROJECT_ROOT/panel_supervisor/src/system_state.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/touch_observation_authority.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/ui_mode.cpp" \
+			"$PROJECT_ROOT/panel_supervisor/src/capture_closure.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/daemon_stop_controller.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/evdev_touch_source.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/touch_runtime_configuration.cpp" \
@@ -168,6 +169,7 @@ compile_supervisor()
 		panel_supervisord_config \
 		daemon_stop_controller \
 		rate_limited_stop_aware_suspend \
+		capture_closure \
 		sysfs_backlight \
 		sysfs_suspend \
 		unix_socket_ui_mode_notifier \
@@ -239,6 +241,7 @@ compile_supervisor()
 		panel_supervisord_config \
 		daemon_stop_controller \
 		rate_limited_stop_aware_suspend \
+		capture_closure \
 		sysfs_backlight \
 		sysfs_suspend \
 		unix_socket_ui_mode_notifier \
@@ -248,7 +251,7 @@ compile_supervisor()
 	done
 	"$output_directory/structured_logger_test"
 	bhp_log info host_slice_verified "$TRACE_ID" slice panel_supervisor \
-		test_executables 16 daemon_compiled true \
+		test_executables 17 daemon_compiled true \
 		daemon_smoke_executed "$daemon_smoke_executed"
 }
 

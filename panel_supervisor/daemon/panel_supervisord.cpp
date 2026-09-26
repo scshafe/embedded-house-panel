@@ -1,3 +1,4 @@
+#include "panel_supervisor/capture_closure.hpp"
 #include "panel_supervisor/daemon_startup_safety.hpp"
 #include "panel_supervisor/daemon_stop_controller.hpp"
 #include "panel_supervisor/error_code.hpp"
@@ -243,6 +244,28 @@ int run_daemon(bhp::StructuredLogger &logger)
 		}
 		suspend = std::make_unique<SysfsSuspend>(std::move(suspend_result).value());
 	}
+	// Every enabled suspend verifies kernel-visible microphone capture closure immediately
+	// before the suspend-state write. Only an exact, non-root broker UID can be terminated.
+	std::unique_ptr<ProcfsCaptureClosureProbe> capture_probe;
+	std::unique_ptr<UidScopedMediaTerminator> media_terminator;
+	std::unique_ptr<CaptureClosureGatedSuspend> capture_gate;
+	if (config.suspend_mode() != SuspendMode::Disabled) {
+		const auto bounds_result = validate_capture_closure_bounds(CaptureClosureBounds{});
+		if (!bounds_result) {
+			return fail_after_backlight_construction(
+				logger, backlight, "capture_closure_configuration_invalid",
+				"panel-supervisord-startup", bounds_result.error());
+		}
+		capture_probe = std::make_unique<ProcfsCaptureClosureProbe>();
+		if (config.media_broker_uid()) {
+			media_terminator =
+				std::make_unique<UidScopedMediaTerminator>(*config.media_broker_uid());
+		}
+		capture_gate = std::make_unique<CaptureClosureGatedSuspend>(
+			*suspend, *capture_probe, media_terminator.get(), bounds_result.value());
+	}
+	Suspend &verified_suspend =
+		capture_gate ? static_cast<Suspend &>(*capture_gate) : *suspend;
 
 	EvdevPresenceSource presence_source = std::move(presence_result).value();
 	OfflineSolarCalculator solar_calculator = std::move(solar_result).value();
@@ -261,7 +284,7 @@ int run_daemon(bhp::StructuredLogger &logger)
 		: static_cast<UiModeNotifier &>(*ui_mode_notifier);
 	SystemClock clock;
 	RateLimitedStopAwareSuspend stop_aware_suspend(
-		*suspend, *stop_controller, config.suspend_retry_backoff());
+		verified_suspend, *stop_controller, config.suspend_retry_backoff());
 	PanelSupervisor supervisor(config.supervisor_config(), PanelPolicy{}, presence_source,
 				   clock, solar_calculator, backlight, notifier,
 				   stop_aware_suspend, logger);
@@ -273,7 +296,12 @@ int run_daemon(bhp::StructuredLogger &logger)
 		    {"suspend_mode", std::string(to_string(config.suspend_mode()))},
 		    {"mem_sleep_state", config.suspend_mode() == SuspendMode::Mem
 						? config.mem_sleep_state()
-						: std::string("not_applicable")}});
+						: std::string("not_applicable")},
+		    {"capture_closure_gate", capture_gate ? "enabled" : "not_applicable"},
+		    {"media_termination_path",
+		     !capture_gate      ? "not_applicable"
+		     : media_terminator ? "uid_scoped"
+					: "unavailable_open_capture_refuses_suspend"}});
 
 	std::uint64_t trace_sequence = 0;
 	bool startup_cycle_completed = false;

@@ -217,3 +217,20 @@ tag (`cb857ba4`, not the release archive). The mdev rewrite also holds against
 the 2026.08 default rules. Still open: bounded restart supervision for
 `tailscaled`, reviewed with the Mac-local image boot (Step 10). Step 9 stays
 unchecked until then.
+
+**Amended 2026-09-26 (Step 12 progress):** `panel_supervisor` verifies
+kernel-visible capture closure before every enabled suspend write
+(`CaptureClosureGatedSuspend`). It reads ALSA capture substream status and the
+process descriptors holding `/dev/snd/pcmC*D*c`, never broker telemetry. The
+bounded termination path sends SIGTERM, waits a 500 ms grace, sends SIGKILL and
+stops at a 2,000 ms deadline. It signals only processes whose real and effective
+UIDs are the optional `BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID`; without it, open
+capture refuses the suspend. Fourteen host test cases, two fixture CTests for the
+check-only `capture_closure_check`, and `make verify` pass. A container stand-in
+run of `scripts/sim/guest/capture_closure_matrix.py --stand-in` passed all six
+cases; it proves holder discovery and termination, not substream status. Still
+open: the Mac-local `snd-aloop` guest run (Verify item 2) and the production
+media IPC. That IPC is the supervisor-to-broker lifecycle publication, the
+UI-to-broker lease socket and the provenance-claim endpoint, with socket paths
+and modes allocated as ADR 0005 requires; the fake broker keeps its private
+pipes until then. Step 12 stays unchecked.

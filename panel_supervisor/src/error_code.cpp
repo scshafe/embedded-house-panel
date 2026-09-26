@@ -127,6 +127,14 @@ std::string_view to_string(const ErrorCode error_code) noexcept
 		return "PANEL_SUPERVISOR.SYSTEM_CLOCK_UNTRUSTED";
 	case ErrorCode::SimulationInvalidArgument:
 		return "PANEL_SUPERVISOR.SIMULATION_INVALID_ARGUMENT";
+	case ErrorCode::CaptureClosureProbeFailed:
+		return "PANEL_SUPERVISOR.CAPTURE_CLOSURE_PROBE_FAILED";
+	case ErrorCode::CaptureClosureUnverified:
+		return "PANEL_SUPERVISOR.CAPTURE_CLOSURE_UNVERIFIED";
+	case ErrorCode::CaptureTerminationUnavailable:
+		return "PANEL_SUPERVISOR.CAPTURE_TERMINATION_UNAVAILABLE";
+	case ErrorCode::MediaTerminationFailed:
+		return "PANEL_SUPERVISOR.MEDIA_TERMINATION_FAILED";
 	}
 	return "PANEL_SUPERVISOR.UNRECOGNIZED_ERROR_CODE";
 }
