@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.request
 
 root = Path(__file__).resolve().parents[2]
 renderer = Path(sys.argv[1]).resolve()
@@ -33,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
         config = directory / "client.json"
         config.write_text(json.dumps({"base_url": ready["url"], "profile_ref": "fixture-default",
                                       "topic_refs": ["fixture-systems", "fixture-words"],
-                                      "fixture_ca_file": str(certificate)}))
+                                      "fixture_ca_file": str(certificate), "fixture_data": True}))
         command = [str(renderer), "--scenario", str(root / "simulator/scenarios/day-front.json"),
                    "--lexinet-config", str(config), "--state-directory", str(directory / "client"),
                    "--exit-after-ms", "1400", "--output", str(directory / "frame.png")]
@@ -41,11 +42,15 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
         frames = [json.loads(line)["data"] for line in first.stdout.splitlines()]
         assert frames[0]["study_state"] == "loading"
         assert any(frame.get("study_state") == "front" for frame in frames)
+        assert all(not frame.get("delivery_status") for frame in frames), \
+            "initial presentation-only synchronization must stay quiet"
+        assert all(frame["fixture_data"] for frame in frames if "fixture_data" in frame)
         assert '"status":"200"' in first.stderr
         # Restart restores cached pixels without creating empty polling syncs.
         second = subprocess.run(command, capture_output=True, text=True, timeout=10, check=True)
         assert json.loads(second.stdout.splitlines()[0])["data"]["study_state"] == "front"
         assert '"status":"200"' not in second.stderr
+        assert all(not json.loads(line)["data"].get("delivery_status") for line in second.stdout.splitlines())
         prior_events = json.loads((directory / "server/fixture-state.json").read_text())["events"].values()
         assert not any(entry["event"]["kind"] == "rated" for entry in prior_events), \
             "loading or resuming a card must not create an implicit rating"
@@ -57,12 +62,47 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
         third = subprocess.run(command, input=interactions, capture_output=True, text=True,
                                timeout=10, check=True)
         assert '"status":"200"' in third.stderr
+        third_frames = [json.loads(line)["data"] for line in third.stdout.splitlines()
+                        if "study_state" in json.loads(line)["data"]]
+        assert any(frame["delivery_status"] == "Waiting to sync" and frame["pending_review_events"] == 1
+                   for frame in third_frames), "pending rating did not show unsaved work"
+        assert any(frame["delivery_status"] == "Syncing with Lexinet" for frame in third_frames), \
+            "actual in-flight rating synchronization was not projected"
+        assert third_frames[-1]["delivery_status"] == "" and third_frames[-1]["pending_review_events"] == 0, \
+            "a real acknowledgement must clear the rating notice"
         saved_events = [entry["event"] for entry in
                         json.loads((directory / "server/fixture-state.json").read_text())["events"].values()]
         assert [event["rating"] for event in saved_events if event["kind"] == "rated"] == ["good"], \
             "the real shell action must reach the fixture ledger exactly once"
         assert any(event["kind"] == "revealed" for event in saved_events)
         assert (directory / "frame.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+        # Terminal rejection stays visible after the outbox is adjudicated and
+        # after a real process restart; no timer is permitted to call it saved.
+        rejection_command = command.copy()
+        rejection_command[rejection_command.index("--state-directory") + 1] = str(directory / "rejected-client")
+        subprocess.run(rejection_command, capture_output=True, text=True, timeout=10, check=True)
+        control = urllib.request.Request(ready["url"] + "/fixture/control",
+                                         data=json.dumps({"terminal_rejection": True}).encode(),
+                                         headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(control, context=ssl.create_default_context(cafile=str(certificate)), timeout=3):
+            pass
+        rejected_rating = subprocess.run(rejection_command, input=interactions, capture_output=True, text=True,
+                                         timeout=10, check=True)
+        rating_frames = [json.loads(line)["data"] for line in rejected_rating.stdout.splitlines()
+                         if "study_state" in json.loads(line)["data"]]
+        assert rating_frames[-1]["delivery_status"] == "Not saved" and rating_frames[-1]["pending_review_events"] == 0, (rating_frames, rejected_rating.stderr)
+        rejected_restart = subprocess.run(rejection_command, capture_output=True, text=True, timeout=10, check=True)
+        assert json.loads(rejected_restart.stdout.splitlines()[0])["data"]["delivery_status"] == "Not saved"
+
+        # The source marker is explicit config, never guessed from HTTPS, a
+        # loopback URL or the presence of a fixture CA. This exercises wiring;
+        # this server's content remains synthetic test evidence.
+        live_marker_config = json.loads(config.read_text())
+        live_marker_config["fixture_data"] = False
+        config.write_text(json.dumps(live_marker_config))
+        marker = subprocess.run(command[:command.index("--exit-after-ms")], capture_output=True, text=True, timeout=10, check=True)
+        assert json.loads(marker.stdout.splitlines()[0])["data"]["fixture_data"] is False
 
         def prove_shell_cancellation(name, event, expected):
             """Hold a real TLS response and observe the shell closing its transfer."""

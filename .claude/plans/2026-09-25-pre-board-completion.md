@@ -40,12 +40,12 @@ to implement the seven already accepted changes.
     validate the first new contact after reopening at unchanged coordinates.
   - Verify: `make verify`
 
-- [ ] **Step 2: Apply the approved shared screen design**
+- [x] **Step 2: Apply the approved shared screen design**
   - Apply typography, grid, copy, quiet truthful status and the night clock.
     Preserve before/after images in the same commit as changed goldens.
   - Verify: `make verify-panel-goldens`
 
-- [ ] **Step 3: Capture and present every display tier**
+- [x] **Step 3: Capture and present every display tier**
   - Rebuild the native and guest applications, capture all scenarios, inspect
     fitting and consistency, and publish an individually viewable screen set.
     Every result is `simulation_not_hardware_evidence`.
@@ -75,3 +75,10 @@ the combined guest's 41 CTests, and fresh single-touch/Type-B lifecycle commits
 after reopening at the same coordinates. The isolated logs are
 `.build/pre-board-touch-{verify,docs}.log`; guest evidence is recorded with the
 UI validation milestone below.
+
+**Amended 2026-09-26 (completion):** all seven approved changes are implemented.
+The three tiers passed all 29 scenarios; host and guest each passed 41 CTests.
+`make verify` and `make verify-docs` passed. The individually viewable 29-page
+PDF passed visual QA, and before/after images accompany the golden changes.
+The [UI validation record](../../docs/testing/pre-board-ui-validation.md)
+records proof paths, the recovered guest scheduling stall and remaining gates.

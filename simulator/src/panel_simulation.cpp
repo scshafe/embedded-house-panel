@@ -1,6 +1,8 @@
 #include "simulator/panel_simulation.hpp"
 #include "bhp/application_identity.h"
 #include "bhp/panel_mode_protocol/codec.h"
+#include "vocabulary_panel/fixture_lexinet_client.h"
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -21,10 +23,13 @@ namespace bhp::simulator {
 using namespace house_panel::panel_ui;
 using namespace bhp::panel_mode_protocol;
 namespace {
+bool review_event(const vocabulary_panel::StudyEvent &event){return event.event_kind=="rated"||event.event_kind=="rating_voided";}
 void member(const Json &j,const char *key,const std::set<std::string> &values){if(j.contains(key)&&(!j.at(key).is_string()||!values.count(j.at(key).get<std::string>())))throw std::runtime_error("SIMULATOR.SCENARIO_VALUE_INVALID");}
 }
 
 struct PanelSimulation::StudyNetwork {
+ // Legacy simulation configs remain visibly fixtures; live sources opt in explicitly.
+ bool fixture_data{true};
 #ifdef BHP_SIMULATOR_HTTPS
  bhp::StructuredLogger logger{"panel_simulator.study",std::cerr};
  std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime;
@@ -32,12 +37,14 @@ struct PanelSimulation::StudyNetwork {
  std::unique_ptr<vocabulary_panel::StudyWorker> worker;
  vocabulary_panel::StudyCreateRequest creation;
  bool in_flight{false};
+ bool review_sync_in_flight{false};
  bool terminal_error{false};
  std::string successor_materialized_for;
  std::chrono::steady_clock::time_point next_attempt{};
  ~StudyNetwork(){worker.reset();if(runtime)static_cast<void>(runtime->shutdown());client.reset();runtime.reset();}
  explicit StudyNetwork(const std::string &path) {
   std::ifstream file(path);if(!file)throw std::runtime_error("SIMULATOR.LEXINET_CONFIG_READ_FAILED");Json j;file>>j;
+  fixture_data=j.value("fixture_data",true);
   vocabulary_panel::HttpLexinetConfig config;config.lexinet_base_url=j.at("base_url");config.credential_file_path=j.value("credential_file","");
   config.transport_budget={1000,3000,1048576};config.maximum_snapshot_age_seconds=604800;config.clock_trusted=false;config.allow_qemu_host_test_ca=j.value("allow_qemu_host_test_ca",false);
   if(j.contains("fixture_ca_file")){std::ifstream ca(j.at("fixture_ca_file").get<std::string>());if(!ca)throw std::runtime_error("SIMULATOR.CA_READ_FAILED");config.trusted_ca_certificate_pem_for_tests=std::string(std::istreambuf_iterator<char>(ca),{});}
@@ -95,14 +102,20 @@ void PanelSimulation::seed_study(){
  study_->set_clock_trusted(true);
 }
 void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_override) {
+ const auto state=j.value("study_state","front");
+ // Synthetic receipts must never acknowledge a restored user's outbox. Validate
+ // before restore, input promotion or any other durable state mutation.
+ if((state=="queued"||state=="saved"||state=="rejected")&&!fixture_override&&persistent_store_->durable())
+  throw std::runtime_error("SIMULATOR.DELIVERY_FIXTURE_REQUIRES_MEMORY");
  fixture_override_=fixture_override;
 #ifdef BHP_SIMULATOR_HTTPS
- if(network_){network_->worker->cancel();network_->in_flight=false;network_->terminal_error=false;}
+ if(network_){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;network_->terminal_error=false;}
 #endif
  store_=fixture_override_?std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::MemoryStudyStore>()):persistent_store_;
  const bool network_active=network_&&!fixture_override_;
 
  scene=PanelScene{scene.lifecycle};scene.scenario_id=j.at("scenario_id").get<std::string>();scene.surface_id=j.value("surface","study");scene.clock_text=j.value("fixture_clock","07:42");
+ scene.fixture_data=scene.surface_id=="agenda"||!network_active||network_->fixture_data;
  scene.fixture_clock_untrusted=fixture_override_&&j.value("lifecycle","day")=="clock_untrusted";
  scene.agenda_state=j.value("agenda_state","today");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
  if(update_lifecycle)accept_lifecycle(supervisor.publish(j.value("lifecycle","day")));
@@ -110,35 +123,67 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
  study_=std::make_unique<vocabulary_panel::FlashCardSession>(store_);
  if(store_->durable()){auto restored=study_->restore();if(!restored.has_value())throw std::runtime_error(restored.error().error_code);}
  if(study_->snapshot().session_id.empty()&&!network_active)seed_study();
- const auto state=j.value("study_state","front");
  if(!network_active&&(state=="back" || state=="provisional")) {auto r=study_->apply_intent(vocabulary_panel::StudyIntent::flip,state=="provisional"?vocabulary_panel::StudyInputSource::voice:vocabulary_panel::StudyInputSource::touch,study_->current_binding());if(!r.has_value())throw std::runtime_error(r.error().error_code);}
+ if(!network_active&&(state=="queued"||state=="saved"||state=="rejected")) {
+  for(const auto intent:{vocabulary_panel::StudyIntent::flip,vocabulary_panel::StudyIntent::rate_good}) {
+   auto applied=study_->apply_intent(intent,vocabulary_panel::StudyInputSource::touch,study_->current_binding());
+   if(!applied.has_value())throw std::runtime_error(applied.error().error_code);
+  }
+  if(state!="queued") {
+   vocabulary_panel::StudySession fixture;fixture.session_id=study_->snapshot().session_id;fixture.state_version=1;
+   vocabulary_panel::FixtureLexinetClient client(std::move(fixture));client.terminal_rejection=state=="rejected";
+   auto request=study_->prepare_sync();if(!request.has_value())throw std::runtime_error(request.error().error_code);
+   auto response=client.sync(request.value(),"simulation-delivery-fixture");if(!response.has_value())throw std::runtime_error(response.error().error_code);
+   auto applied=study_->accept_sync(response.value());if(!applied.has_value())throw std::runtime_error(applied.error().error_code);
+  }
+ }
  if(state=="offline"||state=="stale")study_->set_connectivity(vocabulary_panel::StudyConnectivity::offline,state=="stale");
  project_study();
  if(state=="loading"||state=="empty"||state=="error"||state=="refill"||state=="complete"||state=="resume"||state=="tracking_paused")scene.study_state=state;
- if(state=="queued")scene.delivery_status="QUEUED LOCALLY - NOT SAVED YET";
- if(state=="saved")scene.delivery_status="SAVED BY LEXINET - FIXTURE RECEIPT";
- if(state=="rejected")scene.delivery_status="REJECTED - DEPENDENT EVENTS NOT SAVED";
  if(scene.surface_id=="agenda"&&scene.agenda_state=="stale")scene.stale=true;
  render();
 }
-void PanelSimulation::project_study(){const auto &s=study_->snapshot();scene.study_state=s.face==vocabulary_panel::CardFace::back?"back":"front";if(s.availability!=vocabulary_panel::StudyAvailability::ready){const auto availability=vocabulary_panel::study_availability_name(s.availability);scene.study_state=availability;if(scene.study_state=="refill_required")scene.study_state=s.connectivity==vocabulary_panel::StudyConnectivity::online?"complete":"refill";if(scene.study_state=="resume_required")scene.study_state="resume";}scene.provisional=s.provisional;scene.can_back=s.can_back;scene.can_undo=s.can_undo;scene.offline=s.connectivity==vocabulary_panel::StudyConnectivity::offline;scene.stale=s.stale;if(s.flash_card){scene.card_word=s.flash_card->word;scene.card_definition=s.flash_card->definition;scene.card_example=s.flash_card->example_sentence;}switch(s.delivery){case vocabulary_panel::StudyDelivery::none:scene.delivery_status="";break;case vocabulary_panel::StudyDelivery::queued_locally:scene.delivery_status="Queued locally - not saved yet";break;case vocabulary_panel::StudyDelivery::syncing:scene.delivery_status="Syncing with Lexinet";break;case vocabulary_panel::StudyDelivery::saved:scene.delivery_status="Saved by Lexinet";break;case vocabulary_panel::StudyDelivery::rejected:scene.delivery_status="Rejected by Lexinet";break;}}
+void PanelSimulation::project_study(){
+ const auto &s=study_->snapshot();
+ scene.study_state=s.face==vocabulary_panel::CardFace::back?"back":"front";
+ if(s.availability!=vocabulary_panel::StudyAvailability::ready){
+  scene.study_state=vocabulary_panel::study_availability_name(s.availability);
+  if(scene.study_state=="refill_required")scene.study_state=s.connectivity==vocabulary_panel::StudyConnectivity::online?"complete":"refill";
+  if(scene.study_state=="resume_required")scene.study_state="resume";
+ }
+ scene.provisional=s.provisional;scene.can_back=s.can_back;scene.can_undo=s.can_undo;
+ scene.offline=s.connectivity==vocabulary_panel::StudyConnectivity::offline;scene.stale=s.stale;
+ if(s.flash_card){scene.card_word=s.flash_card->word;scene.card_definition=s.flash_card->definition;scene.card_example=s.flash_card->example_sentence;}
+ // Presentation/reveal bookkeeping is quiet. A queued rating or retraction is
+ // still unsaved; a receipt, never elapsed time, removes its delivery notice.
+ scene.delivery_status.clear();
+ if(s.delivery==vocabulary_panel::StudyDelivery::rejected)scene.delivery_status="Not saved";
+ else if(std::any_of(study_->pending_events().begin(),study_->pending_events().end(),review_event)){
+  scene.delivery_status="Waiting to sync";
+#ifdef BHP_SIMULATOR_HTTPS
+  if(network_&&!fixture_override_&&network_->in_flight&&network_->review_sync_in_flight)scene.delivery_status="Syncing with Lexinet";
+#endif
+ }
+}
 void PanelSimulation::accept_lifecycle(const Snapshot &s){
  lifecycle_available_=true;
 #ifdef BHP_SIMULATOR_HTTPS
- if(network_&&(s.display_mode!=DisplayMode::DayActive||s.presence_state==PresenceState::Absent)){network_->worker->cancel();network_->in_flight=false;}
+ if(network_&&(s.display_mode!=DisplayMode::DayActive||s.presence_state==PresenceState::Absent)){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
 #endif
  if(voice_){
   try{voice_->send({{"op","context"},{"context",{{"display_mode","suspended"},{"presence",false},{"surface",scene.surface_id},{"idle",false},{"muted",true},{"consumer_connected",true},{"active_context_nonce",context_nonce_},{"render_generation",render_generation},{"back_revealed",false},{"history_available",false}}}});}catch(const std::exception &){voice_.reset();}
   voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;
  }
+ if(network_&&!fixture_override_)project_study();
  scene.lifecycle=s;context_nonce_="simulation-context-"+std::to_string(s.event_sequence);if(s.display_mode!=DisplayMode::DayActive)scene.acknowledgement.clear();}
 void PanelSimulation::invalidate_lifecycle(){
  lifecycle_available_=false;
 #ifdef BHP_SIMULATOR_HTTPS
- if(network_){network_->worker->cancel();network_->in_flight=false;}
+ if(network_){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
 #endif
  voice_.reset();voice_pending_=false;
  auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;
+ if(network_&&!fixture_override_)project_study();
  scene.acknowledgement.clear();render();
 }
 std::uint64_t PanelSimulation::render(){auto visible=scene;if(!lifecycle_available_)visible.presentation_failure=true;render_generation=display.render(visible);return render_generation;}
@@ -173,7 +218,7 @@ void PanelSimulation::pump_study(){
 #ifdef BHP_SIMULATOR_HTTPS
  if(!network_||fixture_override_||!lifecycle_available_)return;
  if(auto completion=network_->worker->take_completion()){
-  network_->in_flight=false;
+  network_->in_flight=false;network_->review_sync_in_flight=false;
   if(completion->error){study_->set_boundary_error(*completion->error);scene.acknowledgement=completion->error->error_code;network_->terminal_error=!completion->error->retryable;}
   else if(completion->session){const auto previous=study_->snapshot().session_id;auto applied=study_->install_session(*completion->session);if(!applied.has_value()){study_->set_boundary_error(applied.error());scene.acknowledgement=applied.error().error_code;network_->terminal_error=!applied.error().retryable;}else if(!previous.empty())network_->successor_materialized_for=previous;}
   else if(completion->synchronization){auto applied=study_->accept_sync(*completion->synchronization);if(!applied.has_value()){study_->set_boundary_error(applied.error());scene.acknowledgement=applied.error().error_code;network_->terminal_error=!applied.error().retryable;}}
@@ -190,7 +235,14 @@ void PanelSimulation::pump_study(){
    auto successor=study_->prepare_successor();
    if(successor.has_value()){auto started=network_->worker->create_or_resume(successor.value(),"simulation-successor");network_->in_flight=started.has_value();network_->next_attempt=std::chrono::steady_clock::now()+std::chrono::seconds(1);return;}
   }
-  if(study_->needs_sync()){auto sync=study_->prepare_sync();if(sync.has_value()){auto started=network_->worker->sync(sync.value(),"simulation-sync");network_->in_flight=started.has_value();}}
+  if(study_->needs_sync()){
+   auto sync=study_->prepare_sync();
+   if(sync.has_value()){
+    auto started=network_->worker->sync(sync.value(),"simulation-sync");network_->in_flight=started.has_value();
+    network_->review_sync_in_flight=network_->in_flight&&std::any_of(sync.value().events.begin(),sync.value().events.end(),review_event);
+    const auto previous=scene.delivery_status;project_study();if(scene.delivery_status!=previous)render();
+   }
+  }
  }
  network_->next_attempt=std::chrono::steady_clock::now()+std::chrono::seconds(1);
 #endif
@@ -221,5 +273,5 @@ void PanelSimulation::pump_voice(){
   }
  }}catch(const std::exception &){voice_.reset();voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;scene.acknowledgement="Voice unavailable - touch remains ready";render();}
 }
-Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"simulation_not_hardware_evidence",true}};}
+Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"simulation_not_hardware_evidence",true}};}
 }

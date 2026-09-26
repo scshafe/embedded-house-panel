@@ -28,6 +28,9 @@ struct PanelScene {
  bool can_undo{false};
  bool presentation_failure{false};
  bool fixture_clock_untrusted{false};
+ // Synthetic scenes and legacy simulation configs stay labeled until a data
+ // source explicitly declares fixture_data=false. This is not transport inference.
+ bool fixture_data{true};
  std::uint32_t night_red_rgb888{0x180000};
 };
 } // namespace house_panel::panel_ui

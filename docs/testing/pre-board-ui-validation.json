@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-26",
+  "status": "completed",
+  "scope": "seven approved pre-board UI changes",
+  "evidence": "simulation_not_hardware_evidence",
+  "baseline_before_commit": "effffd4",
+  "font_commit": "9a3e063",
+  "approved_changes": [
+    "larger fixed-size typography without automatic shrinking",
+    "shared content and interaction geometry",
+    "one visible flip instruction",
+    "quiet routine bookkeeping with truthful review delivery status",
+    "product-facing copy without invented freshness or provider claims",
+    "dim red fixture time only on black at night",
+    "pinned project fonts with explicit glyph coverage"
+  ],
+  "review": {
+    "scenario_count": 29,
+    "before_after_image": "panel_ui/tests/golden/review/pre-board-before-after.png",
+    "scenario_manifest": "panel_ui/tests/golden/review/pre-board-before-after.json",
+    "pdf": {
+      "path": ".build/pre-board-ui/output/pdf/house-panel-screens.pdf",
+      "source": "native simulator captures",
+      "pages": 29,
+      "generation_status": "completed",
+      "visual_qa_status": "passed"
+    }
+  },
+  "verification": {
+    "initial_make_verify": {
+      "status": "passed",
+      "host_ctests_passed": 41,
+      "host_ctests_total": 41,
+      "log": ".build/pre-board-ui/repository-verification.log"
+    },
+    "initial_make_verify_docs": {
+      "status": "passed",
+      "log": ".build/pre-board-ui/docs-verification.log"
+    },
+    "headless": {
+      "status": "passed",
+      "scenarios": 29,
+      "exact_matches": 29,
+      "channel_tolerance": 0,
+      "maximum_changed_pixels": 0,
+      "report": ".build/screenshots/report.json"
+    },
+    "native": {
+      "status": "passed",
+      "scenarios": 29,
+      "exact_matches": 29,
+      "report": ".build/sim/native/report.json",
+      "log": ".build/pre-board-ui/native-verification.log"
+    },
+    "focused_regressions": {
+      "status": "passed",
+      "tests": [
+        "panel_font_glyph_coverage",
+        "panel_font_generated_asset_integrity",
+        "panel_font_assets",
+        "panel_display_layout",
+        "panel_simulation_integration",
+        "panel_simulation_https_resume"
+      ],
+      "durable_fixture_isolation": "pending rating and complete persisted bytes unchanged; exact sync request replayed after restart",
+      "layout": "supported punctuation, unsupported glyphs, overflow rejection and rating hit edges",
+      "badges": "pending review remains visible beside offline, stale and action feedback"
+    },
+    "type_b_startup_correction": {
+      "targeted_host_tests": "passed",
+      "review": "passed",
+      "isolated_make_verify": "passed",
+      "isolated_make_verify_docs": "passed",
+      "logs": [
+        ".build/pre-board-touch-verify.log",
+        ".build/pre-board-touch-docs.log"
+      ],
+      "isolated_host_ctests": 40
+    },
+    "final_make_verify": {
+      "status": "passed",
+      "log": ".build/pre-board-ui/final-repository-verification.log",
+      "host_ctests_passed": 41,
+      "host_ctests_total": 41
+    },
+    "final_make_verify_docs": {
+      "status": "passed",
+      "log": ".build/pre-board-ui/final-docs-verification.log"
+    },
+    "vm": {
+      "status": "passed",
+      "provision_log": ".build/pre-board-ui/touch-provision.log",
+      "report": ".build/sim/vm/report.json",
+      "prior_failed_report_accepted_as_pass": false,
+      "guest_ctests_passed": 41,
+      "guest_ctests_total": 41,
+      "touch_protocols_passed": [
+        "single",
+        "type_b"
+      ],
+      "pir_blanking": "passed",
+      "retry_reason": "guest-wide CPU scheduling stall interrupted SSH after 18 passing captures; graceful reboot succeeded",
+      "retained_stall_evidence": [
+        ".build/pre-board-ui/vm-control-timeout-report.json",
+        ".build/pre-board-ui/guest-stall-serial.log"
+      ],
+      "stall_cause": "unestablished; host memory pressure observed",
+      "verification_log": ".build/pre-board-ui/vm-after-reboot-verification.log",
+      "scenarios": 29,
+      "exact_matches": 27,
+      "semantic_scenarios": [
+        "clock-untrusted",
+        "grace"
+      ],
+      "fresh_boot_touch_attempts": {
+        "single": 1,
+        "type_b": 1
+      },
+      "recovery": "graceful reboot; unchanged CPU configuration, deadlines and comparison tolerances"
+    }
+  },
+  "semantics": {
+    "routine_presentation_or_reveal_badge": "hidden",
+    "pending_rating_or_retraction": "Waiting to sync",
+    "actual_review_transfer": "Syncing with Lexinet",
+    "acknowledged_or_empty_queue_badge": "hidden",
+    "terminal_rejection": "Not saved",
+    "provisional_voice": "separate warning, never represented as queued or saved",
+    "synthetic_delivery_receipts": "memory-only; durable startup rejected before restore or mutation",
+    "fixture_data_marker": "explicit configuration, default true; scenario fixtures always true",
+    "clock": "fixed fixture text; no household civil-time provider",
+    "night": "red time only on black when fixture time is trusted; no input targets",
+    "untrusted_night_blank_or_presentation_failure": "black",
+    "font_coverage": "declared Latin and punctuation subset; no full Unicode claim"
+  },
+  "commands": [
+    "make verify-panel-goldens",
+    "make verify-panel-simulator",
+    "make verify-panel-vm",
+    "make verify",
+    "make verify-docs"
+  ],
+  "operations_reference": "scripts/sim/README.md",
+  "explicit_skips": [
+    {
+      "check": "GNU AArch64 cross compilation",
+      "reason": "aarch64-linux-gnu-g++ unavailable"
+    },
+    {
+      "check": "host kernel-module compilation",
+      "reason": "KERNEL_DIR unset"
+    },
+    {
+      "check": "Buildroot defconfig evaluation",
+      "reason": "BHP_BUILDROOT_DIR unset"
+    }
+  ],
+  "remaining_gates": [
+    "real Lexinet and Tailnet evidence",
+    "AGENDA-011 and real personal-data providers",
+    "production media and acoustic qualification",
+    "production service enablement",
+    "all physical FRDM gates"
+  ],
+  "guest_suspend": "disabled",
+  "hardware_evidence": "not_performed",
+  "touch_commit": "de57201"
+}

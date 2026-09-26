@@ -18,3 +18,17 @@ scenario renders successfully. Never relax tolerance to conceal a layout change.
 
 **Amended 2026-09-25:** established the initial reviewed baseline. No image is
 physical display or FRDM evidence.
+
+**Amended 2026-09-25 (approved UI review):** the user approved all seven visual
+changes before implementation. The project font, larger type, aligned grid,
+quiet truthful status, product copy and dim red night clock now replace the
+initial layout. Delivery fixtures exercise actual memory-only reducer receipts;
+their displayed successor and Undo state are intentional. Durable stores cannot
+receive synthetic delivery receipts.
+
+![Before on the left; approved update on the right](review/pre-board-before-after.png)
+
+The [review manifest](review/pre-board-before-after.json) gives the row order;
+the left images are from `effffd4`, and the right images correspond to these
+baselines. Both blank and display-failure screens remain completely black.
+All 29 scenarios retain exact pixel comparison with zero tolerance.

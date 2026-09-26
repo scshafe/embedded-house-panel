@@ -135,3 +135,13 @@ that uses the authenticated lifecycle client and supervisor touch stream.
 completion event. The ordinary entry point retains its fail-dark backend and
 production service enablement remains blocked. See the
 [virtual panel contract](../simulator/README.md) for fixture scope and commands.
+
+**Amended 2026-09-25 (approved UI review):** the shared renderer uses pinned
+[project fonts](../shared/panel_fonts/README.md), a consistent layout grid,
+bounded text fitting and product copy. The approved night surface is a dim red
+time-only clock on black, hidden for untrusted time and without hit targets.
+It remains a fixed-time simulation preview; AGENDA-011, household civil time
+and physical calibration remain unresolved. All three display tiers share the
+same font assets, geometry and content rules.
+The [UI validation record](../docs/testing/pre-board-ui-validation.md) links
+the reviewed screens and records the checks and remaining gates.

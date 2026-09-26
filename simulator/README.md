@@ -7,8 +7,8 @@ creates a production touch-provenance token. Every result is
 `simulation_not_hardware_evidence`.
 
 The memory renderer, native window and guest DRM mode use the same
-`panel_ui::LvglPanelDisplay` and subordinate vocabulary widgets. The built-in
-Montserrat fonts and fixed fixture clock keep screenshots deterministic; no
+`panel_ui::LvglPanelDisplay` and subordinate vocabulary widgets. The pinned
+[project Montserrat fonts](../shared/panel_fonts/README.md) and fixed fixture clock keep screenshots deterministic; no
 animation controls the captured state. Unsupported glyphs fail explicitly after
 the shell's UTF-8 policy validates text.
 
@@ -85,3 +85,23 @@ An idle restored session sends no empty polling syncs. Pending review events,
 page refill and successor creation use the canonical reducer's persisted request
 identities. Terminal boundary errors wait for an explicit reload; retryable
 failures retain the durable request for recovery.
+
+**Amended 2026-09-25 (approved UI review):** shared screens use larger type,
+aligned controls and agenda columns, and product-facing state copy. Routine
+presentation/reveal bookkeeping does not produce a sync badge. Pending ratings
+and retractions remain visibly waiting until acknowledged; an active transfer
+and a rejected review have distinct messages. Provisional voice actions remain
+explicit previews. No message implies that an unacknowledged review is saved.
+
+Network configuration accepts `fixture_data` (boolean, default `true`). Set it
+explicitly to `false` for real study content; legacy simulator configurations
+remain conservatively labelled as previews. Scenario selection always restores
+the fixture label. This marker is independent of transport authentication and
+does not create a clock, calendar or personal-data provider.
+
+The approved night presentation is a noninteractive dim red `HH:MM` clock on
+black. Unknown time produces black; blanking and display failure remain black.
+The clock is still fixed fixture text and its red value remains uncalibrated.
+The generated font covers a declared Latin/punctuation subset, not all Unicode.
+Missing glyphs and text that exceeds its reserved layout bounds fail explicitly
+instead of clipping, shrinking or substituting plausible content.
