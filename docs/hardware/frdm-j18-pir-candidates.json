@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "canonical": "frdm-j18-pir-pad-candidates",
+  "evidence": "documentation_derived_not_measured",
+  "prepared_on": "2026-09-26",
+  "board_profile": "config/boards/frdm-imx8mp.env",
+  "board_profile_state": "UNMEASURED:FRDM-GATE-PIR",
+  "use": "Ordered PAD_MUX candidates for ARRIVAL-08/09. Nothing here closes a profile key: J18 pin numbers, the header I/O voltage and the pad owner are measured on the board, and only a reviewed commit with the ARRIVAL-09/11 records changes the profile.",
+  "sources": [
+    {
+      "id": "um12340",
+      "title": "UM12340 FRDM-IMX8MPLUS Board User Manual, Rev. 1.0, 24 June 2025",
+      "url": "https://www.mouser.com/catalog/specsheets/NXP%20Semiconductors_08-07-2025_UM12340.pdf",
+      "finding": "J18 is a 2x20-pin GPIO expansion connector for I2S, UART, I2C and GPIO, compatible with the 8MIC-RPI-MX8 card. The manual has no J18 pin table."
+    },
+    {
+      "id": "nxp_bsp_dts",
+      "title": "imx8mp-frdm.dts, nxp-imx/linux-imx branch lf-6.12.y",
+      "url": "https://raw.githubusercontent.com/nxp-imx/linux-imx/lf-6.12.y/arch/arm64/boot/dts/freescale/imx8mp-frdm.dts",
+      "sha256": "622c34021d7d4f87610676aace50b85cbdb02fcfecacab69b788f91c800d01ca",
+      "finding": "pwm1-pwm4 are enabled with no consumer; ecspi2 has only a spidev; uart3 uses the ECSPI1 pads; micfil (PDM) uses the SAI5 pads; SAI3 and I2C3 serve the WM8962 codec; SAI2 serves Bluetooth SCO; two PCAL6416A expanders sit on I2C1 at 0x20 and 0x21."
+    },
+    {
+      "id": "pinfunc",
+      "title": "imx8mp-pinfunc.h, torvalds/linux master",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/master/arch/arm64/boot/dts/freescale/imx8mp-pinfunc.h",
+      "sha256": "dafd1d3511104fc6202bbc1f9889c2b2773055b9f1074115729605570d743769",
+      "finding": "The GPIO alternate of every candidate pad below."
+    },
+    {
+      "id": "frdm_schematic",
+      "title": "FRDM-IMX8MPLUS schematic (NXP account required)",
+      "status": "not_consulted",
+      "needed_for": ["J18 pin number of each pad", "pad bank supply rail and header voltage", "level shifters or series parts on each J18 line"]
+    }
+  ],
+  "exclusions": [
+    {"what": "PCAL6416A expander lines (pca6416_a at I2C1 0x20, pca6416_b at I2C1 0x21)", "why": "Not native SoC GPIO; the profile requires gpio1-gpio5 for gpio-keys wake."},
+    {"what": "SAI3 and I2C3 pads", "why": "Used by the WM8962 headset codec, the FRDM-GATE-AUDIO path."},
+    {"what": "SAI2 pads", "why": "Used by the Bluetooth SCO audio link."},
+    {"what": "SPDIF pads", "why": "Used by FlexCAN1."}
+  ],
+  "candidates": [
+    {"rank": 1, "pad": "GPIO1_IO10", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10", "gpio_controller": "gpio1", "gpio_line": 10, "default_owner": "pwm3 (MX8MP_IOMUXC_GPIO1_IO10__PWM3_OUT), no consumer", "pad_owner_to_disable": "pwm3", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio1 pad whose only default owner is an unused PWM."},
+    {"rank": 2, "pad": "GPIO1_IO13", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13", "gpio_controller": "gpio1", "gpio_line": 13, "default_owner": "pwm2 (MX8MP_IOMUXC_GPIO1_IO13__PWM2_OUT), no consumer", "pad_owner_to_disable": "pwm2", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio1 pad whose only default owner is an unused PWM."},
+    {"rank": 3, "pad": "GPIO1_IO01", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01", "gpio_controller": "gpio1", "gpio_line": 1, "default_owner": "pwm1 (MX8MP_IOMUXC_GPIO1_IO01__PWM1_OUT), no consumer", "pad_owner_to_disable": "pwm1", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio1 pad whose only default owner is an unused PWM. The Waveshare backlight is an I2C device, not pwm1."},
+    {"rank": 4, "pad": "SAI5_RXFS", "pad_mux": "MX8MP_IOMUXC_SAI5_RXFS__GPIO3_IO19", "gpio_controller": "gpio3", "gpio_line": 19, "default_owner": "pwm4 (MX8MP_IOMUXC_SAI5_RXFS__PWM4_OUT), no consumer", "pad_owner_to_disable": "pwm4", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio3 pad whose only default owner is an unused PWM."},
+    {"rank": 5, "pad": "ECSPI2_SS0", "pad_mux": "MX8MP_IOMUXC_ECSPI2_SS0__GPIO5_IO13", "gpio_controller": "gpio5", "gpio_line": 13, "default_owner": "ecspi2 chip select (already GPIO5_IO13, held by the spidev cs-gpios)", "pad_owner_to_disable": "ecspi2", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Only if the header SPI is unused; also frees GPIO5_IO10-IO12 (SCLK, MOSI, MISO)."},
+    {"rank": 6, "pad": "ECSPI1_SS0", "pad_mux": "MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09", "gpio_controller": "gpio5", "gpio_line": 9, "default_owner": "uart3 RTS (MX8MP_IOMUXC_ECSPI1_SS0__UART3_DCE_RTS)", "pad_owner_to_disable": "uart3", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Only if the header UART is unused; also frees GPIO5_IO06-IO08."},
+    {"rank": 7, "pad": "SAI5_RXD3", "pad_mux": "MX8MP_IOMUXC_SAI5_RXD3__GPIO3_IO24", "gpio_controller": "gpio3", "gpio_line": 24, "default_owner": "micfil PDM bit stream 3 (MX8MP_IOMUXC_SAI5_RXD3__AUDIOMIX_PDM_BIT_STREAM03)", "pad_owner_to_disable": "micfil", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Last resort: disabling micfil removes the 8MIC-RPI-MX8 PDM path. The project microphone uses the headset codec instead."}
+  ],
+  "arrival_procedure": [
+    "ARRIVAL-08: find the candidate's J18 pin in the schematic and measure its voltage to GND.",
+    "ARRIVAL-09: frdm_j18_gpio_inventory.sh --candidate J18-<pin>:<pad_mux> with that reading; pad_mux_owner must match default_owner or report it free.",
+    "Use the highest-ranked candidate that is on J18, reads 3.3 V and passes ARRIVAL-09; set PIR_PAD_OWNER_TO_DISABLE from its pad_owner_to_disable."
+  ]
+}

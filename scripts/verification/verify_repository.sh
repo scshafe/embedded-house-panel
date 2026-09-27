@@ -85,6 +85,7 @@ python3 "$SCRIPT_DIRECTORY/verify_panel_goldens.py" \
 "$SCRIPT_DIRECTORY/verify_buildroot_external_tree.sh"
 python3 "$SCRIPT_DIRECTORY/verify_service_principals.py"
 python3 "$SCRIPT_DIRECTORY/check_fault_matrix.py"
+python3 "$SCRIPT_DIRECTORY/check_frdm_j18_candidates.py"
 "$SCRIPT_DIRECTORY/verify_build_and_deploy_contracts.sh"
 
 if rg --hidden --line-number \

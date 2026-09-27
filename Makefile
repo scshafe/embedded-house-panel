@@ -18,6 +18,7 @@ verify-docs:
 	./scripts/verification/verify_buildroot_external_tree.sh
 	python3 ./scripts/verification/verify_service_principals.py
 	python3 ./scripts/verification/check_fault_matrix.py
+	python3 ./scripts/verification/check_frdm_j18_candidates.py
 	./scripts/verification/verify_presence_sensor_sources.sh
 	./scripts/verification/verify_frdm_device_tree_overlay.sh
 

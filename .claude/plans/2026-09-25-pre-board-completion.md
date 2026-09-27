@@ -244,3 +244,19 @@ waits on the guest `snd-aloop` and s2idle runs. Credential/capability denial
 waits on the real Tailnet (Step 7). The companion boundary has no code until
 agenda Step 1 is approved. Every row names its Mac-local `vm_repeat` procedure
 (Verify item 2). Step 13 stays unchecked.
+
+**Amended 2026-09-26 (Step 14 progress):**
+[`frdm-j18-pir-candidates.json`](../../docs/hardware/frdm-j18-pir-candidates.json)
+ranks seven native SoC pads by what taking them over would remove. The first
+four are GPIO1_IO10, GPIO1_IO13, GPIO1_IO01 and SAI5_RXFS, whose only default
+owners are unused PWMs. The sources are UM12340, which says J18 carries I2S,
+UART, I2C and GPIO but has no pin table, the NXP `lf-6.12.y` board DTS and the
+mainline pinfunc header, both pinned by SHA-256. PCAL6416A expander lines are
+excluded. `check_frdm_j18_candidates.py` rejects any J18 pin or supply rail not
+backed by a named schematic revision, any measurement field, and any candidate
+list left current after the profile is measured. The profile stays `UNMEASURED`.
+`frdm-bringup.md` now covers the pre-board service, device, suspend, study and
+version changes. It points ARRIVAL-08/09 at the candidate order and follows ADR
+0010 for Tailscale. The FRDM-IMX8MPLUS schematic needs an NXP account; until
+the user supplies it, J18 pin numbers and rails stay `UNKNOWN_SCHEMATIC` and
+Step 14 stays unchecked.

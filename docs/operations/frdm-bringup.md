@@ -126,14 +126,14 @@ Steps marked `HUMAN` need a person at the board.
 
 | # | Where | Run | Pass when | Records |
 |---|---|---|---|---|
-| ARRIVAL-01 | host | `git switch frdm-imx8mp-retarget && make verify && scripts/boards/show_board_profile.sh` | exit 0; JSON lists 18 `UNMEASURED` values and 1 human decision | none |
+| ARRIVAL-01 | host | `git switch pre-board && make verify && scripts/boards/show_board_profile.sh` (`pre-board` contains the retarget; use its successor once merged) | exit 0; JSON lists 18 `UNMEASURED` values and 1 human decision | none |
 | ARRIVAL-02 | HUMAN | Unbox; photograph both sides and the label; check the kit has the board, J15 22-pin cable, panel. Do not connect the PIR. | photos exist | `<BOARD_MARKING>` text |
 | ARRIVAL-03 | HUMAN | SW5 = `0010`; connect J19 to host; open the console (`screen <SERIAL_DEVICE> 115200`); connect Ethernet; connect the PD charger to J2 | U-Boot then Linux login on the console | console log |
 | ARRIVAL-04 | board (vendor) | log in as `root`; `cat /etc/os-release; uname -a; ip -4 addr` | vendor image boots to a shell | `<BOARD_ADDRESS>` |
 | ARRIVAL-05 | host | `ssh root@<BOARD_ADDRESS> 'dd if=/dev/mmcblk2 bs=4M' \| zstd -o frdm-factory-emmc.img.zst` (confirm `mmcblk2` is the eMMC with `lsblk` first) | file size ≈ eMMC size compressed; keep outside the repo | backup SHA-256 |
 | ARRIVAL-06 | host | `export BHP_BOARD_SSH_TARGET=root@<BOARD_ADDRESS>; scripts/deploy/frdm_evidence_bundle.sh push --execute` | JSON/log `frdm_evidence_bundle_pushed` | bundle SHA-256 |
 | ARRIVAL-07 | board | `cd /root/bhp-evidence && sh hardware_tests/frdm/frdm_board_identity.sh --board-marking '<BOARD_MARKING>'` | `result` is `complete`, or `incomplete` only on `wifi_chip_name`; never `mismatch` (a `mismatch` on RAM/eMMC is the 2 GB/16 GB variant: stop, contact the seller) | IDENTITY record |
-| ARRIVAL-08 | HUMAN | Power off. With a meter, measure the J18 I/O voltage on the candidate pin `<J18_PIN>` (from the FRDM-IMX8MPLUS schematic header table) to GND, board powered, nothing connected | reading taken | `<HEADER_MV>` |
+| ARRIVAL-08 | HUMAN | Power off. With a meter, measure the J18 I/O voltage on the candidate pin `<J18_PIN>` to GND. Take candidates in the order of [`frdm-j18-pir-candidates.json`](../hardware/frdm-j18-pir-candidates.json) and find each one's J18 pin in the FRDM-IMX8MPLUS schematic header table, board powered, nothing connected | reading taken | `<HEADER_MV>` |
 | ARRIVAL-09 | board | `sh hardware_tests/frdm/frdm_j18_gpio_inventory.sh --candidate <J18_PIN>:<PAD_MUX> --measured-header-voltage-mv <HEADER_MV> --voltage-method '<METER_MODEL> J18-to-GND'` | `candidate_format`, `pad_mux_owner`, `gpio_line_consumer`, `header_io_voltage` all `pass` | PIR record (pin candidates) |
 | ARRIVAL-10 | HUMAN | Power off. Wire the PIR: VCC per its datasheet, GND, OUT to `<J18_PIN>` (only if ARRIVAL-09 passed at 3.3 V) | wiring photo | wiring photo |
 | ARRIVAL-11 | board | `sh hardware_tests/frdm/frdm_pir_edge_capture.sh --mode gpio --controller <gpioN> --line <L> --duration-seconds 60` (values from ARRIVAL-09 candidates); stay still, then walk past | `edges_observed` `pass`; `BHP_BOARD_PIR_ACTIVE_LEVEL` candidate present | PIR record |
@@ -169,9 +169,12 @@ Wi-Fi, tailnet, and power samples continue after ARRIVAL-25:
   For resume timing start
   `frdm_wifi_resume_timing.sh --observe-seconds 300 --after-next-resume` in one
   SSH session and run ARRIVAL-23 on the console.
-- Tailscale is provisioned by the operator (`tailscale up`, interactive or a
-  one-time key kept outside the repository), then add
-  `--tailnet-probe <TAILNET_HOST>` and `--lexinet-url <LEXINET_URL>`.
+- Tailscale comes from the image: the pinned official `1.102.2` arm64 archive
+  (`bhp-tailscale-official`, ADR 0010) and `S50tailscaled`. The operator
+  enrolls the node with a tag that carries the Lexinet node capability
+  (`tailscale up`, interactive or a one-time key kept outside the repository).
+  Its state stays in `/var/lib/tailscale` on the board, never in an image. Then
+  add `--tailnet-probe <TAILNET_HOST>` and `--lexinet-url <LEXINET_URL>`.
 - Power: for each of `active_day`, `active_night`, `backlight_zero`, `idle`,
   and `mem` (with `--mem-sleep-state`), record a meter trace
   (`elapsed_seconds,volts,amps`) and run
@@ -184,7 +187,7 @@ Wi-Fi, tailnet, and power samples continue after ARRIVAL-25:
 | `<SERIAL_DEVICE>` | host `ls /dev/cu.usbserial-*` | ARRIVAL-03 |
 | `<BOARD_ADDRESS>` | console `ip -4 addr` or router lease | ARRIVAL-04 onward |
 | `<BOARD_MARKING>` | board label/silkscreen | ARRIVAL-07 |
-| `<J18_PIN>`, `<PAD_MUX>` | FRDM-IMX8MPLUS schematic J18 table (native `GPIO1`–`GPIO5` pads only, never the PCAL6416A expanders) | ARRIVAL-08/09 |
+| `<J18_PIN>`, `<PAD_MUX>` | `<PAD_MUX>` from the ranked [J18 candidates](../hardware/frdm-j18-pir-candidates.json); `<J18_PIN>` from the FRDM-IMX8MPLUS schematic J18 table (native `GPIO1`–`GPIO5` pads only, never the PCAL6416A expanders) | ARRIVAL-08/09 |
 | `<HEADER_MV>`, `<METER_MODEL>` | meter reading | ARRIVAL-09 |
 | `<gpioN>`, `<L>` | ARRIVAL-09 candidates | ARRIVAL-11 |
 | NXP firmware EULA decision | human; ADR | ARRIVAL-15 |
@@ -206,3 +209,38 @@ Wi-Fi, tailnet, and power samples continue after ARRIVAL-25:
   ARRIVAL-20 trial closes it.
 - `FRDM-GATE-TOUCH`: no GT911 interrupt line is justified from available
   documentation; the driver polls.
+
+## Pre-board software changes
+
+These changed after this document was first written. They move no gate and
+close no profile key:
+
+- **Services** ([`service-principals.json`](../../system_image/service-principals.json)):
+  - `S31bhp-presence-sensor` (root) loads the PIR input driver.
+  - `S50tailscaled` (root) runs the pinned archive.
+  - `S70panel_supervisord` (root) restarts at most 3 times, 5 s apart.
+  - `S75bhp-panel-ui` (UID 1102) stays disabled and fail-dark until
+    `FRDM-GATE-DISPLAY`.
+  - `S80bhp-vocabulary-panel` is retired; the vocabulary feature runs inside
+    `panel_ui`.
+- **Devices:** every input node is root-only, and only the supervisor opens raw
+  touch. `panel_ui` receives normalized observations. After `FRDM-GATE-TOUCH`,
+  copy the measured identity and raw bounds into the thirteen
+  `BHP_PANEL_SUPERVISOR_TOUCH_*` fields ([supervisor
+  README](../../panel_supervisor/README.md)). Sound nodes are `root:root 600`
+  until the media broker is packaged. The evidence scripts run as root, so
+  ARRIVAL-12 is unaffected.
+- **Suspend:** every suspend the supervisor requests first verifies kernel-visible
+  microphone capture closure. Leave `BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID` unset
+  until the broker is packaged. ARRIVAL-22/23 call the evidence script directly,
+  not the supervisor. Microphone rail-off remains an FRDM evidence item.
+- **Study client:** `panel-ui.env` reserves the `study.v1` settings with
+  `tailnet_node` authentication; no study credential is stored on the board
+  (ADR 0010).
+- **Versions:** the FRDM kernel stays NXP `lf-6.12.49-2.2.0` through bring-up.
+  The Buildroot `2026.08` pin is applied in a Mac-local session before the next
+  image build. The ARRIVAL-16 image is build evidence only until it boots.
+
+**Amended 2026-09-26:** ARRIVAL-01 uses `pre-board`. ARRIVAL-08/09 take pad
+candidates from the documentation-derived [J18 list](../hardware/frdm-j18-pir-candidates.json).
+The Tailscale step follows ADR 0010. Added the pre-board software changes above.
