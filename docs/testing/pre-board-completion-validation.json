@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "canonical": "pre-board-completion-validation",
+  "plan": ".claude/plans/2026-09-25-pre-board-completion.md",
+  "session": {
+    "kind": "cloud_linux_session_linked_to_the_mac_repository",
+    "platform": "Ubuntu 24.04 x86_64 container, non-root build user",
+    "date": "2026-09-26",
+    "delivery": "git bundles fast-forwarded into the Mac repository; nothing pushed"
+  },
+  "evidence_policy": {
+    "default": "simulation_not_hardware_evidence",
+    "real_tailnet": "real_tailnet_not_panel_hardware (none recorded yet)",
+    "frdm": "build evidence only; no FRDM hardware evidence exists"
+  },
+  "commits": [
+    {
+      "sha": "df6dfb6",
+      "subject": "docs: record Phase 2-7 decisions and the pre-board execution split"
+    },
+    {
+      "sha": "2c2ca31",
+      "subject": "feat: repin study.v1 provenance and replace next-card configuration"
+    },
+    {
+      "sha": "3e612e1",
+      "subject": "test: prove the study.v1 client against a disposable real Lexinet"
+    },
+    {
+      "sha": "13b4914",
+      "subject": "feat: package pinned Tailscale and the service principal matrix"
+    },
+    {
+      "sha": "cad6991",
+      "subject": "feat: gate every suspend on kernel-visible capture closure"
+    },
+    {
+      "sha": "dfaa997",
+      "subject": "test: map every roadmap Step 8 fault row to exact tests"
+    },
+    {
+      "sha": "1e1afca",
+      "subject": "docs(hardware): rank J18 PIR pad candidates and update FRDM bring-up"
+    }
+  ],
+  "verification": {
+    "make_verify": "pass after every commit above",
+    "make_verify_docs": "pass after every commit above",
+    "ctest_host_dev": 48,
+    "compiler": "GCC 13.3.0",
+    "buildroot_defconfig_evaluation": "all four defconfigs, no dropped symbols, against the Buildroot 2026.05.1 git tag (cb857ba4), not the release archive"
+  },
+  "steps": [
+    {
+      "step": "Step 4",
+      "state": "checked",
+      "evidence": "decisions recorded in the plan; ADR 0010"
+    },
+    {
+      "step": "Step 5",
+      "state": "checked",
+      "evidence": "study.v1 provenance repinned at Lexinet ce42272; next-card configuration replaced"
+    },
+    {
+      "step": "Step 6",
+      "state": "checked",
+      "evidence": "docs/testing/lexinet-live-contract-validation.json: 10 scenario runs and 3 cross-checks against a disposable real Lexinet"
+    },
+    {
+      "step": "Step 7",
+      "state": "unchecked",
+      "open": [
+        "real Tailnet enrollment and the Lexinet Step 5 matrix (Mac-local, user performs admin steps)"
+      ]
+    },
+    {
+      "step": "Step 8",
+      "state": "checked",
+      "evidence": "Buildroot 2026.08 then 2027.02 LTS; lf-6.12.49-2.2.0; mainline 6.18.54; Tailscale 1.102.2 archive",
+      "open": [
+        "apply the Buildroot 2026.08 digest/source ID and the QEMU kernel pin (Mac-local)"
+      ]
+    },
+    {
+      "step": "Step 9",
+      "state": "unchecked",
+      "recorded": [
+        "make verify-docs",
+        "make verify"
+      ],
+      "open": [
+        "bounded restart supervision for tailscaled, reviewed with the Step 10 boot"
+      ]
+    },
+    {
+      "step": "Step 10",
+      "state": "unchecked",
+      "open": [
+        "Buildroot QEMU image build and boot (Mac-local)"
+      ]
+    },
+    {
+      "step": "Step 11",
+      "state": "unchecked",
+      "open": [
+        "FRDM package builds up to the gates (Mac-local)",
+        "NXP firmware license decision"
+      ]
+    },
+    {
+      "step": "Step 12",
+      "state": "unchecked",
+      "recorded": [
+        "make verify"
+      ],
+      "open": [
+        "snd-aloop guest capture-closure run (Mac-local)",
+        "production media IPC: supervisor lifecycle publication, UI lease socket, provenance-claim endpoint"
+      ]
+    },
+    {
+      "step": "Step 13",
+      "state": "unchecked",
+      "recorded": [
+        "make verify"
+      ],
+      "open": [
+        "VM repeat of every fault row and the s2idle attempt (Mac-local)"
+      ]
+    },
+    {
+      "step": "Step 14",
+      "state": "unchecked",
+      "recorded": [
+        "make verify-docs"
+      ],
+      "open": [
+        "J18 pin numbers and supply rails from the FRDM-IMX8MPLUS schematic (NXP account)"
+      ]
+    },
+    {
+      "step": "Step 15",
+      "state": "unchecked",
+      "open": [
+        "user decision on the five Step 1 completion clauses"
+      ]
+    }
+  ],
+  "supplementary_runs": [
+    {
+      "name": "capture_closure_matrix_container_stand_in",
+      "command": "python3 scripts/sim/guest/capture_closure_matrix.py --execute --stand-in --check-binary .build/host-dev/panel_supervisor/capture_closure_check",
+      "capture_device": "stand_in_regular_file",
+      "kernel_substream_status": "not_exercised",
+      "cases": {
+        "baseline_closed": "pass",
+        "broker_holder_terminated_gracefully": "pass (SIGTERM, 1 ms)",
+        "broker_holder_ignoring_sigterm_is_killed": "pass (SIGKILL after the 500 ms grace)",
+        "foreign_holder_refuses_suspend": "pass (CAPTURE_CLOSURE_UNVERIFIED at 2031 ms; holder untouched)",
+        "no_termination_path_refuses_suspend": "pass (CAPTURE_TERMINATION_UNAVAILABLE)",
+        "final_closed": "pass"
+      },
+      "evidence": "simulation_not_hardware_evidence"
+    }
+  ],
+  "pending_decisions": [
+    {
+      "id": "nxp_firmware_license",
+      "owner": "user",
+      "blocks": [
+        "Step 11 image",
+        "ARRIVAL-15/16"
+      ]
+    },
+    {
+      "id": "agenda_step_1_clauses",
+      "owner": "user",
+      "blocks": [
+        "Step 15"
+      ]
+    },
+    {
+      "id": "lexinet_long_term_host",
+      "owner": "user",
+      "state": "deferred by the user"
+    },
+    {
+      "id": "weather_provider_and_location",
+      "owner": "user",
+      "blocks": [
+        "live weather"
+      ]
+    },
+    {
+      "id": "agenda_011_household_civil_time",
+      "owner": "user",
+      "state": "deferred by ADR 0006"
+    }
+  ],
+  "pending_human_actions": [
+    {
+      "id": "run_mac_local_session",
+      "prompt": "project doc claude/pre-board-mac-local-prompt.md",
+      "steps": [
+        "Step 7",
+        "Step 8 application",
+        "Step 10",
+        "Step 11",
+        "Step 12 item 2",
+        "Step 13 item 2",
+        "Step 15"
+      ]
+    },
+    {
+      "id": "tailnet_admin_console",
+      "detail": "tags, the node-capability grant, MagicDNS/HTTPS; performed by the user from exact instructions",
+      "step": "Step 7"
+    },
+    {
+      "id": "provide_frdm_schematic",
+      "detail": "FRDM-IMX8MPLUS schematic from nxp.com (account required)",
+      "step": "Step 14"
+    }
+  ],
+  "repositories": {
+    "beaglebone-house-panel": {
+      "branch": "pre-board",
+      "base": "feba096",
+      "commits": "see commits; delivered as bundles, fast-forwarded on the Mac, not pushed"
+    },
+    "lexinet": {
+      "path": "/Users/coleshaffer/lexinet",
+      "head": "main@ce42272",
+      "changed": false,
+      "note": "built read-only by make verify-lexinet-live; no panel-integration branch was needed"
+    }
+  },
+  "commands": {
+    "full_verification": [
+      "make verify",
+      "make verify-docs"
+    ],
+    "real_lexinet_contract": "make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=/Users/coleshaffer/lexinet",
+    "real_lexinet_contract_dry_run": "python3 scripts/lexinet/live_contract.py --lexinet-source-dir /Users/coleshaffer/lexinet",
+    "service_principals": "python3 scripts/verification/verify_service_principals.py",
+    "fault_matrix": "python3 scripts/verification/check_fault_matrix.py",
+    "j18_candidates": "python3 scripts/verification/check_frdm_j18_candidates.py",
+    "capture_closure_host_tests": "ctest --test-dir .build/host-dev -R capture_closure --output-on-failure",
+    "capture_closure_check": ".build/host-dev/panel_supervisor/capture_closure_check [--media-broker-uid UID]",
+    "capture_closure_matrix_plan": "python3 scripts/sim/guest/capture_closure_matrix.py --check-binary <build>/panel_supervisor/capture_closure_check",
+    "capture_closure_matrix_guest": "sudo python3 scripts/sim/guest/capture_closure_matrix.py --execute --check-binary <guest build>/panel_supervisor/capture_closure_check",
+    "capture_closure_matrix_stand_in": "sudo python3 scripts/sim/guest/capture_closure_matrix.py --execute --stand-in --check-binary <build>/panel_supervisor/capture_closure_check --output .build/sim/capture-closure/stand-in.json"
+  },
+  "remaining_for_the_board": [
+    "FRDM-GATE-PIR: J18 pin, header voltage, pad owner and active level (ARRIVAL-08 to ARRIVAL-11, ARRIVAL-14)",
+    "FRDM-GATE-DISPLAY, FRDM-GATE-TOUCH and FRDM-GATE-BACKLIGHT (ARRIVAL-13, ARRIVAL-19, ARRIVAL-20); touch results fill the supervisor's 13 touch fields",
+    "FRDM-GATE-SUSPEND with an attributed PIR wake (ARRIVAL-21 to ARRIVAL-24) and the 50-trial acceptance run",
+    "FRDM-GATE-AUDIO (ARRIVAL-12) and microphone rail-off evidence before any media enablement",
+    "FRDM-GATE-WIFI and FRDM-GATE-POWER samples",
+    "NXP-FIRMWARE-EULA decision before the project image can boot (ARRIVAL-15)"
+  ]
+}

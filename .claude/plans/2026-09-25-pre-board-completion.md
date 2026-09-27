@@ -260,3 +260,12 @@ version changes. It points ARRIVAL-08/09 at the candidate order and follows ADR
 0010 for Tailscale. The FRDM-IMX8MPLUS schematic needs an NXP account; until
 the user supplies it, J18 pin numbers and rails stay `UNKNOWN_SCHEMATIC` and
 Step 14 stays unchecked.
+
+**Amended 2026-09-26 (Step 15 and cloud-session close):** the agenda Step 1
+safety review packet is
+[`experiments/macos_personal_companion/README.md`](../../experiments/macos_personal_companion/README.md).
+Its five-clause completion gate waits for the user's decision. No EventKit,
+Contacts, Messages, companion or `AGENDA-011` work was done. The cloud session
+ends here. The [validation record](../../docs/testing/pre-board-completion-validation.md)
+lists each step's state and every pending decision and human action. The
+remaining Verify items of Steps 7 and 10–15 continue in a Mac-local session.
