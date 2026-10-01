@@ -384,3 +384,8 @@ production default.
 `/sys/power/mem_sleep` variant (ADR 0008 `FRDM-GATE-SUSPEND`); the i.MX 8M Plus
 offers `s2idle` and, with PSCI system suspend, `deep`, and which one wakes
 reliably from the PIR is unmeasured.
+
+**Amended 2026-09-30:** capture-closure fixture/policy tests also run on macOS.
+Three live procfs/pidfd cases remain Linux-only and report explicit skips on
+other hosts; non-Linux coverage instead asserts that unavailable pidfds refuse
+termination with `ENOSYS`. No Linux evidence requirement or runtime gate changes.

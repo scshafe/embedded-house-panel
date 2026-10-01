@@ -3,6 +3,7 @@
 #include "panel_supervisor/supervisor_error.hpp"
 
 #include <chrono>
+#include <cerrno>
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
@@ -253,6 +254,7 @@ bool missing_process_table_is_a_probe_failure()
 	return true;
 }
 
+#ifdef __linux__
 bool real_procfs_scan_succeeds()
 {
 	// Hidden descriptors of other users' processes are counted, not fatal.
@@ -260,6 +262,8 @@ bool real_procfs_scan_succeeds()
 	TEST_REQUIRE(probe.observe().has_value());
 	return true;
 }
+
+#endif
 
 bool hidden_descriptors_are_counted_not_assumed_empty()
 {
@@ -378,6 +382,7 @@ bool closure_deadline_refuses_suspend()
 	return true;
 }
 
+#ifdef __linux__
 bool terminator_refuses_root_and_skips_exited_holders()
 {
 	UidScopedMediaTerminator root_terminator(0);
@@ -411,6 +416,20 @@ bool terminator_signals_only_the_exact_broker_uid()
 	return true;
 }
 
+#else
+bool unavailable_pidfds_refuse_termination()
+{
+	UidScopedMediaTerminator root_terminator(0);
+	TEST_REQUIRE(!root_terminator.terminate({1}, false).has_value());
+	UidScopedMediaTerminator broker(1103);
+	const auto refused = broker.terminate({static_cast<int>(::getpid())}, false);
+	TEST_REQUIRE(!refused.has_value());
+	TEST_REQUIRE(refused.error().code() == ErrorCode::MediaTerminationFailed);
+	TEST_REQUIRE(refused.error().context().at("errno") == std::to_string(ENOSYS));
+	return true;
+}
+#endif
+
 bool bounds_are_validated()
 {
 	TEST_REQUIRE(validate_capture_closure_bounds(CaptureClosureBounds{}).has_value());
@@ -442,17 +461,27 @@ int main()
 		closed_capture_playback_and_aliases_are_not_open,
 		open_substreams_and_capture_holders_are_observed,
 		missing_process_table_is_a_probe_failure,
+#ifdef __linux__
 		real_procfs_scan_succeeds,
+#endif
 		hidden_descriptors_are_counted_not_assumed_empty,
 		open_capture_without_termination_path_refuses_suspend,
 		probe_failure_refuses_suspend,
 		graceful_termination_closes_capture_before_suspend,
 		forced_termination_runs_after_the_grace_period,
 		closure_deadline_refuses_suspend,
+#ifdef __linux__
 		terminator_refuses_root_and_skips_exited_holders,
 		terminator_signals_only_the_exact_broker_uid,
+#else
+		unavailable_pidfds_refuse_termination,
+#endif
 		bounds_are_validated,
 	};
+#ifndef __linux__
+	std::cout << "{\"test\":\"capture_closure\",\"linux_only_cases_skipped\":3,"
+		     "\"reason\":\"requires_linux_procfs_and_pidfd\"}\n";
+#endif
 	int passed = 0;
 	for (const auto test : tests) {
 		if (!test()) {

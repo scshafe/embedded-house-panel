@@ -1,5 +1,7 @@
 """Fail-closed cases for the documentation-derived FRDM J18 PIR pad candidates."""
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import io
