@@ -26,7 +26,7 @@ The user reports receiving the board; measurements and enablement remain gated.
   - Verify: `python3 -m unittest discover -s scripts/sim/tests -p 'test_*.py'`
   - Verify: `python3 -m unittest discover -s scripts/environment/tests -p 'test_*.py'`
 
-- [ ] **Step 3: Verify and package committed work**
+- [x] **Step 3: Verify and package committed work**
   - Run repository checks, commit logical changes, verify a fresh bundle clone,
     and provide exact setup/resume commands. Transfer to Arch if accessible.
   - Verify: `make verify`
@@ -53,3 +53,9 @@ The fresh bundle clone exposed a fault-matrix checker path filter that excluded
 all source CMake files when any ancestor directory was named `.build`. Restrict
 the exclusion to paths inside the checkout and cover both source inclusion and
 generated-file exclusion before repeating the fresh-clone check.
+
+**Verified 2026-09-30:** `make verify` passed on Apple Silicon macOS, including
+48 CTests and 43 exact screen comparisons. The self-contained bundle verified;
+a clean bundle clone passed `make verify-docs`, 22 simulator tests, 3 bootstrap
+guard tests and 29 panel verification tests. Actual Arch execution and physical
+FRDM evidence remain unperformed. See the Arch guide for the explicit skips.

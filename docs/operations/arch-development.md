@@ -15,6 +15,7 @@ The archive name includes this migration date. Extract it as your normal user:
 mkdir -p "$HOME/Downloads"
 sudo tailscale file get "$HOME/Downloads"
 cd "$HOME/Downloads"
+sha256sum -c house-panel-migration-2026-09-30.tar.gz.sha256
 tar -xzf house-panel-migration-2026-09-30.tar.gz
 ```
 
@@ -172,6 +173,20 @@ requires the archive digest/source identity update; do not silently adopt a
 newer release or reuse the old 2026.05.1 archive as evidence for it.
 
 ## What travels and what stays local
+
+Preparation was verified on Apple Silicon macOS on 2026-09-30: `make verify`
+passed, including 48 CTests and 43 exact screen comparisons. A fresh bundle
+clone passed `git fsck --full`, `make verify-docs`, 22 simulator tests, 3 Arch
+bootstrap guard tests and 29 panel verification tests. The bundle verified as
+self-contained. Linux launcher selection was unit-tested; no command has yet
+been run on the Arch workstation and no hardware was exercised.
+
+The Mac run explicitly skipped three Linux-only procfs/pidfd cases, AArch64
+cross compilation (compiler unavailable), the presence kernel-module build
+(`KERNEL_DIR` unset), and Buildroot defconfig evaluation (`BHP_BUILDROOT_DIR`
+unset). These remain separate Linux/target verification work; the passing host
+gate does not establish them. Package installation remains an explicit user
+action on Arch.
 
 The migration folder contains Git bundles, checksums, a revision manifest and
 selected public review artifacts if available. `config/device.env`, tokens,
