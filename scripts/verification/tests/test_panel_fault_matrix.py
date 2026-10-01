@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts/verification"))
@@ -39,6 +40,19 @@ class FaultMatrixTest(unittest.TestCase):
 
     def test_repository_matrix_passes(self) -> None:
         self.assertEqual(self.run_checker(self.matrix), 0)
+
+    def test_checkout_beneath_build_directory_keeps_source_runners(self) -> None:
+        root = Path(self.temporary.name) / ".build" / "clone"
+        source = root / "panel_supervisor" / "CMakeLists.txt"
+        generated = root / ".build" / "generated" / "CMakeLists.txt"
+        source.parent.mkdir(parents=True)
+        generated.parent.mkdir(parents=True)
+        source.write_text("add_executable(test tests/panel_supervisor_test.cpp)")
+        generated.write_text("generated runner must not count")
+        with patch.object(checker, "ROOT", root):
+            runners = checker.runner_sources()
+        self.assertTrue(checker.registered("panel_supervisor/tests/panel_supervisor_test.cpp", runners))
+        self.assertNotIn("generated runner", runners)
 
     def test_rows_must_match_the_roadmap_list(self) -> None:
         matrix = copy.deepcopy(self.matrix)

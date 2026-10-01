@@ -57,7 +57,7 @@ def runner_sources() -> str:
     sources = [ROOT / "Makefile", *ROOT.glob("scripts/verification/*.sh"),
                *ROOT.glob("**/CMakeLists.txt")]
     return "\n".join(path.read_text(encoding="utf-8") for path in sources
-                     if ".build" not in path.parts and path.is_file())
+                     if ".build" not in path.relative_to(ROOT).parts and path.is_file())
 
 
 GOLDEN_MANIFEST = ROOT / "panel_ui/tests/golden/manifest.json"

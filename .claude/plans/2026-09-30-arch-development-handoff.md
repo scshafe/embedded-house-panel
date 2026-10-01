@@ -48,3 +48,8 @@ The next run passed all 48 CTests and 43 images, then exposed an eager Python
 union annotation in a newer verification test on the Mac's Python 3.9. Defer
 that test's annotations, matching the production checker, and retain the same
 assertions. Run the remaining Python gates before the final combined rerun.
+
+The fresh bundle clone exposed a fault-matrix checker path filter that excluded
+all source CMake files when any ancestor directory was named `.build`. Restrict
+the exclusion to paths inside the checkout and cover both source inclusion and
+generated-file exclusion before repeating the fresh-clone check.
