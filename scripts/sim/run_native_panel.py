@@ -46,14 +46,18 @@ def main():
     args=parser.parse_args()
     source=ROOT/'.build/panel-native/simulator/bhp-panel-sim'
     bundle=SIM/'HousePanelSimulator.app'
-    command=[str(bundle/'Contents/MacOS/bhp-panel-sim'),'--scenario',str(args.scenario.resolve()),
+    if sys.platform not in ('darwin','linux'):raise ValueError('SIM_NATIVE.PLATFORM_UNSUPPORTED')
+    executable=bundle/'Contents/MacOS/bhp-panel-sim' if sys.platform=='darwin' else source
+    command=[str(executable),'--scenario',str(args.scenario.resolve()),
              '--launcher-config',str(args.launcher_config.resolve()),'--clock-preview','on','--state-directory',str(SIM/'native-study'),'--lexinet-config',str(SIM/'native-lexinet.json')]
     print(json.dumps({'execute':args.execute,'command':command,'fixture_https':True,
                      'app_bundle':{'path':str(bundle),'source_executable':str(source),
                                    'bundle_id':'org.housepanel.native-simulation',
-                                   'scope':'checkout-local only'},'evidence':EVIDENCE}),flush=True)
+                                   'scope':'checkout-local only'} if sys.platform=='darwin' else None,
+                     'platform':sys.platform,'evidence':EVIDENCE}),flush=True)
     if not args.execute:return 0
-    prepare_bundle(source,bundle)
+    if not source.is_file():raise ValueError('SIM_NATIVE.BUILD_REQUIRED')
+    if sys.platform=='darwin':prepare_bundle(source,bundle)
     ensure_server()
     state=SIM/'native-study';state.mkdir(exist_ok=True,mode=0o700)
     return subprocess.call(command,cwd=ROOT)

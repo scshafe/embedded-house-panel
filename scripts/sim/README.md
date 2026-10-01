@@ -13,7 +13,7 @@ make verify-panel-simulator
 ```
 
 The first command builds the shared LVGL renderer and checks exact pixels against
-29 committed baselines. Differences produce a PNG and JSON under
+43 committed baselines. Differences produce a PNG and JSON under
 `.build/screenshots/`. `make update-panel-goldens` is an explicit update: inspect
 `.build/screenshots/review/before-after.png` and include the before/after images
 in the baseline-changing commit. An initial baseline has no predecessor.
@@ -28,6 +28,10 @@ profile is `fixture-default`; all words and topics are synthetic.
 JSON lines. `make verify-panel-simulator` opens each scenario in its own actual
 SDL window and writes `.build/sim/native/contact-sheet.png`, a labelled `contact-sheet.html`, and `report.json`.
 Scenario capture uses deterministic data without network timing.
+
+On Linux, the same native launcher runs the SDL executable directly; launch it
+from an X11/Wayland desktop session. See [Arch setup](../../docs/operations/arch-development.md).
+The guest launcher below remains Apple Silicon/macOS-specific.
 
 ## Debian arm64 guest
 

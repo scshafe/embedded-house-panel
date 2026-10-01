@@ -2,9 +2,12 @@
 
 ## Supported workflow
 
-The final target build uses an x86_64 Linux host or VM. Buildroot requires Linux for the supported build workflow, and the selected official Bootlin ARMv7 toolchain is visible only on an x86_64 host. macOS remains useful for dependency-free policy/UI-core tests, Kconfig syntax checks, and documentation verification, but its resolved `.config` is not evidence that the target toolchain was selected. An ARM64 Linux host requires an explicit switch to a supported toolchain, such as a project-built internal toolchain, and a reviewed defconfig change.
+The final target build uses an x86_64 Linux host or VM. Buildroot requires Linux for the supported build workflow, and the selected official Bootlin AArch64 toolchain for FRDM (the legacy ARMv7 profile is retained separately) is visible only on an x86_64 host. macOS remains useful for dependency-free policy/UI-core tests, Kconfig syntax checks, and documentation verification, but its resolved `.config` is not evidence that the target toolchain was selected. An ARM64 Linux host requires an explicit switch to a supported toolchain, such as a project-built internal toolchain, and a reviewed defconfig change.
 
 ## Host checks
+
+For an Arch Linux x86_64 workstation, use the [Arch setup and migration guide](arch-development.md).
+It includes explicit package installation, native SDL launch and the current resume point.
 
 ```sh
 scripts/environment/check_host_dependencies.sh
@@ -67,7 +70,7 @@ tools from embedding the current workstation layout.
 
 ## Buildroot checkout
 
-The scaffold pins Buildroot 2026.05.1, the current stable bugfix release as of this document: [official downloads](https://buildroot.org/download.html). Use `scripts/build/download_verified_buildroot.sh` to download and verify the pinned archive into a caller-selected directory. The contract pins both the official archive SHA-256 and a canonical identity of its complete extracted tree.
+The verified downloader still pins Buildroot 2026.05.1; the accepted move to 2026.08 awaits the archive digest/source-identity update recorded in the pre-board plan. This is a repository pin, not a claim about the current upstream release: [official downloads](https://buildroot.org/download.html). Use `scripts/build/download_verified_buildroot.sh` to download and verify the pinned archive into a caller-selected directory. The contract pins both the official archive SHA-256 and a canonical identity of its complete extracted tree.
 
 The downloader never accepts a directory merely because it is named
 `buildroot-2026.05.1` or its Makefile prints that version. It hashes every

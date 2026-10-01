@@ -29,7 +29,7 @@ real-provider and hardware evidence.
 | Vocabulary panel | Study surface beneath `panel_ui`, cancellable HTTPS worker, durable create/retry identities, atomic cache/outbox recovery, and synthetic verified-TLS integration for `study.v1` | Real Lexinet/Tailnet identity, policy, revocation and certificate evidence; panel Tailscale packaging and credentials; target validation |
 | Spoken commands | Fake-only broker, content-addressed catalog/active sets/backend/policy, effect admission, replay/cooldown and lifecycle closure tests | Real recognizer/acoustic qualification, microphone ownership and independent closure, production holder-claim/media IPC; wish recording remains disabled |
 | Personal agenda | Synthetic agenda/birthday/wish-flow surfaces; `AGENDA-001` through `AGENDA-010` accepted and companion boundary documented | `AGENDA-011`, feasibility Step 1, real providers/companion, EventKit/Contacts, Google, Tailnet, local STT and Messages measurements |
-| Virtual panel | 29 headless and SDL scenarios, Debian arm64 QEMU/HVF guest with DRM completion, authenticated touch, synthetic PIR/backlight, and Cocoa interaction | Simulation only; no FRDM electrical, physical display, power, suspend or wake evidence |
+| Virtual panel | 43 headless and SDL scenarios, Debian arm64 QEMU/HVF guest with DRM completion, authenticated touch, synthetic PIR/backlight, and Cocoa interaction | Simulation only; no FRDM electrical, physical display, power, suspend or wake evidence |
 | System image | Pinned Buildroot external tree with FRDM i.MX 8M Plus production and bring-up defconfigs (NXP `linux-imx`/`uboot-imx` `lf-6.12.49-2.2.0`), board profiles, SSH-free production profile, root-key-only bring-up profile, Chrony/DHCP, exact touch isolation, packages, init scripts, and overlay | NXP firmware license decision, full image build, measured PIR/backlight/display values, and measured package/resource budget |
 | Board bring-up | `config/boards/` profiles, AArch64 cross build, `hardware_tests/frdm/` gate evidence scripts, and the board-arrival checklist | Every `FRDM-GATE-*` measurement |
 | Operations | Environment checks, isolated SDK cross-build, exact content-addressed uploads, board bring-up provisioning, diagnostics, and fresh-source release verification | Production provisioning/update/rollback, final board identity, and credentials |
@@ -64,7 +64,8 @@ No document or test result in this repository claims the saved legacy pin map is
 The BeagleBone Black was lost. Per
 [ADR 0008](docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md),
 the development platform is now the NXP FRDM i.MX 8M Plus board with a
-Waveshare 7inch DSI LCD (C) touchscreen, both ordered and not yet received. It
+Waveshare 7inch DSI LCD (C) touchscreen, with the board reported received by the user on 2026-09-30. Display receipt,
+board revision and accessories still need inventory. It
 is the characterization target, not the final product-board selection; a
 successful prototype is expected to move to an i.MX 8M Plus system-on-module on
 a custom carrier.
@@ -167,6 +168,11 @@ See [system architecture](docs/architecture/system-architecture.md),
 | `docs/` | Architecture, behavior, interfaces, research, security, and hardware decisions |
 
 ## Quick start
+
+Moving to the Arch PC? Start with [Arch development setup](docs/operations/arch-development.md)
+for the complete branch/bundle, explicit dependencies, Linux SDL launch and
+board-arrival continuation. The newest software evidence is in
+[pre-board completion validation](docs/testing/pre-board-completion-validation.md).
 
 ```sh
 scripts/environment/check_host_dependencies.sh
@@ -317,3 +323,6 @@ Lexinet `ce42272df315f357e10998dd48e9ffd1a935c2ff`, replaced both next-card
 environment examples with `study.v1` configuration (node-capability
 authentication, no stored credential; ADR 0010), and retired the remaining
 next-card documentation. Production services remain disabled.
+
+**Amended 2026-09-30:** recorded user-reported FRDM board receipt and linked the
+Arch development handoff. Receipt closes no measurement or enablement gate.
