@@ -59,3 +59,8 @@ generated-file exclusion before repeating the fresh-clone check.
 a clean bundle clone passed `make verify-docs`, 22 simulator tests, 3 bootstrap
 guard tests and 29 panel verification tests. Actual Arch execution and physical
 FRDM evidence remain unperformed. See the Arch guide for the explicit skips.
+
+**Amended 2026-10-02:** the user authorized publishing. `pre-board` was
+fast-forwarded into `main`, which was pushed to GitHub with the three archive
+refs. Merged branches, the redundant stash and audited verification worktrees
+were removed. The Arch guide now clones from GitHub instead of the bundle.
