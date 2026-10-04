@@ -5,6 +5,31 @@ software development to the Arch PC. This guide prepares the workstation; it
 neither flashes a device nor closes any hardware gate. The current development
 branch is `main`, which now includes all `pre-board` and cloud-session work.
 
+**Amended 2026-10-04: migrated to cole-arch-pc as a scshafe-dev project.**
+
+- The checkout is `~/src/embedded-house-panel`, the scshafe-dev convention for
+  every project on this PC. The `~/Projects/beaglebone-house-panel` path below
+  is superseded.
+- The repository is adopted as a scshafe-dev `native` project. `dev.toml`
+  `[verify]` is `make verify`, and `dev check .` must also pass. `AGENTS.md`
+  ends with the managed "Verify and landing" section.
+- `make verify` passed on Arch on 2026-10-04: 48/48 CTests, the exact screen
+  comparisons, and the Python suites. It skipped the same three cases as the
+  Mac: no AArch64 cross compiler, `KERNEL_DIR` unset, and `BHP_BUILDROOT_DIR`
+  unset.
+- `make verify` needs `go` on `PATH`: the plan verification map names it, and
+  `check_plan_verification_map.py` fails with `RECORDED_EXECUTABLE_UNRESOLVED`
+  without it. The bootstrap package list now includes `go`.
+- The Mac's migration folder, including `lexinet.bundle` (9/9 `SHA256SUMS` OK),
+  and the outer folder's notes are in
+  `~/Documents/embedded-house-panel-from-air/`. The pinned Lexinet checkout is
+  `~/.local/share/embedded-house-panel/lexinet` at `ce42272`.
+  `config/device.env` was recreated with that path and the Mac's base revision.
+  GitHub's `scshafe/lexinet` does not contain `ce42272`; use the bundle.
+- No FRDM board was visible on USB on 2026-10-04: no new USB device, and no
+  `/dev/ttyUSB*` or `/dev/ttyACM*`. Inventory starts once the board's debug USB
+  enumerates.
+
 ## Get the complete source
 
 **Amended 2026-10-02:** the user authorized publishing. `pre-board` was

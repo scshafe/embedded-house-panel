@@ -21,7 +21,7 @@ case "${1:-}" in
   *) usage >&2; exit 2 ;;
 esac
 # SDL2 compatibility is the official Arch SDL2 provider; no AUR is required.
-packages="base-devel git cmake ninja pkgconf python ripgrep shellcheck openssl curl libpng nlohmann-json sdl2-compat libdrm rsync openssh dtc bc bison flex perl file patch cpio unzip wget xz ncurses which picocom usbutils"
+packages="base-devel git cmake ninja pkgconf python ripgrep shellcheck openssl curl libpng nlohmann-json sdl2-compat libdrm rsync openssh dtc bc bison flex perl file patch cpio unzip wget xz ncurses which picocom usbutils go"
 if [ "$mode" = dry-run ]; then
   bhp_log info bootstrap_dry_run "$TRACE_ID" distribution arch packages "$packages" command "sudo pacman -Syu --needed $packages"
   exit 0
