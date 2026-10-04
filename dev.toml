@@ -33,3 +33,7 @@ released = true
 dirty = false
 mode = "adopted"
 params = { kind = "native", name = "embedded-house-panel", date = "2026-10-04" }
+
+[identity]
+agent = "agent-embedded-house-panel"
+github = ["contents=write", "pull_requests=write", "issues=write", "workflows=write", "actions=write"]

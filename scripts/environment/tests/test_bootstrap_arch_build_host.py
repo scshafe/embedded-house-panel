@@ -27,7 +27,7 @@ class ArchBootstrapTests(unittest.TestCase):
         plan=json.loads(result.stdout)
         self.assertEqual(plan['message'],'bootstrap_dry_run')
         self.assertIn('pacman -Syu --needed',plan['command'])
-        for package in ('sdl2-compat','nlohmann-json','libpng','libdrm','shellcheck','dtc'):
+        for package in ('sdl2-compat','nlohmann-json','libpng','libdrm','shellcheck','dtc','go'):
             self.assertIn(package,plan['packages'].split())
         self.assertFalse(self.marker.exists())
 
