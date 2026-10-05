@@ -7,8 +7,9 @@ Board facts: [`config/boards/frdm-imx8mp.env`](../../config/boards/frdm-imx8mp.e
 Evidence scripts: [`hardware_tests/frdm/`](../../hardware_tests/README.md#frdm-imx-8m-plus-gate-evidence).
 Plan: [`.claude/plans/2026-09-25-frdm-hardware-baseline.md`](../../.claude/plans/2026-09-25-frdm-hardware-baseline.md).
 
-Status: written before the board arrived. No step below has been run on
-hardware. Every value marked `UNMEASURED:` in the profile is closed only by a
+Status: written before the board arrived; ARRIVAL-01 and -03 to -06 have run
+since (see [Arrival status](#arrival-status-2026-10-05)). No gate is closed.
+Every value marked `UNMEASURED:` in the profile is closed only by a
 reviewed commit that links the JSON evidence named in the gate map.
 
 ## Order
@@ -179,6 +180,79 @@ Wi-Fi, tailnet, and power samples continue after ARRIVAL-25:
   and `mem` (with `--mem-sleep-state`), record a meter trace
   (`elapsed_seconds,volts,amps`) and run
   `sh hardware_tests/frdm/frdm_power_input_log.sh --software-state <STATE> --board-revision <BOARD_REV> --accessory-revision '<PANEL_AND_PIR_ASSEMBLY>' --supply-description '<CHARGER_MODEL_AND_RATING>' --meter-csv <METER_CSV> --instrument '<METER_MODEL>'`.
+
+## Arrival status (2026-10-05)
+
+The board is on the Arch development PC (cole-arch-pc). These are observations
+from the vendor image, not closed gates: no profile key changed and
+`scripts/boards/show_board_profile.sh` still reports 18 `UNMEASURED` values and
+1 human decision. Raw captures are in the ignored
+`hardware_tests/results/frdm/health-check/` directories named below.
+
+**Access, as connected.**
+
+- Console: J19 (CH342, USB `1a86:55d2`) enumerates two CDC-ACM ports. `if00`
+  is the Cortex-A53 console at 115200 (`dev.toml [hardware] console`, the
+  `/dev/serial/by-id/` path; `/dev/ttyACM0` here); `if02` was silent. The
+  agent user has no serial or LAN access by design: board steps run in the
+  owner's session.
+- Power: from the PC's USB-C. The Apple 65 W PD charger on J2 left U-Boot in a
+  reset loop at USB XHCI initialisation (cause inferred, not measured).
+  FRDM-GATE-POWER at J2 still needs a supply that boots it and an inline meter.
+- LAN: the vendor image's `eth1` took the DHCP lease 192.168.7.181 (`eth0` was
+  down); which RJ45 jack is which stays FRDM-GATE-WIFI inventory. The vendor
+  image allows root SSH with no password: keep it on the LAN only.
+
+**Checklist.**
+
+- ARRIVAL-01 passed (2026-10-04): 18 `UNMEASURED`, 1 human decision.
+- ARRIVAL-02 waits on the owner: photos of both sides and the label, the
+  board-marking text.
+- ARRIVAL-03 done on PC USB power instead of the PD charger (above). U-Boot
+  2026.04-lf reported a bad environment CRC and used its default environment.
+- ARRIVAL-04 done: "NXP i.MX Distro with Wayland and XWayland 6.18-wrynose",
+  kernel 6.18.20-2.0.0, hostname `imx8mpevk`, model "NXP FRDM-IMX8MPLUS",
+  3686668 kB RAM visible, eMMC `mmcblk2` 31268536320 B (DOS label: p1 83 MiB
+  vfat boot, p2 9.8 GiB ext4 root, the rest unallocated), `boot0`/`boot1`
+  4 MiB, QSPI `mtdblock0` 32 MiB.
+- ARRIVAL-05 done: the factory backup is on the Arch PC, outside the repository,
+  at `/data/backups/frdm-imx8mplus/factory-20261004/` (read-only files and
+  `SHA256SUMS`): the raw eMMC image `32da8904…f0c5`, `boot0` = `boot1`
+  `de326aef…6c43`, `mtdblock0` `fdc617b3…c642`. Its restore procedure is not
+  yet written down (baseline plan Step 2).
+- ARRIVAL-06 done: the evidence bundle is in `/root/bhp-evidence` on the board.
+- ARRIVAL-07 waits on ARRIVAL-02's board-marking text.
+- ARRIVAL-08 onward: not started. ARRIVAL-08 and -10 need the owner at the
+  board with a meter and the PIR; ARRIVAL-15 is the NXP firmware decision.
+
+**Health check (2026-10-05, read-only).** `make verify-board`
+(`scripts/deploy/frdm_board_health.sh`, the hardware gate; captures
+`health-check/20261005T071412Z` by hand and `20261005T072816Z` by the script):
+
+- Reachable over SSH and the console; up 8 h 48 min (booted about
+  2026-10-04 22:26 UTC); load 0.00; SoC 40–41 °C idle.
+- Factory storage unchanged: the MBR (partition table), the bootloader region
+  before p1, the boot partition p1, `boot0`, `boot1` and the QSPI flash match the
+  backup. p2, the root file system, is not compared: it changes in normal
+  operation and holds the ARRIVAL-06 bundle.
+- Failed units: `weston` (no display attached) and `imx8-isp` (no camera).
+- Kernel log: `rtc-pcf2127` reports "oscillator stop detected" (the RTC time is
+  unreliable until NTP sets it; matters for ARRIVAL-22's RTC safety wake), and the
+  camera-module expander `adp5585` at `1-0034` is absent (`-ENXIO`), so its
+  regulators and the camera defer. Nothing else at error level.
+- A root login has been open on the serial console since 2026-10-04 22:51 UTC.
+
+**For the owner to note.** The vendor image runs NXP's 6.18 line (kernel
+6.18.20-2.0.0, U-Boot 2026.04-lf); the project still pins `lf-6.12.49-2.2.0`
+for its own kernel, U-Boot and ATF. Vendor-image evidence comes from 6.18; a
+claim about the bring-up image needs the project kernel. No pin was changed.
+
+**Next, from a session that reaches the board.** Read-only gate scripts
+(ARRIVAL-07 once the marking is known, then ARRIVAL-13 discovery) can write
+their records to the board's `/tmp` with `--output-directory`, so they need no
+write to its storage. Everything in `dev.toml [hardware] owner_gated` (flashing,
+storage writes, package installs, suspend or reboot, tailnet and Wi-Fi changes,
+the firmware license) waits for the owner.
 
 ## Placeholders the user fills
 

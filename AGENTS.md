@@ -17,6 +17,8 @@ This repository is organized by product domain. Before editing a domain, read it
 
 Run `make verify` before handing off. Hardware claims additionally require the on-target procedures under `hardware_tests/` and captured results under the ignored `hardware_tests/results/` directory.
 
+The board is declared in `dev.toml [hardware]`. Its hardware gate, `make verify-board`, needs `BHP_BOARD_SSH_TARGET`, `BHP_BOARD_CONSOLE` and `BHP_FRDM_FACTORY_BACKUP_DIR` exported from the ignored `config/device.env` (`set -a; . ./config/device.env; set +a`). Current board status: `docs/operations/frdm-bringup.md`, "Arrival status".
+
 
 <!-- scshafe-dev:begin landing -->
 ## Verify and landing

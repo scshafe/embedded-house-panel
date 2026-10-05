@@ -1,4 +1,4 @@
-.PHONY: verify verify-host verify-linux-x86_64 verify-scripts verify-docs verify-release-candidate verify-boards verify-aarch64-cross aarch64-verification-sysroot
+.PHONY: verify verify-host verify-linux-x86_64 verify-scripts verify-docs verify-release-candidate verify-boards verify-board verify-aarch64-cross aarch64-verification-sysroot
 
 verify:
 	./scripts/verification/verify_repository.sh
@@ -26,6 +26,9 @@ verify-boards:
 	python3 ./scripts/verification/verify_board_profiles.py
 	./scripts/verification/verify_suspend_kernel_config_checker.sh
 	./scripts/verification/verify_frdm_device_tree_overlay.sh
+
+verify-board:
+	./scripts/deploy/frdm_board_health.sh
 
 verify-aarch64-cross:
 	./scripts/verification/verify_aarch64_cross_build.sh
