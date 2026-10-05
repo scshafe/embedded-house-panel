@@ -17,6 +17,8 @@ This repository is organized by product domain. Before editing a domain, read it
 
 Run `make verify` before handing off. Hardware claims additionally require the on-target procedures under `hardware_tests/` and captured results under the ignored `hardware_tests/results/` directory.
 
+The board is declared in `dev.toml [hardware]`. Its hardware gate, `make verify-board`, needs `BHP_BOARD_SSH_TARGET`, `BHP_BOARD_CONSOLE` and `BHP_FRDM_FACTORY_BACKUP_DIR` exported from the ignored `config/device.env` (`set -a; . ./config/device.env; set +a`). Current board status: `docs/operations/frdm-bringup.md`, "Arrival status".
+
 
 <!-- scshafe-dev:begin landing -->
 ## Verify and landing
@@ -37,4 +39,14 @@ How a change lands:
 3. Merge your own PR with a merge commit, one change at a time: `gh pr merge <N> --merge --subject "Merge #<N>: <title>"`. Never squash or rebase (both are off on the repository), and pass `--subject`: `gh pr merge` does not make the `Merge #N: <title>` subject by itself.
 
 The project's agent may merge its own PR and push `main`; there is no approval gate.
+
+### Hardware
+
+This project runs on hardware (board `frdm-imx8mp`, NXP i.MX 8M Plus; FRDM-IMX8MPLUS, 4 GB LPDDR4, 32 GB eMMC). `make verify` above is the host gate and needs no board. The hardware gate, `make verify-board`, runs only from a session that reaches the board (serial console `/dev/serial/by-id/usb-1a86_USB_Dual_Serial_535A000001-if00` at 115200 baud or `ssh root@192.168.7.181`); CI and `dev check` never run it. A change that touches the board's side runs it there, or says in the PR that it is still due.
+
+- Access: the project's agent has no serial or LAN access to the board by design, so hardware steps run in the owner's session; say in your reply which ones are waiting for it.
+- Never without the owner's go-ahead: flash anything (uuu, dd to the eMMC, a microSD card or the QSPI flash); write the board's storage outside /tmp, or change its boot switch or U-Boot environment; install or remove packages on the board; suspend, reboot or power-cycle the board; enroll it in the tailnet or change Wi-Fi, tailnet or admin settings; accept the NXP firmware license (NXP-FIRMWARE-EULA).
+- Evidence: raw on-target captures go under `hardware_tests/results/` (ignored by git). A hardware claim cites its capture; a value nobody measured stays unmeasured, never a default.
+- Host inputs: an aarch64 cross compiler (the aarch64 cross build); KERNEL_DIR, an NXP lf-6.12.49-2.2.0 kernel tree (the presence kernel module); BHP_BUILDROOT_DIR, the hash-verified Buildroot archive (the defconfig evaluation). The host gate skips what needs a missing one; say in the PR what it skipped.
+- Board notes: Power it from the PC's USB-C (the Apple PD charger reset-loops U-Boot); the LAN address is a DHCP lease, not reserved.
 <!-- scshafe-dev:end landing -->

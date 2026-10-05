@@ -16,6 +16,34 @@ kind = "native"
 [verify]
 command = "make verify"
 
+# HW-01 (scshafe-dev 0.9.0): the board this project is developed against
+# (references, never secrets). `make verify` above is the host gate; the
+# hardware gate below runs only from a session on the board's console or LAN
+# (export config/device.env first). The facts are docs/operations/frdm-bringup.md's.
+[hardware]
+board = "frdm-imx8mp"
+soc = "NXP i.MX 8M Plus; FRDM-IMX8MPLUS, 4 GB LPDDR4, 32 GB eMMC"
+console = "/dev/serial/by-id/usb-1a86_USB_Dual_Serial_535A000001-if00"
+baud = 115200
+ssh = "root@192.168.7.181"
+access = "owner"
+verify = "make verify-board"
+owner_gated = [
+  "flash anything (uuu, dd to the eMMC, a microSD card or the QSPI flash)",
+  "write the board's storage outside /tmp, or change its boot switch or U-Boot environment",
+  "install or remove packages on the board",
+  "suspend, reboot or power-cycle the board",
+  "enroll it in the tailnet or change Wi-Fi, tailnet or admin settings",
+  "accept the NXP firmware license (NXP-FIRMWARE-EULA)",
+]
+evidence = "hardware_tests/results"
+prerequisites = [
+  "an aarch64 cross compiler (the aarch64 cross build)",
+  "KERNEL_DIR, an NXP lf-6.12.49-2.2.0 kernel tree (the presence kernel module)",
+  "BHP_BUILDROOT_DIR, the hash-verified Buildroot archive (the defconfig evaluation)",
+]
+notes = "Power it from the PC's USB-C (the Apple PD charger reset-loops U-Boot); the LAN address is a DHCP lease, not reserved."
+
 [skills]
 # BASE-05 asks for .agents/skills; the catalog is M4. Recorded gap.
 selected = []
@@ -27,8 +55,8 @@ selected = []
 # they are.
 [template]
 source = "scshafe/scshafe-dev"
-version = "0.6.1"
-commit = "f3fe0af326af916b31c6782c99f0afd9c2706aed"
+version = "0.9.0"
+commit = "f0c75e91f4dc1b80ceb15c1ee0dbcabbb0649c00"
 released = true
 dirty = false
 mode = "adopted"

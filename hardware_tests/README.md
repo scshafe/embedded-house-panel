@@ -52,6 +52,15 @@ Record semantics:
   "pattern visible") enter only as explicit arguments or stdin answers and are
   labelled `operator attestation`.
 
+`scripts/deploy/frdm_board_health.sh` (`make verify-board`, the hardware gate in
+`dev.toml [hardware]`) runs from the development host and changes nothing on the
+board: SSH reachability, image and kernel, failed units, temperature, whether this
+user may open the console, and the eMMC boot regions, `boot0`, `boot1` and the QSPI
+flash against the ARRIVAL-05 factory backup. It writes one
+`frdm_board_health.v1` record and its raw captures under
+`hardware_tests/results/frdm/health-check/<UTC>/`;
+`hardware_tests.tests.test_frdm_board_health` tests it with a fake `ssh`.
+
 `python3 -m unittest hardware_tests.tests.test_frdm_evidence_scripts` runs them
 against invented fixture trees (`--fixture-root`, recorded as
 `fixture_not_evidence`), including under `busybox sh` when BusyBox is installed.

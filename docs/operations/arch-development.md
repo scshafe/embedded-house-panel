@@ -29,6 +29,15 @@ branch is `main`, which now includes all `pre-board` and cloud-session work.
 - No FRDM board was visible on USB on 2026-10-04: no new USB device, and no
   `/dev/ttyUSB*` or `/dev/ttyACM*`. Inventory starts once the board's debug USB
   enumerates.
+- Later on 2026-10-04 the board enumerated (after a reboot of the PC, whose
+  running kernel had lost its modules to an upgrade) and ARRIVAL-01, -03 to -06
+  ran. Status, access and the 2026-10-05 health check:
+  [frdm-bringup.md, Arrival status](frdm-bringup.md#arrival-status-2026-10-05).
+- **Amended 2026-10-05:** `dev.toml [hardware]` (scshafe-dev 0.9.0) declares the
+  board: the console, the LAN address, `access = "owner"`, the owner-gated
+  actions and the hardware gate `make verify-board`. Export `config/device.env`
+  (`BHP_BOARD_SSH_TARGET`, `BHP_BOARD_CONSOLE`, `BHP_FRDM_FACTORY_BACKUP_DIR`)
+  before running it.
 
 ## Get the complete source
 
