@@ -38,6 +38,9 @@ branch is `main`, which now includes all `pre-board` and cloud-session work.
   actions and the hardware gate `make verify-board`. Export `config/device.env`
   (`BHP_BOARD_SSH_TARGET`, `BHP_BOARD_CONSOLE`, `BHP_FRDM_FACTORY_BACKUP_DIR`)
   before running it.
+- **Amended 2026-10-10:** `access = "agent"` (scshafe-dev 0.11.0): the project
+  agent opens the console and reaches the board over ssh with its own key;
+  `dev identity verify` checks the grant. The owner-gated actions are unchanged.
 
 ## Get the complete source
 

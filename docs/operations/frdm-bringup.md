@@ -193,15 +193,18 @@ from the vendor image, not closed gates: no profile key changed and
 
 - Console: J19 (CH342, USB `1a86:55d2`) enumerates two CDC-ACM ports. `if00`
   is the Cortex-A53 console at 115200 (`dev.toml [hardware] console`, the
-  `/dev/serial/by-id/` path; `/dev/ttyACM0` here); `if02` was silent. The
-  agent user has no serial or LAN access by design: board steps run in the
-  owner's session.
+  `/dev/serial/by-id/` path; `/dev/ttyACM0` here); `if02` was silent. Since
+  2026-10-10 the project agent has the board too (`access = "agent"`): an ACL
+  on both of the bridge's ttys and `192.168.7.181:22` only (infra
+  `scshafe-agent-setup hardware`); the owner-gated actions stay the owner's.
 - Power: from the PC's USB-C. The Apple 65 W PD charger on J2 left U-Boot in a
   reset loop at USB XHCI initialisation (cause inferred, not measured).
   FRDM-GATE-POWER at J2 still needs a supply that boots it and an inline meter.
 - LAN: the vendor image's `eth1` took the DHCP lease 192.168.7.181 (`eth0` was
   down); which RJ45 jack is which stays FRDM-GATE-WIFI inventory. The vendor
-  image allows root SSH with no password: keep it on the LAN only.
+  image allowed root SSH with no password; since 2026-10-10 root is key-only
+  (`/etc/ssh/sshd_config.d/10-key-only.conf`; the owner's and the agent's
+  keys). The serial console is the fallback if a key is lost.
 
 **Checklist.**
 
