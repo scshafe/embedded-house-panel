@@ -26,7 +26,7 @@ soc = "NXP i.MX 8M Plus; FRDM-IMX8MPLUS, 4 GB LPDDR4, 32 GB eMMC"
 console = "/dev/serial/by-id/usb-1a86_USB_Dual_Serial_535A000001-if00"
 baud = 115200
 ssh = "root@192.168.7.181"
-access = "owner"
+access = "agent"
 verify = "make verify-board"
 owner_gated = [
   "flash anything (uuu, dd to the eMMC, a microSD card or the QSPI flash)",
