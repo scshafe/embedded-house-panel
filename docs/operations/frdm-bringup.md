@@ -225,7 +225,9 @@ from the vendor image, not closed gates: no profile key changed and
   not run): [frdm-factory-restore.md](frdm-factory-restore.md).
 - ARRIVAL-06 done: the evidence bundle is in `/root/bhp-evidence` on the board.
 - ARRIVAL-07 waits on ARRIVAL-02's board-marking text.
-- ARRIVAL-08 onward: not started. ARRIVAL-08 and -10 need the owner at the
+- ARRIVAL-13 discovery ran on the vendor DTB (2026-10-10, below); the
+  Waveshare-panel run waits on a boot with the vendor panel DTB.
+- ARRIVAL-08 onward otherwise: not started. ARRIVAL-08 and -10 need the owner at the
   board with a meter and the PIR; ARRIVAL-15 is the NXP firmware decision.
 
 **Health check (2026-10-05, read-only).** `make verify-board`
@@ -250,8 +252,9 @@ from the vendor image, not closed gates: no profile key changed and
 for its own kernel, U-Boot and ATF. Vendor-image evidence comes from 6.18; a
 claim about the bring-up image needs the project kernel. No pin was changed.
 
-**2026-10-10, agent session (PC side only).** The agent user cannot reach the
-board, so `make verify-board` and display discovery did not run. On the PC,
+**2026-10-10, agent session before agent access (PC side only).** The agent
+user could not reach the board yet, so `make verify-board` and display
+discovery did not run then. On the PC,
 `lsusb` lists `1a86:55d2`, and `/dev/ttyACM0` and `/dev/ttyACM1` exist (group
 `uucp`). The `/dev/serial/by-id/` links date from 2026-10-04 17:17 local, so the
 bridge has not re-enumerated since then. `cdc_acm` is loaded. A pacman upgrade at
@@ -261,8 +264,72 @@ the PC reboots. The board draws its power from the PC's USB-C, so a PC reboot
 probably power-cycles it (unmeasured). That makes the reboot owner-gated: fetch
 evidence and close the console session first.
 
+**Health check (2026-10-10, read-only, agent session).** `make verify-board`
+returned `complete` (capture `health-check/20261010T233218Z`, with
+`kernel-log.txt`). Compared with 2026-10-05:
+
+- Same boot: up 6 d 1 h (booted 2026-10-04 22:26 UTC), so the board was not
+  power-cycled. Same OS (6.18-wrynose), kernel 6.18.20-2.0.0, load 0.00, SoC
+  41 °C. The clock is NTP-synchronised. The console root login from
+  2026-10-04 22:51 UTC is still open.
+- Factory storage unchanged: `boot0`, `boot1`, QSPI, the MBR, the bootloader
+  region before p1 and p1 all match the backup.
+- Failed units: `imx8-isp`, `weston.service` and `weston.socket`. The socket
+  fails along with the service; the 2026-10-05 note named only the service.
+- Kernel log: unchanged in substance. It still has `rtc-pcf2127` (`rtc1`)
+  "oscillator stop detected" and `adp5585` at `1-0034` `-ENXIO`, with the
+  camera regulators deferred. `rtc0` is the SoC's `snvs_rtc`.
+- From the agent account, `ping` is refused by the PC's egress filter
+  (`sendmsg: Operation not permitted`); only SSH to `.181:22` is open, as
+  granted.
+
+**Display discovery (2026-10-10, read-only).**
+`frdm_display_touch_backlight.sh` ran from `/root/bhp-evidence` with its
+records in the board's `/tmp`. Records and the kernel's view are in
+`display-discovery-20261010T233252Z/`. All three gates return `mismatch`, as
+the checklist expects on a DTB without the panel:
+
+- The running tree is the vendor `imx8mp-frdm.dtb` with U-Boot's fixups
+  (decompiled and diffed; OP-TEE, the MACs, `bootargs`, memory). It enables
+  HDMI only: `lcdif3` (`32fc6000`) feeds `dw-hdmi`, and `mipi_dsi` (`32e60000`),
+  `lcdif1` and `lcdif2` are `disabled`.
+- DRM: `card0` is the GPU (`galcore`, render node only). `card1` is `imx-drm`,
+  with one connector, `HDMI-A-1` (id 37), `disconnected`. There is no DSI
+  connector, no `/sys/class/backlight` entry and no `/dev/fb*`. The kernel logs
+  "Cannot find any crtc or sizes".
+- Touch: no Goodix input device. The input devices are the SNVS power key,
+  `sw-keys` (gpio-keys), the HDMI jack and the WM8962 beeper.
+- weston exits with status 1 five times at boot and hits the start-rate limit.
+  Its own message is not in the journal, so "no usable output" is inferred,
+  not shown.
+- The vendor boot partition (p1) ships
+  `imx8mp-frdm-waveshare-7inch-c-panel.dtb`. Compared with
+  `imx8mp-frdm.dtb`, it enables `mipi_dsi` and `lcdif1` and adds a
+  `waveshare,dsi2dpi` bridge at i2c3 `0x45` (2 data lanes). It also adds a
+  Goodix `gt911` at i2c3 `0x14` with no interrupt property (polled), and a
+  `panel-dpi` panel at 1024×600 with a 50 MHz pixel clock. It changes one
+  `media_blk_ctrl` clock rate. This matches the profile's expectations
+  (backlight `*-0045`, touch i2c3 `0x14`, polled). The GT911 node declares
+  `touchscreen-size` 800×480, not 1024×600, which is an open question for
+  FRDM-GATE-TOUCH. The vendor kernel has `waveshare-dsi`, `sec-dsim` and
+  `panel-simple` built in, and `goodix_ts` as a module.
+- Booting that DTB (U-Boot `fdtfile`, or a one-shot `setenv` without
+  `saveenv`) needs a reboot and the panel on J15, so it is owner-gated.
+
+**eMMC boot configuration (2026-10-10, read-only).** Captured from debugfs
+(`ext-csd-20261010T233419Z-factory-20261004/`) with the board still in its
+factory state: `PARTITION_CONFIG` (byte 179) = `0x00`, `BOOT_BUS_CONDITIONS`
+(177) = `0x00`, `BOOT_CONFIG_PROT` = `0x00`, `EXT_CSD_REV` = `0x08`. The eMMC
+is DV4032 (manfid `0x45`, 07/2025), running HS400 enhanced strobe, 8-bit, at
+200 MHz. Boot from the boot partitions is not enabled, so the ROM boots
+`imx-boot` from the user area at 32 KiB (IVT `d1 00 20 41`).
+`boot0` and `boot1` hold the same `imx-boot` at offset 0, and its first
+4064 KiB match the user-area copy. The image is about 2.2 MiB and contains
+U-Boot 2026.04-lf. The restore procedure keeps this configuration
+([frdm-factory-restore.md](frdm-factory-restore.md)).
+
 **Next, from a session that reaches the board.** Read-only gate scripts
-(ARRIVAL-07 once the marking is known, then ARRIVAL-13 discovery) can write
+(ARRIVAL-07 once the marking is known) can write
 their records to the board's `/tmp` with `--output-directory`, so they need no
 write to its storage. Everything in `dev.toml [hardware] owner_gated` (flashing,
 storage writes, package installs, suspend or reboot, tailnet and Wi-Fi changes,
