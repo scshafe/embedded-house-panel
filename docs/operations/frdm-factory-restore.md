@@ -38,10 +38,20 @@ Two facts limit what a restore gives back:
   `/root/bhp-evidence` (ARRIVAL-06), is gone; fetch evidence first
   (`scripts/deploy/frdm_evidence_bundle.sh fetch --execute`).
 
-Not yet recorded: the eMMC `EXT_CSD` boot configuration (`PARTITION_CONFIG`,
-byte 179; `BOOT_BUS_CONDITIONS`, byte 177), which selects the partition the
-boot ROM reads. Capture it read-only now, while the factory state is intact
-(owner session; root on the vendor image):
+The factory eMMC boot configuration, captured read-only on 2026-10-10 while
+the board was still in its factory state
+(`hardware_tests/results/frdm/ext-csd-20261010T233419Z-factory-20261004/`;
+summary in [frdm-bringup.md](frdm-bringup.md#arrival-status-2026-10-05)):
+
+- `PARTITION_CONFIG` (byte 179) = `0x00` and `BOOT_BUS_CONDITIONS` (byte 177)
+  = `0x00`. Boot from the boot partitions is not enabled, so the ROM boots
+  `imx-boot` from the **user area at 32 KiB**. The user-area restore below
+  rewrites that copy.
+- `boot0` and `boot1` hold the same `imx-boot` (about 2.2 MiB, U-Boot
+  2026.04-lf) at offset 0. Its bytes match the user-area copy. The factory
+  board does not boot from them.
+
+To repeat the capture (root on the board, read-only):
 
 ```sh
 # On the board. If /sys/kernel/debug is not mounted, stop: mounting it is a change.
@@ -105,23 +115,35 @@ Keep the console (`dev.toml [hardware] console`, J19) open throughout.
 (`BHP_BOARD_BOOT_SWITCH_USB_SERIAL_DOWNLOAD`), connect J3 to the PC, then power
 on. Pass when `uuu -lsusb` lists the board.
 
-**3. Read the built-in script, then write the image.**
+**3. Write the user area only, and keep the factory boot configuration.**
+The built-in `emmc_all` script does two things the factory state does not
+need. It writes the bootloader to a boot partition, and it runs
+`mmc partconf` to boot from that partition. The factory board has
+`PARTITION_CONFIG` = `0x00` and boots the user-area copy, so build a script
+from the built-in one and change both:
 
 ```sh
-uuu -bshow emmc_all                   # read it first: what it writes and which mmc commands it runs
-uuu -b emmc_all /data/backups/frdm-imx8mplus/factory-20261004/mmcblk2boot0.img \
+uuu -bshow emmc_all > "$RESTORE_DIR/frdm-factory-restore.uuu"
+# Edit the copy. Keep the SDP boot and the user-area write
+# ("FB: flash -raw2sparse all _image"). Delete the line that flashes
+# _flash.bin to the boot partition. Replace the `mmc partconf` line with:
+#   FB: ucmd mmc partconf ${emmc_dev} 0 0 0
+# Review the whole file before running it.
+uuu -b "$RESTORE_DIR/frdm-factory-restore.uuu" \
+  /data/backups/frdm-imx8mplus/factory-20261004/mmcblk2boot0.img \
   "$RESTORE_DIR/frdm-factory-emmc.img"
 ```
 
-`emmc_all` loads its first argument over USB as the bootloader. It writes the
-second argument to the eMMC user area, writes the first argument to the boot
-partition, and sets `PARTITION_CONFIG` with `mmc partconf`. On the i.MX 8M Plus
-the boot ROM reads `imx-boot` from offset 0 of the eMMC boot partition, so the
-`boot0` dump is a candidate bootloader. It carries trailing padding up to
-4 MiB, and nobody has tried it over SDP. If uuu rejects it, use the
-`imx-boot-*-frdm*` file of the NXP release that matches the factory image
-("NXP i.MX Distro with Wayland and XWayland 6.18-wrynose", U-Boot
-2026.04-lf). Step 6 restores the exact `boot0`/`boot1` bytes either way.
+Not run. Check that this uuu accepts a script file after `-b` (`uuu -h`). The
+first argument is the bootloader uuu loads over USB (SDP). The `boot0` dump
+has the `imx-boot` IVT at offset 0 and the same bytes the factory boots from
+the user area. It carries zero padding to 4 MiB, and nobody has tried it over
+SDP. If uuu rejects it, use the `imx-boot-*-frdm*` file of the NXP release
+that matches the factory image ("NXP i.MX Distro with Wayland and XWayland
+6.18-wrynose", U-Boot 2026.04-lf). If the stock `emmc_all` runs by mistake,
+the board still boots: `boot0` gets an `imx-boot` and `PARTITION_CONFIG`
+points at it. Step 7's capture then shows the change. Set it back to `0x00`
+from U-Boot with `mmc partconf <dev> 0 0 0` (owner-gated).
 
 The user-area write covers the partition table, the bootloader region before
 p1, p1, p2, and any U-Boot environment stored in the user area. At arrival the
@@ -167,6 +189,6 @@ ssh root@<BOARD_ADDRESS> 'flashcp -v /tmp/mtdblock0.img /dev/mtd0 && rm /tmp/mtd
 rerun step 5.
 
 **7. Record the restore.** Keep the console log and the step-5 record under
-`hardware_tests/results/frdm/`. Rerun the `EXT_CSD` capture above and compare
-it with the factory value. Add a dated line to the
+`hardware_tests/results/frdm/`. Rerun the `EXT_CSD` capture above. Pass when
+`PARTITION_CONFIG` and `BOOT_BUS_CONDITIONS` are back to `0x00`. Add a dated line to the
 [arrival status](frdm-bringup.md#arrival-status-2026-10-05) naming the record.
