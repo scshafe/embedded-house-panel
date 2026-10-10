@@ -55,8 +55,8 @@ selected = []
 # they are.
 [template]
 source = "scshafe/scshafe-dev"
-version = "0.9.0"
-commit = "f0c75e91f4dc1b80ceb15c1ee0dbcabbb0649c00"
+version = "0.11.0"
+commit = "cf4ba8ba026008725c01f48891a72139ca3cc2a4"
 released = true
 dirty = false
 mode = "adopted"
