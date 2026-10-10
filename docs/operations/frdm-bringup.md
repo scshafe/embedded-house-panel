@@ -53,7 +53,7 @@ Install NXP's `uuu` on the host. Set SW5 to `0001`, connect `J3` to the host,
 power on, and confirm with `uuu -lsusb`.
 
 ```sh
-# eMMC (the stock image lives here; back it up first, see ARRIVAL-05)
+# eMMC (the stock image lives here; back it up first, see ARRIVAL-05; restore: frdm-factory-restore.md)
 uuu -b emmc_all <BOOTLOADER> <IMAGE>
 # microSD in the board's slot, written over USB
 uuu -b sd_all <BOOTLOADER> <IMAGE>
@@ -218,8 +218,8 @@ from the vendor image, not closed gates: no profile key changed and
 - ARRIVAL-05 done: the factory backup is on the Arch PC, outside the repository,
   at `/data/backups/frdm-imx8mplus/factory-20261004/` (read-only files and
   `SHA256SUMS`): the raw eMMC image `32da8904…f0c5`, `boot0` = `boot1`
-  `de326aef…6c43`, `mtdblock0` `fdc617b3…c642`. Its restore procedure is not
-  yet written down (baseline plan Step 2).
+  `de326aef…6c43`, `mtdblock0` `fdc617b3…c642`. Restore procedure (written,
+  not run): [frdm-factory-restore.md](frdm-factory-restore.md).
 - ARRIVAL-06 done: the evidence bundle is in `/root/bhp-evidence` on the board.
 - ARRIVAL-07 waits on ARRIVAL-02's board-marking text.
 - ARRIVAL-08 onward: not started. ARRIVAL-08 and -10 need the owner at the
@@ -246,6 +246,17 @@ from the vendor image, not closed gates: no profile key changed and
 6.18.20-2.0.0, U-Boot 2026.04-lf); the project still pins `lf-6.12.49-2.2.0`
 for its own kernel, U-Boot and ATF. Vendor-image evidence comes from 6.18; a
 claim about the bring-up image needs the project kernel. No pin was changed.
+
+**2026-10-10, agent session (PC side only).** The agent user cannot reach the
+board, so `make verify-board` and display discovery did not run. On the PC,
+`lsusb` lists `1a86:55d2`, and `/dev/ttyACM0` and `/dev/ttyACM1` exist (group
+`uucp`). The `/dev/serial/by-id/` links date from 2026-10-04 17:17 local, so the
+bridge has not re-enumerated since then. `cdc_acm` is loaded. A pacman upgrade at
+2026-10-10 12:57 local (`linux` 7.2.8.arch1-2 to 7.2.9.arch1-1) removed the
+running kernel's modules, so no module that is not already loaded can load until
+the PC reboots. The board draws its power from the PC's USB-C, so a PC reboot
+probably power-cycles it (unmeasured). That makes the reboot owner-gated: fetch
+evidence and close the console session first.
 
 **Next, from a session that reaches the board.** Read-only gate scripts
 (ARRIVAL-07 once the marking is known, then ARRIVAL-13 discovery) can write
