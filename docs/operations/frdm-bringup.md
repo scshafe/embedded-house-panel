@@ -204,7 +204,10 @@ from the vendor image, not closed gates: no profile key changed and
   down); which RJ45 jack is which stays FRDM-GATE-WIFI inventory. The vendor
   image allowed root SSH with no password; since 2026-10-10 root is key-only
   (`/etc/ssh/sshd_config.d/10-key-only.conf`; the owner's and the agent's
-  keys). The serial console is the fallback if a key is lost.
+  keys). The serial console is the fallback if a key is lost. Its login
+  prompt says "Type 'root' to login with superuser privileges (no password
+  will be asked)", so anyone at J19 gets root without a password
+  (`panel-boot-20261011T003158Z/console.log`).
 
 **Checklist.**
 
@@ -237,8 +240,9 @@ from the vendor image, not closed gates: no profile key changed and
   `0x0471:0x0204`, `wlan_sdio`). This is the 4 GB / 32 GB variant, not the
   2 GB / 16 GB one. The marking was transcribed by the agent from the owner's
   photos.
-- ARRIVAL-13 discovery ran on the vendor DTB (2026-10-10, below); the
-  Waveshare-panel run waits on a boot with the vendor panel DTB.
+- ARRIVAL-13 discovery ran on the vendor DTB (2026-10-10, below) and on the
+  vendor panel DTB with the panel attached (2026-10-11, below). The panel stays
+  dark until its I2C wires go in; the rerun after rewiring is next.
 - ARRIVAL-08 onward otherwise: not started. ARRIVAL-08 and -10 need the owner at the
   board with a meter and the PIR; ARRIVAL-15 is the NXP firmware decision.
 
@@ -295,7 +299,7 @@ returned `complete` (capture `health-check/20261010T233218Z`, with
   (`sendmsg: Operation not permitted`); only SSH to `.181:22` is open, as
   granted.
 
-**Display discovery (2026-10-10, read-only).**
+**Display discovery (2026-10-10; not read-only, see the p1 correction below).**
 `frdm_display_touch_backlight.sh` ran from `/root/bhp-evidence` with its
 records in the board's `/tmp`. Records and the kernel's view are in
 `display-discovery-20261010T233252Z/`. All three gates return `mismatch`, as
@@ -340,6 +344,92 @@ is DV4032 (manfid `0x45`, 07/2025), running HS400 enhanced strobe, 8-bit, at
 U-Boot 2026.04-lf. The restore procedure keeps this configuration
 ([frdm-factory-restore.md](frdm-factory-restore.md)).
 
+**Correction: p1 changed on 2026-10-10.** The display discovery above copied
+`imx8mp-frdm.dtb` and `imx8mp-frdm-waveshare-7inch-c-panel.dtb` with `scp`
+from the mounted boot partition. p1 is vfat mounted `rw,relatime` at
+`/run/media/mmcblk2p1`, so reading a file there writes its FAT last-access
+date. Four bytes changed: the two files' access dates, from 2030-01-01 to
+2026-10-10. That was a write to board storage, made without the owner's
+go-ahead; the 2026-10-10 summary called the work read-only, which was wrong.
+The owner chose to leave it. Since then `make verify-board` returns `mismatch`
+on `storage_boot_partition` alone: p1 is
+`079b71da025237b44bae0002643fc14561ea00f0a43c72e74e625427aab2a17c`, the
+backup's `7fd910a2…c8f` (`health-check/20261011T002827Z` and, after the panel
+boots below, `20261011T045740Z`: same p1 hash, every other storage check
+passes). A restore ([frdm-factory-restore.md](frdm-factory-restore.md)) puts
+the factory p1 back. To read a file from p1 without writing it, copy the raw
+partition (`dd if=/dev/mmcblk2p1`) and extract on the PC; `ls` is safe,
+opening a file is not.
+
+**Waveshare panel (2026-10-11, owner-approved boots).** Raw records in
+`panel-attached-20261011T002818Z/` and `panel-boot-20261011T003158Z/`
+(console log, gate records, I2C probes, `bridge-regs.txt`).
+
+- Kit: an orange FPC printed "MIPI-DSI-Cable-12cm" with a "22PIN 0.5mm" end, a
+  white 15-pin FFC ("AWM 20624"), a short orange FPC and a 4-wire lead (red,
+  black, white, yellow) with a 2×2 female housing at each end. The orange
+  22-to-15 cable joins J15 to the panel. The panel's 2×3 header is labelled
+  "SCL1 SDA1 GND" and "GND 5V 5V" ("FAN").
+- Boot: the owner approved booting the panel DTB from the console. From the
+  U-Boot prompt, `setenv fdtfile imx8mp-frdm-waveshare-7inch-c-panel.dtb` and
+  `boot`, without `saveenv`, twice (00:33 and 01:05 UTC). `bootflow scan`
+  finds no flows, so `bootcmd` falls through to `bsp_bootcmd`, whose
+  `loadfdt` loads `${fdtfile}` from p1; the stored environment is unchanged.
+  The two later boots used the default DTB.
+- With the panel DTB, everything binds: `mipi_dsi` and `lcdif1` are `okay`; DRM
+  `card1-DPI-1` is `connected` with mode 1024x600 (connector 40), and weston
+  enables output `DPI-1`. The crtc is active at a 50 MHz pixel clock;
+  `/dev/fb0` is 1024×600; `/sys/class/backlight/2-0045` is `raw`, max 255,
+  brightness 255. i2c3 (`i2c-2`) has `2-0045` (`ws_dsi2dpi`), `2-0014`
+  (`gt911`) and `2-001a` (`wm8962`). The connector is DPI, not DSI, because
+  NXP's `waveshare-dsi.c` sets `bridge.type = DRM_MODE_CONNECTOR_DPI`. The
+  gate script looked only for `cardN-DSI-M`, so its DISPLAY record says
+  `mismatch`; it now accepts `DPI` too.
+- The panel stayed dark, and neither panel chip answers on i2c3: Goodix logs
+  "I2C communication failure: -6" at `0x14`, an address probe of `0x14` and
+  `0x5d` finds nothing, and `i2cget` of bridge registers `0x80`, `0x81`,
+  `0xaa`–`0xad`, `0xc0`, `0xc2` at `0x45` fails. The bridge driver ignores
+  its register-write errors, and the backlight node registers even when
+  every write fails. So a bound `2-0045` and a backlight node, and the BACKLIGHT
+  record's `backlight_node` `pass`, do not show the panel is reachable.
+- Power: on the first boot the panel had no 5 V. With 5V and GND wired from
+  J18 pins 4 and 6 (positions taken from the quick-start guide's drawing), the
+  owner saw the panel's LED light, but the screen stayed dark. No meter, so
+  the panel voltage is unmeasured. The board runs on the PC's USB-C, below
+  NXP's 12–20 V input; whether its 5 V rail holds 4.75–5.30 V at the panel's
+  roughly 0.5 A is unmeasured. The owner turned the ribbon over at one end
+  between boots; which end is not recorded.
+- Why it is dark (inferred, not yet tested): the panel's I2C is not
+  connected. UM12340 Rev 1.0 §4.1.2, Figure 7, wires the panel's SDA1, SCL1,
+  GND and 5V to J27 (`I2C_CAN`, 2×5) with separate wires. The ribbon's I2C
+  pins go to a different bus (I2C2), while NXP's panel DTB puts the bridge and
+  touch on i2c3. Figure 7 shows positions, not pin numbers. An independent
+  research report (2026-10-11, from the public SCH-95022 **Rev B1**
+  schematic, sheet 21) gives J27-9 SDA, J27-7 SCL, J27-6 GND, J27-2 5V, which
+  matches the figure's positions; B3 is unconfirmed. The four J27 pins are not
+  one 2×2 block, so the kit lead cannot be used there; single jumpers are on
+  order.
+- Ribbon orientation, UM12340 §4.1.1, Figure 6: at the panel, "the conductive
+  side is up and the stiffener side is down"; at J15, "the conductive side is
+  right and stiffener side is at left". Both are relative to the figure. The
+  check that needs no figure: with power off, open the latch and make the
+  cable's exposed fingers face the connector's metal spring contacts.
+- U-Boot logged "Arbitration lost" and "i2c_init_transfer: failed for chip
+  0x25" once (second boot). `0x25` is the PCA9450 PMIC, which Linux then
+  probed normally (`nxp-pca9450 0-0025`). Not seen on the other three boots.
+
+**J18 and J27 pin sources.** UM12340 Rev 1.0 says J18 carries I2S, UART, I2C
+and GPIO but has no pin table. The quick-start guide's J18 drawing uses
+Raspberry Pi names in the Pi layout: 5V on pins 2 and 4, 3V3 on 1, Ground on
+6, and "GPIO 2 (RXC)" and "GPIO 3 (RXFS)" where a Pi has I2C on pins 3 and 5.
+The vendor DTB muxes `SAI5_RXC` to PDM (`pdmgrp`), `SAI5_RXFS` to `pwm4`, and
+i2c3 to the dedicated `I2C3_SCL`/`I2C3_SDA` pads (debugfs `pinmux-pins`). The
+independent report instead cites the B1 schematic (sheet 21) for I2C3 at
+3.3 V on J18 pins 3 and 5, with PWM4 and PDM on other J18 pins. These
+disagree, and nobody has the B3 schematic: do not wire anything to J18 pins
+3 or 5 until it settles which is right. The display uses J27, which NXP's own
+figure shows.
+
 **Next, from a session that reaches the board.** Read-only gate scripts
 (for example ARRIVAL-09 once `<HEADER_MV>` is measured) can write
 their records to the board's `/tmp` with `--output-directory`, so they need no
@@ -359,7 +449,7 @@ the firmware license) waits for the owner.
 | `<gpioN>`, `<L>` | ARRIVAL-09 candidates | ARRIVAL-11 |
 | NXP firmware EULA decision | human; ADR | ARRIVAL-15 |
 | `<BUILDROOT_2026_05_1_DIR>`, `<ABSOLUTE_BRINGUP_OUTPUT_DIR>`, `<KEY>` | host paths outside the repository | ARRIVAL-16/18 |
-| `<VENDOR_PANEL_DTB>` | vendor release notes, if any | ARRIVAL-13 |
+| `<VENDOR_PANEL_DTB>` | `imx8mp-frdm-waveshare-7inch-c-panel.dtb`, shipped on the factory p1 (2026-10-10) | ARRIVAL-13 |
 | `<SSID>`, passphrase, `<WIFI_INTERFACE>` | operator (secret, board only) / Wi-Fi record | Wi-Fi |
 | `<TAILNET_HOST>`, `<LEXINET_URL>` | operator | Wi-Fi |
 | `<STATE>`, `<METER_CSV>`, `<BOARD_REV>`, `<PANEL_AND_PIR_ASSEMBLY>`, `<CHARGER_MODEL_AND_RATING>` | operator and meter | power |
@@ -371,9 +461,10 @@ the firmware license) waits for the owner.
 - `FRDM-GATE-PIR`: the project DTB (`imx8mp-frdm-bhp-panel.dtb`) and the custom
   PIR overlay refuse to render until the seven PIR values are measured.
 - `FRDM-GATE-BACKLIGHT`: no device-tree backlight node is added; the NXP
-  `waveshare,dsi2dpi` bridge is expected to register `<bus>-0045`, and the
-  project kernel carries a patch that checks that registration. Only the
-  ARRIVAL-20 trial closes it.
+  `waveshare,dsi2dpi` bridge registers `<bus>-0045` (`2-0045` on the vendor
+  panel DTB, 2026-10-11), and the project kernel carries a patch that checks
+  that registration. The node registers even when the bridge does not answer
+  on I2C, so only the ARRIVAL-20 trial closes it.
 - `FRDM-GATE-TOUCH`: no GT911 interrupt line is justified from available
   documentation; the driver polls.
 
