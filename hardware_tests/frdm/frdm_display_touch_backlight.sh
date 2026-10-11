@@ -1,9 +1,9 @@
 #!/bin/sh
 # FRDM-GATE-DISPLAY, FRDM-GATE-TOUCH, FRDM-GATE-BACKLIGHT evidence: DRM card,
-# DSI connector and 1024x600 mode, fbdev fallback node, GT911 evdev identity
+# panel connector (DSI, or DPI behind the waveshare,dsi2dpi bridge) and 1024x600 mode, fbdev fallback node, GT911 evdev identity
 # and polling mode, and the Waveshare bridge backlight node.
 # Inputs: common options (see --help). Optional, system-changing, off by default:
-#   --execute-test-pattern SECONDS  show a modetest pattern on the connected DSI
+#   --execute-test-pattern SECONDS  show a modetest pattern on the connected panel
 #                                   connector, then ask the operator on stdin
 #   --execute-backlight-off-trial SECONDS  write brightness 0, ask the operator
 #                                   on stdin whether the panel is dark, restore
@@ -85,7 +85,9 @@ for connector_directory in "$(bhp_evidence_path /sys/class/drm)"/card*-*; do
 	printf '%s status=%s connector_id=%s modes=%s\n' "$connector_name" "${connector_status:-?}" \
 		"${connector_id:-unexposed}" "$connector_modes" >>"$connector_report"
 	case "$connector_name" in
-		*-DSI-*)
+		# The NXP waveshare,dsi2dpi bridge sets bridge.type DPI, so the panel
+		# shows up as cardN-DPI-M although its link is MIPI DSI.
+		*-DSI-*|*-DPI-*)
 			[ "$connector_status" = connected ] && [ -z "$connected_dsi" ] &&
 				connected_dsi=$connector_name
 			;;
@@ -94,7 +96,7 @@ done
 [ -f "$connector_report" ] || : >"$connector_report"
 bhp_evidence_register_artifact drm_connectors.txt 0
 if [ -n "$connected_dsi" ]; then
-	bhp_evidence_check dsi_connector_connected "a connected cardN-DSI-M connector" "$connected_dsi" pass
+	bhp_evidence_check dsi_connector_connected "a connected cardN-DSI-M or cardN-DPI-M connector" "$connected_dsi" pass
 	drm_card=${connected_dsi%%-*}
 	bhp_evidence_candidate BHP_BOARD_DRM_DEVICE "/dev/dri/$drm_card" "/sys/class/drm/$connected_dsi/status=connected"
 	dsi_directory=$(bhp_evidence_path "/sys/class/drm/$connected_dsi")
@@ -108,7 +110,7 @@ if [ -n "$connected_dsi" ]; then
 	connector_id=$(sed -n '1p' "$dsi_directory/connector_id" 2>/dev/null)
 	if [ -z "$connector_id" ] && [ -z "$BHP_EVIDENCE_ROOT" ] && command -v modetest >/dev/null 2>&1; then
 		bhp_evidence_capture modetest_connectors modetest -D "/dev/dri/$drm_card" -c
-		connector_id=$(awk '$4 == "connected" && $5 ~ /^DSI-/ { print $1; exit }' \
+		connector_id=$(awk '$4 == "connected" && $5 ~ /^(DSI|DPI)-/ { print $1; exit }' \
 			"$BHP_EVIDENCE_ARTIFACTS/modetest_connectors.txt")
 	fi
 	if [ -n "$connector_id" ]; then
@@ -121,10 +123,10 @@ if [ -n "$connected_dsi" ]; then
 	driver=$(bhp_evidence_resolve "/sys/class/drm/$drm_card/device/driver" | sed 's#.*/##')
 	bhp_evidence_observe drm_card_driver "${driver:-unresolved}"
 else
-	bhp_evidence_check dsi_connector_connected "a connected cardN-DSI-M connector" "none" fail \
+	bhp_evidence_check dsi_connector_connected "a connected cardN-DSI-M or cardN-DPI-M connector" "none" fail \
 		"check the 22-pin J15 cable, the imx8mp-frdm-waveshare-7inch-c-panel overlay, and dmesg"
-	bhp_evidence_check dsi_mode "$expected_resolution" "no connected DSI connector" unobserved
-	bhp_evidence_check dsi_connector_id "numeric DRM connector id" "no connected DSI connector" unobserved
+	bhp_evidence_check dsi_mode "$expected_resolution" "no connected panel connector" unobserved
+	bhp_evidence_check dsi_connector_id "numeric DRM connector id" "no connected panel connector" unobserved
 fi
 
 fbdev_found=

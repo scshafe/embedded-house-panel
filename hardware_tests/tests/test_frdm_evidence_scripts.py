@@ -86,10 +86,10 @@ def pinctrl_fixture(root: Path) -> None:
     write(root, "/sys/class/regulator/regulator.1/microvolts", "3300000\n")
 
 
-def display_fixture(root: Path) -> None:
-    write(root, "/sys/class/drm/card1-DSI-1/status", "connected\n")
-    write(root, "/sys/class/drm/card1-DSI-1/modes", "1024x600\n")
-    write(root, "/sys/class/drm/card1-DSI-1/connector_id", "35\n")
+def display_fixture(root: Path, connector: str = "DSI-1") -> None:
+    write(root, f"/sys/class/drm/card1-{connector}/status", "connected\n")
+    write(root, f"/sys/class/drm/card1-{connector}/modes", "1024x600\n")
+    write(root, f"/sys/class/drm/card1-{connector}/connector_id", "35\n")
     symlink(root, "/sys/class/drm/card1/device/driver", "/sys/bus/platform/drivers/fixture-lcdif")
     write(root, "/sys/class/graphics/fb0/name", "fixturedrmfb\n")
     write(root, "/sys/class/graphics/fb0/virtual_size", "1024,600\n")
@@ -235,6 +235,16 @@ class FrdmEvidenceScriptTest(unittest.TestCase):
         self.assertEqual(self.checks(backlight)["backlight_zero_is_off"], "unobserved")
         for record in (display, touch, backlight):
             self.assertEqual(record["result"], "incomplete")
+
+    def test_dsi2dpi_bridge_connector_counts_as_the_panel(self) -> None:
+        # NXP's waveshare,dsi2dpi bridge reports DRM_MODE_CONNECTOR_DPI.
+        display_fixture(self.root, connector="DPI-1")
+        write(self.root, "/sys/class/drm/card1-HDMI-A-1/status", "disconnected\n")
+        display, _, _ = self.run_script("frdm_display_touch_backlight.sh")
+        checks = self.checks(display)
+        self.assertEqual(checks["dsi_connector_connected"], "pass")
+        self.assertEqual(checks["dsi_mode"], "pass")
+        self.assertEqual(self.candidates(display)["BHP_BOARD_DRM_CONNECTOR_ID"], "35")
 
     def test_missing_display_is_a_mismatch_not_a_guess(self) -> None:
         self.root.joinpath("sys/class").mkdir(parents=True)
