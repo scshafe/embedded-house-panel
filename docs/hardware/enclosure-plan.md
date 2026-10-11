@@ -20,6 +20,23 @@ A parameterized CAD model and printable files for:
   plastic-only zone around the Wi-Fi module;
 - removable rear panel so the board can be serviced without disturbing the screen.
 
+## Owner requirements, 2026-10-11
+
+The owner added these on 2026-10-11. The
+[mirror-unit packaging plan](../../.claude/plans/2026-10-11-mirror-unit-packaging.md)
+turns them and this page into a build sequence for the FRDM stage.
+
+- Voice is central: reliable speech pickup from a few feet in front of the
+  mirror. Speech band first; a wider (singing) band if possible.
+- Wall power for now. Deep suspend-to-RAM is the normal idle state, both for
+  low power and so the unit is off when deactivated.
+- When deactivated, the microphone must be off in a way that holds even if
+  Linux is compromised. That means a hardware power cut, not a software mute.
+- A small, compact speaker for spoken replies and chimes; quality is
+  secondary.
+- Tolerate fog if possible: the current bathroom is well ventilated, but a
+  future one may not be.
+
 ## Mirror mounting and bathroom environment
 
 **Requirement (stated 2026-09-24):** the panel mounts on the user's bathroom

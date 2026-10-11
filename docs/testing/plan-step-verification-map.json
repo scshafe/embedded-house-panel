@@ -3443,6 +3443,138 @@
       "command": "git bundle verify .build/arch-migration/house-panel.bundle",
       "proof_kind": "automated",
       "proof_status": "recorded"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 1",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "gate records for DISPLAY/TOUCH/BACKLIGHT/POWER",
+      "test_symbol": "plan.mirror-unit-packaging.step-1.verify-1.item-1.gate-records-for-display-touch-backlight-power",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 1 [plan.mirror-unit-packaging.step-1.verify-1.item-1.gate-records-for-display-touch-backlight-power]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 1",
+      "verify_index": 1,
+      "item_index": 2,
+      "clause_item": "a recording set under `hardware_tests/results/`.",
+      "test_symbol": "plan.mirror-unit-packaging.step-1.verify-1.item-2.a-recording-set-under-hardware-tests-results",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 1 [plan.mirror-unit-packaging.step-1.verify-1.item-2.a-recording-set-under-hardware-tests-results]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 2",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "attributed PIR wakes per the bake-off contract",
+      "test_symbol": "plan.mirror-unit-packaging.step-2.verify-1.item-1.attributed-pir-wakes-per-the-bake-off-contract",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 2 [plan.mirror-unit-packaging.step-2.verify-1.item-1.attributed-pir-wakes-per-the-bake-off-contract]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 2",
+      "verify_index": 1,
+      "item_index": 2,
+      "clause_item": "a power table.",
+      "test_symbol": "plan.mirror-unit-packaging.step-2.verify-1.item-2.a-power-table",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 2 [plan.mirror-unit-packaging.step-2.verify-1.item-2.a-power-table]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 3",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "with Linux running and the switch on, the array is powered only while the PIR holds",
+      "test_symbol": "plan.mirror-unit-packaging.step-3.verify-1.item-1.with-linux-running-and-the-switch-on-the-array-is-powered-on",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 3 [plan.mirror-unit-packaging.step-3.verify-1.item-1.with-linux-running-and-the-switch-on-the-array-is-powered-on]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 3",
+      "verify_index": 1,
+      "item_index": 2,
+      "clause_item": "with the switch off, never",
+      "test_symbol": "plan.mirror-unit-packaging.step-3.verify-1.item-2.with-the-switch-off-never",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 3 [plan.mirror-unit-packaging.step-3.verify-1.item-2.with-the-switch-off-never]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 3",
+      "verify_index": 1,
+      "item_index": 3,
+      "clause_item": "the LED follows the rail",
+      "test_symbol": "plan.mirror-unit-packaging.step-3.verify-1.item-3.the-led-follows-the-rail",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 3 [plan.mirror-unit-packaging.step-3.verify-1.item-3.the-led-follows-the-rail]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 3",
+      "verify_index": 1,
+      "item_index": 4,
+      "clause_item": "the time from presence to \"ready for a command\" is recorded.",
+      "test_symbol": "plan.mirror-unit-packaging.step-3.verify-1.item-4.the-time-from-presence-to-ready-for-a-command-is-recorded",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 3 [plan.mirror-unit-packaging.step-3.verify-1.item-4.the-time-from-presence-to-ready-for-a-command-is-recorded]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 4",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "`enclosure/params.yaml` holds measured values with photos.",
+      "test_symbol": "plan.mirror-unit-packaging.step-4.verify-1.item-1.enclosure-params-yaml-holds-measured-values-with-photos",
+      "command": "human review procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 4 [plan.mirror-unit-packaging.step-4.verify-1.item-1.enclosure-params-yaml-holds-measured-values-with-photos]",
+      "proof_kind": "human",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 5",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "no thermal throttling in the closed box over a set soak",
+      "test_symbol": "plan.mirror-unit-packaging.step-5.verify-1.item-1.no-thermal-throttling-in-the-closed-box-over-a-set-soak",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 5 [plan.mirror-unit-packaging.step-5.verify-1.item-1.no-thermal-throttling-in-the-closed-box-over-a-set-soak]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 5",
+      "verify_index": 1,
+      "item_index": 2,
+      "clause_item": "speech recognition from the mirror position no worse than the open-board result.",
+      "test_symbol": "plan.mirror-unit-packaging.step-5.verify-1.item-2.speech-recognition-from-the-mirror-position-no-worse-than-th",
+      "command": "on-target evidence procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 5 [plan.mirror-unit-packaging.step-5.verify-1.item-2.speech-recognition-from-the-mirror-position-no-worse-than-th]",
+      "proof_kind": "hardware",
+      "proof_status": "planned"
+    },
+    {
+      "plan": ".claude/plans/2026-10-11-mirror-unit-packaging.md",
+      "step": "Step 6",
+      "verify_index": 1,
+      "item_index": 1,
+      "clause_item": "a week of normal use with the suspend/wake and voice logs.",
+      "test_symbol": "plan.mirror-unit-packaging.step-6.verify-1.item-1.a-week-of-normal-use-with-the-suspend-wake-and-voice-logs",
+      "command": "human review procedure: .claude/plans/2026-10-11-mirror-unit-packaging.md Step 6 [plan.mirror-unit-packaging.step-6.verify-1.item-1.a-week-of-normal-use-with-the-suspend-wake-and-voice-logs]",
+      "proof_kind": "human",
+      "proof_status": "planned"
     }
   ]
 }
