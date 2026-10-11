@@ -3,8 +3,8 @@
 <!-- @canonical mirror-unit-packaging-plan -->
 
 **Status (2026-10-11):** proposed; nothing below is built. The display has not
-yet shown a frame, the microphone array is not ordered yet, and the PIR is not
-chosen.
+yet shown a frame and the microphone array is not ordered yet. The PIR is the
+owner's Adafruit 189 (see "PIR").
 
 **Goal:** turn the FRDM-IMX8MPLUS, the Waveshare 7inch DSI LCD (C), a Seeed
 XVF3800 microphone array (the Flex Linear-4 variant, see "Which XVF3800"), a
@@ -16,7 +16,7 @@ Linux cannot turn on while the unit is deactivated.
 **Out of scope:** the custom SOM/carrier product and its battery and MCU
 (sketched at the end only); CAD geometry before the real stack is measured
 ([enclosure plan](../../docs/hardware/enclosure-plan.md), "Evidence needed
-before CAD"); choosing a PIR part; any owner-gated board action.
+before CAD"); any owner-gated board action.
 
 ## Requirements
 
@@ -59,9 +59,14 @@ shapes decide which fits the unit:
 | Mics | 4 × Infineon IM69D130 on a 66 mm square | 4 in a line, 33 mm pitch (99 mm span) |
 | Host link | USB-C, UAC 2.0 | USB-C on the core board, UAC 2.0, or I2S |
 | Speaker | on-board class-D amp (LM48511), JST PH 2-pin | on-board amp, upright JST; up to 10 W into 4 Ω with its 12 V terminal |
+| Pickup | 360° | about 180°, front-facing, rear suppressed |
+| Processing | AEC, AGC, DoA, beamforming, VAD, noise suppression, de-reverberation | the same set |
+| USB firmware | 16 kHz 6-channel; 16 kHz or 48 kHz 2-channel | the same three, in linear builds |
+| Lights and buttons | ring of 12 RGB LEDs, mute button with red LED | power LED, reset and boot buttons only |
 | Price (2026-10-10) | $60.99 | $57.99 |
 
-Sources: Seeed wikis and 2D/STEP/DXF files for both boards, measured by a
+Sources: Seeed wikis (including the reSpeaker Flex introduction page for
+pickup, firmware and controls) and 2D/STEP/DXF files for both boards, measured by a
 research agent on 2026-10-11 (values from the vendor's CAD, not printed
 drawings).
 
@@ -71,9 +76,10 @@ the FRDM board (130 × 120 mm) is taller than the glass, so the enclosure has a
 strip above or below the glass anyway. The 11 mm mic strip fits there, its
 four mics in a line facing the person at the mirror. The round board would
 need a 100 mm-wide, 100 mm-tall area beside the panel, or would sit behind it
-with its mics ducted to the front. The Linear-4's documentation is thinner:
-confirm on its wiki that it offers the same 16 kHz and 48 kHz USB firmware as
-the round board before ordering.
+with its mics ducted to the front. On a wall-mounted unit the rear half of a
+circular array's 360° faces the wall and mirror, so the Linear-4's 180°
+pattern loses nothing the unit needs. It drops the LED ring and the mute
+button; R4 does not rely on either.
 
 ## What a compromised Linux can and cannot do (R4)
 
@@ -87,11 +93,12 @@ power to depend on something outside Linux:
 1. **Manual privacy switch (always).** A slide switch in series with the
    XVF3800's USB 5 V. Off means no power to the array, whatever the software
    does. Reachable on the unit's edge.
-2. **Presence gate (proposed).** The PIR's output, through a retriggerable
-   hold timer of a few minutes, drives the enable pin of a load switch on the
-   same 5 V line. With nobody in front of the mirror, the array has no power,
-   and Linux has no path to change that. The PIR output also goes to a native
-   SoC GPIO for wake, as today's plan has it.
+2. **Presence gate (proposed).** The PIR's output, held high for a few
+   minutes after the last motion, drives the enable pin of a load switch on
+   the same 5 V line. With nobody in front of the mirror, the array has no
+   power, and Linux has no path to change that. The PIR output also goes to a
+   native SoC GPIO for wake, as today's plan has it. The Adafruit 189 can
+   provide the hold itself (see "PIR"), so the gate board may need no timer.
 3. **Hardware indicator.** An LED powered from the switched mic rail itself,
    not from a GPIO, so "lit" means "the mic has power" by construction.
 
@@ -112,7 +119,7 @@ only (an amplifier cannot record).
 | FRDM board | J2, USB-C PD, wall supply | SoC in DSM | Linux | FRDM-GATE-POWER trace across states |
 | Panel logic + backlight | J27 5 V (board rail) | backlight 0 over I2C; panel logic still powered | Linux (bridge register) | panel current dark vs lit; whether to add a load switch |
 | XVF3800 core board, mics and speaker amp | USB-A host 5 V via privacy switch and presence gate | off unless someone is present and the switch is on | hardware (R4) | power-up-to-ready time; current (not published) |
-| PIR | 3.3 V from J18 | on (it is the wake source) | none | PIR current; wake reliability |
+| PIR (Adafruit 189) | 5 V from J18 (its own 3.3 V regulator) | on (it is the wake source) | none | PIR current (not published); wake reliability |
 
 - Panel: Waveshare's FAQ gives about 0.5 A lit and 0.1 A with the backlight
   off (about 0.5 W dark, unmeasured here). If that holds, the panel alone
@@ -150,6 +157,31 @@ only (an amplifier cannot record).
 - **Band:** 16 kHz capture for speech recognition; the XVF3800's 48 kHz
   2-channel firmware for a wider band. Pick per use; test both.
 
+## PIR
+
+The owner has an Adafruit 189 PIR module (product page and Adafruit's PIR
+guide, read 2026-10-11):
+
+- BISS0001 controller with a 3.3 V regulator. Supply 5–12 V ("5V is ideal");
+  output high is 3.3 V, low when idle. That suits a 3.3 V SoC pad, once the
+  pad bank's voltage is measured (ARRIVAL-08).
+- Range up to about 6–7 m, a 110° × 70° pattern. 30–60 s to settle after
+  power-up.
+- Retrigger jumper: `H` keeps the output high while motion continues; `L`
+  does not. The `TIME` pot sets the hold, from about 2.5 s to about 250 s
+  (Adafruit's formula for this board). In `H` with a few minutes' hold, the
+  module is the presence gate's timer. The same hold then delays Linux's view
+  of absence by that long; if that matters, keep a separate timer on the gate
+  board.
+- 32.34 × 24.03 mm, 24.66 mm tall with the lens; M2 holes 28 mm apart; a
+  30 cm cable with a 3-pin socket.
+- Adafruit warns that PIRs can false-trigger near a Raspberry Pi 3 (its Wi-Fi
+  is the usual suspect). Keep it away from the FRDM board's Wi-Fi module.
+
+The lens dome is wider than the strips around the glass, so it needs its own
+area outside the glass: a bottom "chin" (with the speaker) is the first
+candidate.
+
 ## Physical stack (front to back)
 
 1. Bezel with a gasket against the panel's cover glass; mic ports and
@@ -179,8 +211,9 @@ files above. The panel's STEP model reuses an 800×480 touch-panel part, so
 check it against the real panel.
 
 First estimate, to be replaced by measurement: an outline of about
-200 × 135 mm (the glass plus side walls; the FRDM board's 120 mm plus walls
-and the mic strip set the height) and a depth of roughly 35–45 mm (the panel's
+200 × 160 mm (the glass plus side walls; the glass, the mic strip above it
+and a chin of about 30 mm for the PIR and speaker below it set the height,
+which also clears the FRDM board's 120 mm) and a depth of roughly 35–45 mm (the panel's
 17 mm, the FRDM board with its heatsink, and air gaps). The panel is listed at
 0.324 kg (Waveshare does not say whether net or shipping); the FRDM board's
 weight is unpublished. Weigh the parts in Step 4; the bonded area follows from
@@ -199,7 +232,7 @@ microSD. Ethernet is for the bench only.
 | USB-A host | XVF3800 core board USB-C | short USB cable with its 5 V line broken out through the gate board | gate board: privacy switch, load switch, hold timer, LED |
 | XVF3800 core board | mic strip | 24-pin 0.5 mm FPC (20 cm included) | fold-free route to the top strip |
 | XVF3800 speaker connector | micro speaker | 2 wires (JST) | |
-| J18 3.3 V, GND, native GPIO | PIR; also the gate board's enable input | keyed JST | PIR pin per FRDM-GATE-PIR; nothing on J18 pins 3/5 until the B3 schematic |
+| J18 5 V, GND, native GPIO | PIR (Adafruit 189: VCC, GND, OUT at 3.3 V); OUT also to the gate board's enable input | keyed JST | PIR pin per FRDM-GATE-PIR; nothing on J18 pins 3/5 until the B3 schematic |
 | J2 | wall PD supply | USB-C cable down the mirror edge, drip loop | GFCI outlet |
 
 ## Steps
@@ -237,12 +270,11 @@ microSD. Ethernet is for the bench only.
 
 ## Open questions
 
-- PIR part and its J18 pin (FRDM-GATE-PIR); its output must drive both a
-  GPIO and the gate board's enable input.
+- The PIR's J18 pin and that pad bank's voltage (FRDM-GATE-PIR); its output
+  must drive both a GPIO and the gate board's enable input, and its current
+  draw is not published.
 - J18 pins 3/5 and J27 pin numbers on B3 (schematic).
 - XVF3800 power-up-to-ready time and current draw (neither published).
-- Whether the Flex Linear-4 has the same USB firmware options as the round
-  board.
 - FRDM-IMX8MPLUS hole positions, tallest part and heatsink (NXP design files,
   or calipers); thermal behaviour when closed in a bathroom.
 - Whether the panel needs a load switch for suspend power.
