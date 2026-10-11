@@ -209,8 +209,15 @@ from the vendor image, not closed gates: no profile key changed and
 **Checklist.**
 
 - ARRIVAL-01 passed (2026-10-04): 18 `UNMEASURED`, 1 human decision.
-- ARRIVAL-02 waits on the owner: photos of both sides and the label, the
-  board-marking text.
+- ARRIVAL-02 photos done (2026-10-10; both sides, in the ignored
+  `board-photos-20261010/`). Marking: "FRDM-IMX8MPLUS", "700-95022 REV B3",
+  "SCH-95022 REV B3", "©2025 NXP", with a u-blox `MAYA-W276-00B` Wi-Fi module.
+  The silkscreen boot table (USB `0001`, eMMC `0010`, Micro SD `0011`) matches
+  the profile's SW5 values. The photos show the RJ45 MAC labels: the cabled
+  jack, next to the USB-A port, is `10-07-23-6E-CC-0D`, which is `eth1` with
+  carrier; the outer jack is `…-CC-0C`, which is `eth0` with no carrier. That
+  answers the FRDM-GATE-WIFI question of which jack is which. The kit check
+  (J15 22-pin cable, panel) is not in the photos and is still open.
 - ARRIVAL-03 done on PC USB power instead of the PD charger (above). U-Boot
   2026.04-lf reported a bad environment CRC and used its default environment.
 - ARRIVAL-04 done: "NXP i.MX Distro with Wayland and XWayland 6.18-wrynose",
@@ -224,7 +231,12 @@ from the vendor image, not closed gates: no profile key changed and
   `de326aef…6c43`, `mtdblock0` `fdc617b3…c642`. Restore procedure (written,
   not run): [frdm-factory-restore.md](frdm-factory-restore.md).
 - ARRIVAL-06 done: the evidence bundle is in `/root/bhp-evidence` on the board.
-- ARRIVAL-07 waits on ARRIVAL-02's board-marking text.
+- ARRIVAL-07 done (2026-10-10, `identity-20261010T235538Z/`): `complete`,
+  8 of 8 checks pass: `fsl,frdm-imx8mp`, i.MX8MP (SoC rev 1.1), 4 CPUs,
+  3686668 kB RAM, a 31268536320 B eMMC, and the IW612 on SDIO (`mmc0:0001`,
+  `0x0471:0x0204`, `wlan_sdio`). This is the 4 GB / 32 GB variant, not the
+  2 GB / 16 GB one. The marking was transcribed by the agent from the owner's
+  photos.
 - ARRIVAL-13 discovery ran on the vendor DTB (2026-10-10, below); the
   Waveshare-panel run waits on a boot with the vendor panel DTB.
 - ARRIVAL-08 onward otherwise: not started. ARRIVAL-08 and -10 need the owner at the
@@ -329,7 +341,7 @@ U-Boot 2026.04-lf. The restore procedure keeps this configuration
 ([frdm-factory-restore.md](frdm-factory-restore.md)).
 
 **Next, from a session that reaches the board.** Read-only gate scripts
-(ARRIVAL-07 once the marking is known) can write
+(for example ARRIVAL-09 once `<HEADER_MV>` is measured) can write
 their records to the board's `/tmp` with `--output-directory`, so they need no
 write to its storage. Everything in `dev.toml [hardware] owner_gated` (flashing,
 storage writes, package installs, suspend or reboot, tailnet and Wi-Fi changes,
