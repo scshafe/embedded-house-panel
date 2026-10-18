@@ -79,6 +79,21 @@ class RunnerDryRun(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(plan['error']['code'], 'FRDM_DEMO.SSH_TARGET_REQUIRED')
 
+    def test_backlight_samples_is_bounded_and_runs_the_board_probe(self):
+        code, plan = dry_run('backlight-samples', '3000')
+        self.assertEqual(code, 0)
+        self.assertEqual(plan['commands'][-1][-1], 'python3 /tmp/bhp-demo/frdm_panel_demo_board.py backlight-samples 3000')
+        for count in ('0', '6001x', '-1', 'ten'):
+            self.assertEqual(dry_run('backlight-samples', count)[0], 1, count)
+        board = load_board()
+        for count in ('0', '6001', '1e3'):
+            with self.assertRaises(ValueError):
+                board.backlight_samples(count)
+
+    def test_sample_summary_counts_each_blank_once(self):
+        summary = load_board().summarize_samples([179, 0, 0, 179, 179, 0, 179, 31])
+        self.assertEqual(summary, {'samples': 8, 'counts': {'179': 4, '0': 3, '31': 1}, 'zero_runs': 2})
+
     def test_build_dry_run_cross_compiles_with_the_vendor_toolchain(self):
         code, plan = dry_run('build')
         self.assertEqual(code, 0)

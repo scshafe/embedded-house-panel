@@ -188,7 +188,7 @@ public:
 				override_connection_challenge.value_or(
 					expected.connection_challenge),
 				override_snapshot_id.value_or(expected.snapshot_id),
-				expected.display_mode};
+				override_display_mode.value_or(expected.display_mode)};
 			if (!override_render_generation.has_value()) {
 				last_render_generation = render_generation;
 			}
@@ -214,6 +214,7 @@ public:
 	std::optional<std::string> override_supervisor_session_id;
 	std::optional<std::string> override_connection_challenge;
 	std::optional<std::string> override_snapshot_id;
+	std::optional<std::string> override_display_mode;
 	int publication_count{0};
 	int await_count{0};
 	bool throw_await_exception{false};
@@ -380,6 +381,112 @@ bool active_day_to_night_change_blanks_before_exact_presentation_then_lights()
 	const std::vector<int> expected_brightnesses{
 		0, test_fixture::kPresentNightBrightnessPercent};
 	TEST_REQUIRE(fixture.backlight.requested_brightnesses == expected_brightnesses);
+	return true;
+}
+
+bool steady_same_mode_poll_keeps_the_panel_lit_through_presentation()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	TEST_REQUIRE(fixture.supervisor.start("steady-start").has_value());
+
+	fixture.calls.clear();
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.clock.current_time += std::chrono::seconds(1);
+	const auto result = fixture.supervisor.poll("steady-poll");
+
+	TEST_REQUIRE(result.has_value());
+	const std::vector<std::string> expected_calls{"publish", "await_presentation",
+						      "backlight"};
+	TEST_REQUIRE(fixture.calls == expected_calls);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses ==
+		     std::vector<int>{test_fixture::kPresentDayBrightnessPercent});
+	return true;
+}
+
+bool steady_same_mode_poll_blanks_after_an_uncommitted_presentation()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	TEST_REQUIRE(fixture.supervisor.start("steady-timeout-start").has_value());
+
+	fixture.calls.clear();
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.ui_mode_notifier.presentation_outcome =
+		PresentationNotCommitted{PresentationNotCommittedReason::TimedOut};
+	fixture.clock.current_time += std::chrono::seconds(1);
+	const auto result = fixture.supervisor.poll("steady-timeout-poll");
+
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	const std::vector<std::string> expected_calls{"publish", "await_presentation",
+						      "backlight"};
+	TEST_REQUIRE(fixture.calls == expected_calls);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
+	TEST_REQUIRE(fixture.log_output.str().find("\"degraded_reason\":\"timed_out\"") !=
+		     std::string::npos);
+
+	// The panel is now dark, so the next cycle blanks first again.
+	fixture.calls.clear();
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.ui_mode_notifier.presentation_outcome = PresentationCommitted{};
+	fixture.clock.current_time += std::chrono::seconds(1);
+	TEST_REQUIRE(fixture.supervisor.poll("steady-recovered-poll").has_value());
+	const std::vector<std::string> recovered_calls{"backlight", "publish",
+						       "await_presentation", "backlight"};
+	TEST_REQUIRE(fixture.calls == recovered_calls);
+	const std::vector<int> recovered_brightnesses{
+		0, test_fixture::kPresentDayBrightnessPercent};
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == recovered_brightnesses);
+	return true;
+}
+
+bool lit_cycle_rejects_a_commit_for_another_display_mode_and_blanks()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	TEST_REQUIRE(fixture.supervisor.start("wrong-mode-start").has_value());
+
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.ui_mode_notifier.override_display_mode = "night_red";
+	fixture.clock.current_time += std::chrono::seconds(1);
+	const auto result = fixture.supervisor.poll("wrong-mode-poll");
+
+	TEST_REQUIRE(result.has_value());
+	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
+	TEST_REQUIRE(fixture.log_output.str().find(
+			     "PANEL_SUPERVISOR.UI_PRESENTATION_BINDING_INVALID") !=
+		     std::string::npos);
+	return true;
+}
+
+bool present_to_grace_in_the_same_mode_dims_without_blanking()
+{
+	SupervisorFixture fixture;
+	fixture.presence_source.detected = true;
+	TEST_REQUIRE(fixture.supervisor.start("grace-start").has_value());
+
+	fixture.calls.clear();
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.presence_source.detected = false;
+	fixture.clock.current_time += std::chrono::seconds(1);
+	const auto grace = fixture.supervisor.poll("grace-poll");
+
+	TEST_REQUIRE(grace.has_value());
+	TEST_REQUIRE(grace.value().presence_state == PresenceState::GracePeriod);
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses ==
+		     std::vector<int>{test_fixture::kGraceDayBrightnessPercent});
+
+	fixture.calls.clear();
+	fixture.backlight.requested_brightnesses.clear();
+	fixture.clock.current_time += test_fixture::kGracePeriod + std::chrono::seconds(1);
+	const auto absent = fixture.supervisor.poll("absent-poll");
+
+	TEST_REQUIRE(absent.has_value());
+	TEST_REQUIRE(absent.value().notified_ui_mode == UiMode::Suspended);
+	TEST_REQUIRE(!fixture.calls.empty() && fixture.calls.front() == "backlight");
+	TEST_REQUIRE(fixture.backlight.requested_brightnesses == std::vector<int>{0});
 	return true;
 }
 
@@ -614,8 +721,9 @@ bool noncommitted_active_cycle_blanks_a_previously_lit_backlight()
 	TEST_REQUIRE(result.value().system_state == SystemState::Active);
 	TEST_REQUIRE(result.value().applied_brightness_percent == 0);
 	TEST_REQUIRE(fixture.backlight.applied_brightness == 0);
+	// ADR 0011: the unchanged lit mode stays lit through the wait, then blanks.
 	const std::vector<std::string> expected_calls{
-		"backlight", "publish", "await_presentation"};
+		"publish", "await_presentation", "backlight"};
 	TEST_REQUIRE(fixture.calls == expected_calls);
 	return true;
 }
@@ -780,7 +888,7 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 25> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 29> tests{{
 		{"resume_reacquires_all_inputs_and_applies_fresh_night_state",
 		 resume_reacquires_all_inputs_and_applies_fresh_night_state},
 		{"resume_while_still_absent_requests_suspend_again",
@@ -791,6 +899,14 @@ int main()
 		 initial_active_mode_is_notified_before_nonzero_backlight},
 		{"active_day_to_night_change_blanks_before_exact_presentation_then_lights",
 		 active_day_to_night_change_blanks_before_exact_presentation_then_lights},
+		{"steady_same_mode_poll_keeps_the_panel_lit_through_presentation",
+		 steady_same_mode_poll_keeps_the_panel_lit_through_presentation},
+		{"steady_same_mode_poll_blanks_after_an_uncommitted_presentation",
+		 steady_same_mode_poll_blanks_after_an_uncommitted_presentation},
+		{"lit_cycle_rejects_a_commit_for_another_display_mode_and_blanks",
+		 lit_cycle_rejects_a_commit_for_another_display_mode_and_blanks},
+		{"present_to_grace_in_the_same_mode_dims_without_blanking",
+		 present_to_grace_in_the_same_mode_dims_without_blanking},
 		{"presence_failure_is_wrapped_and_stops_downstream_outputs",
 		 presence_failure_is_wrapped_and_stops_downstream_outputs},
 		{"empty_trace_id_returns_typed_error_without_reading_ports",

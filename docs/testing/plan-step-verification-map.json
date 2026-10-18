@@ -3704,9 +3704,9 @@
       "item_index": 1,
       "clause_item": "- `make verify` exit 0.",
       "test_symbol": "plan.supervisor-steady-state-blank.step-1.verify-1.item-1.make-verify-exit-0",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-18-supervisor-steady-state-blank.md Step 1 [plan.supervisor-steady-state-blank.step-1.verify-1.item-1.make-verify-exit-0]",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-18-supervisor-steady-state-blank.md",
@@ -3715,9 +3715,9 @@
       "item_index": 1,
       "clause_item": "- `python3 -m unittest discover -s scripts/deploy/tests -p test_*.py` exit 0",
       "test_symbol": "plan.supervisor-steady-state-blank.step-2.verify-1.item-1.python3-m-unittest-discover-s-scripts-deploy-tests-p-test-py-exit-0",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-18-supervisor-steady-state-blank.md Step 2 [plan.supervisor-steady-state-blank.step-2.verify-1.item-1.python3-m-unittest-discover-s-scripts-deploy-tests-p-test-py-exit-0]",
+      "command": "python3 -m unittest discover -s scripts/deploy/tests -p test_*.py",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-18-supervisor-steady-state-blank.md",
@@ -3728,7 +3728,7 @@
       "test_symbol": "plan.supervisor-steady-state-blank.step-2.verify-1.item-2.the-baseline-record-under-hardware-tests-results-frdm-panel-demo-utc",
       "command": "on-target evidence procedure: .claude/plans/2026-10-18-supervisor-steady-state-blank.md Step 2 [plan.supervisor-steady-state-blank.step-2.verify-1.item-2.the-baseline-record-under-hardware-tests-results-frdm-panel-demo-utc]",
       "proof_kind": "hardware",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-18-supervisor-steady-state-blank.md",
@@ -3737,9 +3737,9 @@
       "item_index": 1,
       "clause_item": "- `ctest --test-dir .build/host-dev -R panel_supervisor` exit 0",
       "test_symbol": "plan.supervisor-steady-state-blank.step-3.verify-1.item-1.ctest-test-dir-build-host-dev-r-panel-supervisor-exit-0",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-18-supervisor-steady-state-blank.md Step 3 [plan.supervisor-steady-state-blank.step-3.verify-1.item-1.ctest-test-dir-build-host-dev-r-panel-supervisor-exit-0]",
+      "command": "ctest --test-dir .build/host-dev -R panel_supervisor",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-18-supervisor-steady-state-blank.md",
@@ -3748,9 +3748,9 @@
       "item_index": 2,
       "clause_item": "- `make verify` exit 0.",
       "test_symbol": "plan.supervisor-steady-state-blank.step-3.verify-1.item-2.make-verify-exit-0",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-18-supervisor-steady-state-blank.md Step 3 [plan.supervisor-steady-state-blank.step-3.verify-1.item-2.make-verify-exit-0]",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-18-supervisor-steady-state-blank.md",

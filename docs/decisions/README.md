@@ -20,6 +20,7 @@ still occupy their filename and are never treated as a free number.
 | [0008](0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md) | Accepted; hardware-gated | Adopt FRDM i.MX 8M Plus and Waveshare 7-inch DSI as the development platform |
 | [0009](0009-add-an-isolated-virtual-panel-target.md) | Accepted for simulation | Share application code across headless, SDL2, and Debian/QEMU tiers |
 | [0010](0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md) | Accepted; Tailnet- and hardware-gated | Authenticate the panel by node capability and install pinned official Tailscale `1.102.2` |
+| [0011](0011-blank-before-presentation-changes-not-every-cycle.md) | Accepted; on-target check pending | Blank before presentation changes, not every cycle |
 
 No later number is reserved by a plan.
 
@@ -30,6 +31,11 @@ virtual-panel target. Simulation never closes an FRDM hardware gate.
 runtime choices: node-capability study authentication with no credential on the
 panel, and the SHA-256-pinned official Tailscale `1.102.2` arm64 archive. Real
 Tailnet evidence and every `FRDM-GATE-*` remain open.
+
+**Amended 2026-10-18:** registered ADR 0011 at the owner's request, after the
+FRDM demo showed the supervisor's every-cycle blank as visible flicker. A lit
+panel with an unchanged display mode stays lit through the cycle. The
+on-target check is still due (plan Step 4).
 
 ## Collision-safe allocation
 
