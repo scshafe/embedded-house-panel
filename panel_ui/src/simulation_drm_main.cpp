@@ -1,4 +1,5 @@
 #include "panel_ui/simulation_drm_main.hpp"
+#include "panel_ui/display_rotation.hpp"
 #include "panel_ui/drm_page_flip_display.hpp"
 #include "panel_ui/lifecycle_presentation_barrier.hpp"
 #include "panel_ui/unix_socket_lifecycle_client.hpp"
@@ -49,10 +50,11 @@ private:int fd_{-1};std::string path_;
 int run_simulation_drm(int argc,char **argv){try{
  std::map<std::string,std::string> options;
  for(int i=1;i<argc;++i){std::string key=argv[i];if(key=="--simulation-drm")continue;if(i+1>=argc)throw std::runtime_error("SIMULATOR.ARGUMENT_REQUIRED");if(!options.emplace(key,argv[++i]).second)throw std::runtime_error("SIMULATOR.ARGUMENT_DUPLICATE");}
- for(const char *key:{"--socket-path","--supervisor-uid","--drm-device","--drm-connector-id","--touch-socket-path","--simulation-control-socket","--scenario","--touch-min-x","--touch-max-x","--touch-min-y","--touch-max-y"})if(!options.count(key))throw std::runtime_error(std::string("SIMULATOR.ARGUMENT_REQUIRED:")+key);
+ for(const char *key:{"--socket-path","--supervisor-uid","--drm-device","--drm-connector-id","--touch-socket-path","--simulation-control-socket","--scenario","--touch-min-x","--touch-max-x","--touch-min-y","--touch-max-y","--display-rotation"})if(!options.count(key))throw std::runtime_error(std::string("SIMULATOR.ARGUMENT_REQUIRED:")+key);
  if(options.count("--clock-preview")&&options.at("--clock-preview")!="on"&&options.at("--clock-preview")!="off")throw std::runtime_error("SIMULATOR.CLOCK_PREVIEW_INVALID");
  const auto min_x=std::stoll(options.at("--touch-min-x")),max_x=std::stoll(options.at("--touch-max-x")),min_y=std::stoll(options.at("--touch-min-y")),max_y=std::stoll(options.at("--touch-max-y"));
  if(max_x<=min_x||max_y<=min_y)throw std::runtime_error("SIMULATOR.TOUCH_CALIBRATION_INVALID");
+ const auto parsed_rotation=parse_display_rotation(options.at("--display-rotation"));if(!parsed_rotation)throw std::runtime_error("SIMULATOR.DISPLAY_ROTATION_INVALID");const auto rotation=*parsed_rotation;
  const auto uid=static_cast<std::uint32_t>(std::stoul(options.at("--supervisor-uid")));
  bhp::simulator::PanelSimulation app(false,options.count("--state-directory")?options.at("--state-directory"):"",options.count("--lexinet-config")?options.at("--lexinet-config"):"",options.count("--launcher-config")?options.at("--launcher-config"):"");
  app.load(bhp::simulator::read_scenario(options.at("--scenario")));app.accept_lifecycle(app.supervisor.publish("blank"));app.render();
@@ -81,7 +83,7 @@ int run_simulation_drm(int argc,char **argv){try{
  // All scene mutations and barrier state share this mutex. The worker can send an
  // acknowledgement while the main loop sleeps, but never release a different frame.
  auto commit_pixels=[&]{
-  if(drm.commit(app.display.pixels()))return true;
+  if(drm.commit(rotate_raster(app.display.pixels(),rotation)))return true;
   presentation.fail_display_commit();
   app.invalidate_lifecycle();
   running=false;
@@ -120,7 +122,7 @@ int run_simulation_drm(int argc,char **argv){try{
     if(!touch){auto connected=bhp::touch_observation_protocol::UnixTouchObservationClient::connect(options.at("--touch-socket-path"),uid);if(connected)touch=std::move(connected).value();}
     if(touch){auto result=touch->try_receive();if(!result)touch.reset();else if(result.value()){const auto &record=*result.value();const auto &binding=record.presentation_binding;const auto &snapshot=app.scene.lifecycle;
       if(record.contact_state==bhp::touch_observation_protocol::ContactState::Completed&&binding.supervisor_session_id==snapshot.supervisor_session_id&&binding.lifecycle_snapshot_id==snapshot.snapshot_id&&binding.lifecycle_event_sequence==snapshot.event_sequence&&binding.ui_connection_challenge==snapshot.connection_challenge&&binding.committed_render_generation==app.render_generation&&presentation.input_ready(app.render_generation)&&record.raw_axis_x>=min_x&&record.raw_axis_x<=max_x&&record.raw_axis_y>=min_y&&record.raw_axis_y<=max_y){
-       const auto x=(record.raw_axis_x-min_x)*1023/(max_x-min_x);const auto y=(record.raw_axis_y-min_y)*599/(max_y-min_y);if(x>=0&&x<=1023&&y>=0&&y<=599){app.tap(static_cast<int>(x),static_cast<int>(y));if(!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");log({{"touch_commit",true},{"status",app.status()}});}}
+       const auto x=(record.raw_axis_x-min_x)*1023/(max_x-min_x);const auto y=(record.raw_axis_y-min_y)*599/(max_y-min_y);if(x>=0&&x<=1023&&y>=0&&y<=599){const auto logical=logical_touch_point(static_cast<int>(x),static_cast<int>(y),1024,600,rotation);app.tap(logical.first,logical.second);if(!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");log({{"touch_commit",true},{"status",app.status()}});}}
      }}
     // Privileged fixture selection can recover a sent Failed presentation.
     // It is not touch input, but still cannot cross an in-flight raster hold.

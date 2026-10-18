@@ -21,7 +21,10 @@ glyphs fail explicitly after the shell's UTF-8 policy validates text.
   otherwise the memory store is explicitly fixture-only.
 - The guest `bhp-panel-ui --simulation-drm` branch additionally requires explicit
   lifecycle socket/UID, DRM card/connector, touch socket, touch axis bounds, a
-  scenario and a fixture control socket. The ordinary executable remains
+  scenario, a fixture control socket and `--display-rotation 0|180`. Rotation
+  turns only the raster sent to the panel and the touch points read from it
+  (`panel_ui/display_rotation.hpp`); rendering, hit testing and screenshots
+  stay in logical coordinates. The ordinary executable remains
   fail-dark. No production service is enabled.
 
 The native launcher (`python3 scripts/sim/run_native_panel.py --execute`) and

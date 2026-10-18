@@ -39,6 +39,7 @@ endif()
 add_library(panel_ui_core STATIC
   src/application_catalog.cpp
   src/bounded_unicode_text_policy.cpp
+  src/display_rotation.cpp
   src/fail_dark_lifecycle_display_commit_backend.cpp
   src/headless_renderer.cpp
   src/interaction_intent.cpp
@@ -83,6 +84,7 @@ if(PANEL_UI_BUILD_TESTS)
       panel_intent_registry
       shell_controller
       bounded_unicode_text_policy
+      display_rotation
       panel_ui_service
       headless_renderer
       unix_socket_lifecycle_client)

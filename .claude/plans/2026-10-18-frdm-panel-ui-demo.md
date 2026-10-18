@@ -2,7 +2,8 @@
 
 <!-- @canonical frdm-panel-ui-demo-plan -->
 
-**Status (2026-10-18):** proposed; nothing below is built. Requested by the
+**Status (2026-10-18):** Steps 1–3 done on the host; Step 0 (ssh) and Step 4
+(the demo) wait for the owner. Requested by the
 owner after the panel, touch, backlight and XVF3800 came up on the vendor
 image ([bring-up](../../docs/operations/frdm-bringup.md), "Panel on J27").
 
@@ -45,83 +46,75 @@ labelled `demo_not_gate_evidence`.
   192.168.50.15. Copying megabytes over the 115200-baud console is not
   practical.
 
-## Decisions for the owner
+## Owner decisions (2026-10-18)
 
-1. **Stop weston during the demo.** The DRM backend needs DRM master. The demo
-   stops weston and restarts it afterwards: a service stop, not a storage write
-   or a reboot.
-2. **Upside-down panel.** The weston rotation does not apply to a DRM client,
-   and the hardware has no rotation. Either Step 2 adds a demo-only 180°
-   option, or the owner turns the panel round for the demo and Step 2 is
-   skipped. Recommended: Step 2. It is small, and it keeps the test setup as
-   it is.
+1. **Weston stops during the demo.** The DRM backend needs DRM master; `stop`
+   starts weston again. The owner agreed.
+2. **The panel stays upside-down and the UI rotates it** (Step 2). The weston
+   rotation does not apply to a DRM client, and card1 has no hardware
+   rotation. The owner chose the software option over turning the panel round.
 
 ## Steps
 
 - [ ] **Step 0: Restore ssh (owner).**
   - The owner moves the agent's host grant to `192.168.50.15:22`.
   - Verify: `ssh root@192.168.50.15 true` succeeds from the agent account.
-- [ ] **Step 1: Cross-build for the vendor image.**
-  - Add `scripts/build/frdm_vendor_sysroot.sh`. It is a dry run by default;
-    with `--execute` it downloads pinned Debian trixie arm64 `.deb`s by SHA-256
-    (`libc6-dev`, `libgcc-14-dev`, `libstdc++-14-dev`, `linux-libc-dev`,
-    `libdrm-dev`, `libpng-dev`, `zlib1g-dev` and their runtime packages) and
-    unpacks them with `dpkg-deb -x` into `.build/frdm-sysroot/`. It needs no
-    root and installs nothing on the PC. Trixie's glibc 2.41 is not newer than
-    the board's 2.43.
-  - Add `cmake/toolchains/frdm-vendor-aarch64.cmake`: clang
-    `--target=aarch64-linux-gnu`, lld, the sysroot above,
-    `-static-libstdc++ -static-libgcc`. Shared links stay only to the board's
-    `libc`, `libm`, `libdrm`, `libpng16` and `libz`.
-  - Configure with `BHP_BUILD_PANEL_DRM`, `BHP_BUILD_LVGL_RENDERER` and
-    `BHP_BUILD_PANEL_RENDERER` on, `BHP_BUILD_HTTP_LEXINET_CLIENT` off and tests
-    off. Build `bhp-panel-ui`, the supervisor executable and `pir_uinput` into
-    `.build/frdm-demo/`, then pack them into one tarball with the scenarios,
-    `panel_ui/config/applications.json` and a SHA256SUMS file.
+- [x] **Step 1: Cross-build for the vendor image.** (2026-10-18)
+  - `scripts/build/frdm_vendor_sysroot.sh` is a dry run by default. With
+    `--execute` it downloads 19 pinned Debian trixie arm64 `.deb`s from
+    snapshot.debian.org (20261015T000000Z), checks each SHA-256 and unpacks
+    them with `bsdtar` into `.build/frdm-sysroot/`. The packages are glibc,
+    the gcc-14 runtime and libstdc++ headers, `linux-libc-dev`, libdrm, libpng,
+    zlib and OpenSSL. The panel mode protocol needs libcrypto, which the board
+    has as `libcrypto.so.3`. The script needs no root and installs nothing on
+    the PC.
+  - `cmake/toolchains/frdm-vendor-aarch64.cmake`: clang
+    `--target=aarch64-linux-gnu` for C, C++ and assembly (LVGL has `.S`
+    files), lld, the sysroot above, `-static-libstdc++ -static-libgcc`.
+  - `scripts/deploy/frdm_panel_demo.sh build --execute` configures with
+    `BHP_BUILD_PANEL_DRM` and `BHP_BUILD_PANEL_RENDERER` on, Lexinet HTTP and
+    tests off, builds `bhp-panel-ui` and `panel_supervisord`, and compiles
+    `pir_uinput.c`. It refuses any binary whose `NEEDED` libraries are not on
+    the board or that needs glibc symbols above 2.41. It then packs
+    `.build/frdm-demo-bundle.tar.gz` (2.2 MB): the three binaries, the
+    scenarios, `applications.json`, the board script and SHA256SUMS.
   - Verify:
-    - `make verify` still passes;
-    - `readelf -d` of each binary lists only `NEEDED` libraries from the board
-      list above, and `readelf -V` requires no `GLIBC_` version above 2.41.
-- [ ] **Step 2: Demo-only 180° rotation (skip if the owner turns the panel).**
-  - Add `--display-rotation 0|180` to the `--simulation-drm` branch only. It is
-    required, with no default, like that branch's other options.
-  - Rotate the raster in software (LVGL display rotation) and map normalized
-    touch through the same rotation before hit testing. The ordinary
-    fail-dark entry point does not change.
+    - `make verify` exit 0;
+    - `scripts/deploy/frdm_panel_demo.sh build --execute` exit 0: `bhp-panel-ui` needs libc, libm, libdrm, libpng16, libz, libcrypto 3 and glibc up to 2.38.
+- [x] **Step 2: Demo-only 180° rotation.** (2026-10-18)
+  - `panel_ui/display_rotation.hpp` (`@canonical panel_display_rotation`)
+    rotates the raster sent to the panel and maps panel touch points back.
+    Rendering, hit testing and screenshots stay in logical coordinates.
+  - `--display-rotation 0|180` is required by the `--simulation-drm` branch
+    only, with no default. The VM guest passes `0`. The fail-dark entry point
+    does not change.
   - Verify:
-    - a host test renders a scenario at 180° and compares it with the 0°
-      golden rotated by 180°;
-    - a host test sends a touch at a widget's rotated position and checks
-      that the widget receives it;
-    - `make verify-panel-goldens` passes unchanged.
-- [ ] **Step 3: A board runner that leaves nothing behind.**
-  - Add `scripts/deploy/frdm_panel_demo.sh` with `start`, `status`, `ctl` and
-    `stop`. It is a dry run by default. With `--execute`, over ssh, `start`:
-    - copies the tarball to `/tmp/bhp-demo/` and checks SHA256SUMS on the
-      board;
-    - finds the panel connector from `/sys/class/drm` (the guest's
-      `drm_device()` rule: one connected connector with 1024x600);
-    - writes the supervisor env under `/tmp/bhp-demo/`. Its brightness, grace
-      and presentation values are demo values, labelled as such. The touch
-      bounds come from `evtest`'s reported axis ranges, and suspend is
-      disabled;
+    - `ctest --test-dir .build/host-dev -R panel_ui_display_rotation_test` exit 0;
+    - `ctest --test-dir .build/host-dev -R panel_display_rotation_simulation` exit 0;
+    - `make verify-panel-goldens` exit 0.
+- [x] **Step 3: A board runner that leaves nothing behind.** (2026-10-18)
+  - `scripts/deploy/frdm_panel_demo.sh` adds `start 0|180`, `status`,
+    `presence 0|1`, `scenario NAME`, `screenshot NAME` and `stop`. Each is a dry
+    run without `--execute`, and the board commands use
+    `BHP_BOARD_SSH_TARGET`. `start` sends the bundle over ssh into a new
+    `/tmp/bhp-demo/`, checks SHA256SUMS there, and runs
+    `scripts/deploy/frdm_panel_demo_board.py start`. The board script:
+    - finds the touch device by name, and the panel connector with the VM
+      guest's rule;
+    - writes the supervisor env (demo values, suspend disabled) under
+      `/tmp/bhp-demo/state`;
     - stops weston;
-    - starts `pir_uinput` and the supervisor as root;
-    - starts `bhp-panel-ui --simulation-drm` with `setpriv` as UID/GID 910,
-      with no passwd entry. `/dev/dri/card1` gets a devtmpfs ACL for 910, not
-      a storage change.
-  - `ctl` passes scenario selection, screenshots, and fake-PIR presence or
-    absence through the guest's fixture control path.
-  - `stop` reverses every step: stops the processes, restores
-    `/dev/dri/card1`'s owner and mode, removes `/tmp/bhp-demo/`, and starts
-    weston. A reboot also clears everything, since it is all in tmpfs and
-    `/run`.
-  - Logs and screenshots are fetched to
-    `hardware_tests/results/frdm/panel-demo-<UTC>/`.
+    - starts the fake PIR, the supervisor, and then the UI as UID/GID 910 with
+      the `video` group. Each runs as a transient systemd unit (`/run`), with
+      its output in `/tmp/bhp-demo/logs`. The journal is volatile on this
+      image (`/run/log/journal`).
+  - `stop` fetches logs and screenshots into
+    `hardware_tests/results/frdm/panel-demo-<UTC>/`. It stops the units, sets
+    the backlight to 255, starts weston again, and removes `/tmp/bhp-demo` and
+    `/run/bhp-sim`.
   - Verify:
-    - a host test of the dry-run plan lists every board command and shows
-      none writes outside `/tmp`, `/run` or `/dev`;
-    - `shellcheck` passes.
+    - `python3 -m unittest discover -s scripts/deploy/tests -p test_*.py` exit 0;
+    - `shellcheck scripts/deploy/frdm_panel_demo.sh scripts/build/frdm_vendor_sysroot.sh` exit 0.
 - [ ] **Step 4: Run the demo with the owner.**
   - The owner powers on; the agent boots the panel DTB from the console (no
     `saveenv`), then runs `start`.
@@ -129,9 +122,9 @@ labelled `demo_not_gate_evidence`.
     1. Home is upright and fills the panel;
     2. a tap opens the vocabulary panel;
     3. cards respond to taps;
-    4. after `ctl absence`, the supervisor dims and then blanks the panel after
+    4. after `presence 0`, the supervisor dims and then blanks the panel after
        the demo grace period;
-    5. after `ctl presence`, it lights again and the UI redraws.
+    5. after `presence 1`, it lights again and the UI redraws.
   - Then `stop`, and the owner confirms the weston desktop is back.
   - Verify:
     - the owner's yes or no for each check;
