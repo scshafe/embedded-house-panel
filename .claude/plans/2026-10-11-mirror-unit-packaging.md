@@ -228,7 +228,7 @@ microSD. Ethernet is for the bench only.
 | From | To | Cable | Notes |
 |---|---|---|---|
 | J15 (22-pin) | panel 15-pin | 12 cm DSI FPC from the kit | contacts toward the springs at both ends |
-| J27-9 / -7 / -6 / -2 | panel SDA1 / SCL1 / GND / 5V | 4 single wires, then a keyed JST harness | pin numbers from B1; confirm on B3 |
+| J27-9 / -7 / -6 / -2 | panel SDA1 / SCL1 / GND / 5V | 4 single wires, then a keyed JST harness | B1 pin numbers; work on this B3 board (2026-10-18, silkscreen "9" and "2" read) |
 | USB-A host | XVF3800 core board USB-C | short USB cable with its 5 V line broken out through the gate board | gate board: privacy switch, load switch, hold timer, LED |
 | XVF3800 core board | mic strip | 24-pin 0.5 mm FPC (20 cm included) | fold-free route to the top strip |
 | XVF3800 speaker connector | micro speaker | 2 wires (JST) | |
@@ -273,7 +273,7 @@ microSD. Ethernet is for the bench only.
 - The PIR's J18 pin and that pad bank's voltage (FRDM-GATE-PIR); its output
   must drive both a GPIO and the gate board's enable input, and its current
   draw is not published.
-- J18 pins 3/5 and J27 pin numbers on B3 (schematic).
+- J18 pins 3/5 on B3 (schematic). J27 works as wired (2026-10-18).
 - XVF3800 power-up-to-ready time and current draw (neither published).
 - FRDM-IMX8MPLUS hole positions, tallest part and heatsink (NXP design files,
   or calipers); thermal behaviour when closed in a bathroom.
