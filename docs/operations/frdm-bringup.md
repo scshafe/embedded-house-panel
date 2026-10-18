@@ -449,7 +449,9 @@ opening a file is not.
   its trials (ARRIVAL-19/20).
 - LAN: on this power-up `eth1` (MAC `…-CC-0D`, the same jack) came up as
   192.168.50.15/24, not 192.168.7.181. The agent's grant covers only the old
-  address, so it used the console. The owner decides the address.
+  address, so it used the console. The owner chose to keep the new address
+  (2026-10-18): `dev.toml [hardware] ssh` is now `root@192.168.50.15`; the
+  agent's host grant still names the old address until the owner changes it.
 - Console: when the agent's logger opened `if00` (05:00:19Z) the board
   logged line noise and then `sysrq: HELP`, so the UART saw a break. A
   break followed by a SysRq command key would act on it (for example `b`
