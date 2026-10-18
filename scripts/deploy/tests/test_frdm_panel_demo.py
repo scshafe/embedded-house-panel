@@ -51,6 +51,12 @@ class BoardWritesStayInTmpfs(unittest.TestCase):
         self.assertEqual(command[command.index('--display-rotation') + 1], '180')
         self.assertEqual(command[command.index('--drm-connector-id') + 1], '40')
 
+    def test_ui_drops_to_the_unprivileged_uid_without_a_passwd_entry(self):
+        source = BOARD.read_text()
+        self.assertNotIn("f'User={UI_UID}'", source)
+        self.assertIn("'setpriv', f'--reuid={UI_UID}', f'--regid={UI_UID}'", source)
+        self.assertIn("'--no-new-privs'", source)
+
 
 class RunnerDryRun(unittest.TestCase):
     def test_start_writes_only_into_tmp_bhp_demo(self):
