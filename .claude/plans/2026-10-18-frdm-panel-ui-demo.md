@@ -2,8 +2,9 @@
 
 <!-- @canonical frdm-panel-ui-demo-plan -->
 
-**Status (2026-10-18):** Steps 1–3 done on the host; Step 0 (ssh) and Step 4
-(the demo) wait for the owner. Requested by the
+**Status (2026-10-18):** Done. The demo ran on the panel with the owner, and
+every check passed. It also found a steady-state backlight flicker. A
+follow-up plan fixes it. Requested by the
 owner after the panel, touch, backlight and XVF3800 came up on the vendor
 image ([bring-up](../../docs/operations/frdm-bringup.md), "Panel on J27").
 
@@ -56,7 +57,7 @@ labelled `demo_not_gate_evidence`.
 
 ## Steps
 
-- [ ] **Step 0: Restore ssh (owner).**
+- [x] **Step 0: Restore ssh (owner).** (2026-10-18)
   - The owner moves the agent's host grant to `192.168.50.15:22`.
   - Verify: `ssh root@192.168.50.15 true` succeeds from the agent account.
 - [x] **Step 1: Cross-build for the vendor image.** (2026-10-18)
@@ -104,8 +105,10 @@ labelled `demo_not_gate_evidence`.
     - writes the supervisor env (demo values, suspend disabled) under
       `/tmp/bhp-demo/state`;
     - stops weston;
-    - starts the fake PIR, the supervisor, and then the UI as UID/GID 910 with
-      the `video` group. Each runs as a transient systemd unit (`/run`), with
+    - starts the fake PIR, the supervisor, and then the UI, which `setpriv`
+      drops to UID/GID 910 with the `video` group and no capabilities. systemd's
+      `User=` refused 910 because it has no passwd entry (first run,
+      2026-10-18). Each runs as a transient systemd unit (`/run`), with
       its output in `/tmp/bhp-demo/logs`. The journal is volatile on this
       image (`/run/log/journal`).
   - `stop` fetches logs and screenshots into
@@ -115,7 +118,7 @@ labelled `demo_not_gate_evidence`.
   - Verify:
     - `python3 -m unittest discover -s scripts/deploy/tests -p test_*.py` exit 0;
     - `shellcheck scripts/deploy/frdm_panel_demo.sh scripts/build/frdm_vendor_sysroot.sh` exit 0.
-- [ ] **Step 4: Run the demo with the owner.**
+- [x] **Step 4: Run the demo with the owner.** (2026-10-18)
   - The owner powers on; the agent boots the panel DTB from the console (no
     `saveenv`), then runs `start`.
   - The owner checks, in order:
@@ -126,9 +129,23 @@ labelled `demo_not_gate_evidence`.
        the demo grace period;
     5. after `presence 1`, it lights again and the UI redraws.
   - Then `stop`, and the owner confirms the weston desktop is back.
+  - Result (`panel-demo-20261018T171850Z`): checks 1–5 passed. After `presence 0`
+    the panel went to 60% and, 2 s later, to 0. After `presence 1` it was back at
+    70% on the same surface. After `stop`, `weston.service` was active again.
+  - Found during the run:
+    - The demo fixes noon at its start time. The first run
+      (`panel-demo-20261018T064019Z`) reached solar night about 10.6 h later and
+      showed the red night mode at 12%. The owner saw this as "gone dark".
+      Restarting the demo resets it.
+    - **Flicker:** the panel went black for a split second every few seconds.
+      Every supervisor cycle writes brightness 0 before it publishes, and relights
+      the panel after the UI commits (12–44 ms). This follows the design in
+      `panel_supervisor/README.md`, and real hardware makes it visible. A
+      follow-up plan fixes it.
+    - No screenshots were taken. The owner's checks are the visual record.
   - Verify:
     - the owner's yes or no for each check;
-    - the run record and screenshots under
+    - the run record and the fetched board logs under
       `hardware_tests/results/frdm/panel-demo-<UTC>/`;
     - `ls /tmp/bhp-demo` fails after `stop`.
 

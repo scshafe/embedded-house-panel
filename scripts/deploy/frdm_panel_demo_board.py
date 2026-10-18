@@ -12,6 +12,7 @@ Usage: frdm_panel_demo_board.py start --rotation 0|180 | status |
 """
 from __future__ import annotations
 import fcntl
+import grp
 import json
 import os
 import re
@@ -183,8 +184,12 @@ def start(rotation: str) -> dict:
     transient('bhp-demo-supervisor', [str(ROOT/'bin/panel_supervisord')],
               'EnvironmentFile=' + str(STATE/'supervisor.env'))
     wait_for(lambda: (RUN/'lifecycle/mode.sock').exists(), 'FRDM_DEMO.SUPERVISOR_SOCKET_MISSING')
-    transient('bhp-demo-ui', ui_command(record), f'User={UI_UID}', f'Group={UI_UID}',
-              'SupplementaryGroups=' + VIDEO_GROUP, 'NoNewPrivileges=yes', 'WorkingDirectory=' + str(ROOT))
+    # systemd's User= needs a passwd entry, and adding one would write the board's
+    # storage; setpriv drops the unit to the bare UID instead.
+    video = grp.getgrnam(VIDEO_GROUP).gr_gid
+    transient('bhp-demo-ui', ['setpriv', f'--reuid={UI_UID}', f'--regid={UI_UID}', f'--groups={video}',
+                              '--inh-caps=-all', '--bounding-set=-all', '--no-new-privs', *ui_command(record)],
+              'WorkingDirectory=' + str(ROOT))
     wait_for(lambda: (RUN/'ui/control.sock').exists(), 'FRDM_DEMO.UI_CONTROL_SOCKET_MISSING', 15)
     return status()
 

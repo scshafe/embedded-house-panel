@@ -457,6 +457,18 @@ opening a file is not.
   break followed by a SysRq command key would act on it (for example `b`
   reboots); HELP means none did.
 
+**Panel UI demo (2026-10-18).** This is not gate evidence; the plan is
+`.claude/plans/2026-10-18-frdm-panel-ui-demo.md`. Raw records are in
+`hardware_tests/results/frdm/panel-demo-20261018T171850Z/`. The cross-built UI,
+supervisor and fake PIR ran from `/tmp` on the vendor image with weston
+stopped. The UI was rotated 180°. The owner confirmed Home, the vocabulary
+cards and taps. Simulated presence dimmed and blanked the panel, then lit it
+again. Weston came back after `stop`. Two findings:
+- the backlight goes dark for 12–44 ms on every supervisor cycle, which the
+  owner saw as flicker, because each cycle writes brightness 0 before it
+  publishes;
+- the demo's fixed noon turns into solar night about 10 h after it starts.
+
 **J18 and J27 pin sources.** UM12340 Rev 1.0 says J18 carries I2S, UART, I2C
 and GPIO but has no pin table. The quick-start guide's J18 drawing uses
 Raspberry Pi names in the Pi layout: 5V on pins 2 and 4, 3V3 on 1, Ground on
