@@ -464,9 +464,11 @@ supervisor and fake PIR ran from `/tmp` on the vendor image with weston
 stopped. The UI was rotated 180°. The owner confirmed Home, the vocabulary
 cards and taps. Simulated presence dimmed and blanked the panel, then lit it
 again. Weston came back after `stop`. Two findings:
-- the backlight goes dark for 12–44 ms on every supervisor cycle, which the
-  owner saw as flicker, because each cycle writes brightness 0 before it
-  publishes;
+- the backlight went dark for 12–44 ms on every supervisor cycle, which the
+  owner saw as flicker, because each cycle wrote brightness 0 before it
+  published. Fixed by ADR 0011. With the fix on the panel, 3000 samples over
+  32 s read no zeros, against 23 blanks before
+  (`panel-demo-20261018T185708Z`), and the owner saw no flicker;
 - the demo's fixed noon turns into solar night about 10 h after it starts.
 
 **J18 and J27 pin sources.** UM12340 Rev 1.0 says J18 carries I2S, UART, I2C

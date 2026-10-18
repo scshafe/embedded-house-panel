@@ -2,8 +2,7 @@
 
 <!-- @canonical supervisor-steady-state-blank-plan -->
 
-**Status (2026-10-18):** Steps 1–3 done; Step 4 (the panel check) waits for
-the owner. The owner asked for this plan after seeing
+**Status (2026-10-18):** Done. On the panel the flicker is gone (Step 4). The owner asked for this plan after seeing
 the flicker in the FRDM demo
 ([demo plan](2026-10-18-frdm-panel-ui-demo.md), Step 4).
 
@@ -141,7 +140,7 @@ supervisor's output order.
   - Verify:
     - `ctest --test-dir .build/host-dev -R panel_supervisor` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 4: Check it on the panel with the owner.**
+- [x] **Step 4: Check it on the panel with the owner.** (2026-10-18)
   - Rebuild the demo bundle, `start 180`, and repeat `backlight-samples 3000`
     at steady presence.
   - Run `presence 0` and then `presence 1`, as in the demo plan.
@@ -151,6 +150,14 @@ supervisor's output order.
     - `presence 0` goes 70 → 60 → 0 and `presence 1` returns to 70;
     - the owner's yes or no: no flicker at steady state;
     - the record under `hardware_tests/results/frdm/panel-demo-<UTC>/`.
+  - Result (`panel-demo-20261018T185708Z`, build `703bd84`):
+    - Samples: 3000 over 32 s, all 179 and no zeros. The baseline had 23 blanks.
+    - Presence: `presence 0` gave 153 (60%), then 0 and suspended about 2 s
+      later. `presence 1` returned to 179 (70%), committed.
+    - After the relight: 1500 more samples, all 179.
+    - The owner: "no flicker, taps work okay."
+    - Repeated same-value writes did not blink the panel, so the first risk
+      below did not occur.
 
 ## Risks
 
