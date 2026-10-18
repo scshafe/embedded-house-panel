@@ -14,6 +14,7 @@ from __future__ import annotations
 import fcntl
 import grp
 import json
+import math
 import os
 import re
 import shutil
@@ -92,6 +93,57 @@ def make_directory(path: Path, uid: int, gid: int, mode: int) -> None:
     path.chmod(mode)
 
 
+# Mirrors OfflineSolarCalculator (panel_supervisor/src/offline_solar_calculator.cpp):
+# the NOAA equations and the 90.833-degree sunrise/sunset zenith.
+DAY_MINIMUM_ELEVATION_DEGREES = 90.0 - 90.833
+POLAR_LATITUDE = 89.9
+DAY_SCAN_SECONDS = 60*24*3600
+DAY_SCAN_STEP_SECONDS = 600
+
+
+def solar_elevation_degrees(latitude: float, longitude: float, when: float) -> float:
+    utc = time.gmtime(when)
+    year = utc.tm_year
+    days_in_year = 366.0 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 365.0
+    hour = utc.tm_hour + utc.tm_min/60 + utc.tm_sec/3600
+    gamma = 2*math.pi/days_in_year*((utc.tm_yday - 1) + (hour - 12)/24)
+    equation_of_time = 229.18*(0.000075 + 0.001868*math.cos(gamma) - 0.032077*math.sin(gamma)
+                               - 0.014615*math.cos(2*gamma) - 0.040849*math.sin(2*gamma))
+    declination = (0.006918 - 0.399912*math.cos(gamma) + 0.070257*math.sin(gamma) - 0.006758*math.cos(2*gamma)
+                   + 0.000907*math.sin(2*gamma) - 0.002697*math.cos(3*gamma) + 0.00148*math.sin(3*gamma))
+    true_solar_minutes = math.fmod(hour*60 + equation_of_time + 4*longitude, 1440.0)
+    if true_solar_minutes < 0:
+        true_solar_minutes += 1440.0
+    hour_angle = math.radians(true_solar_minutes/4 - 180)
+    phi = math.radians(latitude)
+    cosine_zenith = math.sin(phi)*math.sin(declination) + math.cos(phi)*math.cos(declination)*math.cos(hour_angle)
+    return 90.0 - math.degrees(math.acos(max(-1.0, min(1.0, cosine_zenith))))
+
+
+def day_lasts_seconds(latitude: float, longitude: float, start: float) -> int:
+    """Seconds from START until the supervisor would first compute night, capped at the scan length."""
+    for offset in range(0, DAY_SCAN_SECONDS + 1, DAY_SCAN_STEP_SECONDS):
+        if solar_elevation_degrees(latitude, longitude, start + offset) < DAY_MINIMUM_ELEVATION_DEGREES:
+            return offset
+    return DAY_SCAN_SECONDS
+
+
+def demo_solar_position(start: float) -> dict:
+    """Picks a demo-only position that stays in solar day as long as possible.
+
+    A point near the pole in polar day stays day for months. Refraction keeps
+    one pole in day through each equinox, so the shortest run is about 4 days
+    (2026-09-22). Solar noon on the equator (about 6 h) is kept as a last resort.
+    """
+    utc = time.gmtime(start)
+    noon_longitude = ((12 - (utc.tm_hour + utc.tm_min/60 + utc.tm_sec/3600))*15 + 180) % 360 - 180
+    candidates = [(POLAR_LATITUDE, 0.0), (-POLAR_LATITUDE, 0.0), (0.0, round(noon_longitude, 4))]
+    lasting = [(day_lasts_seconds(latitude, longitude, start), latitude, longitude) for latitude, longitude in candidates]
+    seconds, latitude, longitude = max(lasting)
+    return {'latitude': latitude, 'longitude': longitude, 'day_for_at_least_hours': round(seconds/3600, 1),
+            'scan_hours': DAY_SCAN_SECONDS//3600}
+
+
 def configure(rotation: str) -> dict:
     """Writes the demo supervisor env and runtime record. Mirrors the VM guest's configure()."""
     make_directory(RUN, 0, 0, 0o755)
@@ -104,11 +156,9 @@ def configure(rotation: str) -> dict:
     make_directory(LOGS, 0, 0, 0o755)
     touch = touch_device()
     drm = drm_device()
-    # Solar position is chosen so the supervisor computes day now, as in the VM guest.
-    now = time.gmtime()
-    utc_hour = now.tm_hour + now.tm_min/60 + now.tm_sec/3600
-    longitude = ((12 - utc_hour)*15 + 180) % 360 - 180
-    values = {'LATITUDE': 0, 'LONGITUDE': longitude, 'PRESENCE_GRACE_SECONDS': 3,
+    # A demo-only solar position, chosen so the supervisor computes day for the whole run.
+    solar = demo_solar_position(time.time())
+    values = {'LATITUDE': solar['latitude'], 'LONGITUDE': solar['longitude'], 'PRESENCE_GRACE_SECONDS': 3,
               'PRESENCE_INPUT_NAME': PIR_NAME, 'BACKLIGHT_PATH': str(BACKLIGHT/'brightness'),
               'BACKLIGHT_MAX_PATH': str(BACKLIGHT/'max_brightness'),
               'MODE_SOCKET': str(RUN/'lifecycle/mode.sock'), 'PANEL_UI_UID': UI_UID,
@@ -121,7 +171,7 @@ def configure(rotation: str) -> dict:
               'TOUCH_SLOTS': touch['slots'], 'TOUCH_SOCKET': str(RUN/'touch/observations.sock'),
               'TOUCH_TTL_MILLISECONDS': 1500, 'TOUCH_MAX_CONTACT_MILLISECONDS': 4000, 'TOUCH_MAX_OBSERVATIONS': 128}
     (STATE/'supervisor.env').write_text(''.join(f'BHP_PANEL_SUPERVISOR_{key}={value}\n' for key, value in values.items()))
-    record = {'touch': touch, 'drm': drm, 'rotation': rotation, 'longitude': longitude, 'evidence': EVIDENCE}
+    record = {'touch': touch, 'drm': drm, 'rotation': rotation, 'solar': solar, 'evidence': EVIDENCE}
     (STATE/'runtime.json').write_text(json.dumps(record, indent=2) + '\n')
     return record
 
@@ -212,6 +262,7 @@ def latest_ui_status() -> dict | None:
 def status() -> dict:
     return {'units': {unit: invoke('systemctl', 'is-active', unit, check=False) for unit in UNITS},
             'brightness': int((BACKLIGHT/'brightness').read_text()),
+            'solar': json.loads((STATE/'runtime.json').read_text()).get('solar'),
             'ui': latest_ui_status(), 'evidence': EVIDENCE}
 
 
