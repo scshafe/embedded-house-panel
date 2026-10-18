@@ -241,8 +241,9 @@ from the vendor image, not closed gates: no profile key changed and
   2 GB / 16 GB one. The marking was transcribed by the agent from the owner's
   photos.
 - ARRIVAL-13 discovery ran on the vendor DTB (2026-10-10, below) and on the
-  vendor panel DTB with the panel attached (2026-10-11, below). The panel stays
-  dark until its I2C wires go in; the rerun after rewiring is next.
+  vendor panel DTB with the panel attached (2026-10-11, below). With the I2C
+  wires on J27 (2026-10-18, below) the panel lights, touch reports and the
+  backlight dims and goes dark. The gate script itself has not rerun since.
 - ARRIVAL-08 onward otherwise: not started. ARRIVAL-08 and -10 need the owner at the
   board with a meter and the PIR; ARRIVAL-15 is the NXP firmware decision.
 
@@ -417,6 +418,42 @@ opening a file is not.
 - U-Boot logged "Arbitration lost" and "i2c_init_transfer: failed for chip
   0x25" once (second boot). `0x25` is the PCA9450 PMIC, which Linux then
   probed normally (`nxp-pca9450 0-0025`). Not seen on the other three boots.
+
+**Panel on J27 (2026-10-18, owner-approved boot).** Raw records in
+`panel-j27-20261018T050000Z/` (console log, `notes.txt`, two wiring photos).
+
+- Wiring (owner, power off): the J18 pin 4/6 wires removed; four F/F jumpers
+  from the panel's header to J27: SDA1 (gray) to pin 9, SCL1 (purple) to
+  pin 7, the GND beside SCL1 (black) to pin 6, the 5V beside SDA1 (white) to
+  pin 2. The owner read the silkscreen "9" beside gray and "2" beside white,
+  so the B1 pin numbers hold on this B3 board.
+- Before the panel boot, on the default DTB with only the wires changed,
+  `i2cget` on i2c3 (`i2c-2`, `30a40000`) read `0x45` registers `0x80` = `0xff`
+  and `0x81` = `0x80`, and `0x14` answered; on 2026-10-11 all of these
+  failed. `0x5d` did not answer.
+- The owner power-cycled the board; the console stopped autoboot, and
+  `setenv fdtfile imx8mp-frdm-waveshare-7inch-c-panel.dtb` and `boot` ran
+  once, without `saveenv`. `card1-DPI-1` is `connected`, `card1-HDMI-A-1`
+  `disconnected`, the backlight reads 255, and weston started. The owner saw
+  the screen lit.
+- Touch: "Goodix-TS 2-0014: ID 911, version: 1060", input `event2`. `evtest`
+  for 15 s recorded 7 touches with `ABS_MT_POSITION_X/Y` and `BTN_TOUCH`
+  1/0. The axes run X 0–799, Y 0–479, not the panel's 1024×600; libinput
+  scales the range to the output, and nobody has checked that taps land
+  where touched.
+- Backlight: `2-0045/brightness` set to 64, 0, 128, then 255 at 5 s steps.
+  The owner saw it dim at 64, go dark at 0 and come back. `actual_brightness`
+  only echoes the value written; the bridge has no read-back.
+- These are console observations, not gate records: FRDM-GATE-DISPLAY, -TOUCH
+  and -BACKLIGHT stay open until `frdm_display_touch_backlight.sh` runs with
+  its trials (ARRIVAL-19/20).
+- LAN: on this power-up `eth1` (MAC `…-CC-0D`, the same jack) came up as
+  192.168.50.15/24, not 192.168.7.181. The agent's grant covers only the old
+  address, so it used the console. The owner decides the address.
+- Console: when the agent's logger opened `if00` (05:00:19Z) the board
+  logged line noise and then `sysrq: HELP`, so the UART saw a break. A
+  break followed by a SysRq command key would act on it (for example `b`
+  reboots); HELP means none did.
 
 **J18 and J27 pin sources.** UM12340 Rev 1.0 says J18 carries I2S, UART, I2C
 and GPIO but has no pin table. The quick-start guide's J18 drawing uses
