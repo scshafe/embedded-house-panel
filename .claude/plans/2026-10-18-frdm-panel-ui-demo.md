@@ -3,8 +3,8 @@
 <!-- @canonical frdm-panel-ui-demo-plan -->
 
 **Status (2026-10-18):** Done. The demo ran on the panel with the owner, and
-every check passed. It also found a steady-state backlight flicker. A
-follow-up plan fixes it. Requested by the
+every check passed. It also found a steady-state backlight flicker, which
+[the steady-state blank plan](2026-10-18-supervisor-steady-state-blank.md) fixes. Requested by the
 owner after the panel, touch, backlight and XVF3800 came up on the vendor
 image ([bring-up](../../docs/operations/frdm-bringup.md), "Panel on J27").
 
@@ -140,8 +140,8 @@ labelled `demo_not_gate_evidence`.
     - **Flicker:** the panel went black for a split second every few seconds.
       Every supervisor cycle writes brightness 0 before it publishes, and relights
       the panel after the UI commits (12–44 ms). This follows the design in
-      `panel_supervisor/README.md`, and real hardware makes it visible. A
-      follow-up plan fixes it.
+      `panel_supervisor/README.md`, and real hardware makes it visible. The
+      steady-state blank plan above fixes it.
     - No screenshots were taken. The owner's checks are the visual record.
   - Verify:
     - the owner's yes or no for each check;
