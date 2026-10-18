@@ -58,12 +58,18 @@ already woke Linux. Any pre-wake debounce or gate requires a separately reviewed
 kernel/hardware mechanism and target evidence; no experimental overlay value is
 a production default.
 
-Output order is direction-safe. Every cycle writes exact logical brightness
-zero, publishes the complete UI mode snapshot, and awaits an explicit
-presentation outcome. Only `committed` permits the requested nonzero brightness
-write. `not_committed` and `failed` outcomes keep applied brightness at zero,
-emit a structured `presentation_degraded` warning, complete the cycle, and do
-not skip a requested suspend. Timeout, disconnect, stale, duplicate, mismatch,
+Output order is direction-safe
+([ADR 0011](../docs/decisions/0011-blank-before-presentation-changes-not-every-cycle.md)).
+~~Every cycle writes exact logical brightness zero~~ A cycle writes exact
+logical brightness zero, publishes the complete UI mode snapshot, and awaits an
+explicit presentation outcome. The exception is a cycle where the panel is lit,
+the last committed `display_mode` equals the new one, and the new mode is not
+`suspended`: that cycle keeps the applied brightness while it publishes and
+awaits. Only `committed` permits the requested nonzero brightness write.
+`not_committed` and `failed` outcomes leave applied brightness at zero (written
+after the wait when the cycle kept the panel lit), emit a structured
+`presentation_degraded` warning, complete the cycle, and do not skip a
+requested suspend. Timeout, disconnect, stale, duplicate, mismatch,
 and explicit negative acknowledgement are degraded presentation outcomes rather
 than cycle faults.
 

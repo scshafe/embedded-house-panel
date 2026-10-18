@@ -79,12 +79,16 @@ architecture documents must defer here rather than restating it.
 
 ## Presentation degradation and fatal faults
 
-Every output cycle first applies exact logical brightness zero, publishes the
-complete display-policy snapshot, and awaits an explicit presentation outcome.
+~~Every output cycle first applies exact logical brightness zero~~ An output
+cycle first applies exact logical brightness zero, publishes the complete
+display-policy snapshot, and awaits an explicit presentation outcome. A cycle
+that finds the panel lit in the same committed display mode, with a
+non-suspended new mode, skips the first zero and keeps the applied brightness
+while it awaits ([ADR 0011](../decisions/0011-blank-before-presentation-changes-not-every-cycle.md)).
 Only an exact `committed` outcome permits a requested nonzero brightness write.
 Acknowledgement timeout, disconnect, stale, duplicate, mismatch, or explicit
-failure is a structured degraded outcome, not a cycle fault: brightness stays
-zero, the supervisor emits `presentation_degraded`, the cycle completes, and
+failure is a structured degraded outcome, not a cycle fault: brightness is
+zero by the end of the cycle, the supervisor emits `presentation_degraded`, the cycle completes, and
 any policy-requested suspend is still attempted. The current explicit outcome
 model also treats acknowledgement unavailability, publication failure, and a
 caught presentation-adapter contract violation as degraded presentation
@@ -131,6 +135,10 @@ trying to sleep again. That resume/resuspend backoff is not a retry policy for
 a failed `/sys/power/state` write: an adapter rejection or write error leaves
 the already-zero backlight in place and terminates the daemon with a structured
 failure so service policy or an operator can diagnose it.
+
+**Amended 2026-10-18:** ADR 0011. An unchanged lit display mode no longer
+blanks at the start of each cycle; a non-committed outcome then writes zero
+after the wait.
 
 **Amended 2026-08-07:** struck the feature-routing and retained-output fault
 contracts, made this document the single authority for configurable 120-second

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Builds and runs the FRDM panel UI demo (.claude/plans/2026-10-18-frdm-panel-ui-demo.md).
 # Inputs: build | start 0|180 | status | presence 0|1 | scenario NAME |
-#   screenshot NAME | stop, then optional --execute. Default is a JSON dry run.
+#   screenshot NAME | backlight-samples N | stop, then optional --execute.
+#   backlight-samples reads the backlight node N (1-6000) times, 10 ms apart. Default is a JSON dry run.
 #   Board commands need BHP_BOARD_SSH_TARGET (config/device.env or dev.toml ssh).
 # Side effects with --execute:
 #   build: .build/frdm-demo/ and .build/frdm-demo-bundle.tar.gz (needs
@@ -156,9 +157,11 @@ def main():
         return board(arguments)
     if len(arguments) == 2 and arguments[0] == 'presence' and arguments[1] in ('0', '1'):
         return board(arguments)
+    if len(arguments) == 2 and arguments[0] == 'backlight-samples' and re.fullmatch('[1-9][0-9]{0,3}', arguments[1]):
+        return board(arguments)
     if len(arguments) == 2 and arguments[0] in ('scenario', 'screenshot') and re.fullmatch('[a-z0-9_-]{1,80}', arguments[1]):
         return board(arguments)
-    fail('FRDM_DEMO.USAGE', 'build | start 0|180 | status | presence 0|1 | scenario NAME | screenshot NAME | stop [--execute]')
+    fail('FRDM_DEMO.USAGE', 'build | start 0|180 | status | presence 0|1 | scenario NAME | screenshot NAME | backlight-samples N | stop [--execute]')
 
 print(json.dumps(main()))
 PY

@@ -141,3 +141,9 @@ must defer to panel policy for current grace behavior.
 reduced-validation-set sections after the executable roadmap and adversarial
 implementation review required one immutable complete commitment at the final
 power boundary. Every other decision in this record remains accepted.
+
+**Amended 2026-10-18:** ADR 0011 changes when the zero is written for a cycle
+that keeps a lit panel in an unchanged display mode. Brightness is zero by the
+end of every non-committed cycle, and only `committed` permits nonzero
+brightness. For those cycles, the zero follows the wait instead of preceding
+it.

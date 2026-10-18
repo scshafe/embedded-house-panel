@@ -244,6 +244,34 @@ def screenshot(name: str) -> dict:
     return status()
 
 
+MAXIMUM_SAMPLES = 6000
+SAMPLE_INTERVAL_SECONDS = 0.01
+
+
+def summarize_samples(samples: list[int]) -> dict:
+    """Counts each value and each run of zeros (one run is one blank the panel showed)."""
+    counts: dict[str, int] = {}
+    for value in samples:
+        counts[str(value)] = counts.get(str(value), 0) + 1
+    zero_runs = sum(1 for index, value in enumerate(samples) if value == 0 and (index == 0 or samples[index - 1] != 0))
+    return {'samples': len(samples), 'counts': counts, 'zero_runs': zero_runs}
+
+
+def backlight_samples(count: str) -> dict:
+    """Reads the brightness node COUNT times, 10 ms apart; read-only."""
+    if not count.isdigit() or not 1 <= int(count) <= MAXIMUM_SAMPLES:
+        raise ValueError('FRDM_DEMO.SAMPLE_COUNT_INVALID')
+    samples = []
+    started = time.monotonic()
+    for _ in range(int(count)):
+        samples.append(int((BACKLIGHT/'brightness').read_text()))
+        time.sleep(SAMPLE_INTERVAL_SECONDS)
+    record = summarize_samples(samples)
+    record.update({'interval_ms': int(SAMPLE_INTERVAL_SECONDS*1000), 'elapsed_s': round(time.monotonic() - started, 2),
+                   'evidence': EVIDENCE})
+    return record
+
+
 def stop() -> dict:
     for unit in UNITS:
         invoke('systemctl', 'stop', unit, check=False)
@@ -272,6 +300,8 @@ def main(arguments: list[str]) -> dict:
         return scenario(arguments[1])
     if len(arguments) == 2 and arguments[0] == 'screenshot':
         return screenshot(arguments[1])
+    if len(arguments) == 2 and arguments[0] == 'backlight-samples':
+        return backlight_samples(arguments[1])
     if arguments == ['stop']:
         return stop()
     raise ValueError('FRDM_DEMO.USAGE')

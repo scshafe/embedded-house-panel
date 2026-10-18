@@ -515,11 +515,20 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 		return fail_cycle(trace_id, event, result.error());
 	};
 
-	const auto blank_output = apply_output([&apply_backlight]() {
-		return apply_backlight(0);
-	});
-	if (!blank_output) {
-		return blank_output;
+	// ADR 0011: a lit panel whose committed display mode does not change stays lit
+	// while the UI commits the same mode; every other cycle blanks first.
+	const bool keep_lit = state_.applied_brightness_percent.value_or(0) != 0 &&
+			      decision.ui_mode != UiMode::Suspended &&
+			      last_committed_presentation_.has_value() &&
+			      last_committed_presentation_->display_mode ==
+				      protocol_display_mode(decision.ui_mode);
+	if (!keep_lit) {
+		const auto blank_output = apply_output([&apply_backlight]() {
+			return apply_backlight(0);
+		});
+		if (!blank_output) {
+			return blank_output;
+		}
 	}
 
 	const auto presentation_result = publish_and_await_presentation();
@@ -536,6 +545,14 @@ Result<PanelState> PanelSupervisor::recompute(const SupervisorEvent event,
 		});
 		if (!brightness_output) {
 			return brightness_output;
+		}
+	} else if (state_.applied_brightness_percent.value_or(0) != 0) {
+		// Only a committed presentation may leave the panel lit.
+		const auto blank_output = apply_output([&apply_backlight]() {
+			return apply_backlight(0);
+		});
+		if (!blank_output) {
+			return blank_output;
 		}
 	}
 

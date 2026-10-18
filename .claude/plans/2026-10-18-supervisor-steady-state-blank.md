@@ -2,7 +2,8 @@
 
 <!-- @canonical supervisor-steady-state-blank-plan -->
 
-**Status (2026-10-18):** Proposed. The owner asked for this plan after seeing
+**Status (2026-10-18):** Steps 1–3 done; Step 4 (the panel check) waits for
+the owner. The owner asked for this plan after seeing
 the flicker in the FRDM demo
 ([demo plan](2026-10-18-frdm-panel-ui-demo.md), Step 4).
 
@@ -88,7 +89,7 @@ supervisor's output order.
 
 ## Steps
 
-- [ ] **Step 1: Record the decision.**
+- [x] **Step 1: Record the decision.** (2026-10-18)
   - Add ADR 0011 "Blank before presentation changes, not every cycle", with
     the rule, the safety window and Option B. Register it in
     `docs/decisions/README.md`.
@@ -100,7 +101,7 @@ supervisor's output order.
       of the cycle").
   - Verify:
     - `make verify` exit 0.
-- [ ] **Step 2: A backlight probe, and the baseline.**
+- [x] **Step 2: A backlight probe, and the baseline.** (2026-10-18)
   - Add `backlight-samples N` to `scripts/deploy/frdm_panel_demo.sh` and the
     board script. It reads `/sys/class/backlight/2-0045/brightness` N times,
     10 ms apart, and reports the count of each value. It only reads, and the
@@ -112,7 +113,9 @@ supervisor's output order.
     - `python3 -m unittest discover -s scripts/deploy/tests -p test_*.py` exit 0;
     - the baseline record under `hardware_tests/results/frdm/panel-demo-<UTC>/`
       shows zero samples at steady 70%.
-- [ ] **Step 3: Change the cycle.**
+  - Result (`panel-demo-20261018T175114Z`): 3000 samples over 32 s. 58 read 0, in
+    23 separate blanks (one per cycle); the other 2942 read 179.
+- [x] **Step 3: Change the cycle.** (2026-10-18)
   - Implement the rule in `PanelSupervisor`'s cycle. The keep-lit decision
     uses `state_.applied_brightness_percent` and the display mode of
     `last_committed_presentation_` before publishing.
@@ -128,6 +131,13 @@ supervisor's output order.
       `initial_active_mode_is_notified_before_nonzero_backlight`);
     - a commit whose `display_mode` differs from the expected one is still
       rejected, and the cycle writes 0.
+  - Done: ADR 0011 is in the cycle. The existing
+    `noncommitted_active_cycle_blanks_a_previously_lit_backlight` now expects the
+    zero after the wait. The new tests are
+    `steady_same_mode_poll_keeps_the_panel_lit_through_presentation`,
+    `steady_same_mode_poll_blanks_after_an_uncommitted_presentation`,
+    `lit_cycle_rejects_a_commit_for_another_display_mode_and_blanks` and
+    `present_to_grace_in_the_same_mode_dims_without_blanking`.
   - Verify:
     - `ctest --test-dir .build/host-dev -R panel_supervisor` exit 0;
     - `make verify` exit 0.
