@@ -469,7 +469,9 @@ again. Weston came back after `stop`. Two findings:
   published. Fixed by ADR 0011. With the fix on the panel, 3000 samples over
   32 s read no zeros, against 23 blanks before
   (`panel-demo-20261018T185708Z`), and the owner saw no flicker;
-- the demo's fixed noon turns into solar night about 10 h after it starts.
+- the demo's fixed noon turned into solar night about 10 h after it started.
+  The board script now uses a position in polar day (latitude ±89.9), which
+  stays day for months, and at least about 4 days next to an equinox.
 
 **J18 and J27 pin sources.** UM12340 Rev 1.0 says J18 carries I2S, UART, I2C
 and GPIO but has no pin table. The quick-start guide's J18 drawing uses

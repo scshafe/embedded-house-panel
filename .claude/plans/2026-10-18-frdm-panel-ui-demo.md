@@ -136,7 +136,10 @@ labelled `demo_not_gate_evidence`.
     - The demo fixes noon at its start time. The first run
       (`panel-demo-20261018T064019Z`) reached solar night about 10.6 h later and
       showed the red night mode at 12%. The owner saw this as "gone dark".
-      Restarting the demo resets it.
+      Fixed afterwards (2026-10-18, `panel-demo-20261018T205941Z`): the board
+      script now uses a position near whichever pole is in polar day
+      (latitude ±89.9). Day then lasts months, and at least about 4 days next
+      to an equinox. Solar noon on the equator remains as a last resort.
     - **Flicker:** the panel went black for a split second every few seconds.
       Every supervisor cycle writes brightness 0 before it publishes, and relights
       the panel after the UI commits (12–44 ms). This follows the design in

@@ -1,5 +1,6 @@
 """Host checks for the FRDM panel UI demo runner (plan 2026-10-18-frdm-panel-ui-demo, Step 3)."""
 import ast
+import calendar
 import importlib.util
 import json
 import os
@@ -93,6 +94,33 @@ class RunnerDryRun(unittest.TestCase):
     def test_sample_summary_counts_each_blank_once(self):
         summary = load_board().summarize_samples([179, 0, 0, 179, 179, 0, 179, 31])
         self.assertEqual(summary, {'samples': 8, 'counts': {'179': 4, '0': 3, '31': 1}, 'zero_runs': 2})
+
+    def test_demo_position_stays_in_day_for_the_whole_scan_outside_equinoxes(self):
+        board = load_board()
+        october = calendar.timegm((2026, 10, 18, 17, 0, 0))
+        june = calendar.timegm((2026, 6, 1, 3, 0, 0))
+        self.assertEqual(board.demo_solar_position(october)['latitude'], -board.POLAR_LATITUDE)
+        self.assertEqual(board.demo_solar_position(june)['latitude'], board.POLAR_LATITUDE)
+        for start in (october, june):
+            solar = board.demo_solar_position(start)
+            self.assertEqual(solar['day_for_at_least_hours'], solar['scan_hours'])
+            for offset in range(0, 7*24*3600, 1800):
+                self.assertGreaterEqual(board.solar_elevation_degrees(solar['latitude'], solar['longitude'], start + offset),
+                                        board.DAY_MINIMUM_ELEVATION_DEGREES)
+
+    def test_the_worst_case_near_an_equinox_still_gives_four_days_of_day(self):
+        # Refraction keeps one pole in day through each equinox; the shortest run
+        # over 2026 (sampled every 6 h) starts at 2026-09-22T00:00Z.
+        board = load_board()
+        solar = board.demo_solar_position(calendar.timegm((2026, 9, 22, 0, 0, 0)))
+        self.assertGreaterEqual(solar['day_for_at_least_hours'], 96)
+
+    def test_elevation_matches_the_supervisor_equinox_test(self):
+        # offline_solar_calculator_test: equinox noon above 85 degrees, midnight below -85.
+        board = load_board()
+        noon = calendar.timegm((2026, 3, 20, 12, 0, 0))
+        self.assertGreater(board.solar_elevation_degrees(0.0, 0.0, noon), 85)
+        self.assertLess(board.solar_elevation_degrees(0.0, 0.0, noon + 12*3600), -85)
 
     def test_build_dry_run_cross_compiles_with_the_vendor_toolchain(self):
         code, plan = dry_run('build')
