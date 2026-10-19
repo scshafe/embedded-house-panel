@@ -88,6 +88,11 @@ infer a sibling checkout or encode a developer-specific absolute path. Runtime
 Lexinet endpoint and credential configuration remain separate from this
 development-source input.
 
+**Amended 2026-10-18 (issue #20):** when `BHP_LEXINET_SOURCE_DIR` is unset, the
+host tools fetch the exact commit pinned in the panel's contract provenance from
+`https://github.com/scshafe/lexinet` into an ignored cache. That is a fixed,
+content-checked pin, not an inferred checkout, so the rule above still holds.
+
 ### Preserve later review and evidence gates
 
 This record accepts decisions and ownership only. It neither implements nor

@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "lexinet"))
+from pinned_source import PinnedSourceError, resolve_source  # noqa: E402
+
 
 EXPECTED_CONTRACT_ID = "study.v1"
 EXPECTED_SCHEMA_VERSION = 1
@@ -49,8 +52,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--lexinet-source-dir",
         type=Path,
-        required=True,
-        help="Explicit Lexinet checkout containing contracts/study.v1.",
+        help=(
+            "Explicit Lexinet checkout containing contracts/study.v1. Without it, the pinned "
+            "revision is fetched from GitHub into .build/lexinet/source/."
+        ),
     )
     parser.add_argument(
         "--check",
@@ -277,14 +282,15 @@ def write_outputs(outputs: dict[Path, bytes]) -> None:
 def main() -> int:
     args = parse_args()
     try:
-        provenance, exported = build_export(args.lexinet_source_dir)
+        source_dir, _ = resolve_source(args.lexinet_source_dir)
+        provenance, exported = build_export(source_dir)
         outputs = expected_outputs(provenance, exported)
         if args.check:
             check_outputs(outputs)
         else:
             write_outputs(outputs)
             check_outputs(outputs)
-    except ExportError as error:
+    except (ExportError, PinnedSourceError) as error:
         print(
             json.dumps({"ok": False, "error": {"code": error.code, "message": str(error)}}),
             file=sys.stderr,

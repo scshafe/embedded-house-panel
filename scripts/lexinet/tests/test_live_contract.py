@@ -29,10 +29,12 @@ class LiveContractDryRunTest(unittest.TestCase):
             self.assertIn(scenario, plan["scenarios"])
         self.assertFalse(Path("/nonexistent/state").exists())
 
-    def test_lexinet_source_is_never_inferred(self) -> None:
-        result = self.run_script()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("--lexinet-source-dir", result.stderr)
+    def test_without_a_checkout_the_plan_is_the_pinned_fetch(self) -> None:
+        result = self.run_script("--state-root", "/nonexistent/state")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["lexinet_source_dir"],
+                         "pinned_fetch:ce42272df315f357e10998dd48e9ffd1a935c2ff")
 
     def test_invalid_checkout_fails_closed_without_secrets(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bhp-live-contract-test-") as temporary:

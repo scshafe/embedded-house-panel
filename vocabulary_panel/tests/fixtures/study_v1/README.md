@@ -8,13 +8,14 @@ The bundle digest hashes each sorted contract-relative path, a NUL byte, its raw
 contents, and a trailing NUL byte for the manifest, OpenAPI document, and every
 manifest-listed example.
 
-Refresh or verify the export only from an explicit checkout:
+Verify the export against the pinned revision, fetched from GitHub into
+`.build/lexinet/source/`, or refresh it from an explicit checkout when
+repinning:
 
 ```sh
+python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py --check
 python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py \
   --lexinet-source-dir "$BHP_LEXINET_SOURCE_DIR"
-python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py \
-  --lexinet-source-dir "$BHP_LEXINET_SOURCE_DIR" --check
 ```
 
 The host test consumes only this bounded export. It checks exact `study.v1`
