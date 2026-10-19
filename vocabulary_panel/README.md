@@ -39,6 +39,15 @@ production service enablement or any FRDM gate.
   `StudyWorker` owns one bounded work/completion mailbox; rendering polls it and
   never performs HTTP. Per-operation cancellation and shared shutdown both
   interrupt work; generation cancellation suppresses stale completions.
+- `StudySynchronizer` (`@canonical study_synchronizer`) drives one
+  `FlashCardSession` through one `StudyWorker` from the UI thread. It keeps one
+  operation in flight, waits a pacing interval (1 s) between attempts, and sends
+  only while the caller reports the study surface active (study surface, day
+  mode, presence not absent). Without a session it creates; a
+  `refill_required` session gets one successor with the predecessor's flush
+  receipt; a pending outbox syncs. A non-retryable error stops it until
+  `reset()`, and `cancel()` drops the in-flight completion. Every host that
+  shows the study surface uses it; the simulator was the first.
 
 ## Evidence and durability semantics
 
