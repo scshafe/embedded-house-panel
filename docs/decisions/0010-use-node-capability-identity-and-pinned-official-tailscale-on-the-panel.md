@@ -79,3 +79,6 @@ disagree.
 - [Lexinet consumer contract](../interfaces/lexinet-contract.md)
 - [FRDM platform](0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md)
 - [Virtual panel target](0009-add-an-isolated-virtual-panel-target.md)
+- [ADR 0012](0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md): the one
+  stored secret, a voice-lab refresh token held by the uploader (2026-10-19);
+  this record's Lexinet rule is unchanged

@@ -164,7 +164,7 @@ fixture data, recording through the media broker's `voice_take` purpose.
     - `python3 -m unittest discover -s scripts/contracts/tests` exit 0;
     - `python3 -m unittest discover -s scripts/lexinet/tests` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 5: ADR 0012, the refresh token on the panel.**
+- [x] **Step 5: ADR 0012, the refresh token on the panel.** (2026-10-19)
   - The threat model for the `0600` refresh-token file: whose subject it
     acts for, what it reaches (voice-lab's allow-list only), who can read it
     (the uploader's UID; never the UI, the broker or the supervisor), the
@@ -176,6 +176,11 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - The device-code screen shows `verification_uri` and the user code only,
     and enforces `expires_in`.
   - Update the threat model document and ADR 0010's related list.
+  - Done: `docs/decisions/0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md`,
+    with a registry row, a new asset row and revocation step in
+    `docs/security/threat-model.md`, and a reference from ADR 0010. If the
+    durable write of a rotated token fails, the uploader signs in again rather
+    than use the new access token.
   - Verify:
     - `make verify` exit 0.
 - [ ] **Step 6: The recorder screens on fixture data.**
