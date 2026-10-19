@@ -46,6 +46,7 @@ constexpr const char *kPollIntervalMilliseconds = "BHP_PANEL_SUPERVISOR_POLL_INT
 constexpr const char *kSuspendRetryBackoffMilliseconds =
 	"BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS";
 constexpr const char *kMediaBrokerUid = "BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID";
+constexpr const char *kMediaWindowSocket = "BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET";
 
 constexpr long long kMinimumPollIntervalMilliseconds = 50;
 constexpr long long kMaximumPollIntervalMilliseconds = 5'000;
@@ -55,7 +56,7 @@ constexpr long long kMaximumSuspendRetryBackoffMilliseconds = 300'000;
 constexpr long long kMinimumPresentationTimeoutMilliseconds = 1;
 constexpr long long kMaximumPresentationTimeoutMilliseconds = 60'000;
 
-constexpr std::array<const char *, 22> kKnownEnvironmentVariables{
+constexpr std::array<const char *, 23> kKnownEnvironmentVariables{
 	kLatitude,
 	kLongitude,
 	kPresenceGraceSeconds,
@@ -78,6 +79,7 @@ constexpr std::array<const char *, 22> kKnownEnvironmentVariables{
 	kPollIntervalMilliseconds,
 	kSuspendRetryBackoffMilliseconds,
 	kMediaBrokerUid,
+	kMediaWindowSocket,
 };
 
 const std::string *find_field(const std::map<std::string, std::string> &fields,
@@ -357,6 +359,18 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		}
 	}
 
+	const std::string *media_window_text = find_field(configuration_fields, kMediaWindowSocket);
+	std::string media_window_socket;
+	if (media_window_text != nullptr && !media_window_text->empty()) {
+		if (!is_explicit_path(*media_window_text) || media_window_text->size() > 100) {
+			invalid_fields[kMediaWindowSocket] = "when_present_must_be_absolute_placeholder_free_and_at_most_100_bytes";
+		} else if (media_broker_uid_text == nullptr || media_broker_uid_text->empty()) {
+			invalid_fields[kMediaWindowSocket] = "requires_the_media_broker_uid";
+		} else {
+			media_window_socket = *media_window_text;
+		}
+	}
+
 	if (has_presence_path && !is_explicit_path(*presence_path)) {
 		invalid_fields[kPresenceInputPath] = "must_be_absolute_and_placeholder_free";
 	}
@@ -448,6 +462,7 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		std::chrono::milliseconds(suspend_retry_backoff_milliseconds));
 	configuration.touch_configuration_ = touch_result.value();
 	configuration.media_broker_uid_ = media_broker_uid;
+	configuration.media_window_socket_ = media_window_socket;
 	return Result<PanelSupervisordConfig>::success(std::move(configuration));
 }
 
