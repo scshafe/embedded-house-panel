@@ -26,9 +26,9 @@ if [ "$mode" = dry-run ]; then
   bhp_log info bootstrap_dry_run "$TRACE_ID" distribution arch packages "$packages" command "sudo pacman -Syu --needed $packages"
   exit 0
 fi
-[ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] || {
+if [ "$(uname -s)" != Linux ] || [ "$(uname -m)" != x86_64 ]; then
   bhp_fail BOOTSTRAP.ARCH_X86_64_REQUIRED "Execute on an Arch Linux x86_64 host" "$TRACE_ID"; exit 1
-}
+fi
 [ -r /etc/os-release ] || { bhp_fail BOOTSTRAP.OS_RELEASE_MISSING "/etc/os-release is required" "$TRACE_ID"; exit 1; }
 # Distribution-owned metadata, never a caller-supplied source file.
 # shellcheck source=/dev/null
