@@ -125,6 +125,11 @@ Host tests run the same broker on a deterministic fake source.
     array.
   - Update the gate rows in `docs/operations/frdm-bringup.md`, ADR 0008's
     gate table (as an amendment) and `hardware_tests/README.md`.
+  - Progress (2026-10-19): `--source array` and its fixture tests are in. A
+    first board run found the array and its mode (`alsa_card` and
+    `capture_mode` pass) but the room was silent (loudest channel peak
+    -54.3 dBFS), so `capture_non_silent` failed as it should. The gate needs
+    a run with someone speaking near the array.
   - Verify:
     - `python3 -m unittest hardware_tests.tests.test_frdm_evidence_scripts` exit 0;
     - an FRDM-GATE-AUDIO record from the board passes `alsa_card`, `capture_mode` and `capture_non_silent` with `--source array`.
