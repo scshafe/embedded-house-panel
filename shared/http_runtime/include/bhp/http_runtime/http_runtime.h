@@ -12,6 +12,10 @@ namespace bhp::http_runtime
 {
 struct Error {
 	std::string code, message;
+	/** A transport failure a caller may retry (connect, timeout, reset); never a refusal. */
+	bool retryable{false};
+	/** The libcurl code behind a transport failure, 0 otherwise. */
+	int transport_code{0};
 };
 template <class T> class Result
 {
