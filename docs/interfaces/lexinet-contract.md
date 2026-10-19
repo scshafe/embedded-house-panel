@@ -14,7 +14,7 @@ Tailscale packaging choice, and the historical next-card adapter was removed.
 The product behavior is defined in the
 [Lexinet study architecture](../architecture/lexinet-study-integration.md).
 The machine-readable wire authority is the Lexinet-owned
-`${BHP_LEXINET_SOURCE_DIR}/contracts/study.v1/openapi.json`, accompanied by its
+`contracts/study.v1/openapi.json` at the pinned revision, accompanied by its
 `contracts/study.v1/manifest.json` and Lexinet decision
 `docs/decisions/0001-freeze-study-v1-contract.md`. The panel does not maintain a
 second schema.
@@ -36,14 +36,19 @@ The checked-in fixture provenance pins:
 The panel's
 [`contract-provenance.json`](../../vocabulary_panel/tests/fixtures/study_v1/contract-provenance.json)
 records those values and a digest for every byte-for-byte exported example.
-Refresh and verify the bounded export from an explicit checkout; never infer a
-sibling path:
+Verify the bounded export against the pinned commit, which the tool fetches
+from `https://github.com/scshafe/lexinet` into `.build/lexinet/source/`; never
+infer a sibling path:
+
+```sh
+python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py --check
+```
+
+To repin, export from an explicit checkout at the new Lexinet commit:
 
 ```sh
 python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py \
   --lexinet-source-dir "$BHP_LEXINET_SOURCE_DIR"
-python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py \
-  --lexinet-source-dir "$BHP_LEXINET_SOURCE_DIR" --check
 ```
 
 The repository base revision locates the committed audited source tree. The

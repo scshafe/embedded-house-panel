@@ -167,6 +167,16 @@ require_single_tracked_lexinet_control() {
   fi
 }
 
+require_no_tracked_lexinet_control() {
+  control_name=$1
+  error_code=$2
+  control_pattern=$(lexinet_control_pattern "$control_name")
+  if git -C "$PROJECT_ROOT" grep -q -E "$control_pattern" -- config scripts Makefile; then
+    bhp_fail "$error_code" "$control_name is retired and must not be assigned" "$TRACE_ID"
+    exit 1
+  fi
+}
+
 require_control_pattern_count() {
   control_pattern=$1
   fixture_text=$2
@@ -186,8 +196,6 @@ lexinet_control_prefix=BHP_LEXINET_
 lexinet_source_variable=${lexinet_control_prefix}SOURCE_DIR
 lexinet_revision_variable=${lexinet_control_prefix}BASE_REVISION
 lexinet_source_assignment=$lexinet_source_variable=/absolute/path/to/lexinet
-lexinet_base_revision=3e15ef60e1970757e756d74622846edba166757c
-lexinet_revision_assignment=$lexinet_revision_variable=$lexinet_base_revision
 lexinet_source_control_pattern=$(lexinet_control_pattern \
   "$lexinet_source_variable")
 lexinet_revision_control_pattern=$(lexinet_control_pattern \
@@ -226,8 +234,10 @@ require_control_pattern_count "$lexinet_revision_control_pattern" \
 
 require_single_tracked_lexinet_control "$lexinet_source_variable" \
   "$lexinet_source_assignment" VERIFY_DOCS.LEXINET_SOURCE_CONTROL_INVALID
-require_single_tracked_lexinet_control "$lexinet_revision_variable" \
-  "$lexinet_revision_assignment" VERIFY_DOCS.LEXINET_REVISION_CONTROL_INVALID
+# The pin is the checked-in contract provenance; the retired base-revision
+# control must not come back as a second, divergent pin.
+require_no_tracked_lexinet_control "$lexinet_revision_variable" \
+  VERIFY_DOCS.LEXINET_REVISION_CONTROL_INVALID
 
 product_semantics_adr=docs/decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md
 require_exact_line_count "$product_semantics_adr" \

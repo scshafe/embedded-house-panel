@@ -47,9 +47,11 @@ rating event exposed by the current Undo lease.
 
 ## Repository reality
 
-Host-side automation locates the populated Lexinet repository only through
-`BHP_LEXINET_SOURCE_DIR` and verifies its history against
-`BHP_LEXINET_BASE_REVISION`. The original audit found the source checkout clean
+Host-side automation takes the populated Lexinet repository from an explicit
+`BHP_LEXINET_SOURCE_DIR`, or else fetches the commit pinned in the panel's
+contract provenance from `https://github.com/scshafe/lexinet`
+(**amended 2026-10-18**, replacing ~~verification of its history against
+`BHP_LEXINET_BASE_REVISION`~~). The original audit found the source checkout clean
 at full revision `3e15ef60e1970757e756d74622846edba166757c`; approved contract,
 persistence, scheduling, and service/API work is now committed through final
 Step 5 local-boundary HEAD `ce42272df315f357e10998dd48e9ffd1a935c2ff`.

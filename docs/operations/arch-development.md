@@ -22,10 +22,14 @@ branch is `main`, which now includes all `pre-board` and cloud-session work.
   without it. The bootstrap package list now includes `go`.
 - The Mac's migration folder, including `lexinet.bundle` (9/9 `SHA256SUMS` OK),
   and the outer folder's notes are in
-  `~/Documents/embedded-house-panel-from-air/`. The pinned Lexinet checkout is
-  `~/.local/share/embedded-house-panel/lexinet` at `ce42272`.
-  `config/device.env` was recreated with that path and the Mac's base revision.
-  GitHub's `scshafe/lexinet` does not contain `ce42272`; use the bundle.
+  `~/Documents/embedded-house-panel-from-air/`. The pinned Lexinet checkout was
+  `~/.local/share/embedded-house-panel/lexinet` at `ce42272`. ~~`config/device.env`
+  was recreated with that path and the Mac's base revision. GitHub's
+  `scshafe/lexinet` does not contain `ce42272`; use the bundle.~~ **Amended
+  2026-10-18:** `ce42272` is on GitHub now (lexinet PR #1), and the contract
+  tools fetch it themselves; see
+  [Lexinet source](development-environment.md#lexinet-source). Nothing reads
+  that old checkout any more.
 - No FRDM board was visible on USB on 2026-10-04: no new USB device, and no
   `/dev/ttyUSB*` or `/dev/ttyACM*`. Inventory starts once the board's debug USB
   enumerates.
@@ -64,12 +68,14 @@ screen baselines are committed and arrive with the clone. Continue on `main`;
 the merged `pre-board`, `virtual-panel`, `frdm-imx8mp-retarget` and
 `architecture/apply-review-amendments` branches were retired after merging.
 
-`archive/2026-09-30-font-verification-draft` and
+~~`archive/2026-09-30-font-verification-draft` and
 `archive/2026-09-30-study-verification-draft` preserve unique older verification
 drafts. `archive/2026-09-30-pre-retarget-stash` preserves the superseded ADR stash.
 These are historical recovery refs on GitHub; fetch one only if needed and do not
-merge them. The Mac's verification worktrees were matched against committed file
-contents and removed.
+merge them.~~ **Amended 2026-10-18:** a comparison with `main` found every file
+in the three `archive/2026-09-30-*` branches on `main`, identical or in a newer
+form; they are retired once the owner agrees (issue #20). The Mac's verification worktrees were
+matched against committed file contents and removed.
 
 ## Install host dependencies explicitly
 
@@ -132,17 +138,14 @@ need a separate Linux adaptation; do not treat installing QEMU as validation.
 
 ## Optional Lexinet contract work
 
-Lexinet is not on GitHub. The Mac's ignored
-`.build/arch-migration/house-panel-migration/` folder holds `lexinet.bundle`,
-read from the existing source checkout without changing it. Copy that folder to
-`$HOME/Downloads/` on Arch yourself. It includes the pinned history, avoiding a
-Mac-specific SSH remote:
+~~Lexinet is not on GitHub.~~ **Amended 2026-10-18:** Lexinet is on GitHub
+(`scshafe/lexinet`), and the pinned commit is an ancestor of its `main`. The
+contract tools fetch it into `.build/lexinet/source/` when
+`BHP_LEXINET_SOURCE_DIR` is unset, so no bundle or local clone is needed:
 
 ```sh
-git clone --branch main "$HOME/Downloads/house-panel-migration/lexinet.bundle" "$HOME/Projects/lexinet"
-git -C "$HOME/Projects/lexinet" checkout --detach ce42272df315f357e10998dd48e9ffd1a935c2ff
-export BHP_LEXINET_SOURCE_DIR="$HOME/Projects/lexinet"
-export BHP_LEXINET_BASE_REVISION=3e15ef60e1970757e756d74622846edba166757c
+python3 vocabulary_panel/tools/export_study_v1_contract_fixtures.py --check
+make verify-lexinet-live
 ```
 
 Normal panel `make verify` does not require a live Lexinet server. The separate

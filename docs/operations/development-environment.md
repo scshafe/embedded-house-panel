@@ -37,36 +37,40 @@ set +a
 
 Review a local file before sourcing it. Never store credentials in it.
 
-### Lexinet source checkout
+### Lexinet source
 
-Host-side cross-repository contract checks use one explicit input:
+Host-side cross-repository contract checks (`make verify-lexinet-live` and
+`vocabulary_panel/tools/export_study_v1_contract_fixtures.py`) take the Lexinet
+source from one of two places:
 
-```sh
-export BHP_LEXINET_SOURCE_DIR=/absolute/path/to/lexinet
-export BHP_LEXINET_BASE_REVISION=3e15ef60e1970757e756d74622846edba166757c
-```
+- **Default: the pinned commit from GitHub.** With no explicit checkout, they
+  fetch the `repository_base_revision` recorded in
+  `vocabulary_panel/tests/fixtures/study_v1/contract-provenance.json` from
+  `https://github.com/scshafe/lexinet` into the ignored
+  `.build/lexinet/source/<revision>/` (`scripts/lexinet/pinned_source.py`). A
+  cached checkout is reused only while its `HEAD` is exactly that commit with
+  no tracked change; otherwise the tools fail with `LEXINET_CACHE_INVALID`, and
+  you delete that directory.
+- **An explicit checkout**, for repinning or testing unreleased Lexinet work:
 
-`BHP_LEXINET_SOURCE_DIR` is a development-source location, not a panel runtime
-setting. It must be an absolute path to the populated Lexinet Git worktree root
-whose `go.mod` declares `module lexinet`. `BHP_LEXINET_BASE_REVISION` is the full
-audited Git commit that must remain an ancestor of the selected worktree HEAD;
-it identifies the expected history without trusting a machine-specific remote
-URL and still permits later Lexinet commits.
+  ```sh
+  export BHP_LEXINET_SOURCE_DIR=/absolute/path/to/lexinet
+  ```
 
-The deferred validator must resolve symlinks, require the physical directory to
-equal `git rev-parse --show-toplevel`, require the configured 40-hex commit to
-exist and be an ancestor of `HEAD`, and then validate the module declaration. A
-matching `go.mod` by itself is not repository identity. Automation must fail
-when either input is unset or malformed, the path is relative/missing, or the
-identity checks fail; it must never guess a sibling directory or fall back to a
-user-specific path. Put the workstation's source-directory value in the ignored
-`config/device.env` when persistent local configuration is useful. Do not put
-it in `config/vocabulary-panel.env.example`, an image overlay, or a deployment
-bundle.
+  It must be the populated Lexinet Git worktree root. The live runner refuses
+  tracked changes and reports whether its `HEAD` matches the pin.
 
-The source-checkout validator and live contract runner are intentionally
-deferred to the Lexinet data-plane work. Declaring the input now prevents those
-tools from embedding the current workstation layout.
+Either way, the fixture check compares the exported bytes, the SHA-256 digests
+and the recorded revision with `contract-provenance.json` exactly. No tool
+infers a sibling directory or a user-specific path. `BHP_LEXINET_SOURCE_DIR` is
+a development-source location, not a panel runtime setting: put a persistent
+value only in the ignored `config/device.env`, never in
+`config/vocabulary-panel.env.example`, an image overlay or a deployment bundle.
+
+**Amended 2026-10-18:** the pinned commit is now fetched from GitHub when no
+checkout is given, and `BHP_LEXINET_BASE_REVISION` is retired. That variable
+named an old audit commit with no `study.v1` contract, and no tool read it; the
+pin is the revision in the contract provenance.
 
 ## Buildroot checkout
 

@@ -61,10 +61,14 @@ What the scenarios prove, in order:
 ## Reproduce
 
 ```sh
-make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=/absolute/path/to/lexinet
+make verify-lexinet-live
 ```
 
-The target builds `vocabulary_panel_study_live_lexinet_contract_client` in the
+Without `BHP_LEXINET_SOURCE_DIR`, the runner fetches the pinned Lexinet commit
+from GitHub into `.build/lexinet/source/`; pass
+`BHP_LEXINET_SOURCE_DIR=/absolute/path/to/lexinet` to test another checkout.
+The report's `lexinet.source` and `lexinet.matches_contract_pin` say which was
+used. The target builds `vocabulary_panel_study_live_lexinet_contract_client` in the
 `host-dev` tree. It then runs `scripts/lexinet/live_contract.py`, which builds
 Lexinet with the local Go toolchain and starts a disposable PostgreSQL 16
 cluster. The machine-readable report is written to

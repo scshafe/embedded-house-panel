@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Dry-run-first live study.v1 contract run against a disposable real Lexinet.
 
-Builds Lexinet from an explicit checkout, serves it on loopback with a
+Builds Lexinet from an explicit checkout, or from the pinned commit fetched from
+GitHub when none is given (scripts/lexinet/pinned_source.py), serves it on loopback with a
 disposable PostgreSQL cluster and a disposable bearer under ignored
 .build/lexinet/, seeds a synthetic corpus through Lexinet's JSON CLI, and drives
 the panel's C++ study.v1 client and durable reducer through every contract
@@ -25,6 +26,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+from pinned_source import PinnedSourceError, pinned_revision, resolve_source
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = "simulation_not_hardware_evidence"
@@ -114,7 +117,7 @@ def postgres_bin_dir(explicit: Path | None, major: str) -> Path:
 class LiveContract:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
-        self.source = args.lexinet_source_dir.resolve()
+        self.source: Path | None = None
         self.state = args.state_root.resolve()
         self.secrets = self.state / "secrets"
         self.lexinet_process: subprocess.Popen[str] | None = None
@@ -126,6 +129,14 @@ class LiveContract:
         self.facts: dict[str, dict[str, object]] = {}
 
     # --- environment -----------------------------------------------------------------
+    def select_source(self) -> None:
+        try:
+            source, selection = resolve_source(self.args.lexinet_source_dir)
+        except PinnedSourceError as error:
+            raise ContractError(error.code, error.detail) from error
+        self.source = source.resolve()
+        self.source_selection = selection
+
     def verify_checkout(self) -> None:
         if not (self.source / "go.mod").is_file() or not (self.source / "contracts/study.v1").is_dir():
             raise ContractError("LEXINET_SOURCE_INVALID", "missing go.mod or contracts/study.v1")
@@ -135,7 +146,8 @@ class LiveContract:
                              "--untracked-files=no"]), "LEXINET_STATUS_UNREADABLE").strip()
         if dirty:
             raise ContractError("LEXINET_CHECKOUT_DIRTY", "tracked changes present")
-        self.report["lexinet"] = {"revision": head}
+        self.report["lexinet"] = {"revision": head, "source": self.source_selection,
+                                  "matches_contract_pin": head == pinned_revision()}
 
     def build_lexinet(self) -> None:
         binary = self.state / "bin/lexinet"
@@ -325,6 +337,7 @@ class LiveContract:
         try:
             if not self.args.client.is_file():
                 raise ContractError("CLIENT_MISSING", str(self.args.client))
+            self.select_source()
             self.verify_checkout()
             self.build_lexinet()
             self.init_postgres()
@@ -352,8 +365,8 @@ class LiveContract:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute", action="store_true", help="run; default prints the plan")
-    parser.add_argument("--lexinet-source-dir", type=Path, required=True,
-                        help="explicit Lexinet checkout (never inferred)")
+    parser.add_argument("--lexinet-source-dir", type=Path,
+                        help="explicit Lexinet checkout; default: fetch the pinned commit")
     parser.add_argument("--lexinet-binary", type=Path, help="prebuilt lexinet for this checkout")
     parser.add_argument("--client", type=Path, default=DEFAULT_CLIENT)
     parser.add_argument("--postgres-bin-dir", type=Path)
@@ -363,7 +376,9 @@ def main() -> int:
     parser.add_argument("--publish", type=Path, help="also write the report here")
     args = parser.parse_args()
     if not args.execute:
-        print(json.dumps({"execute": False, "lexinet_source_dir": str(args.lexinet_source_dir),
+        source = (str(args.lexinet_source_dir) if args.lexinet_source_dir
+                  else f"pinned_fetch:{pinned_revision()}")
+        print(json.dumps({"execute": False, "lexinet_source_dir": source,
                           "client": str(args.client), "state_root": str(args.state_root),
                           "profile_ref": PROFILE_REF, "topic": TOPIC_SLUG,
                           "scenarios": list(SCENARIO_ORDER), "evidence": EVIDENCE,

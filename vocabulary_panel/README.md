@@ -33,7 +33,8 @@ production service enablement or any FRDM gate.
   `study_wire_codec` consumes Lexinet's frozen `study.v1` contract, including
   required semantics, complete immutable cards, scheduler/source provenance,
   UTF-8/string/page limits, error objects and terminal receipts. The external
-  contract authority remains the explicit `BHP_LEXINET_SOURCE_DIR` checkout.
+  contract authority is Lexinet at the pinned revision, fetched from GitHub or
+  taken from an explicit `BHP_LEXINET_SOURCE_DIR` checkout.
 - `HttpLexinetClient` borrows the process's `shared/http_runtime` instance.
   `StudyWorker` owns one bounded work/completion mailbox; rendering polls it and
   never performs HTTP. Per-operation cancellation and shared shutdown both
@@ -123,9 +124,9 @@ build products and must never be committed.
 
 ## Live Lexinet contract
 
-`make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=/absolute/path/to/lexinet`
-drives this client and the durable reducer against a real Lexinet built from an
-explicit checkout. `scripts/lexinet/live_contract.py` owns the disposable
+`make verify-lexinet-live` drives this client and the durable reducer against
+a real Lexinet built from the pinned commit (fetched from GitHub) or from an
+explicit `BHP_LEXINET_SOURCE_DIR=/absolute/path/to/lexinet` checkout. `scripts/lexinet/live_contract.py` owns the disposable
 PostgreSQL 16 cluster, the loopback bearer and a synthetic corpus under ignored
 `.build/lexinet/`, and deletes the secrets and database at teardown. The runner
 defaults to a JSON dry run. `vocabulary_panel_study_live_lexinet_contract_client`
