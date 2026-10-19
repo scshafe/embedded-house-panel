@@ -16,7 +16,8 @@
  * at most 4096 bytes, closed key sets, `version: 1`. The UI sends `arm`,
  * `start` and `stop`; the broker answers `armed` or `refused`, then `started`,
  * `level` about every 100 ms while recording, and exactly one `ended` per
- * started lease. The UI never sends audio, a provenance claim or a digest: it
+ * started lease. `discard` deletes a committed take (`discarded` or `refused`,
+ * whose request ID is then the take ID). The UI never sends audio, a provenance claim or a digest: it
  * names a touch observation, and the broker claims it from the supervisor.
  */
 namespace bhp::media_lease_protocol
@@ -47,7 +48,11 @@ struct StartRequest {
 struct StopRequest {
 	std::string lease_id;
 };
-using UiRequest = std::variant<ArmRequest, StartRequest, StopRequest>;
+/** Deletes a committed take the reviewer rejected; only while no lease is active. */
+struct DiscardRequest {
+	std::string take_id;
+};
+using UiRequest = std::variant<ArmRequest, StartRequest, StopRequest, DiscardRequest>;
 
 struct Armed {
 	std::string request_id;
@@ -76,7 +81,10 @@ struct Ended {
 	std::uint64_t frames{0};
 	std::string error_code;
 };
-using BrokerEvent = std::variant<Armed, Refused, Started, Level, Ended>;
+struct Discarded {
+	std::string take_id;
+};
+using BrokerEvent = std::variant<Armed, Refused, Started, Level, Ended, Discarded>;
 
 /**
  * @canonical media_lease_client -- the UI's side of one broker connection.

@@ -50,7 +50,8 @@ std::string voice_take_operation_digest(const std::string &request_id, const std
  * source and records on a capture thread. The take ends on `stop`
  * (requested), at `maximum_frames` (maximum-duration), or as a failure on a
  * closed window, a UI that leaves, an xrun or a device error. A failed take
- * leaves no files. `step()` never blocks on audio.
+ * leaves no files. `discard` deletes a committed take while no lease is
+ * active. `step()` never blocks on audio.
  */
 class MediaBroker final
 {
@@ -87,6 +88,7 @@ private:
 	void arm(const bhp::media_lease_protocol::ArmRequest &request);
 	void start(const std::string &lease_id);
 	void stop(const std::string &lease_id);
+	void discard(const std::string &take_id);
 	void send(const bhp::media_lease_protocol::BrokerEvent &event);
 	void refuse(const std::string &request_id, const std::string &code);
 	void end_failed(const std::string &code);

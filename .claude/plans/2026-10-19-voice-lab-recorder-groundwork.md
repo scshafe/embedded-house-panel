@@ -162,7 +162,7 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Update the threat model document and ADR 0010's related list.
   - Verify:
     - `make verify` exit 0.
-- [ ] **Step 6: The recorder screens on fixture data.**
+- [x] **Step 6: The recorder screens on fixture data.** (2026-10-19)
   - A `voice_lab` descriptor (Step 1): sign-in (the URI and user code),
     the prompt list with "Continue Missing", record with a live level meter,
     review, retake, reject, and an outbox status line.
@@ -173,6 +173,15 @@ fixture data, recording through the media broker's `voice_take` purpose.
     voice-take plan's Step 6).
   - Scenarios and goldens for each screen; the catalog is a fixture until the
     bundle defines it.
+  - Done in two PRs.
+    - **Part 1:** the `voice_lab` descriptor, the six screens, six scenarios
+      and goldens, and the home tile.
+    - **Part 2:** `VoiceLabRuntime` runs the broker in process with a
+      stand-in supervisor, and `discard` joins the lease protocol so Reject
+      and Retake delete the take.
+    - `panel_simulation_integration` covers record, live levels, stop, keep,
+      reject and a lifecycle-closed failure, all through the broker.
+    - Prompts, the sign-in code and the queue count stay fixtures.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab|panel_simulation'` exit 0;
     - `make verify` exit 0 with the new goldens recorded.

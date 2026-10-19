@@ -203,3 +203,23 @@ For a local layout inspection:
 
 The default catalog exposes only the two implemented surfaces. No future-app
 placeholders, extra permissions or production providers are enabled.
+
+## Voice lab recorder
+
+Added 2026-10-19 for issue #23. The `voice_lab` surface records takes through
+the real media broker, in process, on the paced fake source
+(`VoiceLabRuntime`, `@canonical simulator_voice_lab_runtime`).
+- **Takes:** they go to a temporary store that is deleted when the
+  simulation ends.
+- **Window and touch:** a stand-in supervisor opens the broker's window while
+  the scripted lifecycle is day-active with presence asserted, and grants each
+  synthetic touch once.
+- **Flow:** Record arms and starts a lease and live levels follow. Stop
+  commits the take for review. Keep moves on to the next prompt. Reject and
+  Retake delete the take through the broker's `discard`.
+- **Leaving day-present** fails the take and leaves no files.
+
+Scenario files set only the starting screen (`voice_lab_state`: `signed_out`,
+`ready`, `recording`, `review`, `complete`, `unavailable`). The prompts, the
+sign-in code and the queue count are fixtures until voice-lab's bundle lands.
+

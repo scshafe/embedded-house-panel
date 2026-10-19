@@ -30,6 +30,12 @@ void test_requests()
 	       "other purposes are wire-valid; the broker decides");
 	auto start = decode_ui_request(encode(UiRequest(StartRequest{kLease})).value());
 	expect(start && std::get<StartRequest>(start.value()).lease_id == kLease, "start round trip");
+	const std::string take = "take-" + std::string(64, 'a');
+	auto discard = decode_ui_request(encode(UiRequest(DiscardRequest{take})).value());
+	expect(discard && std::get<DiscardRequest>(discard.value()).take_id == take, "discard round trip");
+	expect(!encode(UiRequest(DiscardRequest{"take-xyz"})), "discard names a take ID");
+	auto discarded = decode_broker_event(encode(BrokerEvent(Discarded{take})).value());
+	expect(discarded && std::get<Discarded>(discarded.value()).take_id == take, "discarded round trip");
 	auto stop = decode_ui_request(encode(UiRequest(StopRequest{kLease})).value());
 	expect(stop && std::holds_alternative<StopRequest>(stop.value()), "stop round trip");
 	auto bad = arm;
