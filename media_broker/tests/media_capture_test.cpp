@@ -1,6 +1,10 @@
 #include "media_broker/capture_source.h"
 #include "media_broker/continuity_log.h"
 #include "media_broker/take_store.h"
+#include "media_broker/xvf3800_control.h"
+#include <cstring>
+#include <map>
+#include <tuple>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -256,6 +260,88 @@ void test_store_bounds_and_safety()
 	auto no_space = space.value().admit(1);
 	expect(!no_space && no_space.error().code == "MEDIA_TAKE.NO_SPACE", "the free-space margin refuses");
 }
+std::vector<std::uint8_t> reply(std::uint8_t status, std::vector<std::uint8_t> payload)
+{
+	payload.insert(payload.begin(), status);
+	return payload;
+}
+
+void test_xvf3800_reads()
+{
+	std::map<std::pair<std::uint16_t, std::uint16_t>, std::vector<std::vector<std::uint8_t>>> script;
+	std::vector<std::tuple<std::uint16_t, std::uint16_t, std::uint16_t>> sent;
+	auto transfer = [&](std::uint16_t value, std::uint16_t index, std::uint16_t length) {
+		sent.emplace_back(value, index, length);
+		auto &replies = script[{value, index}];
+		if (replies.empty())
+			return reply(1, std::vector<std::uint8_t>(length - 1));
+		auto next = replies.front();
+		if (replies.size() > 1)
+			replies.erase(replies.begin());
+		return next;
+	};
+	script[{0x80, 48}] = {reply(64, {0, 0, 0}), reply(0, {2, 0, 8})};
+	std::vector<std::uint8_t> message(50, 0);
+	std::memcpy(message.data(), "fixture_build", 13);
+	script[{0x81, 48}] = {reply(0, message)};
+	float gain = 12.5f;
+	std::vector<std::uint8_t> gain_bytes(4);
+	std::memcpy(gain_bytes.data(), &gain, 4);
+	script[{0x80 | 13, 17}] = {reply(0, gain_bytes)};
+	script[{0x80 | 10, 17}] = {reply(0, {1, 0, 0, 0})};
+	script[{0x80 | 15, 35}] = {reply(0, {6, 3})};
+	Xvf3800Control control(transfer);
+	const auto &parameters = xvf3800_identity_parameters();
+	auto version = control.read(parameters[0]);
+	expect(version && version.value() == nlohmann::json::array({2, 0, 8}), "VERSION after one retry");
+	expect(std::get<0>(sent[0]) == 0x80 && std::get<1>(sent[0]) == 48 && std::get<2>(sent[0]) == 4,
+	       "read request: wValue 0x80 | command, wIndex resource, 1 + 3 bytes");
+	auto build = control.read(parameters[1]);
+	expect(build && build.value() == "fixture_build", "BLD_MSG text up to the first NUL");
+	const auto identity = control.read_identity();
+	expect(identity["firmware"]["VERSION"] == nlohmann::json::array({2, 0, 8}) &&
+		       identity["firmware"]["BLD_REPO_HASH"].is_null() &&
+		       identity["unread"]["BLD_REPO_HASH"] == "MEDIA_DEVICE.CONTROL_REFUSED" &&
+		       !identity["unread"].contains("VERSION"),
+	       "a refused read is null and named in unread");
+	expect(identity["settings"]["PP_AGCGAIN"] == nlohmann::json::array({12.5}) &&
+		       identity["settings"]["PP_AGCONOFF"] == nlohmann::json::array({1}),
+	       "float and int32 settings");
+	expect(identity["routing"]["AUDIO_MGR_OP_L"] == nlohmann::json::array({6, 3}), "routing bytes");
+	Xvf3800Control broken([](std::uint16_t, std::uint16_t, std::uint16_t) { return std::vector<std::uint8_t>{}; });
+	auto failed = broken.read(parameters[0]);
+	expect(!failed && failed.error().code == "MEDIA_DEVICE.CONTROL_TRANSFER_FAILED", "transport failure");
+	Xvf3800Control busy([](std::uint16_t, std::uint16_t, std::uint16_t length) {
+		return reply(64, std::vector<std::uint8_t>(length - 1));
+	});
+	auto retries = busy.read(parameters[0]);
+	expect(!retries && retries.error().code == "MEDIA_DEVICE.CONTROL_BUSY", "endless retry gives up");
+	Xvf3800Control short_reply([](std::uint16_t, std::uint16_t, std::uint16_t) { return reply(0, {2}); });
+	expect(!short_reply.read(parameters[0]), "a short reply is refused");
+}
+
+void test_find_xvf3800()
+{
+	const auto root = temporary_root();
+	auto write = [](const std::string &path, const std::string &text) {
+		std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+		std::ofstream(path) << text << '\n';
+	};
+	write(root + "/usb1/idVendor", "1d6b");
+	write(root + "/usb1/product", "xHCI Host Controller");
+	expect(!find_xvf3800_usb_device(root), "no array");
+	write(root + "/1-1/idVendor", "2886");
+	write(root + "/1-1/idProduct", "0022");
+	write(root + "/1-1/product", "reSpeaker Flex XVF3800 L16K6Ch");
+	write(root + "/1-1/busnum", "1");
+	write(root + "/1-1/devnum", "2");
+	write(root + "/1-1/serial", "FIXTURE");
+	auto found = find_xvf3800_usb_device(root);
+	expect(found && found.value()["usb_node"] == "/dev/bus/usb/001/002" &&
+		       found.value()["usb_product_id"] == 0x22 && found.value()["usb_vendor_id"] == 0x2886 &&
+		       found.value()["serial"] == "FIXTURE",
+	       "array found with its usbdevfs node");
+}
 } // namespace
 
 int main()
@@ -266,6 +352,8 @@ int main()
 	test_clean_take_commits_whole();
 	test_failed_takes_leave_nothing();
 	test_store_bounds_and_safety();
+	test_xvf3800_reads();
+	test_find_xvf3800();
 	for (const auto &root : temporary_roots)
 		std::filesystem::remove_all(root);
 	std::cout << "media_capture: " << failures << " failures\n";

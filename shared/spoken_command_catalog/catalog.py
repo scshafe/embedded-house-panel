@@ -238,7 +238,7 @@ def build_bundle(root: Path, contexts: list[str]) -> dict:
     catalog = load_json(root / "docs/interfaces/spoken-command-catalog.json")
     validate_catalog(catalog)
     graph = load_json(root / "shared/spoken_command_catalog/intent_effect_graph.json")
-    registry = (root / "panel_ui/src/panel_intent_registry.cpp").read_text()
+    registry = (root / "panel_ui/src/panel_app_descriptors.cpp").read_text()
     registered = set(re.findall(r'\{"([a-z][a-z0-9_.]+)"\s*,\s*IntentEffectClass::', registry))
     effects = phase_a(graph, registered)
     if not set(contexts) <= CONTEXTS: fail("CONTEXT_INVALID", "build_bundle")

@@ -26,7 +26,8 @@
       "cacheVariables": {
         "BHP_BUILD_HTTP_LEXINET_CLIENT": "ON",
         "BHP_BUILD_LVGL_RENDERER": "ON",
-        "BHP_BUILD_PANEL_RENDERER": "ON"
+        "BHP_BUILD_PANEL_RENDERER": "ON",
+        "BHP_BUILD_MEDIA_ALSA": "ON"
       }
     },
     {
