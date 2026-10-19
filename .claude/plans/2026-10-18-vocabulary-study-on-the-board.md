@@ -2,10 +2,13 @@
 
 <!-- @canonical vocabulary-study-on-the-board-plan -->
 
-**Status (2026-10-18):** In progress (issue #21, phase 1). Decision 1 below
+**Status (2026-10-19):** In progress (issue #21, phase 1). Decision 1 below
 takes the recommended option; the owner may change it before Step 3 merges.
-Steps 1–5 need no board and no live Lexinet. Step 6 waits for the Lexinet
-study listener (scshafe/lexinet#3) and the owner.
+Steps 1–5 are done; they needed no board and no live Lexinet. The owner
+reports that the study listener (scshafe/lexinet#3) is live as the tailnet
+node `lexinet-study` (`tag:lexinet-study`), with the frozen data migrated.
+Step 6 waits for the owner to enroll the board (Step 5's procedure) and for
+the owner's go-ahead.
 
 **Goal:** on the FRDM board, the vocabulary surface creates or resumes a
 `study.v1` session against the live Lexinet over the tailnet, syncs a rating,
@@ -193,8 +196,10 @@ and shows that the rating survives a network drop (the outbox) and a restart.
   - Verify:
     - `make verify` exit 0.
 - [ ] **Step 6: Check it on the board against the live Lexinet.**
-  - Needs scshafe/lexinet#3 deployed, the board enrolled (Step 5, by the
-    owner), and the owner's go-ahead before any board action.
+  - Needs scshafe/lexinet#3 deployed (live, per the owner on 2026-10-19), the
+    board enrolled (Step 5, by the owner), and the owner's go-ahead before
+    any board action. The agent cannot reach the tailnet, so it never calls
+    the live API from the PC.
   - Run the Step 4 bundle with a `vocabulary-panel.env` for the live listener
     and profile `cole`.
     - Create or resume a session.
