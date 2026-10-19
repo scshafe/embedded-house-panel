@@ -55,6 +55,15 @@ public:
  void invalidate_lifecycle();
  void event(const Json &event);
  void tap(int x,int y);
+ /** A tap the supervisor observed; voice_lab.record and .retake forward its evidence to the broker. */
+ void tap(int x,int y,const VoiceLabRuntime::TouchEvidence &evidence);
+ /** Records through the bhp-media-broker process instead of the in-process fake (the board). */
+ void attach_media_broker(const std::string &socket_path,std::uint32_t broker_uid);
+ /**
+  * Level-only recorder updates wait for the next lifecycle render instead of drawing
+  * at once, so a live meter cannot keep touches from matching the committed frame.
+  */
+ void defer_level_renders(bool defer){defer_level_renders_=defer;}
  void semantic_intent(const std::string &id,const std::string &source);
  std::uint64_t render();
  void service();
@@ -87,6 +96,8 @@ private:
  house_panel::panel_ui::ApplicationCatalog application_catalog_;
  std::unique_ptr<FakeVoiceConnection> voice_;
  std::unique_ptr<VoiceLabRuntime> voice_lab_runtime_;
+ std::optional<VoiceLabRuntime::TouchEvidence> pending_touch_evidence_;
+ bool defer_level_renders_{false};
  int voice_lab_take_peak_{-1200};
  bool voice_pending_{false};
  std::uint64_t utterance_sequence_{0};

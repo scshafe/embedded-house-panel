@@ -311,7 +311,7 @@ void PanelSimulation::voice_lab_intent(const std::string &id){
  const auto next_prompt=[&v]{v.prompt_number=v.prompt_number%v.prompt_total+1;};
  if((id=="voice_lab.record"&&v.state=="ready")||(id=="voice_lab.retake"&&v.state=="review")){
   if(id=="voice_lab.retake"){voice_lab_runtime_->discard(v.take_id);v.take_id.clear();v.state="ready";}
-  if(!voice_lab_runtime_->start_take("prompt:"+std::to_string(v.prompt_number))){scene.acknowledgement="Recorder busy";return;}
+  if(!voice_lab_runtime_->start_take("prompt:"+std::to_string(v.prompt_number),pending_touch_evidence_)){scene.acknowledgement=voice_lab_runtime_->external_broker()&&!pending_touch_evidence_?"Tap Record on the panel":"Recorder busy";return;}
   v.level_tenths.assign(6,-1200);v.elapsed_ms=0;voice_lab_take_peak_=-1200;scene.acknowledgement="Starting";
  }else if(id=="voice_lab.stop"&&v.state=="recording"){
   voice_lab_runtime_->stop();scene.acknowledgement="Stopping";
@@ -331,7 +331,7 @@ void PanelSimulation::pump_voice_lab(){
  bool changed=false;auto &v=scene.voice_lab;
  for(const auto &event:voice_lab_runtime_->pump()){
   using Kind=VoiceLabRuntime::Event::Kind;
-  changed=true;
+  changed=changed||event.kind!=Kind::Level||!defer_level_renders_;
   if(event.kind==Kind::Started){v.state="recording";v.elapsed_ms=0;scene.acknowledgement="";}
   else if(event.kind==Kind::Level){
    v.level_tenths=event.level_tenths;v.elapsed_ms=event.elapsed_ms;
@@ -343,6 +343,11 @@ void PanelSimulation::pump_voice_lab(){
   }
  }
  if(changed)render();
+}
+void PanelSimulation::tap(int x,int y,const VoiceLabRuntime::TouchEvidence &evidence){pending_touch_evidence_=evidence;tap(x,y);pending_touch_evidence_.reset();}
+void PanelSimulation::attach_media_broker(const std::string &socket_path,std::uint32_t broker_uid){
+ if(voice_lab_runtime_&&voice_lab_runtime_->busy())throw std::runtime_error("SIMULATOR.VOICE_LAB_BUSY");
+ voice_lab_runtime_=VoiceLabRuntime::external(socket_path,broker_uid);
 }
 void PanelSimulation::tap(int x,int y){if(scene.presentation_failure)return;for(auto it=display.hit_targets().rbegin();it!=display.hit_targets().rend();++it)if(x>=it->x&&x<it->x+it->width&&y>=it->y&&y<it->y+it->height){auto id=it->intent_id;semantic_intent(id,"touch");return;}}
 void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="clock_preview")enable_preview_clock(e.at("enabled").get<bool>());else if(type=="clock_step")advance_preview_clock();else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}

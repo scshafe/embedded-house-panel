@@ -33,8 +33,13 @@ STUDY_CONFIG = ROOT/'config/vocabulary-panel.env'
 LOGS = ROOT/'logs'
 EVIDENCE = 'demo_not_gate_evidence'
 UI_UID = 910
+# The media broker (issue #22): its own UID, in the board's audio group for /dev/snd.
+BROKER_UID = 911
+AUDIO_GROUP = 'audio'
+# The array's ALSA device, measured on 2026-10-19 (docs/hardware/xvf3800-array-on-frdm.md).
+ARRAY_PCM = 'hw:CARD=L16K6Ch,DEV=0'
 VIDEO_GROUP = 'video'
-UNITS = ('bhp-demo-ui', 'bhp-demo-supervisor', 'bhp-demo-pir')
+UNITS = ('bhp-demo-ui', 'bhp-demo-broker', 'bhp-demo-supervisor', 'bhp-demo-pir')
 WESTON_UNITS = ('weston.socket', 'weston.service')
 TOUCH_NAME = 'Goodix Capacitive TouchScreen'
 BACKLIGHT = Path('/sys/class/backlight/2-0045')
@@ -152,9 +157,14 @@ def configure(rotation: str, study_config: bool = False) -> dict:
     for name in ('lifecycle', 'touch'):
         make_directory(RUN/name, 0, UI_UID, 0o2750)
     make_directory(RUN/'ui', UI_UID, UI_UID, 0o700)
+    # The supervisor's window socket takes this directory's group (the broker's).
+    make_directory(RUN/'media', 0, BROKER_UID, 0o750)
+    # The broker's UI socket inherits the UI's group through the setgid bit.
+    make_directory(RUN/'broker', BROKER_UID, UI_UID, 0o2750)
     make_directory(STATE, 0, 0, 0o755)
     make_directory(STATE/'study', UI_UID, UI_UID, 0o700)
     make_directory(STATE/'screenshots', UI_UID, UI_UID, 0o755)
+    make_directory(STATE/'media', BROKER_UID, BROKER_UID, 0o700)
     make_directory(LOGS, 0, 0, 0o755)
     touch = touch_device()
     drm = drm_device()
@@ -171,7 +181,8 @@ def configure(rotation: str, study_config: bool = False) -> dict:
               'TOUCH_PROTOCOL': touch['protocol'], 'TOUCH_X_MIN': touch['x_min'], 'TOUCH_X_MAX': touch['x_max'],
               'TOUCH_Y_MIN': touch['y_min'], 'TOUCH_Y_MAX': touch['y_max'], 'TOUCH_CONTACT_KEY': touch['contact_key'],
               'TOUCH_SLOTS': touch['slots'], 'TOUCH_SOCKET': str(RUN/'touch/observations.sock'),
-              'TOUCH_TTL_MILLISECONDS': 1500, 'TOUCH_MAX_CONTACT_MILLISECONDS': 4000, 'TOUCH_MAX_OBSERVATIONS': 128}
+              'TOUCH_TTL_MILLISECONDS': 1500, 'TOUCH_MAX_CONTACT_MILLISECONDS': 4000, 'TOUCH_MAX_OBSERVATIONS': 128,
+              'MEDIA_BROKER_UID': BROKER_UID, 'MEDIA_WINDOW_SOCKET': str(RUN/'media/window.sock')}
     (STATE/'supervisor.env').write_text(''.join(f'BHP_PANEL_SUPERVISOR_{key}={value}\n' for key, value in values.items()))
     record = {'touch': touch, 'drm': drm, 'rotation': rotation, 'solar': solar, 'study_config': study_config,
               'evidence': EVIDENCE}
@@ -191,7 +202,14 @@ def ui_command(record: dict) -> list[str]:
             '--state-directory', str(STATE/'study'), '--display-rotation', record['rotation'],
             '--touch-min-x', str(touch['x_min']), '--touch-max-x', str(touch['x_max']),
             '--touch-min-y', str(touch['y_min']), '--touch-max-y', str(touch['y_max']),
+            '--media-broker-socket', str(RUN/'broker/ui.sock'), '--media-broker-uid', str(BROKER_UID),
             *(['--study-config', str(STUDY_CONFIG)] if record.get('study_config') else [])]
+
+
+def broker_command() -> list[str]:
+    return [str(ROOT/'bin/bhp-media-broker'), '--ui-socket', str(RUN/'broker/ui.sock'), '--ui-uid', str(UI_UID),
+            '--window-socket', str(RUN/'media/window.sock'), '--supervisor-uid', '0',
+            '--take-root', str(STATE/'media/takes'), '--pcm', ARRAY_PCM, '--maximum-seconds', '600']
 
 
 def transient(unit: str, command: list[str], *properties: str) -> None:
@@ -215,7 +233,7 @@ def unit_active(unit: str) -> bool:
 
 
 def libraries_resolve() -> None:
-    for binary in ('bhp-panel-ui', 'panel_supervisord', 'bhp-sim-pir'):
+    for binary in ('bhp-panel-ui', 'panel_supervisord', 'bhp-sim-pir', 'bhp-media-broker'):
         result = subprocess.run(['ldd', str(ROOT/'bin'/binary)], capture_output=True, text=True)
         if result.returncode != 0 or 'not found' in result.stdout:
             raise ValueError('FRDM_DEMO.LIBRARY_MISSING ' + binary + ' ' + result.stdout.strip())
@@ -244,10 +262,29 @@ def start(rotation: str, study_config: bool = False) -> dict:
     transient('bhp-demo-supervisor', [str(ROOT/'bin/panel_supervisord')],
               'EnvironmentFile=' + str(STATE/'supervisor.env'))
     wait_for(lambda: (RUN/'lifecycle/mode.sock').exists(), 'FRDM_DEMO.SUPERVISOR_SOCKET_MISSING')
+    start_broker()
     # systemd's User= needs a passwd entry, and adding one would write the board's
     # storage; setpriv drops the unit to the bare UID instead.
     start_ui(record)
     return status()
+
+
+def start_broker() -> None:
+    audio = grp.getgrnam(AUDIO_GROUP).gr_gid
+    transient('bhp-demo-broker', ['setpriv', f'--reuid={BROKER_UID}', f'--regid={BROKER_UID}', f'--groups={audio}',
+                                  '--inh-caps=-all', '--bounding-set=-all', '--no-new-privs', *broker_command()],
+              'WorkingDirectory=' + str(ROOT))
+    wait_for(lambda: (RUN/'broker/ui.sock').exists(), 'FRDM_DEMO.BROKER_SOCKET_MISSING')
+
+
+def takes() -> list[dict]:
+    """The broker's committed takes: ID, frames, stop reason and the largest deviation."""
+    listing = []
+    for record in sorted((STATE/'media/takes').glob('take-*/capture.json')):
+        data = json.loads(record.read_text())
+        listing.append({'take_id': data['take_id'], 'frames': data['frames'], 'stop_reason': data['stop_reason'],
+                        'xruns': data['xruns'], 'max_abs_deviation_ns': data['max_abs_deviation_ns']})
+    return listing
 
 
 def start_ui(record: dict) -> None:
@@ -289,7 +326,7 @@ def status() -> dict:
             'brightness': int((BACKLIGHT/'brightness').read_text()),
             'solar': json.loads((STATE/'runtime.json').read_text()).get('solar'),
             'study_config': json.loads((STATE/'runtime.json').read_text()).get('study_config', False),
-            'ui': latest_ui_status(), 'evidence': EVIDENCE}
+            'takes': takes(), 'ui': latest_ui_status(), 'evidence': EVIDENCE}
 
 
 def datagram(path: Path, payload: bytes) -> None:

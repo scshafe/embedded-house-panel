@@ -32,16 +32,32 @@ public:
 		std::string code;
 	};
 
+	/** The supervisor's touch observation that started a take, as the touch stream delivered it. */
+	struct TouchEvidence {
+		std::string touch_observation_id;
+		media_window_protocol::PresentationBinding presentation_binding;
+	};
+
 	/** Throws SIMULATOR.VOICE_LAB_UNAVAILABLE when the broker cannot be built. */
 	static std::unique_ptr<VoiceLabRuntime> in_process(std::uint64_t maximum_seconds = 600);
+	/**
+	 * The `bhp-media-broker` process (on the board): connects to its UI socket and
+	 * checks its UID. Takes then need real touch evidence; a take without it is refused.
+	 */
+	static std::unique_ptr<VoiceLabRuntime> external(const std::string &socket_path, std::uint32_t broker_uid);
 	~VoiceLabRuntime();
 	VoiceLabRuntime(const VoiceLabRuntime &) = delete;
 	VoiceLabRuntime &operator=(const VoiceLabRuntime &) = delete;
 
 	/** The stand-in supervisor's window: open only while the panel is day-active and present. */
 	void set_window(bool open);
-	/** Arms a lease for this prompt with a fresh synthetic touch; false while a take is in progress. */
-	bool start_take(const std::string &operation_ref);
+	/**
+	 * Arms a lease for this prompt; false while a take is in progress or the broker
+	 * is gone. In-process mode grants a fresh synthetic touch; external mode needs
+	 * `evidence` and forwards it unchanged.
+	 */
+	bool start_take(const std::string &operation_ref, const std::optional<TouchEvidence> &evidence = std::nullopt);
+	bool external_broker() const { return !broker_; }
 	void stop();
 	void discard(const std::string &take_id);
 	/** Ends any take as a failure (a scenario reload); its files are erased. */

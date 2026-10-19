@@ -62,6 +62,9 @@ int run_simulation_drm(int argc,char **argv){try{
  if(options.count("--study-config")){auto configuration=vocabulary_panel::read_study_client_configuration(options.at("--study-config"));if(!configuration.has_value())throw std::runtime_error(configuration.error().error_code);app.attach_study_client(configuration.value());}
  app.load(bhp::simulator::read_scenario(options.at("--scenario")));app.accept_lifecycle(app.supervisor.publish("blank"));app.render();
  if(options.count("--clock-preview")&&options.at("--clock-preview")=="on")app.enable_preview_clock(true);
+ // The voice-lab recorder records through the bhp-media-broker process (issue #22).
+ if(options.count("--media-broker-socket")!=options.count("--media-broker-uid"))throw std::runtime_error("SIMULATOR.MEDIA_BROKER_OPTIONS_INCOMPLETE");
+ if(options.count("--media-broker-socket")){app.attach_media_broker(options.at("--media-broker-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--media-broker-uid"))));app.defer_level_renders(true);}
  DrmPageFlipDisplay drm(options.at("--drm-device"),static_cast<std::uint32_t>(std::stoul(options.at("--drm-connector-id"))));
  FixtureControl control(options.at("--simulation-control-socket"));
  std::mutex mutex;
@@ -125,7 +128,7 @@ int run_simulation_drm(int argc,char **argv){try{
     if(!touch){auto connected=bhp::touch_observation_protocol::UnixTouchObservationClient::connect(options.at("--touch-socket-path"),uid);if(connected)touch=std::move(connected).value();}
     if(touch){auto result=touch->try_receive();if(!result)touch.reset();else if(result.value()){const auto &record=*result.value();const auto &binding=record.presentation_binding;const auto &snapshot=app.scene.lifecycle;
       if(record.contact_state==bhp::touch_observation_protocol::ContactState::Completed&&binding.supervisor_session_id==snapshot.supervisor_session_id&&binding.lifecycle_snapshot_id==snapshot.snapshot_id&&binding.lifecycle_event_sequence==snapshot.event_sequence&&binding.ui_connection_challenge==snapshot.connection_challenge&&binding.committed_render_generation==app.render_generation&&presentation.input_ready(app.render_generation)&&record.raw_axis_x>=min_x&&record.raw_axis_x<=max_x&&record.raw_axis_y>=min_y&&record.raw_axis_y<=max_y){
-       const auto x=(record.raw_axis_x-min_x)*1023/(max_x-min_x);const auto y=(record.raw_axis_y-min_y)*599/(max_y-min_y);if(x>=0&&x<=1023&&y>=0&&y<=599){const auto logical=logical_touch_point(static_cast<int>(x),static_cast<int>(y),1024,600,rotation);app.tap(logical.first,logical.second);if(!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");log({{"touch_commit",true},{"status",app.status()}});}}
+       const auto x=(record.raw_axis_x-min_x)*1023/(max_x-min_x);const auto y=(record.raw_axis_y-min_y)*599/(max_y-min_y);if(x>=0&&x<=1023&&y>=0&&y<=599){const auto logical=logical_touch_point(static_cast<int>(x),static_cast<int>(y),1024,600,rotation);app.tap(logical.first,logical.second,{record.touch_observation_id,binding});if(!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");log({{"touch_commit",true},{"status",app.status()}});}}
      }}
     // Privileged fixture selection can recover a sent Failed presentation.
     // It is not touch input, but still cannot cross an in-flight raster hold.
