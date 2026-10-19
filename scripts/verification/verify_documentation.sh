@@ -473,7 +473,7 @@ if ! ownership_registry_error=$(awk -F '|' \
       fail("registry must have one status header and exactly one absent-path row")
     }
     require_status(http, "Host runtime implemented — process lifetime, cancellation, transport budgets, and worker joins tested")
-    require_status(media, "Fake-only host broker implemented — real microphone capture and independent hardware quiescence evidence pending")
+    require_status(media, "Host-tested `voice_take` broker implemented — recognition purposes stay a host fake; board, packaging and hardware quiescence evidence pending")
     require_status(spoken, "Host catalog and deterministic fake projection implemented — real recognizer selection and evidence pending")
     require_status(recognition, "Fake recognition policy validation implemented — real recognition policy evidence pending")
     require_status(personal_context, absent_status)
