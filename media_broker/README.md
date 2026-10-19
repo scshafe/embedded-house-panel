@@ -1,5 +1,26 @@
 # Fake Media Broker
 
+**Amended 2026-10-19 (issue #22):** `media_broker/` now also holds the C++
+capture core for the real broker's `voice_take` purpose
+([voice-take capture plan](../.claude/plans/2026-10-19-voice-take-capture.md),
+Step 2). It is a library with no daemon yet, and no device code:
+- `CaptureSource` is the one place audio enters. `FakeCaptureSource` is the
+  deterministic host and simulator source, with injectable xruns, timestamp
+  steps and device loss.
+- `ContinuityLog` keeps one `[position_frames, timestamp_ns]` pair per period
+  and the maximum deviation by the rule voice-lab built for its ALSA
+  continuity evidence. voice-lab's pinned contract, when it lands, is
+  authoritative.
+- `TakeWriter` streams `original.wav` (a 44-byte PCM header, then the samples
+  untouched) and commits `capture.json` (`bhp.media.voice-take/v1`) with the
+  WAV in one rename. Only a clean take commits: no xrun, the deviation within
+  tolerance, and the last position within the buffer. Everything else is
+  erased.
+- `TakeStore` is the bounded owner-only directory of takes.
+
+Tests: `ctest --test-dir .build/host-dev -R media_capture`. The Python fake
+below is unchanged and still serves the simulator's `command_recognition`.
+
 **Amended 2026-09-26:** the supervisor now verifies kernel-visible capture
 closure before every enabled suspend write and can terminate only the exact
 broker UID (`BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID`; see
