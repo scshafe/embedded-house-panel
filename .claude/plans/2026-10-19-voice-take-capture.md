@@ -234,12 +234,19 @@ Host tests run the same broker on a deterministic fake source.
   - Verify:
     - `ctest --test-dir .build/host-dev -R media_broker` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 6: The UI's lease client and the simulator.**
+- [x] **Step 6: The UI's lease client and the simulator.** (2026-10-19)
   - `MediaLeaseClient` in `panel_ui` (connect, arm, start, stop, level and end
     events), used by the recorder surface in the groundwork plan.
   - The simulator runs `bhp-media-broker --fake-source` with a fake
     supervisor window and touch claims, so a recorder scenario records a
     deterministic take.
+  - Done: `MediaLeaseClient` sits in `shared/media_lease_protocol`, beside the
+    wire format, so the shell and the simulator share it; it checks the
+    broker's UID. `media_broker_test` drives the real broker through it.
+  - Amended 2026-10-19: the simulator's broker moves to the groundwork plan's
+    Step 6. Without the recorder surface, no scenario can start a take. That
+    step runs the broker in-process on the fake source, with the real window
+    endpoint and a fake touch authority.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'media_lease|panel_simulation'` exit 0;
     - `make verify` exit 0.

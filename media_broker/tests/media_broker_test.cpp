@@ -314,6 +314,46 @@ void test_failures_leave_nothing()
 		expect(!h.broker->ui_attached(), "a malformed request drops the UI");
 	}
 }
+/** The UI's client library against the real broker: one committed take. */
+void test_lease_client()
+{
+	Harness h;
+	h.authority.observations[kObservation] = false;
+	h.endpoint->set_window(true, wire::WindowReason::DayPresent);
+	expect(!lease::MediaLeaseClient::for_connected_peer(::dup(h.ui), ::getuid() + 1),
+	       "the client refuses a peer that is not the broker UID");
+	auto client = lease::MediaLeaseClient::for_connected_peer(h.ui, ::getuid());
+	h.ui = -1;
+	expect(client.has_value(), "client connects");
+	auto &ui = *client.value();
+	auto next = [&](auto predicate) -> std::optional<lease::BrokerEvent> {
+		for (int round = 0; round < 1500; ++round) {
+			h.cycle();
+			auto events = ui.poll();
+			if (!events)
+				return std::nullopt;
+			for (auto &event : events.value())
+				if (predicate(event))
+					return event;
+			std::this_thread::sleep_for(std::chrono::milliseconds(2));
+		}
+		return std::nullopt;
+	};
+	const std::string request = "request-client-00000000001";
+	expect(ui.send(lease::ArmRequest{request, lease::Purpose::VoiceTake, kObservation, kBinding, "prompt:0002"})
+		       .has_value(),
+	       "arm sent");
+	auto armed = next([](const lease::BrokerEvent &e) { return std::holds_alternative<lease::Armed>(e); });
+	expect(armed.has_value(), "armed through the client");
+	const auto lease_id = std::get<lease::Armed>(*armed).lease_id;
+	(void)ui.send(lease::StartRequest{lease_id});
+	auto level = next([](const lease::BrokerEvent &e) { return std::holds_alternative<lease::Level>(e); });
+	expect(level && std::get<lease::Level>(*level).peak_decibels_tenths.size() == 6, "six channel levels");
+	(void)ui.send(lease::StopRequest{lease_id});
+	auto ended = next([](const lease::BrokerEvent &e) { return std::holds_alternative<lease::Ended>(e); });
+	expect(ended && std::get<lease::Ended>(*ended).outcome == lease::Outcome::Committed && h.takes() == 1,
+	       "the client's take commits");
+}
 } // namespace
 
 int main()
@@ -323,6 +363,7 @@ int main()
 	test_maximum_duration();
 	test_start_deadline();
 	test_failures_leave_nothing();
+	test_lease_client();
 	std::cout << "media_broker: " << failures << " failures\n";
 	return failures ? 1 : 0;
 }
