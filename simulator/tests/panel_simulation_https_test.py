@@ -104,6 +104,86 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
         marker = subprocess.run(command[:command.index("--exit-after-ms")], capture_output=True, text=True, timeout=10, check=True)
         assert json.loads(marker.stdout.splitlines()[0])["data"]["fixture_data"] is False
 
+        def prove_study_config_outbox_survives_a_drop_and_a_restart():
+            """The production BHP_VOCABULARY_PANEL_* path: rate, drop, queue, restart, deliver."""
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0))
+                port = probe.getsockname()[1]
+            state = directory / "study-config-server"
+
+            def start_server():
+                process = subprocess.Popen([sys.executable, str(root / "vocabulary_panel/tools/fixture_study_server.py"),
+                                            "--certificate", str(certificate), "--private-key", str(key),
+                                            "--state-directory", str(state), "--port", str(port)],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                if not select.select([process.stdout], [], [], 5)[0]:
+                    raise AssertionError("study-config fixture server readiness timed out")
+                assert json.loads(process.stdout.readline())["message"] == "fixture_ready"
+                return process
+
+            def stop_server(process):
+                process.terminate()
+                process.wait(timeout=5)
+                process.stdout.close()
+                process.stderr.close()
+
+            environment = directory / "vocabulary-panel.env"
+            environment.write_text("\n".join([
+                "# Fixture values for the renderer; the production file names the tailnet listener.",
+                "BHP_VOCABULARY_PANEL_LEXINET_BASE_URL=https://127.0.0.1:" + str(port),
+                "BHP_VOCABULARY_PANEL_STUDY_PROFILE_REF=fixture-default",
+                "BHP_VOCABULARY_PANEL_STUDY_TOPIC_REFS=fixture-words,fixture-systems",
+                "BHP_VOCABULARY_PANEL_STUDY_AUTH_MODE=tailnet_node",
+                "BHP_VOCABULARY_PANEL_CREDENTIAL_FILE=",
+                "BHP_VOCABULARY_PANEL_CONNECT_TIMEOUT_MS=1000",
+                "BHP_VOCABULARY_PANEL_REQUEST_TIMEOUT_MS=3000",
+                "BHP_VOCABULARY_PANEL_MAXIMUM_RESPONSE_BYTES=1048576",
+                "BHP_VOCABULARY_PANEL_MAXIMUM_SNAPSHOT_AGE_SECONDS=604800",
+            ]) + "\n")
+            study_command = [str(renderer), "--scenario", str(root / "simulator/scenarios/day-front.json"),
+                             "--study-config", str(environment), "--study-test-ca-file", str(certificate),
+                             "--state-directory", str(directory / "study-config-client"), "--exit-after-ms", "1400"]
+
+            def run(stdin=None):
+                completed = subprocess.run(study_command, input=stdin, capture_output=True, text=True,
+                                           timeout=10, check=True)
+                return [json.loads(line)["data"] for line in completed.stdout.splitlines()
+                        if "study_state" in json.loads(line)["data"]]
+
+            def ratings():
+                events = json.loads((state / "fixture-state.json").read_text())["events"].values()
+                return [entry["event"]["rating"] for entry in events if entry["event"]["kind"] == "rated"]
+
+            server_process = start_server()
+            try:
+                created = run()
+                assert any(frame["study_state"] == "front" for frame in created), created
+                assert all(frame["fixture_data"] is False for frame in created), \
+                    "the production configuration is live data, not a fixture"
+            finally:
+                stop_server(server_process)
+            # The network is gone: the rating stays visibly queued in the durable outbox.
+            queued = run(interactions)
+            assert queued[-1]["pending_review_events"] == 1 and queued[-1]["delivery_status"] == "Waiting to sync", queued
+            assert ratings() == []
+            server_process = start_server()
+            try:
+                # A fresh process restores the same session and delivers the queued rating once.
+                delivered = run()
+                assert delivered[0]["pending_review_events"] == 1, delivered
+                assert delivered[-1]["pending_review_events"] == 0 and delivered[-1]["delivery_status"] == "", delivered
+                assert ratings() == ["good"]
+            finally:
+                stop_server(server_process)
+            # Exactly one client source, and the production reader's codes reach the caller.
+            both = subprocess.run(study_command + ["--lexinet-config", str(config)], capture_output=True,
+                                  text=True, timeout=10, check=False)
+            assert both.returncode == 1 and "SIMULATOR.STUDY_CLIENT_SOURCES_EXCLUSIVE" in both.stderr
+            placeholder = subprocess.run(
+                [part if part != str(environment) else str(root / "config/vocabulary-panel.env.example")
+                 for part in study_command], capture_output=True, text=True, timeout=10, check=False)
+            assert placeholder.returncode == 1 and "STUDY_CONFIG.PLACEHOLDER" in placeholder.stderr
+
         def prove_shell_cancellation(name, event, expected):
             """Hold a real TLS response and observe the shell closing its transfer."""
             request_started = threading.Event()
@@ -256,7 +336,9 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
             mismatch.shutdown()
             mismatch.server_close()
             mismatch_thread.join(timeout=2)
+        prove_study_config_outbox_survives_a_drop_and_a_restart()
         print(json.dumps({"passed": True, "https_shell_resume_and_teardown": True,
+                          "study_config_outbox_survives_drop_and_restart": True,
                           "shell_lifecycle_and_surface_cancel_inflight_https": True,
                           "terminal_reducer_rejection_does_not_retry": True,
                           "simulation_not_hardware_evidence": True}))

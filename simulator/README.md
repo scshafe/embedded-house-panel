@@ -132,6 +132,15 @@ page refill and successor creation use the canonical reducer's persisted request
 identities. Terminal boundary errors wait for an explicit reload; retryable
 failures retain the durable request for recovery.
 
+`--study-config ENV_FILE` is the production alternative to `--lexinet-config`
+(the two are exclusive): the `BHP_VOCABULARY_PANEL_*` keys of
+`config/vocabulary-panel.env.example`, read strictly by
+`read_study_client_configuration`, with live data (`fixture_data` false). The
+renderer alone also takes a test-only `--study-test-ca-file PEM` for the fixture
+HTTPS server; `bhp-panel-ui` has no such option.
+`panel_simulation_https_test.py` covers a create, a rating queued while the
+server is down, and its single delivery after both processes restart.
+
 **Amended 2026-09-25 (approved UI review):** shared screens use larger type,
 aligned controls and agenda columns, and product-facing state copy. Routine
 presentation/reveal bookkeeping does not produce a sync badge. Pending ratings

@@ -136,6 +136,16 @@ completion event. The ordinary entry point retains its fail-dark backend and
 production service enablement remains blocked. See the
 [virtual panel contract](../simulator/README.md) for fixture scope and commands.
 
+**Amended 2026-10-18 (issue #21):** `--simulation-drm` also takes
+`--study-config PATH`, the `BHP_VOCABULARY_PANEL_*` environment file read by
+`read_study_client_configuration`, with `--state-directory DIR`. It runs the live
+`study.v1` client (`HttpLexinetClient`, `StudyWorker`, `StudySynchronizer`)
+with production TLS only and the panel's tailnet identity (ADR 0010). It
+excludes `--lexinet-config`. This is the runtime the FRDM board uses until the
+display cutover; the ordinary entry point stays fail-dark, and its runs remain
+development records, not gate evidence
+([plan](../.claude/plans/2026-10-18-vocabulary-study-on-the-board.md)).
+
 **Amended 2026-09-25 (approved UI review):** the shared renderer uses pinned
 [project fonts](../shared/panel_fonts/README.md), a consistent layout grid,
 bounded text fitting and product copy. All three display tiers share the same

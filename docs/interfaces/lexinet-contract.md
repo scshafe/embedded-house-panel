@@ -217,6 +217,11 @@ maximum offline interval remains explicitly degraded rather than authoritative.
 - Queued, syncing, saved, rejected, offline, tracking-paused, and provisional
   states remain distinct; the UI never implies that unsynchronized or
   provisional evidence was saved.
+- `StudySynchronizer` (`vocabulary_panel`) is the one driver of this boundary
+  for every study host: one operation in flight, 1 s pacing, requests only
+  while the study surface is active, and a terminal stop until an explicit
+  reload. The live client's settings come only from the
+  `BHP_VOCABULARY_PANEL_*` keys (**amended 2026-10-18**, issue #21).
 
 ## Current implementation boundary
 

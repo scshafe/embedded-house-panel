@@ -38,6 +38,12 @@ struct PanelSimulation::StudyNetwork {
  std::shared_ptr<vocabulary_panel::HttpLexinetClient> client;
  std::unique_ptr<vocabulary_panel::StudySynchronizer> synchronizer;
  ~StudyNetwork(){synchronizer.reset();if(runtime)static_cast<void>(runtime->shutdown());client.reset();runtime.reset();}
+ StudyNetwork(const vocabulary_panel::StudyClientConfiguration &configuration,const std::string &test_ca_pem){
+  fixture_data=false;
+  auto config=configuration.http;config.trusted_ca_certificate_pem_for_tests=test_ca_pem;
+  auto made=bhp::http_runtime::HttpRuntime::create();if(!made.has_value())throw std::runtime_error(made.error().code);runtime=made.value();client=std::make_shared<vocabulary_panel::HttpLexinetClient>(runtime,config,logger);
+  synchronizer=std::make_unique<vocabulary_panel::StudySynchronizer>(std::make_unique<vocabulary_panel::StudyWorker>(runtime,client),configuration.profile_ref,configuration.topic_refs,"panel");
+ }
  explicit StudyNetwork(const std::string &path) {
   std::ifstream file(path);if(!file)throw std::runtime_error("SIMULATOR.LEXINET_CONFIG_READ_FAILED");Json j;file>>j;
   fixture_data=j.value("fixture_data",true);
@@ -48,10 +54,16 @@ struct PanelSimulation::StudyNetwork {
   synchronizer=std::make_unique<vocabulary_panel::StudySynchronizer>(std::make_unique<vocabulary_panel::StudyWorker>(runtime,client),j.at("profile_ref").get<std::string>(),j.value("topic_refs",std::vector<std::string>{}),"simulation");
  }
 #else
+ StudyNetwork(const vocabulary_panel::StudyClientConfiguration &,const std::string &){throw std::runtime_error("SIMULATOR.HTTPS_NOT_BUILT");}
  explicit StudyNetwork(const std::string &){throw std::runtime_error("SIMULATOR.HTTPS_NOT_BUILT");}
 #endif
 };
 PanelSimulation::~PanelSimulation()=default;
+void PanelSimulation::attach_study_client(const vocabulary_panel::StudyClientConfiguration &configuration,const std::string &test_ca_pem){
+ if(network_)throw std::runtime_error("SIMULATOR.STUDY_CLIENT_ALREADY_CONFIGURED");
+ if(!persistent_store_->durable())throw std::runtime_error("SIMULATOR.HTTPS_REQUIRES_DURABLE_STORE");
+ network_=std::make_unique<StudyNetwork>(configuration,test_ca_pem);
+}
 
 Json read_scenario(const std::string &path) {
  std::ifstream file(path);if(!file)throw std::runtime_error("SIMULATOR.SCENARIO_READ_FAILED");
