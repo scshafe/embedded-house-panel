@@ -3,7 +3,7 @@
 **Amended 2026-10-19 (issue #22):** `media_broker/` now also holds the C++
 capture core for the real broker's `voice_take` purpose
 ([voice-take capture plan](../.claude/plans/2026-10-19-voice-take-capture.md),
-Step 2). It is a library with no daemon yet, and no device code:
+Steps 2, 3 and 5):
 - `CaptureSource` is the one place audio enters. `FakeCaptureSource` is the
   deterministic host and simulator source, with injectable xruns, timestamp
   steps and device loss.
@@ -18,8 +18,35 @@ Step 2). It is a library with no daemon yet, and no device code:
   erased.
 - `TakeStore` is the bounded owner-only directory of takes.
 
-Tests: `ctest --test-dir .build/host-dev -R media_capture`. The Python fake
-below is unchanged and still serves the simulator's `command_recognition`.
+- `AlsaCaptureSource` (`BHP_BUILD_MEDIA_ALSA=ON`, libasound) opens a `hw:`
+  PCM with no resampling and the exact format, rate and channels; an xrun is
+  `MEDIA_CAPTURE.XRUN`, never recovered. Each period's pair comes from
+  `snd_pcm_htimestamp` with `MONOTONIC_RAW` timestamps.
+- `Xvf3800Control` reads the array's firmware identity, nine processing
+  settings and output routing through usbdevfs vendor IN requests. It has no
+  write path.
+- `bhp-media-capture-check --pcm NAME --seconds N --take-root DIR` records one
+  take through all of the above and prints a JSON summary. It is a bring-up
+  and evidence tool, not the broker: it takes no lease.
+
+- `MediaBroker` and `bhp-media-broker` (Step 5) are the one audio owner.
+  - It listens for the UI on `--ui-socket` (exact `--ui-uid`) and speaks
+    `shared/media_lease_protocol`.
+  - It follows the supervisor's window on `--window-socket` (exact
+    `--supervisor-uid`) through `shared/media_window_protocol`.
+  - It serves `voice_take` only; other purposes are
+    `MEDIA_BROKER.PURPOSE_DISABLED`.
+  - A lease runs `arm`, then the broker claims the touch observation for a
+    digest of the request, then `armed`, then `start` within 1 s, then
+    `started`, with a `level` about every 100 ms, then `ended`.
+  - A take ends on `stop`, at 600 s, or as a failure on window closure, UI
+    disconnect, an xrun, a device error or daemon stop. A failure leaves no
+    files.
+  - `--fake-source` records the paced fake source.
+
+Tests: `ctest --test-dir .build/host-dev -R media_` (the tool runs on the
+paced fake source, and against a missing device). The Python fake below is
+unchanged and still serves the simulator's `command_recognition`.
 
 **Amended 2026-09-26:** the supervisor now verifies kernel-visible capture
 closure before every enabled suspend write and can terminate only the exact
