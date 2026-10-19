@@ -326,3 +326,8 @@ next-card documentation. Production services remain disabled.
 
 **Amended 2026-09-30:** recorded user-reported FRDM board receipt and linked the
 Arch development handoff. Receipt closes no measurement or enablement gate.
+
+## License
+
+MIT (`LICENSE`). Kernel code, device-tree overlays and the Montserrat fonts keep
+their own licences, and NXP firmware is never redistributed: see `NOTICE`.

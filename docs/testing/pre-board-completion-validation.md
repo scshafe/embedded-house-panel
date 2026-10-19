@@ -45,7 +45,7 @@ read-only at `ce42272`, so no `panel-integration` branch was needed. The JSON
 lists every launch and test command. The main ones are:
 
 - `make verify` and `make verify-docs`;
-- `make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=/Users/coleshaffer/lexinet`;
+- `make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=~/lexinet`;
 - `python3 scripts/verification/check_fault_matrix.py`;
 - `sudo python3 scripts/sim/guest/capture_closure_matrix.py --execute --check-binary <guest build>/panel_supervisor/capture_closure_check`.
 
