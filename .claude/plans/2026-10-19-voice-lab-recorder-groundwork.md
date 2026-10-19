@@ -112,7 +112,7 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'panel_intent_registry|panel_application_grid|panel_simulation|panel_display'` exit 0;
     - `make verify` exit 0 with the golden comparison unchanged.
-- [ ] **Step 2: The HTTP request API.**
+- [x] **Step 2: The HTTP request API.** (2026-10-19)
   - `HttpRequest` and `HttpResponse` in `shared/http_runtime` (Decision 2),
     with `ETag` and `Content-Range` handling and a file-range body.
   - `HttpLexinetClient` uses it; its tests pass unchanged.
@@ -120,10 +120,15 @@ fixture data, recording through the media broker's `voice_take` purpose.
     answered `304`, a chunked `PUT` with `Content-Range` that the server
     verifies byte for byte, a 600 s budget accepted and 601 s refused, the
     response cap, a redirect refused, and cancellation mid-upload.
+  - Done: `shared/http_runtime/include/bhp/http_runtime/http_request.h` and
+    `http_request_test`. The test server is plain HTTP on loopback; TLS
+    verification is covered by the lexinet HTTPS tests, which now go through
+    the same `perform()`. "A redirect refused" means it comes back as a 3xx
+    status and is never followed; the lexinet client still rejects it.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'http_runtime|http_lexinet'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 3: The shared durable store and outbox mechanics.**
+- [x] **Step 3: The shared durable store and outbox mechanics.** (2026-10-19)
   - `shared/durable_store`: the atomic file commit from `FileStudyStore`
     (owner-only directory, lock, fsync, rename, directory fsync, sticky
     uncertainty); `FileStudyStore` uses it with its file names and error
@@ -134,21 +139,32 @@ fixture data, recording through the media broker's `voice_take` purpose.
     server's offset, never from local belief, and stops on a structured
     refusal.
   - Update the ownership registry row for the outbox.
+  - Done: `shared/durable_store` (`DurableFile`, `Backoff`,
+    `ResumableUpload`). `FileStudyStore` wraps `DurableFile`; its file names,
+    error codes and crash test are unchanged. The ownership registry gains a
+    row for the mechanics, and the vocabulary outbox row keeps its rules.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'durable_store|study_store|resumable_upload|backoff'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 4: One contract-pin tool.**
+- [x] **Step 4: One contract-pin tool.** (2026-10-19)
   - `scripts/contracts/pinned_source.py`: the fetch and the clean-checkout
     check, parameterised by repository, provenance file and cache directory;
     `scripts/lexinet/pinned_source.py` becomes a thin lexinet configuration.
   - Write down in `docs/interfaces/` how a second contract is pinned (the
     provenance shape, `--check`, and the live check), so voice-lab's bundle
     uses the same mechanism when it lands.
+  - Done: `scripts/contracts/contract_pin.py` (`ContractPin`; error codes take
+    the contract's name). `scripts/lexinet/pinned_source.py` keeps its API and
+    `LEXINET_*` codes, and the study.v1 `--check` export is unchanged
+    (9 fixtures, bundle `b90be0dd…`). Written down in
+    `docs/interfaces/contract-pinning.md`. The module is named
+    `contract_pin.py`, not `pinned_source.py`, because two modules with the
+    same name on one import path shadow each other.
   - Verify:
     - `python3 -m unittest discover -s scripts/contracts/tests` exit 0;
     - `python3 -m unittest discover -s scripts/lexinet/tests` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 5: ADR 0012, the refresh token on the panel.**
+- [x] **Step 5: ADR 0012, the refresh token on the panel.** (2026-10-19)
   - The threat model for the `0600` refresh-token file: whose subject it
     acts for, what it reaches (voice-lab's allow-list only), who can read it
     (the uploader's UID; never the UI, the broker or the supervisor), the
@@ -160,6 +176,11 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - The device-code screen shows `verification_uri` and the user code only,
     and enforces `expires_in`.
   - Update the threat model document and ADR 0010's related list.
+  - Done: `docs/decisions/0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md`,
+    with a registry row, a new asset row and revocation step in
+    `docs/security/threat-model.md`, and a reference from ADR 0010. If the
+    durable write of a rotated token fails, the uploader signs in again rather
+    than use the new access token.
   - Verify:
     - `make verify` exit 0.
 - [x] **Step 6: The recorder screens on fixture data.** (2026-10-19)

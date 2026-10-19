@@ -55,6 +55,10 @@ The repository base revision locates the committed audited source tree. The
 contract bundle digest independently identifies the exact contract content and
 is the content-integrity pin.
 
+The fetch and the cache check are the shared mechanism in
+`scripts/contracts/contract_pin.py`; see
+[pinning another project's contract](contract-pinning.md).
+
 ## Frozen `study.v1` operations
 
 The contract exposes raw success resources at three capabilities:
