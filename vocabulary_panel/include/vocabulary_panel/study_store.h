@@ -27,6 +27,7 @@ class MemoryStudyStore final : public StudyStore
       private:
 	std::optional<std::string> payload_;
 };
+/** Mirrors bhp::durable_store::CommitBoundary value for value. */
 enum class StudyStoreBoundary {
 	temporary_opened,
 	payload_written,
@@ -34,7 +35,10 @@ enum class StudyStoreBoundary {
 	renamed,
 	directory_synchronized
 };
-/** Owner-only, bounded atomic file with exclusive process lock and fsync ordering. */
+/**
+ * Owner-only, bounded atomic file with exclusive process lock and fsync ordering:
+ * `shared/durable_store`'s DurableFile with the study's file names and STUDY.* codes.
+ */
 class FileStudyStore final : public StudyStore
 {
       public:

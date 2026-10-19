@@ -3,7 +3,7 @@ if(NOT TARGET bhp_structured_logging)
     "panel_supervisor requires the canonical bhp_structured_logging target; configure from the repository root")
 endif()
 if(NOT TARGET bhp_panel_mode_protocol OR NOT TARGET bhp_application_identity OR
-   NOT TARGET bhp_touch_observation_protocol)
+   NOT TARGET bhp_touch_observation_protocol OR NOT TARGET bhp_media_window_protocol)
   message(FATAL_ERROR
     "panel_supervisor requires canonical lifecycle, touch, and application identity targets")
 endif()
@@ -45,6 +45,7 @@ add_library(panel_supervisor_linux_adapters STATIC
   src/daemon_stop_controller.cpp
   src/evdev_presence_source.cpp
   src/evdev_touch_source.cpp
+  src/media_window_endpoint.cpp
   src/touch_runtime_configuration.cpp
   src/touch_observation_runtime.cpp
   src/exact_file_writer.cpp
@@ -64,7 +65,8 @@ target_include_directories(panel_supervisor_linux_adapters
 )
 target_compile_features(panel_supervisor_linux_adapters PUBLIC cxx_std_17)
 target_link_libraries(panel_supervisor_linux_adapters
-  PUBLIC panel_supervisor bhp_panel_mode_protocol bhp_application_identity Threads::Threads
+  PUBLIC panel_supervisor bhp_panel_mode_protocol bhp_application_identity bhp::media_window_protocol
+    Threads::Threads
 )
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(panel_supervisor_linux_adapters PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -209,6 +211,13 @@ if(BHP_BUILD_TESTS)
     target_compile_options(capture_closure_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
   add_test(NAME capture_closure_test COMMAND capture_closure_test)
+
+  add_executable(media_window_endpoint_test tests/media_window_endpoint_test.cpp)
+  target_link_libraries(media_window_endpoint_test PRIVATE panel_supervisor_linux_adapters)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(media_window_endpoint_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME media_window_endpoint_test COMMAND media_window_endpoint_test)
 
   # Check-only simulation tool: the daemon's gate with a suspend that never writes.
   add_executable(capture_closure_check tools/capture_closure_check.cpp)

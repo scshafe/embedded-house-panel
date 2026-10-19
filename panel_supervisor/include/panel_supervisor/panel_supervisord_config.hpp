@@ -61,10 +61,16 @@ public:
 	 * microphone capture refuses every suspend. Never 0 and never the panel UI UID.
 	 */
 	[[nodiscard]] const std::optional<std::uint32_t> &media_broker_uid() const noexcept { return media_broker_uid_; }
+	/**
+	 * BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET: where the broker reads the lifecycle
+	 * window and claims touch observations. Empty when unset; it requires the broker UID.
+	 */
+	[[nodiscard]] const std::string &media_window_socket() const noexcept { return media_window_socket_; }
 
 private:
 	std::optional<TouchRuntimeConfiguration> touch_configuration_;
 	std::optional<std::uint32_t> media_broker_uid_;
+	std::string media_window_socket_;
 	PanelSupervisordConfig(SupervisorConfig supervisor_config, double latitude_degrees,
 			       double longitude_degrees, std::string presence_input_path,
 			       std::string presence_input_name,
