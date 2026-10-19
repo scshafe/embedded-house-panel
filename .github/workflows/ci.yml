@@ -31,6 +31,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      # The host toolchain make verify needs, matching the Arch bootstrap list
+      # (scripts/environment/bootstrap_arch_build_host.sh). Go is preinstalled.
+      - name: Install verify dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            ripgrep shellcheck ninja-build pkg-config device-tree-compiler \
+            libcurl4-openssl-dev libssl-dev libpng-dev libdrm-dev libsdl2-dev \
+            nlohmann-json3-dev
       - name: Verify (dev.toml [verify] command)
         run: |
           make verify
