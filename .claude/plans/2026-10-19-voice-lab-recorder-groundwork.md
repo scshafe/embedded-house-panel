@@ -173,7 +173,7 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab|panel_simulation'` exit 0;
     - `make verify` exit 0 with the new goldens recorded.
-- [ ] **Step 7: Device-code sign-in and the token store.**
+- [x] **Step 7: Device-code sign-in and the token store.** (2026-10-19)
   - A device-code client for the uploader (RFC 8628 against Pocket ID's
     endpoints): poll at the given interval, stop at `expires_in`, no
     `resource` parameter, `aud` read as an array.
@@ -183,6 +183,13 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Tests against a fake Pocket ID: approval, expiry while pending,
     rotation, a reused token, a crash between write and use, and that no
     token reaches a log, an argument or a URL.
+  - Done: `voice_lab_recorder/include/voice_lab_recorder/pocket_id_sign_in.h`
+    (`discover`, `DeviceCodeSignIn`, `RefreshTokenStore`, `VoiceLabSession`).
+    Endpoints come from the issuer's discovery document, which voice-lab's
+    HOUSE-PANEL design describes for the owner's client. "A crash between write
+    and use" is tested as a failed durable write, which signs out without
+    using the new access token. The tokens travel only in form bodies; the code
+    has no logging.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'device_code|token_store'` exit 0;
     - `make verify` exit 0.
