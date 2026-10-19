@@ -75,7 +75,7 @@ and shows that the rating survives a network drop (the outbox) and a restart.
 
 ## Steps
 
-- [ ] **Step 1: Move the network loop into `vocabulary_panel`.**
+- [x] **Step 1: Move the network loop into `vocabulary_panel`.** (2026-10-18)
   - Add `StudySynchronizer` (`@canonical study_synchronizer`) in
     `vocabulary_panel`. It drives one `FlashCardSession` through one
     `StudyWorker`, with the same rules as `pump_study`:
@@ -90,6 +90,8 @@ and shows that the rating survives a network drop (the outbox) and a restart.
   - `PanelSimulation` uses it, with no behavior change.
   - Tests in `vocabulary_panel/tests/study_synchronizer_test.cpp`, with a fake
     `LexinetClient` and a fake clock, cover each rule above.
+  - Done: `vocabulary_panel/src/study_synchronizer.cpp`, and `PanelSimulation::pump_study`
+    now only computes the gate and re-projects. `panel_simulation_https_resume` passes unchanged.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'study_synchronizer|panel_simulation'` exit 0;
     - `make verify` exit 0.

@@ -22,7 +22,8 @@ target_link_libraries(vocabulary_panel_terminal PRIVATE vocabulary_panel_core)
 
 if(BHP_BUILD_HTTP_LEXINET_CLIENT)
   find_package(CURL REQUIRED)
-  add_library(vocabulary_panel_http_lexinet STATIC src/http_lexinet_client.cpp src/study_worker.cpp)
+  add_library(vocabulary_panel_http_lexinet STATIC src/http_lexinet_client.cpp src/study_worker.cpp
+    src/study_synchronizer.cpp)
   target_include_directories(vocabulary_panel_http_lexinet PUBLIC include)
   target_compile_features(vocabulary_panel_http_lexinet PUBLIC cxx_std_17)
   target_link_libraries(vocabulary_panel_http_lexinet
@@ -52,6 +53,14 @@ if(BHP_BUILD_HTTP_LEXINET_CLIENT)
     add_executable(vocabulary_panel_study_worker_test tests/study_worker_test.cpp)
     target_link_libraries(vocabulary_panel_study_worker_test PRIVATE vocabulary_panel_http_lexinet)
     add_test(NAME vocabulary_panel_study_worker_test COMMAND vocabulary_panel_study_worker_test)
+    add_executable(vocabulary_panel_study_synchronizer_test tests/study_synchronizer_test.cpp)
+    target_link_libraries(vocabulary_panel_study_synchronizer_test PRIVATE vocabulary_panel_http_lexinet)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+      target_compile_options(vocabulary_panel_study_synchronizer_test
+        PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+    add_test(NAME vocabulary_panel_study_synchronizer_test
+      COMMAND vocabulary_panel_study_synchronizer_test)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_executable(vocabulary_panel_study_https_roundtrip_test tests/study_https_roundtrip_test.cpp)
     target_link_libraries(vocabulary_panel_study_https_roundtrip_test PRIVATE vocabulary_panel_http_lexinet)

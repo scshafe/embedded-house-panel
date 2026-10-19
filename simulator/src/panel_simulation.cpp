@@ -16,6 +16,7 @@
 #include <vector>
 #ifdef BHP_SIMULATOR_HTTPS
 #include "vocabulary_panel/http_lexinet_client.h"
+#include "vocabulary_panel/study_synchronizer.h"
 #include "vocabulary_panel/study_worker.h"
 #include "bhp/structured_logger.h"
 #endif
@@ -35,22 +36,16 @@ struct PanelSimulation::StudyNetwork {
  bhp::StructuredLogger logger{"panel_simulator.study",std::cerr};
  std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime;
  std::shared_ptr<vocabulary_panel::HttpLexinetClient> client;
- std::unique_ptr<vocabulary_panel::StudyWorker> worker;
- vocabulary_panel::StudyCreateRequest creation;
- bool in_flight{false};
- bool review_sync_in_flight{false};
- bool terminal_error{false};
- std::string successor_materialized_for;
- std::chrono::steady_clock::time_point next_attempt{};
- ~StudyNetwork(){worker.reset();if(runtime)static_cast<void>(runtime->shutdown());client.reset();runtime.reset();}
+ std::unique_ptr<vocabulary_panel::StudySynchronizer> synchronizer;
+ ~StudyNetwork(){synchronizer.reset();if(runtime)static_cast<void>(runtime->shutdown());client.reset();runtime.reset();}
  explicit StudyNetwork(const std::string &path) {
   std::ifstream file(path);if(!file)throw std::runtime_error("SIMULATOR.LEXINET_CONFIG_READ_FAILED");Json j;file>>j;
   fixture_data=j.value("fixture_data",true);
   vocabulary_panel::HttpLexinetConfig config;config.lexinet_base_url=j.at("base_url");config.credential_file_path=j.value("credential_file","");
   config.transport_budget={1000,3000,1048576};config.maximum_snapshot_age_seconds=604800;config.clock_trusted=false;config.allow_qemu_host_test_ca=j.value("allow_qemu_host_test_ca",false);
   if(j.contains("fixture_ca_file")){std::ifstream ca(j.at("fixture_ca_file").get<std::string>());if(!ca)throw std::runtime_error("SIMULATOR.CA_READ_FAILED");config.trusted_ca_certificate_pem_for_tests=std::string(std::istreambuf_iterator<char>(ca),{});}
-  auto made=bhp::http_runtime::HttpRuntime::create();if(!made.has_value())throw std::runtime_error(made.error().code);runtime=made.value();client=std::make_shared<vocabulary_panel::HttpLexinetClient>(runtime,config,logger);worker=std::make_unique<vocabulary_panel::StudyWorker>(runtime,client);
-  creation.profile_ref=j.at("profile_ref");creation.topic_refs=j.value("topic_refs",std::vector<std::string>{});
+  auto made=bhp::http_runtime::HttpRuntime::create();if(!made.has_value())throw std::runtime_error(made.error().code);runtime=made.value();client=std::make_shared<vocabulary_panel::HttpLexinetClient>(runtime,config,logger);
+  synchronizer=std::make_unique<vocabulary_panel::StudySynchronizer>(std::make_unique<vocabulary_panel::StudyWorker>(runtime,client),j.at("profile_ref").get<std::string>(),j.value("topic_refs",std::vector<std::string>{}),"simulation");
  }
 #else
  explicit StudyNetwork(const std::string &){throw std::runtime_error("SIMULATOR.HTTPS_NOT_BUILT");}
@@ -131,7 +126,7 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
   throw std::runtime_error("SIMULATOR.DELIVERY_FIXTURE_REQUIRES_MEMORY");
  fixture_override_=fixture_override;
 #ifdef BHP_SIMULATOR_HTTPS
- if(network_){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;network_->terminal_error=false;}
+ if(network_)network_->synchronizer->reset();
 #endif
  store_=fixture_override_?std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::MemoryStudyStore>()):persistent_store_;
  const bool network_active=network_&&!fixture_override_;
@@ -190,11 +185,11 @@ void PanelSimulation::switch_surface(const std::string &surface_id){
 #ifdef BHP_SIMULATOR_HTTPS
   // leave_surface commits local evidence, which clears transient reducer errors.
   // A terminal server failure remains in force until an explicit scenario reload.
-  if(network_&&network_->terminal_error&&boundary_error)study_->set_boundary_error(*boundary_error);
+  if(network_&&network_->synchronizer->stopped()&&boundary_error)study_->set_boundary_error(*boundary_error);
 #endif
  }
 #ifdef BHP_SIMULATOR_HTTPS
- if(network_){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
+ if(network_)network_->synchronizer->cancel();
 #endif
  scene.surface_id=surface_id;
  context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
@@ -221,7 +216,7 @@ void PanelSimulation::project_study(){
  else if(std::any_of(study_->pending_events().begin(),study_->pending_events().end(),review_event)){
   scene.delivery_status="Waiting to sync";
 #ifdef BHP_SIMULATOR_HTTPS
-  if(network_&&!fixture_override_&&network_->in_flight&&network_->review_sync_in_flight)scene.delivery_status="Syncing with Lexinet";
+  if(network_&&!fixture_override_&&network_->synchronizer->review_sync_in_flight())scene.delivery_status="Syncing with Lexinet";
 #endif
  }
 }
@@ -229,7 +224,7 @@ void PanelSimulation::accept_lifecycle(const Snapshot &s){
  if(s.display_mode!=scene.lifecycle.display_mode||s.solar_state==SolarState::Unknown)cancel_clock_animation();
  lifecycle_available_=true;
 #ifdef BHP_SIMULATOR_HTTPS
- if(network_&&(s.display_mode!=DisplayMode::DayActive||s.presence_state==PresenceState::Absent)){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
+ if(network_&&(s.display_mode!=DisplayMode::DayActive||s.presence_state==PresenceState::Absent))network_->synchronizer->cancel();
 #endif
  context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
  if(network_&&!fixture_override_)project_study();
@@ -244,7 +239,7 @@ void PanelSimulation::invalidate_lifecycle(){
  cancel_clock_animation();
  lifecycle_available_=false;
 #ifdef BHP_SIMULATOR_HTTPS
- if(network_){network_->worker->cancel();network_->in_flight=false;network_->review_sync_in_flight=false;}
+ if(network_)network_->synchronizer->cancel();
 #endif
  voice_.reset();voice_pending_=false;
  auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;
@@ -322,34 +317,11 @@ void PanelSimulation::pump_clock(){
 void PanelSimulation::pump_study(){
 #ifdef BHP_SIMULATOR_HTTPS
  if(!network_||fixture_override_||!lifecycle_available_)return;
- if(auto completion=network_->worker->take_completion()){
-  network_->in_flight=false;network_->review_sync_in_flight=false;
-  if(completion->error){study_->set_boundary_error(*completion->error);scene.acknowledgement=completion->error->error_code;network_->terminal_error=!completion->error->retryable;}
-  else if(completion->session){const auto previous=study_->snapshot().session_id;auto applied=study_->install_session(*completion->session);if(!applied.has_value()){study_->set_boundary_error(applied.error());scene.acknowledgement=applied.error().error_code;network_->terminal_error=!applied.error().retryable;}else if(!previous.empty())network_->successor_materialized_for=previous;}
-  else if(completion->synchronization){auto applied=study_->accept_sync(*completion->synchronization);if(!applied.has_value()){study_->set_boundary_error(applied.error());scene.acknowledgement=applied.error().error_code;network_->terminal_error=!applied.error().retryable;}}
-  project_study();render();network_->next_attempt=std::chrono::steady_clock::now()+std::chrono::seconds(1);
- }
- if(network_->terminal_error||network_->in_flight||std::chrono::steady_clock::now()<network_->next_attempt||scene.surface_id!="study"||scene.lifecycle.display_mode!=DisplayMode::DayActive||scene.lifecycle.presence_state==PresenceState::Absent)return;
- study_->set_clock_trusted(scene.lifecycle.solar_state!=SolarState::Unknown);
- if(study_->snapshot().session_id.empty()){
-  auto creation=study_->prepare_create(network_->creation.profile_ref,network_->creation.topic_refs);
-  if(creation.has_value()){auto started=network_->worker->create_or_resume(creation.value(),"simulation-create");network_->in_flight=started.has_value();}
-  else {study_->set_boundary_error(creation.error());network_->terminal_error=!creation.error().retryable;project_study();render();}
- }else{
-  if(study_->snapshot().availability==vocabulary_panel::StudyAvailability::refill_required&&network_->successor_materialized_for!=study_->snapshot().session_id){
-   auto successor=study_->prepare_successor();
-   if(successor.has_value()){auto started=network_->worker->create_or_resume(successor.value(),"simulation-successor");network_->in_flight=started.has_value();network_->next_attempt=std::chrono::steady_clock::now()+std::chrono::seconds(1);return;}
-  }
-  if(study_->needs_sync()){
-   auto sync=study_->prepare_sync();
-   if(sync.has_value()){
-    auto started=network_->worker->sync(sync.value(),"simulation-sync");network_->in_flight=started.has_value();
-    network_->review_sync_in_flight=network_->in_flight&&std::any_of(sync.value().events.begin(),sync.value().events.end(),review_event);
-    const auto previous=scene.delivery_status;project_study();if(scene.delivery_status!=previous)render();
-   }
-  }
- }
- network_->next_attempt=std::chrono::steady_clock::now()+std::chrono::seconds(1);
+ const bool active=scene.surface_id=="study"&&scene.lifecycle.display_mode==DisplayMode::DayActive&&scene.lifecycle.presence_state!=PresenceState::Absent;
+ const auto step=network_->synchronizer->step(*study_,active,scene.lifecycle.solar_state!=SolarState::Unknown);
+ if(step.completion_applied){if(step.error_code)scene.acknowledgement=*step.error_code;project_study();render();}
+ else if(step.local_failure_recorded){project_study();render();}
+ else if(step.sync_started){const auto previous=scene.delivery_status;project_study();if(scene.delivery_status!=previous)render();}
 #endif
 }
 void PanelSimulation::utterance(const std::string &phrase){
