@@ -14,6 +14,32 @@ std::string read_bytes(const std::filesystem::path &path){
  std::ifstream input(path,std::ios::binary);require(input.good(),"test state file must exist");
  return {std::istreambuf_iterator<char>(input),std::istreambuf_iterator<char>()};
 }
+void test_voice_lab_fixture_flow(const std::filesystem::path &root){
+ PanelSimulation app(false);
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
+ app.semantic_intent("shell.open_voice_lab","touch");
+ require(app.scene.surface_id=="voice_lab"&&app.scene.voice_lab.state=="ready","the recorder opens from home");
+ const auto has_target=[&app](const std::string &intent){
+  for(const auto &target:app.display.hit_targets())if(target.intent_id==intent)return true;
+  return false;
+ };
+ require(has_target("voice_lab.record")&&has_target("voice_lab.skip")&&!has_target("voice_lab.keep"),"ready offers record and skip");
+ app.semantic_intent("voice_lab.keep","touch");
+ require(app.scene.voice_lab.state=="ready"&&app.scene.acknowledgement=="Action unavailable","keep needs a take");
+ app.semantic_intent("voice_lab.record","touch");
+ require(app.scene.voice_lab.state=="recording"&&has_target("voice_lab.stop"),"record starts a take");
+ app.semantic_intent("voice_lab.stop","touch");
+ require(app.scene.voice_lab.state=="review"&&has_target("voice_lab.keep")&&has_target("voice_lab.retake")&&has_target("voice_lab.reject"),"stop offers review");
+ const auto queued=app.scene.voice_lab.queued_takes;const auto prompt=app.scene.voice_lab.prompt_number;
+ app.semantic_intent("voice_lab.keep","touch");
+ require(app.scene.voice_lab.state=="ready"&&app.scene.voice_lab.queued_takes==queued+1&&app.scene.voice_lab.prompt_number==prompt+1,"keep queues the take and moves on");
+ app.semantic_intent("voice_lab.record","touch");app.semantic_intent("voice_lab.stop","touch");app.semantic_intent("voice_lab.reject","touch");
+ require(app.scene.voice_lab.state=="ready"&&app.scene.voice_lab.queued_takes==queued+1&&app.scene.acknowledgement=="Take discarded","reject discards without queuing");
+ app.semantic_intent("voice_lab.record","voice");
+ require(app.scene.voice_lab.state=="ready","voice cannot start a take");
+ app.semantic_intent("shell.home","touch");
+ require(app.scene.surface_id=="home","home leaves the recorder");
+}
 void test_home_navigation_preserves_durable_requests(const std::filesystem::path &root){
  using namespace vocabulary_panel;
  const auto directory=std::filesystem::temp_directory_path()/("bhp-home-retention-"+new_study_uuid());
@@ -171,6 +197,7 @@ int main(){try{
  test_home_navigation_preserves_durable_requests(root);
  test_home_navigation_gates_and_retains_voice_state(root);
  test_home_weather_scenario_validation(root);
+ test_voice_lab_fixture_flow(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

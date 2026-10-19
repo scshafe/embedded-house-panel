@@ -47,6 +47,12 @@
     "study-resume",
     "study-saved",
     "study-stale",
-    "study-tracking-paused"
+    "study-tracking-paused",
+    "voice-lab-complete",
+    "voice-lab-ready",
+    "voice-lab-recording",
+    "voice-lab-review",
+    "voice-lab-signed-out",
+    "voice-lab-unavailable"
   ]
 }

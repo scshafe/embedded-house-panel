@@ -162,7 +162,7 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
   scene.weather_temperature_unit=weather.value("unit","F");scene.weather_fixture=true;
  }
  scene.fixture_clock_untrusted=fixture_override_&&j.value("lifecycle","day")=="clock_untrusted";
- scene.agenda_state=j.value("agenda_state","today");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
+ scene.agenda_state=j.value("agenda_state","today");scene.voice_lab.state=j.value("voice_lab_state","ready");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
  context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
  if(update_lifecycle)accept_lifecycle(supervisor.publish(j.value("lifecycle","day")));
  if(!store_->durable())store_=std::make_shared<vocabulary_panel::MemoryStudyStore>();
@@ -289,6 +289,7 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
    else scene.acknowledgement=id=="shell.apps_next"?"Last page":"First page";
    context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();render();return;
   }
+  if(id.rfind("voice_lab.",0)==0){voice_lab_intent(id);render();return;}
   const std::map<std::string,vocabulary_panel::StudyIntent> mapping{{"study.flip",vocabulary_panel::StudyIntent::flip},{"study.next",vocabulary_panel::StudyIntent::next},{"study.back",vocabulary_panel::StudyIntent::back},{"study.rate.again",vocabulary_panel::StudyIntent::rate_again},{"study.rate.hard",vocabulary_panel::StudyIntent::rate_hard},{"study.rate.good",vocabulary_panel::StudyIntent::rate_good},{"study.rate.easy",vocabulary_panel::StudyIntent::rate_easy},{"study.rating.undo",vocabulary_panel::StudyIntent::rating_undo}};
   auto it=mapping.find(id);if(it!=mapping.end()){
    auto semantic=scene.study_state=="resume"?vocabulary_panel::StudyIntent::resume:it->second;
@@ -300,6 +301,23 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
   }
  }
  render();
+}
+// Fixture recorder transitions; the take itself is a preview until the simulator's
+// broker records one (recorder groundwork plan Step 6).
+void PanelSimulation::voice_lab_intent(const std::string &id){
+ auto &v=scene.voice_lab;
+ const auto next_prompt=[&v]{v.prompt_number=v.prompt_number%v.prompt_total+1;};
+ if((id=="voice_lab.record"&&v.state=="ready")||(id=="voice_lab.retake"&&v.state=="review")){
+  v.state="recording";v.elapsed_ms=0;scene.acknowledgement=id=="voice_lab.retake"?"Take discarded":"";
+ }else if(id=="voice_lab.stop"&&v.state=="recording"){
+  v.state="review";v.take_ms=v.elapsed_ms==0?8400:v.elapsed_ms;
+ }else if(id=="voice_lab.keep"&&v.state=="review"){
+  ++v.queued_takes;if(v.missing>0)--v.missing;next_prompt();v.state=v.missing==0?"complete":"ready";scene.acknowledgement="Take kept";
+ }else if(id=="voice_lab.reject"&&v.state=="review"){
+  v.state="ready";scene.acknowledgement="Take discarded";
+ }else if(id=="voice_lab.skip"&&v.state=="ready"){
+  next_prompt();scene.acknowledgement="";
+ }else scene.acknowledgement="Action unavailable";
 }
 void PanelSimulation::tap(int x,int y){if(scene.presentation_failure)return;for(auto it=display.hit_targets().rbegin();it!=display.hit_targets().rend();++it)if(x>=it->x&&x<it->x+it->width&&y>=it->y&&y<it->y+it->height){auto id=it->intent_id;semantic_intent(id,"touch");return;}}
 void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="clock_preview")enable_preview_clock(e.at("enabled").get<bool>());else if(type=="clock_step")advance_preview_clock();else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}

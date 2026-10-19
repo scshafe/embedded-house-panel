@@ -51,7 +51,7 @@ int main()
 	expect(registered == concatenated, "the registry is the descriptors' intents in order");
 	expect(std::set<std::string>(registered.begin(), registered.end()).size() == registered.size(),
 	       "intent IDs are unique");
-	expect(launchable_surface_ids() == std::vector<std::string>{"study", "agenda"},
+	expect(launchable_surface_ids() == std::vector<std::string>{"study", "agenda", "voice_lab"},
 	       "the launchable surfaces are every app but home");
 	const auto study = surface_routes(*find_app_descriptor("study"));
 	expect(contains(study, "study.flip") && contains(study, "study.rating.undo") && contains(study, "shell.home") &&

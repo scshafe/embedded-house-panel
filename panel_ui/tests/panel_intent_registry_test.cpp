@@ -39,6 +39,13 @@ int test_registry_contains_exact_version_one_union()
 		 {IntentEffectClass::CaptureStart, false, true, false, false}},
 		{"agenda.submit_wish",
 		 {IntentEffectClass::ExternalSubmission, false, true, false, false}},
+		{"shell.open_voice_lab", {IntentEffectClass::Navigation, true, true, false, true, "voice_lab"}},
+		{"voice_lab.record", {IntentEffectClass::CaptureStart, true, true, false, true}},
+		{"voice_lab.stop", {IntentEffectClass::Navigation, true, true, false, true}},
+		{"voice_lab.keep", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"voice_lab.retake", {IntentEffectClass::CaptureStart, true, true, false, true}},
+		{"voice_lab.reject", {IntentEffectClass::Navigation, true, true, false, true}},
+		{"voice_lab.skip", {IntentEffectClass::Navigation, true, true, false, true}},
 	};
 	const PanelIntentRegistry registry;
 	if (registry.definitions().size() != expected.size()) {

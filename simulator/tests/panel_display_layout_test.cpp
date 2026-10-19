@@ -1,3 +1,4 @@
+#include "panel_ui/panel_app_descriptor.hpp"
 #include "simulator/panel_simulation.hpp"
 #include <algorithm>
 #include <filesystem>
@@ -112,7 +113,11 @@ int main() {
   scene.acknowledgement.clear();
   scene.delivery_status.clear();
   std::vector<std::uint32_t> day_bar;
-  for(const auto &surface : {"study", "agenda", "home"}) {
+  std::vector<std::string> surfaces;
+  for(const auto &app_descriptor : house_panel::panel_ui::panel_app_descriptors())
+   if(app_descriptor.surface_id != "home") surfaces.push_back(app_descriptor.surface_id);
+  surfaces.push_back("home");
+  for(const auto &surface : surfaces) {
    scene.surface_id = surface;
    app.display.render(scene);
    require(visible_text_contains(screen, "Home"), "every day surface has the permanent Home control");
@@ -128,8 +133,9 @@ int main() {
    require(std::count_if(targets.begin(), targets.end(), [](const auto &target) { return target.intent_id == "shell.home"; }) == 1,
            "each day surface supplies exactly one Home route");
   }
-  require(visible_text_contains(screen, "Lexinet") && visible_text_contains(screen, "Agenda"), "Home exposes the two real app surfaces");
-  require(app.display.hit_targets().size() == 3, "Home must not advertise inactive placeholder apps");
+  require(visible_text_contains(screen, "Lexinet") && visible_text_contains(screen, "Agenda") &&
+          visible_text_contains(screen, "Voice lab"), "Home exposes the three real app surfaces");
+  require(app.display.hit_targets().size() == 4, "Home must not advertise inactive placeholder apps");
   app.load(bhp::simulator::read_scenario((root / "simulator/scenarios/day-back.json").string()));
   tap_target(app, "shell.home");
   require(app.scene.surface_id == "home", "Home icon reaches the shell launcher");

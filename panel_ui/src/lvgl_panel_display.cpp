@@ -6,6 +6,7 @@
 #include <src/display/lv_display_private.h>
 #include <png.h>
 #include <algorithm>
+#include <cstdio>
 #include <cmath>
 #include <filesystem>
 #include <stdexcept>
@@ -291,6 +292,7 @@ const std::vector<LvglPanelDisplay::SurfaceRenderer> &LvglPanelDisplay::surface_
   {"home", &LvglPanelDisplay::draw_home},
   {"study", &LvglPanelDisplay::draw_study},
   {"agenda", &LvglPanelDisplay::draw_agenda},
+  {"voice_lab", &LvglPanelDisplay::draw_voice_lab},
  };
  return renderers;
 }
@@ -396,5 +398,84 @@ void LvglPanelDisplay::draw_agenda(lv_obj_t *, lv_obj_t *content, const PanelSce
                state == "text_preview" ? &bhp_font_36 : &bhp_font_28, 0xaab8b7);
   if(!note.empty()) label(content, note, 24, 376, 896, 31, &bhp_font_24, 0xe9c480);
  }
+}
+static std::string minutes_seconds(std::uint64_t milliseconds) {
+ const auto seconds = milliseconds / 1000;
+ char text[16];
+ std::snprintf(text, sizeof text, "%02llu:%02llu", static_cast<unsigned long long>(seconds / 60),
+               static_cast<unsigned long long>(seconds % 60));
+ return text;
+}
+void LvglPanelDisplay::draw_voice_lab(lv_obj_t *, lv_obj_t *content, const PanelScene &s) {
+ const auto &v = s.voice_lab;
+ const auto &state = v.state;
+ label(content, "Voice lab", 24, 16, 240, 31, &bhp_font_24, 0x8db5a7);
+ if(state == "ready" || state == "recording" || state == "review")
+  label(content, "Prompt " + std::to_string(v.prompt_number) + " of " + std::to_string(v.prompt_total) + " · " +
+        std::to_string(v.missing) + " missing", 304, 16, 616, 31, &bhp_font_24, 0xaab8b7, LV_TEXT_ALIGN_RIGHT);
+ const auto action = [this, content](int index, int target_width, const std::string &title, const std::string &intent,
+                                     std::uint32_t color) {
+  auto *control = box(content, layout::action_x(index), layout::actions_y, target_width, layout::action_height, 0x293f43, 12);
+  label(control, title, 0, 13, target_width, 37, &bhp_font_28, color, LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({layout::content_x + layout::action_x(index), layout::content_y + layout::actions_y,
+                          target_width, layout::action_height, intent});
+ };
+ const auto queued = [&](int y) {
+  if(v.queued_takes == 0) return;
+  label(content, std::to_string(v.queued_takes) + (v.queued_takes == 1 ? " take" : " takes") + " waiting to upload",
+        24, y, 896, 31, &bhp_font_24, 0xaab8b7);
+ };
+ if(state == "signed_out") {
+  label(content, "Sign in to voice-lab", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, "On your phone, open", 24, 128, 896, 37, &bhp_font_28, 0xaab8b7);
+  label(content, v.verification_uri, 24, 168, 896, 44, &bhp_font_36, 0xf4f0e8);
+  label(content, "and enter the code", 24, 224, 896, 37, &bhp_font_28, 0xaab8b7);
+  label(content, v.user_code, 24, 264, 896, 62, &bhp_font_48, 0xe9c480);
+  label(content, "The code expires in 15 minutes.", 24, 376, 896, 31, &bhp_font_24, 0xaab8b7);
+  return;
+ }
+ if(state == "ready") {
+  label(content, v.prompt_text, 24, 64, 896, 176, &bhp_font_36, 0xf4f0e8);
+  queued(296);
+  action(0, layout::primary_width, "Record", "voice_lab.record", 0xf4f0e8);
+  action(3, layout::action_width, "Skip", "voice_lab.skip", 0xdbe5df);
+  return;
+ }
+ if(state == "recording") {
+  label(content, v.prompt_text, 24, 56, 896, 74, &bhp_font_28, 0xaab8b7);
+  label(content, minutes_seconds(v.elapsed_ms) + " / " + minutes_seconds(v.maximum_ms), 24, 140, 896, 62,
+        &bhp_font_48, 0xf4f0e8);
+  for(std::size_t channel = 0; channel < v.level_tenths.size() && channel < 6; ++channel) {
+   const int x = 24 + static_cast<int>(channel) * 150;
+   box(content, x, 224, 136, 40, 0x293f43, 8);
+   const int level = std::clamp(v.level_tenths[channel], -600, 0);
+   const int fill = (level + 600) * 136 / 600;
+   if(fill > 0) box(content, x, 224, fill, 40, level > -30 ? 0xe9c480 : 0x8db5a7, 8);
+   label(content, std::to_string(channel + 1), x, 270, 136, 31, &bhp_font_24, 0xaab8b7, LV_TEXT_ALIGN_CENTER);
+  }
+  action(0, layout::primary_width, "Stop", "voice_lab.stop", 0xf4f0e8);
+  return;
+ }
+ if(state == "review") {
+  label(content, "Take " + minutes_seconds(v.take_ms), 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, v.prompt_text, 24, 120, 896, 74, &bhp_font_28, 0xaab8b7);
+  char peak[48];
+  std::snprintf(peak, sizeof peak, "Loudest peak %.1f dB", v.take_peak_tenths / 10.0);
+  label(content, peak, 24, 208, 896, 37, &bhp_font_28, v.take_peak_tenths > -10 ? 0xe9c480 : 0xaab8b7);
+  queued(256);
+  action(0, layout::primary_width, "Keep", "voice_lab.keep", 0xf4f0e8);
+  action(2, layout::action_width, "Retake", "voice_lab.retake", 0xdbe5df);
+  action(3, layout::action_width, "Reject", "voice_lab.reject", 0xe9c480);
+  return;
+ }
+ if(state == "complete") {
+  label(content, "Every prompt is recorded", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, "New prompts appear when voice-lab adds them.", 24, 128, 896, 37, &bhp_font_28, 0xaab8b7);
+  queued(184);
+  return;
+ }
+ label(content, "Recorder unavailable", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+ label(content, "The microphone is off or the recorder is not running.", 24, 128, 896, 74, &bhp_font_28, 0xaab8b7);
+ label(content, "Nothing is being recorded.", 24, 376, 896, 31, &bhp_font_24, 0xe9c480);
 }
 }
