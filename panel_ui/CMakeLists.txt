@@ -43,6 +43,7 @@ add_library(panel_ui_core STATIC
   src/fail_dark_lifecycle_display_commit_backend.cpp
   src/headless_renderer.cpp
   src/interaction_intent.cpp
+  src/panel_app_descriptors.cpp
   src/panel_intent_registry.cpp
   src/panel_ui_error.cpp
   src/panel_ui_service.cpp
@@ -81,6 +82,7 @@ if(PANEL_UI_BUILD_TESTS)
   add_test(NAME panel_ui_core_smoke COMMAND panel_ui_core_smoke)
   foreach(test_name
       lifecycle_presentation_barrier
+      panel_app_descriptor
       panel_intent_registry
       shell_controller
       bounded_unicode_text_policy
