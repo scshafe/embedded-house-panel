@@ -272,9 +272,23 @@ int run_daemon(bhp::StructuredLogger &logger)
 	std::unique_ptr<UnixSocketUiModeNotifier> ui_mode_notifier =
 		std::move(notifier_result).value();
 	std::unique_ptr<TouchObservationRuntime> touch_runtime;
+	std::unique_ptr<MediaWindowEndpoint> media_window;
+	if (!config.media_window_socket().empty()) {
+		// The window and its claims ride on the touch authority; without touch there is none.
+		auto window_result = config.touch_configuration()
+			? MediaWindowEndpoint::listen(config.media_window_socket(), *config.media_broker_uid(),
+				ui_mode_notifier->supervisor_session_id())
+			: Result<std::unique_ptr<MediaWindowEndpoint>>::failure(SupervisorError(
+				ErrorCode::MediaWindowUnavailable, "The media window needs the touch observer",
+				{{"operation", "panel_supervisord.media_window"}}));
+		if (window_result) media_window = std::move(window_result).value();
+		else logger.log(bhp::StructuredLogLevel::warn, "media_window_disabled", "panel-supervisord-startup",
+			{{"error_code", std::string(to_string(window_result.error().code()))},
+			 {"error_message", window_result.error().message()}, {"degraded", "true"}});
+	}
 	if (config.touch_configuration()) {
 		auto touch_result = TouchObservationRuntime::create(*config.touch_configuration(),
-			config.panel_ui_uid(), *ui_mode_notifier);
+			config.panel_ui_uid(), *ui_mode_notifier, std::move(media_window));
 		if (touch_result) touch_runtime = std::move(touch_result).value();
 		else logger.log(bhp::StructuredLogLevel::warn, "touch_observer_disabled", "panel-supervisord-startup",
 			{{"error_code", std::string(to_string(touch_result.error().code()))},

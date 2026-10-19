@@ -44,6 +44,10 @@ PACKAGES = [
     # versioned references.
     ('pool/main/c/curl/libcurl4t64_8.14.1-2+deb13u5_arm64.deb', 'af72e1cd69240a42a76a578e6902b65f9fa641f5e7352e4bfa0ec5aa38d25204'),
     ('pool/main/c/curl/libcurl4-openssl-dev_8.14.1-2+deb13u5_arm64.deb', 'df32deabd874f03b0690a75217fa44042fdf84650b98011ad38aed59266c03c5'),
+    # The media broker's capture source (issue #22). Linking only: the board
+    # runs its own vendor libasound.so.2.
+    ('pool/main/a/alsa-lib/libasound2t64_1.2.14-1+deb13u1_arm64.deb', '9c808d819ccddc37c793dd3186c2ecd858b2feb2474cebb883f70386e7890d39'),
+    ('pool/main/a/alsa-lib/libasound2-dev_1.2.14-1+deb13u1_arm64.deb', 'fd28b8f24feac0a6f1d3e3181ea097741d3f291f95c193bffa179a28dca3b612'),
 ]
 debs = root/'.build/frdm-sysroot-debs'; sysroot = root/'.build/frdm-sysroot'
 print(json.dumps({'execute': execute, 'snapshot': SNAPSHOT, 'downloads': [p for p, _ in PACKAGES],

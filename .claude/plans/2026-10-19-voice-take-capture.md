@@ -154,7 +154,7 @@ Host tests run the same broker on a deterministic fake source.
   - Verify:
     - `ctest --test-dir .build/host-dev -R media_capture` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 3: ALSA capture and the array's identity on the board.**
+- [x] **Step 3: ALSA capture and the array's identity on the board.** (2026-10-19)
   - `AlsaCaptureSource` (libasound): `hw:` device, interleaved read access,
     exact format, rate and channels, period and buffer sizes it asked for and
     records, `SND_PCM_TSTAMP_ENABLE` with `MONOTONIC_RAW` timestamps,
@@ -173,11 +173,17 @@ Host tests run the same broker on a deterministic fake source.
     `ALLOWED_NEEDED`).
   - On the board, run a 30 s and a 600 s take into `/tmp`, and read the
     capture-closure probe (`capture_closure_check`) during and after one.
+  - Done: `AlsaCaptureSource`, `Xvf3800Control` and `bhp-media-capture-check`
+    in `media_broker/`. On the board, a 30 s and a 600 s take had zero xruns
+    and a maximum deviation of 0.32 ms and 0.36 ms; the firmware read `1.0.0`
+    (`ua-io16-6ch-lin`). The probe saw the capture open during the take and
+    closed after it. Measured facts:
+    [XVF3800 array on the FRDM board](../../docs/hardware/xvf3800-array-on-frdm.md).
   - Verify:
     - `ctest --test-dir .build/host-dev -R media_capture` exit 0;
     - a board record under `hardware_tests/results/frdm/voice-take-<UTC>/` shows a 30 s and a 600 s take with zero xruns, the measured maximum deviation, the firmware strings and the routing;
     - the capture-closure probe reports the array's capture open during the take and closed after it.
-- [ ] **Step 4: The supervisor's broker socket.**
+- [x] **Step 4: The supervisor's broker socket.** (2026-10-19)
   - A Unix socket in `panel_supervisord`, accepted only from the exact broker
     UID (`SO_PEERCRED`; the broker checks the supervisor's UID and the
     socket's root ownership):
@@ -192,6 +198,13 @@ Host tests run the same broker on a deterministic fake source.
     backstop.
   - Tests: wrong UID, a replay, a gap, a restart, an expired or consumed
     observation, a closed window, and the suspend ordering.
+  - Done: `shared/media_window_protocol` (frames and the broker-side
+    `MediaWindowClient`) and `panel_supervisor`'s `MediaWindowEndpoint`, which
+    `TouchObservationRuntime` drives from the same eligibility as touch. The
+    window closes in `publish()`, before the lifecycle publication, and the
+    supervisor publishes before any suspend request. Expiry is the authority's
+    own test. The socket listener itself needs root, so host tests use a
+    socketpair through the same UID check.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'media_window|panel_supervisor'` exit 0;
     - `make verify` exit 0.

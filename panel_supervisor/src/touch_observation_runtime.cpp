@@ -23,10 +23,12 @@ Result<std::string> random_identity() {
 }
 TouchObservationRuntime::TouchObservationRuntime(UnixSocketUiModeNotifier &lifecycle,
 	std::unique_ptr<EvdevTouchSource> source, std::unique_ptr<touch::UnixTouchObservationServer> server,
-	std::unique_ptr<TouchObservationAuthority> authority)
-	: lifecycle_(lifecycle), source_(std::move(source)), server_(std::move(server)), authority_(std::move(authority)) {}
+	std::unique_ptr<TouchObservationAuthority> authority, std::unique_ptr<MediaWindowEndpoint> media_window)
+	: lifecycle_(lifecycle), source_(std::move(source)), server_(std::move(server)), authority_(std::move(authority)),
+	  media_window_(std::move(media_window)) {}
 Result<std::unique_ptr<TouchObservationRuntime>> TouchObservationRuntime::create(
-	TouchRuntimeConfiguration configuration, std::uint32_t expected_ui_uid, UnixSocketUiModeNotifier &lifecycle) {
+	TouchRuntimeConfiguration configuration, std::uint32_t expected_ui_uid, UnixSocketUiModeNotifier &lifecycle,
+	std::unique_ptr<MediaWindowEndpoint> media_window) {
 	using Output = Result<std::unique_ptr<TouchObservationRuntime>>;
 	auto authority = TouchObservationAuthority::create(configuration.authority, random_identity,
 		[] { return std::chrono::steady_clock::now(); });
@@ -36,7 +38,8 @@ Result<std::unique_ptr<TouchObservationRuntime>> TouchObservationRuntime::create
 	auto server = touch::UnixTouchObservationServer::create(configuration.socket_path, expected_ui_uid);
 	if (!server) return Output::failure(observation_error(server.error()));
 	return Output::success(std::unique_ptr<TouchObservationRuntime>(new TouchObservationRuntime(lifecycle,
-		std::move(source).value(), std::move(server).value(), std::move(authority).value())));
+		std::move(source).value(), std::move(server).value(), std::move(authority).value(),
+		std::move(media_window))));
 }
 void TouchObservationRuntime::invalidate(TouchObservationInvalidation reason) noexcept {
 	authority_->invalidate(reason); source_->cancel_until_idle(); binding_.reset(); contact_active_ = false;
@@ -51,6 +54,15 @@ Result<PendingPresentation> TouchObservationRuntime::publish(const UiModeNotific
 	invalidate(reason);
 	eligible_ = notification.system_state == SystemState::Active
 		&& notification.solar_state == SolarState::Day && notification.presence_state == PresenceState::Present;
+	// The media window follows the same eligibility and closes before the lifecycle
+	// publication, so a broker stops capture before any suspend path runs.
+	if (media_window_) {
+		using Window = bhp::media_window_protocol::WindowReason;
+		const auto window_reason = eligible_ ? Window::DayPresent
+			: notification.system_state != SystemState::Active ? Window::SuspendPreparation
+			: notification.solar_state != SolarState::Day ? Window::Night : Window::Absence;
+		media_window_->set_window(eligible_, window_reason);
+	}
 	return lifecycle_.publish(notification);
 }
 PresentationOutcome TouchObservationRuntime::await_presentation(const PendingPresentation &pending,
@@ -98,6 +110,14 @@ Result<void> TouchObservationRuntime::observe(const RawTouchContact &contact) {
 	return Result<void>::success();
 }
 Result<void> TouchObservationRuntime::poll_observations() {
+	auto touch = poll_touch();
+	if (!media_window_) return touch;
+	auto window = media_window_->pump([this](const TouchObservationClaim &claim) {
+		return authority_->redeem_for_media_broker(claim);
+	});
+	return touch ? window : touch;
+}
+Result<void> TouchObservationRuntime::poll_touch() {
 	if (pending_error_) {
 		auto error = *pending_error_; pending_error_.reset();
 		return Result<void>::failure(std::move(error));
