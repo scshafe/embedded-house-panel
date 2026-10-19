@@ -95,6 +95,7 @@ flowchart LR
 | Presentation readiness | Stale, replayed, cross-release, or forged page-flip acknowledgement exposes an old/bright frame | Implemented host protocol v2 and ADR 0007 bind appliance release, unpredictable supervisor session and connection challenge, sequence, snapshot digest, mode, render generation, and exact Unix peer UID; the privileged canonical socket adapter freezes one publish-time expectation, consumes one latest acknowledgement, and the final power owner revalidates the immutable tuple and generation continuity | The canonical adapter is inside the power-path TCB. A display-commit backend and target correlation evidence do not yet exist, so services remain disabled; a future compromised authorized `panel_ui` could lie about its own frame, which process isolation can bound but not eliminate |
 | Household presence inference | Excessive logs, UI compromise, or remote disclosure | Store only current/transition diagnostics locally; exact unique touch grant; both project PIR names stay root-only | Device identity is not cryptographic, physical/root compromise bypasses it, and any new presence-provider name must extend the tested deny list |
 | Calendar titles, locations, birthdays, and names | Screen disclosure, excessive synchronization, or storage theft | Planned: content-free capability discovery before consent; local opt-in and grants; selected calendars/provisioned contacts only; daytime display; bounded Today projection/cache; private-event policy; visible freshness | macOS grants remain broad and a compromised companion or logged-in user can read beyond the adapter's logical boundary; intended room occupants can see a lit panel |
+| voice-lab refresh token (ADR 0012) | Physical/root copy, reuse alongside the panel, or leakage through logs, arguments or the UI | Held only by the uploader's UID in a `0600` file outside the image; single-flight rotation written durably before use; only `verification_uri` and the code are shown; never logged or passed in arguments, URLs or environment | A thief reaches voice-lab's allow-list under the owner's subject for up to 30 days, sliding, unless revoked; rotation without grace turns concurrent use into family revocation and a visible "sign in again" |
 | Provider OAuth tokens and full contact/message routes | Theft from the physically accessible panel | Planned: Mac Keychain and companion-only routing; panel receives opaque people and masked destinations | Compromise of the logged-in Mac user bypasses this boundary |
 | Panel-to-companion signing key | Sustained physical/root access extracts or exercises the key and impersonates the panel to the Mac companion | Planned: root-provisioned owner-only key readable only by `personal_context_client`; fixed typed local operations; companion-issued single-use challenges; capability-mapped public key; explicit revocation | No encrypted or hardware-bound key storage is assumed. Physical loss requires revoking the companion key grant as well as the Tailscale and Lexinet identities |
 | ~~Raw audio, images, and unrestricted transcripts~~ | ~~Silent collection, accidental logging, or tailnet exfiltration~~ | ~~Planned: media rails default off; purpose-bound broker sessions; command audio is never transmitted; a voice wish command only opens the composer; `bounded_learning_observation` navigation may append idempotent non-mastery `presented`/`revealed` facts, while ratings are visibly acknowledged and append-only correctable by touch Undo; the broker opens capture only from single-use supervisor-observed touch provenance bound to its exact lease request; hardware indicator/mute~~ | ~~No media broker, touch-provenance flow, or rail control is implemented;~~ ~~compromised UI can simulate allowed capture while its lease is active~~ ~~a compromised UI cannot mint provenance but can misuse a genuine touch on a misrepresented frame; root/physical compromise bypasses policy~~ |
@@ -216,6 +217,8 @@ evidence and have no default here.
 - ~~Revoke the Tailscale node and Lexinet credential after loss or re-imaging.~~
   Revoke the Tailscale node, Lexinet tag/app grant or scoped-token authority,
   and companion public-key capability mapping after loss or re-imaging.
+  Also remove `voice-lab-panel` from the owner's authorized apps in Pocket ID
+  (ADR 0012).
 
 | Principal | Permitted egress | Explicitly absent by default |
 |---|---|---|
@@ -365,3 +368,9 @@ tests and a container stand-in run exercise the termination path; the real
 `snd-aloop` guest run is pending (Mac-local). The production lifecycle, lease
 and provenance-claim sockets, microphone rail-off evidence, and a packaged
 broker remain unimplemented.
+
+**Amended 2026-10-19 (ADR 0012):** the panel keeps one long-lived secret, the
+Pocket ID refresh token for voice-lab's `voice-lab-panel` client, held only by
+the voice-lab uploader's UID (issue #23). The table row above and ADR 0012
+give the controls and the accepted limitation. ADR 0010 still keeps every
+Lexinet credential off the panel. The uploader is not built yet.
