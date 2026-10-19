@@ -21,6 +21,17 @@
       "icon_color": "3a526c",
       "preview": true,
       "enabled": true
+    },
+    {
+      "application_id": "voice-lab",
+      "title": "Voice lab",
+      "subtitle": "Preview",
+      "launch_intent": "shell.open_voice_lab",
+      "icon": "monogram",
+      "monogram": "VL",
+      "icon_color": "5b4a72",
+      "preview": true,
+      "enabled": true
     }
   ]
 }

@@ -79,6 +79,7 @@ private:
  void cancel_clock_animation();
  void utterance(const std::string &phrase);
  void route_intent(const house_panel::panel_ui::InteractionIntentEnvelope &intent);
+ void voice_lab_intent(const std::string &id);
  house_panel::panel_ui::ApplicationCatalog application_catalog_;
  std::unique_ptr<FakeVoiceConnection> voice_;
  bool voice_pending_{false};

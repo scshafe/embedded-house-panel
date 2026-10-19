@@ -43,6 +43,19 @@ const std::vector<PanelAppDescriptor> &panel_app_descriptors()
 		 "agenda_state",
 		 {"today", "stale", "expired", "composer", "recording", "text_preview", "confirmation",
 		  "delivery_unknown", "unavailable"}},
+		{"voice_lab",
+		 {
+			 {"shell.open_voice_lab", IntentEffectClass::Navigation, true, true, false, true, "voice_lab"},
+			 {"voice_lab.record", IntentEffectClass::CaptureStart, true, true, false, true},
+			 {"voice_lab.stop", IntentEffectClass::Navigation, true, true, false, true},
+			 {"voice_lab.keep", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 {"voice_lab.retake", IntentEffectClass::CaptureStart, true, true, false, true},
+			 {"voice_lab.reject", IntentEffectClass::Navigation, true, true, false, true},
+			 {"voice_lab.skip", IntentEffectClass::Navigation, true, true, false, true},
+		 },
+		 {"shell.home"},
+		 "voice_lab_state",
+		 {"signed_out", "ready", "recording", "review", "complete", "unavailable"}},
 	};
 	return descriptors;
 }

@@ -19,7 +19,8 @@
       "enum": [
         "home",
         "study",
-        "agenda"
+        "agenda",
+        "voice_lab"
       ]
     },
     "lifecycle": {
@@ -148,6 +149,16 @@
           "maximum": 400
         }
       }
+    },
+    "voice_lab_state": {
+      "enum": [
+        "signed_out",
+        "ready",
+        "recording",
+        "review",
+        "complete",
+        "unavailable"
+      ]
     }
   }
 }

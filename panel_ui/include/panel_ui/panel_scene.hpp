@@ -33,6 +33,23 @@ struct PanelScene {
  std::string card_example{"A chance conversation led to an unexpected friendship."};
  std::string delivery_status;
  std::string agenda_state{"today"};
+ /** The voice-lab recorder's fixture or live presentation (issue #23). */
+ struct VoiceLab {
+  std::string state{"ready"};
+  std::string prompt_text{"The quick brown fox jumps over the lazy dog."};
+  std::size_t prompt_number{3};
+  std::size_t prompt_total{40};
+  std::size_t missing{38};
+  std::string verification_uri{"id.example.ts.net/device"};
+  std::string user_code{"EABCDEFG"};
+  /** Peak per channel in tenths of a dBFS, -1200 for silence. */
+  std::vector<int> level_tenths{-180, -240, -420, -410, -430, -415};
+  std::uint64_t elapsed_ms{12000};
+  std::uint64_t maximum_ms{600000};
+  std::uint64_t take_ms{8400};
+  int take_peak_tenths{-120};
+  std::size_t queued_takes{2};
+ } voice_lab;
  std::string acknowledgement;
  bool stale{false};
  bool offline{false};

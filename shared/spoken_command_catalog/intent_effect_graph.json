@@ -29,6 +29,15 @@
     ],
     "study.undo": [
       "correctable_learning"
+    ],
+    "voice_lab.discard_take": [
+      "reversible_local"
+    ],
+    "voice_lab.queue_take": [
+      "external_submission"
+    ],
+    "voice_lab.select_prompt": [
+      "reversible_local"
     ]
   },
   "handlers": {
@@ -57,6 +66,9 @@
       "shell.switch_surface"
     ],
     "shell.open_study.handler": [
+      "shell.switch_surface"
+    ],
+    "shell.open_voice_lab.handler": [
       "shell.switch_surface"
     ],
     "study.back.handler": [
@@ -92,6 +104,26 @@
     ],
     "study.rating.undo.handler": [
       "study.undo"
+    ],
+    "voice_lab.keep.handler": [
+      "voice_lab.queue_take",
+      "voice_lab.select_prompt"
+    ],
+    "voice_lab.record.handler": [
+      "media.capture_start"
+    ],
+    "voice_lab.reject.handler": [
+      "voice_lab.discard_take"
+    ],
+    "voice_lab.retake.handler": [
+      "voice_lab.discard_take",
+      "media.capture_start"
+    ],
+    "voice_lab.skip.handler": [
+      "voice_lab.select_prompt"
+    ],
+    "voice_lab.stop.handler": [
+      "media.capture_stop"
     ]
   },
   "intents": {
@@ -122,6 +154,9 @@
     "shell.open_study": [
       "shell.open_study.handler"
     ],
+    "shell.open_voice_lab": [
+      "shell.open_voice_lab.handler"
+    ],
     "study.back": [
       "study.back.handler"
     ],
@@ -145,6 +180,24 @@
     ],
     "study.rating.undo": [
       "study.rating.undo.handler"
+    ],
+    "voice_lab.keep": [
+      "voice_lab.keep.handler"
+    ],
+    "voice_lab.record": [
+      "voice_lab.record.handler"
+    ],
+    "voice_lab.reject": [
+      "voice_lab.reject.handler"
+    ],
+    "voice_lab.retake": [
+      "voice_lab.retake.handler"
+    ],
+    "voice_lab.skip": [
+      "voice_lab.skip.handler"
+    ],
+    "voice_lab.stop": [
+      "voice_lab.stop.handler"
     ]
   }
 }
