@@ -1,4 +1,5 @@
 #include "simulator/application_catalog_configuration.hpp"
+#include "panel_ui/panel_app_descriptor.hpp"
 #include <nlohmann/json.hpp>
 #include <panel_fonts/glyph_coverage.hpp>
 #include <fstream>
@@ -33,9 +34,8 @@ house_panel::panel_ui::ApplicationCatalog read_application_catalog(const std::st
    catalog.applications.push_back(std::move(app));
   }
  }catch(const Json::exception &){throw std::runtime_error("SIMULATOR.APP_CATALOG_SCHEMA_INVALID");}
- // @extension-point simulation_feature_surfaces -- register actual new feature
- // implementations here alongside their ShellController contract and renderer.
- house_panel::panel_ui::validate_application_catalog(catalog,{"study","agenda"});
+ // The implemented surfaces are the compiled-in app descriptors (panel_app_descriptor.hpp).
+ house_panel::panel_ui::validate_application_catalog(catalog,house_panel::panel_ui::launchable_surface_ids());
  return catalog;
 }
 }

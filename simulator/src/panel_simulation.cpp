@@ -1,5 +1,6 @@
 #include "simulator/panel_simulation.hpp"
 #include "simulator/application_catalog_configuration.hpp"
+#include "panel_ui/panel_app_descriptor.hpp"
 #include "bhp/application_identity.h"
 #include "bhp/panel_mode_protocol/codec.h"
 #include "vocabulary_panel/fixture_lexinet_client.h"
@@ -69,7 +70,9 @@ Json read_scenario(const std::string &path) {
  std::ifstream file(path);if(!file)throw std::runtime_error("SIMULATOR.SCENARIO_READ_FAILED");
  std::string bytes((std::istreambuf_iterator<char>(file)),{});if(bytes.size()>65536)throw std::runtime_error("SIMULATOR.SCENARIO_TOO_LARGE");
  auto j=Json::parse(bytes);
- const std::set<std::string> fields{"schema_version","scenario_id","surface","lifecycle","study_state","agenda_state","presentation_failure","night_red_rgb888","fixture_clock","weather","clock_transition"};
+ std::set<std::string> fields{"schema_version","scenario_id","surface","lifecycle","presentation_failure","night_red_rgb888","fixture_clock","weather","clock_transition"};
+ std::vector<std::string> surfaces;
+ for(const auto &app:panel_app_descriptors()){surfaces.push_back(app.surface_id);if(!app.scenario_state_field.empty())fields.insert(app.scenario_state_field);}
  if(!j.is_object() || j.value("schema_version",0)!=1 || !j.contains("scenario_id") || !j.at("scenario_id").is_string())throw std::runtime_error("SIMULATOR.SCENARIO_SCHEMA_INVALID");
  if(!std::regex_match(j.at("scenario_id").get<std::string>(),std::regex("^[a-z0-9-]{1,64}$")))throw std::runtime_error("SIMULATOR.SCENARIO_ID_INVALID");
  if(j.contains("fixture_clock")&&(!j["fixture_clock"].is_string()||!std::regex_match(j["fixture_clock"].get<std::string>(),std::regex("^([01][0-9]|2[0-3]):[0-5][0-9]$"))))throw std::runtime_error("SIMULATOR.FIXTURE_CLOCK_INVALID");
@@ -81,9 +84,8 @@ Json read_scenario(const std::string &path) {
    throw std::runtime_error("SIMULATOR.CLOCK_TRANSITION_INVALID");
  }
  for(auto it=j.begin();it!=j.end();++it)if(!fields.count(it.key()))throw std::runtime_error("SIMULATOR.SCENARIO_UNKNOWN_FIELD");
- member(j,"surface",{"home","study","agenda"});member(j,"lifecycle",{"day","grace","night","blank","clock_untrusted"});
- member(j,"study_state",{"front","back","loading","empty","offline","stale","error","queued","saved","rejected","provisional","refill","complete","resume","tracking_paused"});
- member(j,"agenda_state",{"today","stale","expired","composer","recording","text_preview","confirmation","delivery_unknown","unavailable"});
+ member(j,"surface",std::set<std::string>(surfaces.begin(),surfaces.end()));member(j,"lifecycle",{"day","grace","night","blank","clock_untrusted"});
+ for(const auto &app:panel_app_descriptors())if(!app.scenario_state_field.empty())member(j,app.scenario_state_field.c_str(),std::set<std::string>(app.scenario_states.begin(),app.scenario_states.end()));
  if(j.contains("presentation_failure")&&!j["presentation_failure"].is_boolean())throw std::runtime_error("SIMULATOR.SCENARIO_SCHEMA_INVALID");
  if(j.contains("night_red_rgb888")&&(!j["night_red_rgb888"].is_number_unsigned()||j["night_red_rgb888"].get<unsigned>()>0xffffff))throw std::runtime_error("SIMULATOR.SCENARIO_COLOR_INVALID");
  if(j.contains("weather")){
@@ -113,13 +115,19 @@ PanelSimulation::PanelSimulation(bool window,std::string state_directory,std::st
  store_=state_directory.empty()?std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::MemoryStudyStore>()):std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::FileStudyStore>(state_directory));
  persistent_store_=store_;
  study_=std::make_unique<vocabulary_panel::FlashCardSession>(store_);
- PanelIntentRegistry registry;std::vector<std::string> routes;
- for(const auto &d:registry.definitions())if(d.enabled&&d.intent_id.rfind("study.",0)==0)routes.push_back(d.intent_id);
- routes.push_back("shell.home");
- std::set<std::string> home_route_set{"shell.home","shell.apps_previous","shell.apps_next"};
- for(const auto &app:application_catalog_.applications)if(app.enabled)home_route_set.insert(app.launch_intent);
- const std::vector<std::string> home_routes(home_route_set.begin(),home_route_set.end());
- auto made=ShellController::create({std::chrono::milliseconds(100),"simulation-fixture-not-measured",8,true},std::nullopt,{{"home",home_routes},{"study",routes},{"agenda",{"shell.home","agenda.start_wish_recording","agenda.submit_wish"}}},clock_);
+ // Every surface and its routes come from the compiled-in app descriptors; home
+ // also routes each enabled catalog launch.
+ std::vector<SiblingSurfaceContract> surfaces;
+ for(const auto &app:panel_app_descriptors()){
+  auto routes=surface_routes(app);
+  if(app.surface_id=="home"){
+   std::set<std::string> home_route_set(routes.begin(),routes.end());
+   for(const auto &entry:application_catalog_.applications)if(entry.enabled)home_route_set.insert(entry.launch_intent);
+   routes.assign(home_route_set.begin(),home_route_set.end());
+  }
+  surfaces.push_back({app.surface_id,routes});
+ }
+ auto made=ShellController::create({std::chrono::milliseconds(100),"simulation-fixture-not-measured",8,true},std::nullopt,surfaces,clock_);
  if(!made)throw std::runtime_error(std::string(made.error().code_string()));controller_=std::move(made).value();
  if(!lexinet_configuration_path.empty()){if(state_directory.empty())throw std::runtime_error("SIMULATOR.HTTPS_REQUIRES_DURABLE_STORE");network_=std::make_unique<StudyNetwork>(lexinet_configuration_path);}
  scene.lifecycle=supervisor.publish("day");

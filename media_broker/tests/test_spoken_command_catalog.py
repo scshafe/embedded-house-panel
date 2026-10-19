@@ -14,6 +14,20 @@ class CatalogTest(unittest.TestCase):
         self.graph = load_json(ROOT / "shared/spoken_command_catalog/intent_effect_graph.json")
         self.bundle = build_bundle(ROOT, ["study_back", "study_history"])
 
+    def test_registry_parse_finds_exactly_the_registered_intents(self):
+        # catalog.py reads the C++ app descriptors as text; a stray match (a comment, a
+        # new row format) must fail here, not as an unexplained voice failure.
+        import re
+        source = (ROOT / "panel_ui/src/panel_app_descriptors.cpp").read_text()
+        parsed = re.findall(r'\{"([a-z][a-z0-9_.]+)"\s*,\s*IntentEffectClass::', source)
+        expected = {"shell.home", "shell.apps_previous", "shell.apps_next", "shell.open_study", "study.flip",
+                    "study.next", "study.back", "study.rate.again", "study.rate.hard", "study.rate.good",
+                    "study.rate.easy", "study.rating.undo", "shell.open_agenda", "agenda.start_wish_recording",
+                    "agenda.submit_wish"}
+        self.assertEqual(len(parsed), len(set(parsed)))
+        self.assertEqual(set(parsed), expected)
+        self.assertLessEqual(set(parsed), set(self.graph["intents"]))
+
     def rehash(self):
         self.catalog["catalog_revision"] = digest({key: value for key, value in self.catalog.items() if key != "catalog_revision"})
 

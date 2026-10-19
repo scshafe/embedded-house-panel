@@ -1,0 +1,18 @@
+add_library(bhp_media_lease_protocol STATIC src/media_lease_protocol.cpp)
+add_library(bhp::media_lease_protocol ALIAS bhp_media_lease_protocol)
+target_include_directories(bhp_media_lease_protocol PUBLIC include)
+target_compile_features(bhp_media_lease_protocol PUBLIC cxx_std_17)
+target_link_libraries(bhp_media_lease_protocol
+  PUBLIC bhp::media_window_protocol PRIVATE nlohmann_json::nlohmann_json)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(bhp_media_lease_protocol PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+if(BHP_BUILD_TESTS)
+  add_executable(media_lease_protocol_test tests/media_lease_protocol_test.cpp)
+  target_link_libraries(media_lease_protocol_test PRIVATE bhp_media_lease_protocol)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(media_lease_protocol_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME media_lease_protocol_test COMMAND media_lease_protocol_test)
+endif()

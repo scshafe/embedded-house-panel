@@ -280,6 +280,7 @@ compile_panel_ui()
 			"$PROJECT_ROOT/panel_ui/src/fail_dark_lifecycle_display_commit_backend.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/headless_renderer.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/interaction_intent.cpp" \
+			"$PROJECT_ROOT/panel_ui/src/panel_app_descriptors.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/panel_intent_registry.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/panel_ui_error.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/panel_ui_service.cpp" \
@@ -291,6 +292,7 @@ compile_panel_ui()
 
 	panel_ui_test_count=0
 	for test_name in \
+		panel_app_descriptor \
 		panel_intent_registry \
 		shell_controller \
 		bounded_unicode_text_policy \
