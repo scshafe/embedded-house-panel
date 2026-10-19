@@ -287,6 +287,44 @@ class FrdmEvidenceScriptTest(unittest.TestCase):
             "--instrument", "fixture meter")
         self.assertEqual(self.checks(bad)["board_input_power_measured"], "fail")
 
+    def array_fixture(self, capture_format: str = "S16_LE", channels: str = "6") -> None:
+        write(self.root, "/proc/asound/cards",
+              " 5 [wm8962audio    ]: fsl-asoc-card - wm8962-audio\n"
+              "                      wm8962-audio\n"
+              " 6 [FixtureArray   ]: USB-Audio - Fixture XVF3800 Array\n"
+              "                      Fixture XVF3800 Array at usb-fixture, high speed\n")
+        write(self.root, "/proc/asound/card5/id", "wm8962audio\n")
+        write(self.root, "/proc/asound/card6/id", "FixtureArray\n")
+        write(self.root, "/proc/asound/card6/usbid", "2886:ffff\n")
+        write(self.root, "/proc/asound/card6/usbbus", "001/002\n")
+        write(self.root, "/proc/asound/card6/stream0",
+              "Fixture XVF3800 Array : USB Audio\n\nPlayback:\n  Status: Stop\n    Format: S16_LE\n"
+              "    Channels: 2\n    Rates: 16000\n\nCapture:\n  Status: Stop\n"
+              f"    Format: {capture_format}\n    Channels: {channels}\n    Rates: 16000\n")
+
+    def test_array_source_finds_the_usb_card_and_its_capture_mode(self) -> None:
+        self.array_fixture()
+        [record] = self.run_script("frdm_mic_capture.sh", "--duration-seconds", "5", "--source", "array")
+        checks = self.checks(record)
+        self.assertEqual(checks["alsa_card"], "pass")
+        self.assertEqual(checks["capture_mode"], "pass")
+        self.assertEqual(checks["capture_non_silent"], "unobserved")
+        self.assertNotIn("codec_i2c", checks)
+        observations = {o["key"]: o["value"] for o in record["observations"]}
+        self.assertEqual(observations["usb_id"], "2886:ffff")
+        self.assertEqual(observations["source"], "array")
+        self.assertEqual(record["candidates"], [])
+
+    def test_array_source_refuses_another_mode_or_a_missing_array(self) -> None:
+        self.array_fixture(channels="2")
+        [record] = self.run_script("frdm_mic_capture.sh", "--duration-seconds", "5", "--source", "array")
+        self.assertEqual(self.checks(record)["capture_mode"], "fail")
+        write(self.root, "/proc/asound/card6/usbid", "1234:5678\n")
+        [record] = self.run_script("frdm_mic_capture.sh", "--duration-seconds", "5", "--source", "array")
+        self.assertEqual(self.checks(record)["alsa_card"], "fail")
+        self.assertEqual(self.checks(record)["capture_mode"], "unobserved")
+        self.run_script("frdm_mic_capture.sh", "--duration-seconds", "5", "--source", "jack", expect=2)
+
     def test_board_only_scripts_refuse_fixture_roots_and_bad_usage(self) -> None:
         refusals = [
             ("frdm_pir_edge_capture.sh", "--mode", "evdev", "--duration-seconds", "5"),
