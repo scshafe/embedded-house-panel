@@ -1,7 +1,11 @@
 #include "bhp/media_lease_protocol/media_lease_protocol.h"
 #include <array>
 #include <nlohmann/json.hpp>
+#include <cstring>
 #include <set>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 namespace bhp::media_lease_protocol
 {
 namespace
@@ -355,4 +359,73 @@ Result<BrokerEvent> decode_broker_event(std::string_view frame)
 	}
 	return Output::failure(wire_error("decode_broker_event", "type"));
 }
+
+Result<std::unique_ptr<MediaLeaseClient>> MediaLeaseClient::connect(const std::string &path,
+								    const std::uint32_t broker_uid)
+{
+	using Output = Result<std::unique_ptr<MediaLeaseClient>>;
+	if (path.empty() || path[0] != '/' || path.size() >= sizeof(sockaddr_un::sun_path))
+		return Output::failure({"MEDIA_LEASE.SOCKET_INVALID", "Broker socket path is invalid", {{"operation", "connect"}}});
+	const int descriptor = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+	sockaddr_un address{};
+	address.sun_family = AF_UNIX;
+	std::memcpy(address.sun_path, path.c_str(), path.size() + 1);
+	if (descriptor < 0 || ::connect(descriptor, reinterpret_cast<sockaddr *>(&address), sizeof address) != 0) {
+		if (descriptor >= 0)
+			::close(descriptor);
+		return Output::failure({"MEDIA_LEASE.BROKER_UNAVAILABLE", "Broker socket did not accept", {{"operation", "connect"}}});
+	}
+	return for_connected_peer(descriptor, broker_uid);
+}
+
+Result<std::unique_ptr<MediaLeaseClient>> MediaLeaseClient::for_connected_peer(const int descriptor,
+									       const std::uint32_t broker_uid)
+{
+	using Output = Result<std::unique_ptr<MediaLeaseClient>>;
+	const auto uid = media_window_protocol::peer_uid(descriptor);
+	if (!uid || *uid != broker_uid) {
+		::close(descriptor);
+		return Output::failure({"MEDIA_LEASE.PEER_REJECTED", "Broker socket peer is not the broker UID", {{"operation", "connect"}}});
+	}
+	return Output::success(std::unique_ptr<MediaLeaseClient>(new MediaLeaseClient(descriptor)));
+}
+
+void MediaLeaseClient::close() noexcept
+{
+	if (channel_)
+		channel_->close();
+}
+
+Result<Done> MediaLeaseClient::send(const UiRequest &request)
+{
+	auto frame = encode(request);
+	if (!frame)
+		return Result<Done>::failure(frame.error());
+	if (!connected())
+		return Result<Done>::failure({"MEDIA_LEASE.BROKER_UNAVAILABLE", "Broker is not connected", {{"operation", "send"}}});
+	return channel_->send(frame.value());
+}
+
+Result<std::vector<BrokerEvent>> MediaLeaseClient::poll()
+{
+	using Output = Result<std::vector<BrokerEvent>>;
+	std::vector<BrokerEvent> events;
+	for (int frames = 0; frames < 16; ++frames) {
+		if (!connected())
+			return Output::failure({"MEDIA_LEASE.BROKER_UNAVAILABLE", "Broker is not connected", {{"operation", "poll"}}});
+		auto received = channel_->receive();
+		if (!received)
+			return Output::failure(received.error());
+		if (!received.value())
+			break;
+		auto event = decode_broker_event(*received.value());
+		if (!event) {
+			close();
+			return Output::failure(event.error());
+		}
+		events.push_back(std::move(event.value()));
+	}
+	return Output::success(std::move(events));
+}
 } // namespace bhp::media_lease_protocol
+

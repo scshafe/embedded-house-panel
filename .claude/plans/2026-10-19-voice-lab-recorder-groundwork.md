@@ -146,18 +146,25 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'durable_store|study_store|resumable_upload|backoff'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 4: One contract-pin tool.**
+- [x] **Step 4: One contract-pin tool.** (2026-10-19)
   - `scripts/contracts/pinned_source.py`: the fetch and the clean-checkout
     check, parameterised by repository, provenance file and cache directory;
     `scripts/lexinet/pinned_source.py` becomes a thin lexinet configuration.
   - Write down in `docs/interfaces/` how a second contract is pinned (the
     provenance shape, `--check`, and the live check), so voice-lab's bundle
     uses the same mechanism when it lands.
+  - Done: `scripts/contracts/contract_pin.py` (`ContractPin`; error codes take
+    the contract's name). `scripts/lexinet/pinned_source.py` keeps its API and
+    `LEXINET_*` codes, and the study.v1 `--check` export is unchanged
+    (9 fixtures, bundle `b90be0dd…`). Written down in
+    `docs/interfaces/contract-pinning.md`. The module is named
+    `contract_pin.py`, not `pinned_source.py`, because two modules with the
+    same name on one import path shadow each other.
   - Verify:
     - `python3 -m unittest discover -s scripts/contracts/tests` exit 0;
     - `python3 -m unittest discover -s scripts/lexinet/tests` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 5: ADR 0012, the refresh token on the panel.**
+- [x] **Step 5: ADR 0012, the refresh token on the panel.** (2026-10-19)
   - The threat model for the `0600` refresh-token file: whose subject it
     acts for, what it reaches (voice-lab's allow-list only), who can read it
     (the uploader's UID; never the UI, the broker or the supervisor), the
@@ -169,6 +176,11 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - The device-code screen shows `verification_uri` and the user code only,
     and enforces `expires_in`.
   - Update the threat model document and ADR 0010's related list.
+  - Done: `docs/decisions/0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md`,
+    with a registry row, a new asset row and revocation step in
+    `docs/security/threat-model.md`, and a reference from ADR 0010. If the
+    durable write of a rotated token fails, the uploader signs in again rather
+    than use the new access token.
   - Verify:
     - `make verify` exit 0.
 - [ ] **Step 6: The recorder screens on fixture data.**
@@ -176,7 +188,10 @@ fixture data, recording through the media broker's `voice_take` purpose.
     the prompt list with "Continue Missing", record with a live level meter,
     review, retake, reject, and an outbox status line.
   - Recording goes through `MediaLeaseClient` (voice-take capture plan Step
-    6); in the simulator the broker runs on its fake source.
+    6). In the simulator, `MediaBroker` runs in-process on the fake source,
+    with the supervisor's `MediaWindowEndpoint` and a fake touch authority, so
+    a recorder scenario records a deterministic take (moved here from the
+    voice-take plan's Step 6).
   - Scenarios and goldens for each screen; the catalog is a fixture until the
     bundle defines it.
   - Verify:
