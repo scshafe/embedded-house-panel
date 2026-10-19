@@ -39,7 +39,8 @@ ALLOWED_NEEDED = {'libc.so.6', 'libm.so.6', 'ld-linux-aarch64.so.1', 'libdrm.so.
                   'libz.so.1', 'libcrypto.so.3', 'libssl.so.3', 'libcurl.so.4', 'libasound.so.2'}
 MAXIMUM_GLIBC = (2, 41)
 BINARIES = {'bhp-panel-ui': BUILD/'panel_ui/bhp-panel-ui', 'panel_supervisord': BUILD/'panel_supervisor/panel_supervisord',
-            'bhp-sim-pir': BUILD/'bhp-sim-pir', 'bhp-media-capture-check': BUILD/'media_broker/bhp-media-capture-check'}
+            'bhp-sim-pir': BUILD/'bhp-sim-pir', 'bhp-media-capture-check': BUILD/'media_broker/bhp-media-capture-check',
+            'bhp-media-broker': BUILD/'media_broker/bhp-media-broker'}
 
 def fail(code, detail=''):
     print(json.dumps({'data': None, 'error': {'code': code, 'detail': detail}, 'evidence': EVIDENCE}))
@@ -52,7 +53,7 @@ def build_commands():
          '-DCMAKE_BUILD_TYPE=Release', '-DBHP_BUILD_TESTS=OFF', '-DBHP_BUILD_PANEL_RENDERER=ON',
          '-DBHP_BUILD_PANEL_DRM=ON', '-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON',
          '-DBHP_BUILD_MEDIA_ALSA=ON'],
-        ['cmake', '--build', str(BUILD), '--target', 'bhp-panel-ui', 'panel_supervisord', 'bhp-media-capture-check'],
+        ['cmake', '--build', str(BUILD), '--target', 'bhp-panel-ui', 'panel_supervisord', 'bhp-media-capture-check', 'bhp-media-broker'],
         ['clang', '--target=aarch64-linux-gnu', '--sysroot=' + str(SYSROOT), '-fuse-ld=lld', '-mcpu=cortex-a53',
          '-std=gnu11', '-Wall', '-Wextra', '-Werror', '-O2', str(root/'scripts/sim/guest/pir_uinput.c'),
          '-o', str(BINARIES['bhp-sim-pir'])],

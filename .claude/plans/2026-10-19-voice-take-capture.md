@@ -208,7 +208,7 @@ Host tests run the same broker on a deterministic fake source.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'media_window|panel_supervisor'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 5: The broker daemon with `voice_take` leases.**
+- [x] **Step 5: The broker daemon with `voice_take` leases.** (2026-10-19)
   - `bhp-media-broker`, C++, one process and the only audio owner:
     - a UI socket accepted only from the exact UI UID;
     - `arm` (purpose `voice_take`, touch observation ID) claims the
@@ -222,6 +222,15 @@ Host tests run the same broker on a deterministic fake source.
   - Error codes reuse the fake's `MEDIA_BROKER.*` names where they mean the
     same thing.
   - Tests run the daemon against a fake supervisor and the fake source.
+  - Done: `shared/media_lease_protocol` (the UI wire format),
+    `media_broker`'s `MediaBroker` and `bhp-media-broker`. The arm request's
+    operation digest is the SHA-256 of `{operation_ref, purpose, request_id}`
+    as compact sorted JSON. `media_broker_test` runs the broker against the
+    real supervisor `MediaWindowEndpoint` (fake authority) and the paced fake
+    source. It covers a closed window, a disabled purpose, an unknown or
+    replayed touch, busy, a consumed start, expiry, levels, a requested stop,
+    the maximum, window closure, an xrun, a UI that leaves, daemon stop and a
+    malformed request. The ownership registry's media row now says so.
   - Verify:
     - `ctest --test-dir .build/host-dev -R media_broker` exit 0;
     - `make verify` exit 0.
