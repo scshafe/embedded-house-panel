@@ -1,6 +1,7 @@
 #pragma once
 #include "bhp/media_window_protocol/media_window_protocol.h"
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -76,6 +77,34 @@ struct Ended {
 	std::string error_code;
 };
 using BrokerEvent = std::variant<Armed, Refused, Started, Level, Ended>;
+
+/**
+ * @canonical media_lease_client -- the UI's side of one broker connection.
+ *
+ * Connects to the broker's UI socket and checks that the peer is the exact
+ * broker UID. It sends requests and returns broker events in order; it holds
+ * no audio and no claim. A malformed event or a lost broker closes it, and
+ * the caller treats any lease it held as ended.
+ */
+class MediaLeaseClient final
+{
+public:
+	static Result<std::unique_ptr<MediaLeaseClient>> connect(const std::string &path, std::uint32_t broker_uid);
+	/** Test seam: an already-connected stream socket; the peer UID is still checked. */
+	static Result<std::unique_ptr<MediaLeaseClient>> for_connected_peer(int descriptor, std::uint32_t broker_uid);
+	Result<Done> send(const UiRequest &request);
+	/** Events received so far (at most 16 frames per call). */
+	Result<std::vector<BrokerEvent>> poll();
+	bool connected() const { return channel_ && channel_->open(); }
+	void close() noexcept;
+
+private:
+	explicit MediaLeaseClient(int descriptor)
+		: channel_(std::make_unique<media_window_protocol::FrameChannel>(descriptor))
+	{
+	}
+	std::unique_ptr<media_window_protocol::FrameChannel> channel_;
+};
 
 Result<std::string> encode(const UiRequest &request);
 Result<std::string> encode(const BrokerEvent &event);

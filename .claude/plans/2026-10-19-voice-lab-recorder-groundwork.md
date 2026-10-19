@@ -158,7 +158,10 @@ fixture data, recording through the media broker's `voice_take` purpose.
     the prompt list with "Continue Missing", record with a live level meter,
     review, retake, reject, and an outbox status line.
   - Recording goes through `MediaLeaseClient` (voice-take capture plan Step
-    6); in the simulator the broker runs on its fake source.
+    6). In the simulator, `MediaBroker` runs in-process on the fake source,
+    with the supervisor's `MediaWindowEndpoint` and a fake touch authority, so
+    a recorder scenario records a deterministic take (moved here from the
+    voice-take plan's Step 6).
   - Scenarios and goldens for each screen; the catalog is a fixture until the
     bundle defines it.
   - Verify:
