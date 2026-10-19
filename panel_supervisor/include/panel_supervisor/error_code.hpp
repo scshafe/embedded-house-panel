@@ -71,6 +71,8 @@ enum class ErrorCode {
 	CaptureClosureUnverified,
 	CaptureTerminationUnavailable,
 	MediaTerminationFailed,
+	MediaWindowUnavailable,
+	MediaWindowProtocolFailed,
 };
 
 /** Returns the stable dot-delimited machine code for an ErrorCode. */
