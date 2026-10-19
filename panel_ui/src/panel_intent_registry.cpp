@@ -1,29 +1,14 @@
 #include "panel_ui/panel_intent_registry.hpp"
 
+#include "panel_ui/panel_app_descriptor.hpp"
+
 namespace house_panel::panel_ui {
 
 PanelIntentRegistry::PanelIntentRegistry()
-	: definitions_{{
-		{"shell.home", IntentEffectClass::Navigation, true, true, false, true, "home"},
-		{"shell.open_study", IntentEffectClass::Navigation, true, true, false, true, "study"},
-		{"shell.open_agenda", IntentEffectClass::Navigation, true, true, false, true, "agenda"},
-		{"shell.apps_previous", IntentEffectClass::Navigation, true, true, false, true},
-		{"shell.apps_next", IntentEffectClass::Navigation, true, true, false, true},
-		{"study.flip", IntentEffectClass::Navigation, true, true, true, true},
-		{"study.next", IntentEffectClass::Navigation, true, true, true, true},
-		{"study.back", IntentEffectClass::Navigation, true, true, true, true},
-		{"study.rate.again", IntentEffectClass::StudyRating, true, true, true, true},
-		{"study.rate.hard", IntentEffectClass::StudyRating, true, true, true, true},
-		{"study.rate.good", IntentEffectClass::StudyRating, true, true, true, true},
-		{"study.rate.easy", IntentEffectClass::StudyRating, true, true, true, true},
-		{"study.rating.undo", IntentEffectClass::RatingCorrection, true, true, false,
-		 false},
-		{"agenda.start_wish_recording", IntentEffectClass::CaptureStart, false, true,
-		 false, false},
-		{"agenda.submit_wish", IntentEffectClass::ExternalSubmission, false, true,
-		 false, false},
-	}}
 {
+	for (const auto &descriptor : panel_app_descriptors()) {
+		definitions_.insert(definitions_.end(), descriptor.intents.begin(), descriptor.intents.end());
+	}
 }
 
 const IntentDefinition *PanelIntentRegistry::find(const std::string_view intent_id) const noexcept
@@ -36,8 +21,7 @@ const IntentDefinition *PanelIntentRegistry::find(const std::string_view intent_
 	return nullptr;
 }
 
-const std::array<IntentDefinition, PanelIntentRegistry::kDefinitionCount> &
-PanelIntentRegistry::definitions() const noexcept
+const std::vector<IntentDefinition> &PanelIntentRegistry::definitions() const noexcept
 {
 	return definitions_;
 }

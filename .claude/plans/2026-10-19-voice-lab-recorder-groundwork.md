@@ -90,7 +90,7 @@ fixture data, recording through the media broker's `voice_take` purpose.
 
 ## Steps
 
-- [ ] **Step 1: One app descriptor.**
+- [x] **Step 1: One app descriptor.** (2026-10-19)
   - Add `PanelAppDescriptor` and the compiled-in list (`home`, `study`,
     `agenda`) in `panel_ui`; `PanelIntentRegistry`, the simulator's surface
     list, surface map, routes and scenario fields, and the renderer's surface
@@ -100,6 +100,15 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - No behaviour change: every golden stays byte-identical, and the registry
     test's 15 intents are unchanged.
   - Update `panel_ui/README.md`'s "new functional app" recipe.
+  - Done: `panel_ui/src/panel_app_descriptors.cpp` holds the home, study and
+    agenda descriptors. `PanelIntentRegistry`, the simulator's surface list,
+    routes and scenario fields read them, and `LvglPanelDisplay` dispatches
+    through `surface_renderers()`. Every golden is unchanged (0 changed
+    pixels). The registry still holds the same 15 intents, now in descriptor
+    order. New tests: `panel_ui_panel_app_descriptor_test`,
+    `scenario_schema_descriptor_test`, and a catalog test that pins the voice
+    catalog's text parse to those 15 IDs (a comment in the new file first
+    broke it).
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'panel_intent_registry|panel_application_grid|panel_simulation|panel_display'` exit 0;
     - `make verify` exit 0 with the golden comparison unchanged.
