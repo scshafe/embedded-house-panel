@@ -10,6 +10,7 @@ state, microphone capture, or external submission.
 
 - `PanelIntentRegistry` is the `@canonical panel_intent_registry`. Version 1 has
   one closed, namespaced semantic ID set and no caller-supplied domain payload.
+  The set is the concatenation of the app descriptors' intents.
 - `ShellController` is the `@canonical panel_shell_controller`. It validates one
   envelope at the local ingress boundary, never queues input across lifecycle
   transitions, and returns an accepted route or a typed content-free rejection.
@@ -204,16 +205,28 @@ tile bounds place artwork, labels and hit targets. `LvglPanelDisplay` iterates
 these entries without application-specific launcher branches. Reordering, hiding,
 renaming or changing the grid requires no rendering code changes.
 
-For a new functional app:
+For a new functional app (amended 2026-10-19, issue #23: one descriptor per app):
 
 1. Implement its sibling surface/feature capability under the existing shell
    contracts; keep feature state owned by that feature.
-2. Register its namespaced navigation intent in `PanelIntentRegistry`, including
-   `navigation_surface_id`, and declare its effect graph. Navigation destination
-   metadata is authoritative here; the catalog cannot redirect an intent.
-3. Register the implemented surface and its allowed intent contract in the runtime
-   assembly, and add its subordinate feature rendering branch. The simulator's
-   `simulation_feature_surfaces` marker identifies this registration boundary.
+2. Append its `PanelAppDescriptor` in `src/panel_app_descriptors.cpp`
+   (`@canonical panel_app_descriptor`):
+   - its surface;
+   - its intents, including exactly one navigation intent whose
+     `navigation_surface_id` is that surface;
+   - its shared routes (`shell.home`);
+   - its scenario state field and values.
+
+   Declare the intents in the effect graph. `PanelIntentRegistry`, the
+   simulator's implemented-surface list, its `ShellController` routes and its
+   scenario fields all read the descriptors, so nothing else lists the app.
+   Navigation destination metadata is authoritative here; the catalog cannot
+   redirect an intent.
+3. Add its drawing function to `LvglPanelDisplay::surface_renderers()`
+   (`@extension-point panel_surface_renderers`). The display refuses to start
+   while a descriptor has no renderer. Add the surface and its state values to
+   `simulator/scenario.schema.json`, which `scenario_schema_descriptor_test`
+   keeps equal to the descriptors.
 4. Add the app's catalog entry with that `launch_intent`. A monogram works without
    editing the icon renderer. Run the grid, lifecycle and feature tests.
 

@@ -97,6 +97,7 @@ compile_supervisor()
 			-I"$PROJECT_ROOT/shared/panel_mode_protocol/include" \
 			-I"$PROJECT_ROOT/panel_supervisor/include" \
 			-I"$PROJECT_ROOT/shared/touch_observation_protocol/include" \
+			-I"$PROJECT_ROOT/shared/media_window_protocol/include" \
 			-I"$PROJECT_ROOT/panel_supervisor/src" \
 			-I"$PROJECT_ROOT/panel_supervisor/tests" \
 			"$PROJECT_ROOT/shared/structured_logging/src/structured_logger.cpp" \
@@ -117,6 +118,8 @@ compile_supervisor()
 			"$PROJECT_ROOT/panel_supervisor/src/evdev_touch_source.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/touch_runtime_configuration.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/touch_observation_runtime.cpp" \
+			"$PROJECT_ROOT/panel_supervisor/src/media_window_endpoint.cpp" \
+			"$PROJECT_ROOT/shared/media_window_protocol/src/media_window_protocol.cpp" \
 			"$PROJECT_ROOT/shared/touch_observation_protocol/src/touch_observation_codec.cpp" \
 			"$PROJECT_ROOT/shared/touch_observation_protocol/src/unix_touch_observation_socket.cpp" \
 			"$evdev_source" \
@@ -173,6 +176,7 @@ compile_supervisor()
 		sysfs_backlight \
 		sysfs_suspend \
 		unix_socket_ui_mode_notifier \
+		media_window_endpoint \
 		evdev_presence_source \
 		system_clock; do
 		compile_supervisor_runtime_entrypoint \
@@ -245,6 +249,7 @@ compile_supervisor()
 		sysfs_backlight \
 		sysfs_suspend \
 		unix_socket_ui_mode_notifier \
+		media_window_endpoint \
 		evdev_presence_source \
 		system_clock; do
 		"$output_directory/${test_name}_test"
@@ -275,6 +280,7 @@ compile_panel_ui()
 			"$PROJECT_ROOT/panel_ui/src/fail_dark_lifecycle_display_commit_backend.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/headless_renderer.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/interaction_intent.cpp" \
+			"$PROJECT_ROOT/panel_ui/src/panel_app_descriptors.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/panel_intent_registry.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/panel_ui_error.cpp" \
 			"$PROJECT_ROOT/panel_ui/src/panel_ui_service.cpp" \
@@ -286,6 +292,7 @@ compile_panel_ui()
 
 	panel_ui_test_count=0
 	for test_name in \
+		panel_app_descriptor \
 		panel_intent_registry \
 		shell_controller \
 		bounded_unicode_text_policy \

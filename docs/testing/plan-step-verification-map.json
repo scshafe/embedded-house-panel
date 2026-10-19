@@ -4078,9 +4078,9 @@
       "item_index": 1,
       "clause_item": "- `ctest --test-dir .build/host-dev -R 'panel_intent_registry|panel_application_grid|panel_simulation|panel_display'` exit 0",
       "test_symbol": "plan.voice-lab-recorder-groundwork.step-1.verify-1.item-1.ctest-test-dir-build-host-dev-r-panel-intent-registry-panel",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-19-voice-lab-recorder-groundwork.md Step 1 [plan.voice-lab-recorder-groundwork.step-1.verify-1.item-1.ctest-test-dir-build-host-dev-r-panel-intent-registry-panel]",
+      "command": "ctest --test-dir .build/host-dev -R 'panel_intent_registry|panel_application_grid|panel_simulation|panel_display' --output-on-failure",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-19-voice-lab-recorder-groundwork.md",
@@ -4089,9 +4089,9 @@
       "item_index": 2,
       "clause_item": "- `make verify` exit 0 with the golden comparison unchanged.",
       "test_symbol": "plan.voice-lab-recorder-groundwork.step-1.verify-1.item-2.make-verify-exit-0-with-the-golden-comparison-unchanged",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-19-voice-lab-recorder-groundwork.md Step 1 [plan.voice-lab-recorder-groundwork.step-1.verify-1.item-2.make-verify-exit-0-with-the-golden-comparison-unchanged]",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-19-voice-lab-recorder-groundwork.md",
@@ -4100,9 +4100,9 @@
       "item_index": 1,
       "clause_item": "- `ctest --test-dir .build/host-dev -R 'http_runtime|http_lexinet'` exit 0",
       "test_symbol": "plan.voice-lab-recorder-groundwork.step-2.verify-1.item-1.ctest-test-dir-build-host-dev-r-http-runtime-http-lexinet-exit-0",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-19-voice-lab-recorder-groundwork.md Step 2 [plan.voice-lab-recorder-groundwork.step-2.verify-1.item-1.ctest-test-dir-build-host-dev-r-http-runtime-http-lexinet-exit-0]",
+      "command": "ctest --test-dir .build/host-dev -R 'http_runtime|http_lexinet' --output-on-failure",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-19-voice-lab-recorder-groundwork.md",
@@ -4111,9 +4111,9 @@
       "item_index": 2,
       "clause_item": "- `make verify` exit 0.",
       "test_symbol": "plan.voice-lab-recorder-groundwork.step-2.verify-1.item-2.make-verify-exit-0",
-      "command": "PLANNED: exact test command to be assigned in .claude/plans/2026-10-19-voice-lab-recorder-groundwork.md Step 2 [plan.voice-lab-recorder-groundwork.step-2.verify-1.item-2.make-verify-exit-0]",
+      "command": "make verify",
       "proof_kind": "automated",
-      "proof_status": "planned"
+      "proof_status": "recorded"
     },
     {
       "plan": ".claude/plans/2026-10-19-voice-lab-recorder-groundwork.md",

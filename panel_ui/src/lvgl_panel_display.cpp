@@ -1,4 +1,5 @@
 #include "panel_ui/lvgl_panel_display.hpp"
+#include "panel_ui/panel_app_descriptor.hpp"
 #include "vocabulary_panel/gui/lvgl/lvgl_flash_card_renderer.h"
 #include "vocabulary_panel/gui/lvgl/vocabulary_surface_layout.h"
 #include <panel_fonts/panel_fonts.h>
@@ -176,6 +177,8 @@ std::vector<std::string> scene_text(const PanelScene &s) {
 }
 LvglPanelDisplay::LvglPanelDisplay(bool sdl_window):pixels_(width*height),draw_buffer_(width*height) {
  if(lv_is_initialized()) throw std::runtime_error("PANEL_UI.LVGL_ALREADY_INITIALIZED");
+ for(const auto &app : panel_app_descriptors())
+  if(find_surface_renderer(app.surface_id) == nullptr) throw std::runtime_error("PANEL_UI.SURFACE_RENDERER_MISSING");
  auto policy=HeadlessRenderer::create({8192,4096,true});
  if(!policy) throw std::runtime_error(std::string(policy.error().code_string()));
  text_renderer_=std::move(policy).value();lv_init();
@@ -274,106 +277,124 @@ void LvglPanelDisplay::draw_scene(const PanelScene &s) {
  if(!status.empty()) label(screen, status, 40, 72, 650, 31, &bhp_font_24, 0xe9c480);
  const auto acknowledgement = acknowledgement_text(s.acknowledgement);
  if(!acknowledgement.empty()) label(screen, acknowledgement, 40, 107, 650, 31, &bhp_font_24, 0xe9c480);
- if(s.surface_id == "home") {
-  label(content, "Home", 24, 16, 896, 52, &bhp_font_40, 0xf4f0e8);
-  const auto page=application_grid_page(s.applications,s.home_page);
-  if(page.tiles.empty()) label(content,"No apps enabled",24,178,896,37,&bhp_font_28,0xaab8b7,LV_TEXT_ALIGN_CENTER);
-  for(const auto &placement:page.tiles){
-   const auto &app=s.applications.applications.at(placement.application_index);
-   auto *tile=box(content,placement.x,placement.y,placement.width,placement.height,0x1c2d31,12);
-   launcher_icon(tile,app,placement);
-   label(tile,app.title,0,placement.title_y,placement.width,37,&bhp_font_28,0xf4f0e8,LV_TEXT_ALIGN_CENTER);
-   label(tile,app.subtitle,0,placement.subtitle_y,placement.width,31,&bhp_font_24,app.preview?0xe9c480:0xaab8b7,LV_TEXT_ALIGN_CENTER);
-   hit_targets_.push_back({layout::content_x+placement.x,layout::content_y+placement.y,placement.width,placement.height,app.launch_intent});
-  }
-  if(page.page_count>1){
-   const auto page_button=[&](int x,const std::string &title,const std::string &intent){
-    auto *control=box(content,x,360,176,64,0x293f43,12);
-    label(control,title,0,13,176,37,&bhp_font_28,0xdbe5df,LV_TEXT_ALIGN_CENTER);
-    hit_targets_.push_back({layout::content_x+x,layout::content_y+360,176,64,intent});
-   };
-   if(s.home_page>0)page_button(24,"Previous","shell.apps_previous");
-   if(s.home_page+1<page.page_count)page_button(744,"Next","shell.apps_next");
-   label(content,std::to_string(s.home_page+1)+" / "+std::to_string(page.page_count),224,373,496,37,&bhp_font_28,0xaab8b7,LV_TEXT_ALIGN_CENTER);
-  }
- } else if(s.surface_id == "study") {
-  vocabulary_panel::gui::lvgl::render_vocabulary_surface(content,
-   {s.study_state, s.card_word, s.card_definition, s.card_example, s.provisional, s.can_back, s.can_undo});
-  const auto action_target = [this](int index, int target_width, const std::string &intent) {
-   hit_targets_.push_back({layout::content_x + layout::action_x(index), layout::content_y + layout::actions_y,
-                           target_width, layout::action_height, intent});
-  };
-  if(s.study_state == "front" || s.study_state == "back") {
-   hit_targets_.push_back({layout::content_x + layout::inset, layout::content_y + 16,
-                           layout::text_width, layout::actions_y - 24, "study.flip"});
-   if(s.study_state == "back") {
-    const std::string intents[]{"study.rate.again", "study.rate.hard", "study.rate.good", "study.rate.easy"};
-    for(int i = 0; i < 4; ++i) action_target(i, layout::action_width, intents[i]);
-   } else {
-    action_target(0, layout::primary_width, "study.flip");
-    action_target(3, layout::action_width, "study.next");
-   }
-  }
-  if(s.study_state == "resume" || s.study_state == "complete")
-   action_target(0, layout::primary_width, "study.next");
-  const auto header_action = [&](const std::string &text, int x, int target_width, std::uint32_t color,
-                                 const std::string &intent) {
-   auto *control = box(screen, x, 80, target_width, 56, 0x293f43, 10);
-   label(control, text, 8, 9, target_width - 16, 37, &bhp_font_28, color, LV_TEXT_ALIGN_CENTER);
-   hit_targets_.push_back({x, 80, target_width, 56, intent});
-  };
-  if(s.can_back) header_action("Back", 720, 120, 0xdbe5df, "study.back");
-  if(s.can_undo) header_action("Undo", 856, 128, 0xe9c480, "study.rating.undo");
- } else {
-  const auto &state = s.agenda_state;
-  if(state == "today" || state == "stale") {
-   label(content, "Birthdays", 24, 16, 240, 31, &bhp_font_24, 0x8db5a7);
-   label(content, "Today and next 7 days", 304, 16, 592, 31, &bhp_font_24, 0xaab8b7);
-   label(content, "Rowan", 24, 56, 256, 44, &bhp_font_36, 0xf4f0e8);
-   label(content, "Today", 304, 60, 592, 37, &bhp_font_28, 0xf4f0e8);
-   label(content, "Alex", 24, 108, 256, 44, &bhp_font_36, 0xf4f0e8);
-   label(content, "Sunday, Sep 27", 304, 112, 592, 37, &bhp_font_28, 0xf4f0e8);
-   label(content, "Your day", 24, 184, 896, 31, &bhp_font_24, 0x8db5a7);
-   const std::string times[]{"All day", "09:30", "14:00"};
-   const std::string events[]{"A day for making", "Garden planning", "Busy"};
-   for(int i = 0; i < 3; ++i) {
-    label(content, times[i], 24, 232 + i * 52, 136, 37, &bhp_font_28, 0xaab8b7);
-    label(content, events[i], 184, 228 + i * 52, 712, 44, &bhp_font_36, 0xf4f0e8);
-   }
-  } else {
-   std::string title, detail, note;
-   if(state == "expired") { title = "Agenda needs updating"; detail = "Current details are unavailable."; }
-   else if(state == "composer") {
-    title = "Recording preview"; detail = "Recording is not available in this preview.";
-    note = "Microphone off. Nothing will be sent.";
-   } else if(state == "recording") {
-    title = "Recording preview"; detail = "Microphone off. Nothing is being recorded.";
-    note = "Nothing will be sent.";
-   } else if(state == "text_preview") {
-    title = "Draft preview"; detail = "Happy birthday, Rowan. Wishing you a wonderful day.";
-    note = "Sample text. Nothing will be sent.";
-   } else if(state == "confirmation") {
-    title = "Draft preview"; detail = "Sending is not available in this preview.";
-    note = "Nothing will be sent.";
-   } else if(state == "delivery_unknown") {
-    title = "Delivery not confirmed"; detail = "Check before trying again.";
-    note = "Sample state. Nothing was sent.";
-   } else {
-    title = "Companion unavailable"; detail = "Recording is unavailable.";
-    note = "Microphone off.";
-   }
-   label(content, title, 24, 44, 896, 104, &bhp_font_40, 0xf4f0e8);
-   if(state == "recording") {
-    label(content, "00:12 / 01:00", 24, 156, 896, 62, &bhp_font_48, 0xf4f0e8);
-    label(content, detail, 24, 236, 896, 111, &bhp_font_28, 0xaab8b7);
-   } else label(content, detail, 24, 168, 896, state == "text_preview" ? 176 : 148,
-                state == "text_preview" ? &bhp_font_36 : &bhp_font_28, 0xaab8b7);
-   if(!note.empty()) label(content, note, 24, 376, 896, 31, &bhp_font_24, 0xe9c480);
-  }
- }
+ const auto *renderer = find_surface_renderer(s.surface_id);
+ if(renderer == nullptr) throw std::runtime_error("PANEL_UI.SURFACE_RENDERER_MISSING");
+ (this->*renderer->draw)(screen, content, s);
  if(s.lifecycle.presence_state == bhp::panel_mode_protocol::PresenceState::GracePeriod) {
   auto *dim = box(screen, 0, 0, width, height, 0);
   lv_obj_set_style_bg_opa(dim, LV_OPA_50, 0);
+ }
+}
+const std::vector<LvglPanelDisplay::SurfaceRenderer> &LvglPanelDisplay::surface_renderers() {
+ // @extension-point panel_surface_renderers -- one entry per app descriptor surface.
+ static const std::vector<SurfaceRenderer> renderers{
+  {"home", &LvglPanelDisplay::draw_home},
+  {"study", &LvglPanelDisplay::draw_study},
+  {"agenda", &LvglPanelDisplay::draw_agenda},
+ };
+ return renderers;
+}
+const LvglPanelDisplay::SurfaceRenderer *LvglPanelDisplay::find_surface_renderer(const std::string &surface_id) {
+ for(const auto &renderer : surface_renderers()) if(surface_id == renderer.surface_id) return &renderer;
+ return nullptr;
+}
+void LvglPanelDisplay::draw_home(lv_obj_t *, lv_obj_t *content, const PanelScene &s) {
+ label(content, "Home", 24, 16, 896, 52, &bhp_font_40, 0xf4f0e8);
+ const auto page=application_grid_page(s.applications,s.home_page);
+ if(page.tiles.empty()) label(content,"No apps enabled",24,178,896,37,&bhp_font_28,0xaab8b7,LV_TEXT_ALIGN_CENTER);
+ for(const auto &placement:page.tiles){
+  const auto &app=s.applications.applications.at(placement.application_index);
+  auto *tile=box(content,placement.x,placement.y,placement.width,placement.height,0x1c2d31,12);
+  launcher_icon(tile,app,placement);
+  label(tile,app.title,0,placement.title_y,placement.width,37,&bhp_font_28,0xf4f0e8,LV_TEXT_ALIGN_CENTER);
+  label(tile,app.subtitle,0,placement.subtitle_y,placement.width,31,&bhp_font_24,app.preview?0xe9c480:0xaab8b7,LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({layout::content_x+placement.x,layout::content_y+placement.y,placement.width,placement.height,app.launch_intent});
+ }
+ if(page.page_count>1){
+  const auto page_button=[&](int x,const std::string &title,const std::string &intent){
+   auto *control=box(content,x,360,176,64,0x293f43,12);
+   label(control,title,0,13,176,37,&bhp_font_28,0xdbe5df,LV_TEXT_ALIGN_CENTER);
+   hit_targets_.push_back({layout::content_x+x,layout::content_y+360,176,64,intent});
+  };
+  if(s.home_page>0)page_button(24,"Previous","shell.apps_previous");
+  if(s.home_page+1<page.page_count)page_button(744,"Next","shell.apps_next");
+  label(content,std::to_string(s.home_page+1)+" / "+std::to_string(page.page_count),224,373,496,37,&bhp_font_28,0xaab8b7,LV_TEXT_ALIGN_CENTER);
+ }
+}
+void LvglPanelDisplay::draw_study(lv_obj_t *screen, lv_obj_t *content, const PanelScene &s) {
+ vocabulary_panel::gui::lvgl::render_vocabulary_surface(content,
+  {s.study_state, s.card_word, s.card_definition, s.card_example, s.provisional, s.can_back, s.can_undo});
+ const auto action_target = [this](int index, int target_width, const std::string &intent) {
+  hit_targets_.push_back({layout::content_x + layout::action_x(index), layout::content_y + layout::actions_y,
+                          target_width, layout::action_height, intent});
+ };
+ if(s.study_state == "front" || s.study_state == "back") {
+  hit_targets_.push_back({layout::content_x + layout::inset, layout::content_y + 16,
+                          layout::text_width, layout::actions_y - 24, "study.flip"});
+  if(s.study_state == "back") {
+   const std::string intents[]{"study.rate.again", "study.rate.hard", "study.rate.good", "study.rate.easy"};
+   for(int i = 0; i < 4; ++i) action_target(i, layout::action_width, intents[i]);
+  } else {
+   action_target(0, layout::primary_width, "study.flip");
+   action_target(3, layout::action_width, "study.next");
+  }
+ }
+ if(s.study_state == "resume" || s.study_state == "complete")
+  action_target(0, layout::primary_width, "study.next");
+ const auto header_action = [&](const std::string &text, int x, int target_width, std::uint32_t color,
+                                const std::string &intent) {
+  auto *control = box(screen, x, 80, target_width, 56, 0x293f43, 10);
+  label(control, text, 8, 9, target_width - 16, 37, &bhp_font_28, color, LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({x, 80, target_width, 56, intent});
+ };
+ if(s.can_back) header_action("Back", 720, 120, 0xdbe5df, "study.back");
+ if(s.can_undo) header_action("Undo", 856, 128, 0xe9c480, "study.rating.undo");
+}
+void LvglPanelDisplay::draw_agenda(lv_obj_t *, lv_obj_t *content, const PanelScene &s) {
+ const auto &state = s.agenda_state;
+ if(state == "today" || state == "stale") {
+  label(content, "Birthdays", 24, 16, 240, 31, &bhp_font_24, 0x8db5a7);
+  label(content, "Today and next 7 days", 304, 16, 592, 31, &bhp_font_24, 0xaab8b7);
+  label(content, "Rowan", 24, 56, 256, 44, &bhp_font_36, 0xf4f0e8);
+  label(content, "Today", 304, 60, 592, 37, &bhp_font_28, 0xf4f0e8);
+  label(content, "Alex", 24, 108, 256, 44, &bhp_font_36, 0xf4f0e8);
+  label(content, "Sunday, Sep 27", 304, 112, 592, 37, &bhp_font_28, 0xf4f0e8);
+  label(content, "Your day", 24, 184, 896, 31, &bhp_font_24, 0x8db5a7);
+  const std::string times[]{"All day", "09:30", "14:00"};
+  const std::string events[]{"A day for making", "Garden planning", "Busy"};
+  for(int i = 0; i < 3; ++i) {
+   label(content, times[i], 24, 232 + i * 52, 136, 37, &bhp_font_28, 0xaab8b7);
+   label(content, events[i], 184, 228 + i * 52, 712, 44, &bhp_font_36, 0xf4f0e8);
+  }
+ } else {
+  std::string title, detail, note;
+  if(state == "expired") { title = "Agenda needs updating"; detail = "Current details are unavailable."; }
+  else if(state == "composer") {
+   title = "Recording preview"; detail = "Recording is not available in this preview.";
+   note = "Microphone off. Nothing will be sent.";
+  } else if(state == "recording") {
+   title = "Recording preview"; detail = "Microphone off. Nothing is being recorded.";
+   note = "Nothing will be sent.";
+  } else if(state == "text_preview") {
+   title = "Draft preview"; detail = "Happy birthday, Rowan. Wishing you a wonderful day.";
+   note = "Sample text. Nothing will be sent.";
+  } else if(state == "confirmation") {
+   title = "Draft preview"; detail = "Sending is not available in this preview.";
+   note = "Nothing will be sent.";
+  } else if(state == "delivery_unknown") {
+   title = "Delivery not confirmed"; detail = "Check before trying again.";
+   note = "Sample state. Nothing was sent.";
+  } else {
+   title = "Companion unavailable"; detail = "Recording is unavailable.";
+   note = "Microphone off.";
+  }
+  label(content, title, 24, 44, 896, 104, &bhp_font_40, 0xf4f0e8);
+  if(state == "recording") {
+   label(content, "00:12 / 01:00", 24, 156, 896, 62, &bhp_font_48, 0xf4f0e8);
+   label(content, detail, 24, 236, 896, 111, &bhp_font_28, 0xaab8b7);
+  } else label(content, detail, 24, 168, 896, state == "text_preview" ? 176 : 148,
+               state == "text_preview" ? &bhp_font_36 : &bhp_font_28, 0xaab8b7);
+  if(!note.empty()) label(content, note, 24, 376, 896, 31, &bhp_font_24, 0xe9c480);
  }
 }
 }
