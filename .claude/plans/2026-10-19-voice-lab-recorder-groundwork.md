@@ -112,7 +112,7 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'panel_intent_registry|panel_application_grid|panel_simulation|panel_display'` exit 0;
     - `make verify` exit 0 with the golden comparison unchanged.
-- [ ] **Step 2: The HTTP request API.**
+- [x] **Step 2: The HTTP request API.** (2026-10-19)
   - `HttpRequest` and `HttpResponse` in `shared/http_runtime` (Decision 2),
     with `ETag` and `Content-Range` handling and a file-range body.
   - `HttpLexinetClient` uses it; its tests pass unchanged.
@@ -120,6 +120,11 @@ fixture data, recording through the media broker's `voice_take` purpose.
     answered `304`, a chunked `PUT` with `Content-Range` that the server
     verifies byte for byte, a 600 s budget accepted and 601 s refused, the
     response cap, a redirect refused, and cancellation mid-upload.
+  - Done: `shared/http_runtime/include/bhp/http_runtime/http_request.h` and
+    `http_request_test`. The test server is plain HTTP on loopback; TLS
+    verification is covered by the lexinet HTTPS tests, which now go through
+    the same `perform()`. "A redirect refused" means it comes back as a 3xx
+    status and is never followed; the lexinet client still rejects it.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'http_runtime|http_lexinet'` exit 0;
     - `make verify` exit 0.
