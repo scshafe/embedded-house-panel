@@ -143,7 +143,7 @@ and shows that the rating survives a network drop (the outbox) and a restart.
   - Verify:
     - `ctest --test-dir .build/host-dev -R panel_simulation_https` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 4: Build the FRDM bundle with the HTTPS client.**
+- [x] **Step 4: Build the FRDM bundle with the HTTPS client.** (2026-10-18)
   - Add the pinned Debian trixie arm64 `libcurl4t64` and
     `libcurl4-openssl-dev` `.deb`s, with SHA-256s, to
     `scripts/build/frdm_vendor_sysroot.sh`.
@@ -151,10 +151,26 @@ and shows that the rating survives a network drop (the outbox) and a restart.
     allows `libcurl.so.4` and `libssl.so.3` in its library check.
   - `frdm_panel_demo.sh start` takes an optional `--study-config` file and
     copies it into the run directory with mode 0640.
+  - Done:
+    - The sysroot pins `libcurl4t64` and `libcurl4-openssl-dev`
+      8.14.1-2+deb13u5. Their SHA-256s come from the trixie `Packages.xz`
+      whose hash the script already records.
+    - `frdm_panel_demo.sh build --execute` passed. `bhp-panel-ui` needs
+      `libcurl.so.4`, and its glibc ceiling is 2.38. Bundle SHA-256:
+      `053d6da2…`.
+    - `start 0|180 --study-config FILE` streams the file over ssh stdin into
+      `/tmp/bhp-demo/config/vocabulary-panel.env`, with owner root, group 910
+      and mode 0640.
+    - The new `restart-ui` restarts only the UI unit, keeping
+      `state/study`, for Step 6's restart check.
+    - The board's `libcurl.so.4` is the vendor 8.19.0 build with no symbol
+      versions, read over ssh on 2026-10-18. The binary asks for
+      `CURL_OPENSSL_4`. A host experiment shows glibc loads that and prints
+      "no version information available" once at start (see Risks).
   - Verify:
     - `python3 -m unittest discover -s scripts/deploy/tests -p test_*.py` exit 0;
     - `scripts/deploy/frdm_panel_demo.sh build --execute` exit 0, with the library check passing for `libcurl.so.4`.
-- [ ] **Step 5: Write down the board's tailnet procedure.**
+- [x] **Step 5: Write down the board's tailnet procedure.** (2026-10-18)
   - In `docs/operations/frdm-bringup.md`, add a "Tailnet identity" section
     for the owner. It covers:
     - fetching the ADR 0010 Tailscale `1.102.2` arm64 archive and checking its
@@ -167,6 +183,13 @@ and shows that the rating survives a network drop (the outbox) and a restart.
     - how to undo it.
   - Every step there is the owner's (tailnet enrollment and admin settings are
     `owner_gated`); the agent runs none of it.
+  - Done: `docs/operations/frdm-bringup.md`, "Tailnet identity (owner
+    procedure, vendor image)". It records the board facts read over ssh (TUN
+    built in, nftables, persistent `/var/lib`, and connman owning
+    `resolv.conf`, so MagicDNS on this image is unproven).
+    - I checked the flags against the official 1.102.2 CLI's help:
+      `--auth-key file:`, `--advertise-tags` and `status --self --json`.
+    - The arm64 `.sha256` file still matches ADR 0010.
   - Verify:
     - `make verify` exit 0.
 - [ ] **Step 6: Check it on the board against the live Lexinet.**
@@ -195,4 +218,7 @@ and shows that the rating survives a network drop (the outbox) and a restart.
 - **Library drift.** The cross build links against Debian trixie's libcurl,
   and the board's is the vendor Yocto one. The library check covers the
   soname and the glibc ceiling, not the libcurl symbol versions; Step 6 is
-  the real check.
+  the real check. The board's libcurl has no symbol versions. glibc accepts
+  the binary's `CURL_OPENSSL_4` references, but it logs "no version
+  information available" at each UI start. If that warning matters, link
+  against the board's own `libcurl.so.4` instead.
