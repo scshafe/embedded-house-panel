@@ -186,7 +186,7 @@ only after this, with the owner's go-ahead.
 | `FRDM-GATE-BACKLIGHT` | same run, `--execute-backlight-off-trial 5` | `BACKLIGHT_SYSFS_DIR`, `BACKLIGHT_OFF_VALUE` | operator sees a dark panel |
 | `FRDM-GATE-SUSPEND` | `frdm_suspend_wake.sh --execute --mem-sleep deep --safety-rtc-seconds 120` | `MEM_SLEEP_STATE` | power in `mem` (POWER row) |
 | `FRDM-GATE-WIFI` | `frdm_wifi_resume_timing.sh --observe-seconds 120 [--after-next-resume]` | `WIFI_INTERFACE` | repeated resume samples |
-| `FRDM-GATE-AUDIO` | `frdm_mic_capture.sh --duration-seconds 5` | `AUDIO_CAPTURE_DEVICE` | CTIA headset in the 3.5 mm jack |
+| `FRDM-GATE-AUDIO` | `frdm_mic_capture.sh --duration-seconds 5 --source array` (the XVF3800 on a USB-A port; `--source headset` is the bring-up WM8962 path) | `AUDIO_CAPTURE_DEVICE` | someone speaking near the microphone during the window |
 | `FRDM-GATE-POWER` | `frdm_power_input_log.sh --software-state <STATE> ... --meter-csv <METER_CSV>` | none (power records) | inline USB-C PD meter at `J2` |
 
 A reviewer copies `candidates[].candidate_value` into the profile, runs
