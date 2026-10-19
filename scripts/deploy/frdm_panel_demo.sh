@@ -36,10 +36,10 @@ CURRENT_RUN = root/'.build/frdm-demo-current-run'
 BOARD_ROOT = '/tmp/bhp-demo'
 BOARD_SCRIPT = BOARD_ROOT + '/frdm_panel_demo_board.py'
 ALLOWED_NEEDED = {'libc.so.6', 'libm.so.6', 'ld-linux-aarch64.so.1', 'libdrm.so.2', 'libpng16.so.16',
-                  'libz.so.1', 'libcrypto.so.3', 'libssl.so.3', 'libcurl.so.4'}
+                  'libz.so.1', 'libcrypto.so.3', 'libssl.so.3', 'libcurl.so.4', 'libasound.so.2'}
 MAXIMUM_GLIBC = (2, 41)
 BINARIES = {'bhp-panel-ui': BUILD/'panel_ui/bhp-panel-ui', 'panel_supervisord': BUILD/'panel_supervisor/panel_supervisord',
-            'bhp-sim-pir': BUILD/'bhp-sim-pir'}
+            'bhp-sim-pir': BUILD/'bhp-sim-pir', 'bhp-media-capture-check': BUILD/'media_broker/bhp-media-capture-check'}
 
 def fail(code, detail=''):
     print(json.dumps({'data': None, 'error': {'code': code, 'detail': detail}, 'evidence': EVIDENCE}))
@@ -50,8 +50,9 @@ def build_commands():
         ['cmake', '-S', str(root), '-B', str(BUILD), '-G', 'Ninja',
          '-DCMAKE_TOOLCHAIN_FILE=' + str(root/'cmake/toolchains/frdm-vendor-aarch64.cmake'),
          '-DCMAKE_BUILD_TYPE=Release', '-DBHP_BUILD_TESTS=OFF', '-DBHP_BUILD_PANEL_RENDERER=ON',
-         '-DBHP_BUILD_PANEL_DRM=ON', '-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON'],
-        ['cmake', '--build', str(BUILD), '--target', 'bhp-panel-ui', 'panel_supervisord'],
+         '-DBHP_BUILD_PANEL_DRM=ON', '-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON',
+         '-DBHP_BUILD_MEDIA_ALSA=ON'],
+        ['cmake', '--build', str(BUILD), '--target', 'bhp-panel-ui', 'panel_supervisord', 'bhp-media-capture-check'],
         ['clang', '--target=aarch64-linux-gnu', '--sysroot=' + str(SYSROOT), '-fuse-ld=lld', '-mcpu=cortex-a53',
          '-std=gnu11', '-Wall', '-Wextra', '-Werror', '-O2', str(root/'scripts/sim/guest/pir_uinput.c'),
          '-o', str(BINARIES['bhp-sim-pir'])],
