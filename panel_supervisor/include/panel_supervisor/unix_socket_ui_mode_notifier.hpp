@@ -59,6 +59,8 @@ public:
 	[[nodiscard]] const std::string &socket_path() const noexcept;
 	[[nodiscard]] std::uint64_t event_sequence() const noexcept;
 	[[nodiscard]] bool has_connected_client() const noexcept;
+	/** The random 32-hex identity of this supervisor process, sent in every frame. */
+	[[nodiscard]] const std::string &supervisor_session_id() const noexcept { return supervisor_session_id_; }
 	/** Nonblocking liveness probe between policy cycles; bytes remain for the acknowledgement parser. */
 	[[nodiscard]] bool observe_client_liveness() noexcept;
 

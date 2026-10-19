@@ -270,6 +270,21 @@ bool media_broker_uid_is_optional_exact_and_distinct()
 	TEST_REQUIRE(!shared.has_value());
 	TEST_REQUIRE(shared.error().context().at("BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID") ==
 		     "must_differ_from_the_panel_ui_uid");
+
+	fields.erase("BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID");
+	fields["BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET"] = "/run/bhp/media/window.sock";
+	const auto without_uid = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!without_uid.has_value());
+	TEST_REQUIRE(without_uid.error().context().at("BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET") ==
+		     "requires_the_media_broker_uid");
+	fields["BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID"] = "1103";
+	const auto window = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(window.has_value());
+	TEST_REQUIRE(window.value().media_window_socket() == "/run/bhp/media/window.sock");
+	fields["BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET"] = "relative/window.sock";
+	TEST_REQUIRE(!PanelSupervisordConfig::create(fields).has_value());
+	fields.erase("BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET");
+	TEST_REQUIRE(PanelSupervisordConfig::create(fields).value().media_window_socket().empty());
 	return true;
 }
 

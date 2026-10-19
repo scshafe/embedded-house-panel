@@ -123,6 +123,18 @@ The production slice includes:
   unconfirmed selection (`PANEL_SUPERVISOR.MEM_SLEEP_SELECTION_FAILED`) stops
   before `/sys/power/state` is touched; the kernel's default variant is never
   inherited silently.
+- `MediaWindowEndpoint` (`BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET`; added
+  2026-10-19 for issue #22). It accepts only the exact broker UID
+  (`SO_PEERCRED`). It sends the media window, which is open only while the
+  panel is active, in day mode, with presence asserted, on connect and on
+  every change. Each frame carries this supervisor's session ID and a sequence
+  one higher than the last. The window closes before the lifecycle
+  publication that precedes any suspend. While open, it answers the broker's
+  `claim` frames by consuming the named touch observation through
+  `TouchObservationAuthority::redeem_for_media_broker`; while closed, it
+  refuses without consuming. The wire format is
+  `shared/media_window_protocol`. The capture-closure gate below stays the
+  backstop: the window asks the broker to stop, the gate proves it did.
 - `CaptureClosureGatedSuspend`, which wraps `SysfsSuspend` whenever suspend is
   enabled. After the display is blank and immediately before the suspend-state
   write, `ProcfsCaptureClosureProbe` reads two kernel-visible signals: every
@@ -183,6 +195,7 @@ Set every required variable:
 | `BHP_PANEL_SUPERVISOR_POLL_INTERVAL_MILLISECONDS` | 50 through 5,000 milliseconds |
 | `BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS` | Required for enabled suspend; 1,000 through 300,000 milliseconds |
 | `BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID` | Optional; the media broker's exact nonzero service UID, distinct from the UI UID. Enables the capture-closure termination path; unset, open capture refuses every suspend |
+| `BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET` | Optional; requires the broker UID and the touch observer. The socket where the broker reads the lifecycle window and claims touch observations (`MediaWindowEndpoint`) |
 
 `SUSPEND_MODE=disabled` is the explicit non-suspending configuration and does
 not require `POWER_STATE_PATH`. `scripts/boards/render_service_environment.sh`
