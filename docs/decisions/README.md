@@ -21,6 +21,7 @@ still occupy their filename and are never treated as a free number.
 | [0009](0009-add-an-isolated-virtual-panel-target.md) | Accepted for simulation | Share application code across headless, SDL2, and Debian/QEMU tiers |
 | [0010](0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md) | Accepted; Tailnet- and hardware-gated | Authenticate the panel by node capability and install pinned official Tailscale `1.102.2` |
 | [0011](0011-blank-before-presentation-changes-not-every-cycle.md) | Accepted; checked on the FRDM panel 2026-10-18 | Blank before presentation changes, not every cycle |
+| [0012](0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md) | Accepted; waits for voice-lab's bundle and the uploader | Keep one rotating Pocket ID refresh token for voice-lab, held only by the uploader |
 
 No later number is reserved by a plan.
 
@@ -73,3 +74,8 @@ a physical display commit or target evidence.
 the FRDM i.MX 8M Plus board and Waveshare 7inch DSI LCD (C) are being purchased
 as the development platform. ADR 0003's characterize-before-purchase decision is
 superseded; its platform ranking and measurement contract remain.
+
+**Amended 2026-10-19:** registered ADR 0012, the owner's issue #23 decision to
+keep a voice-lab refresh token on the panel, with its rules and threat model.
+It is a narrow exception to ADR 0010, which still keeps every Lexinet
+credential off the panel.
