@@ -128,7 +128,7 @@ Host tests run the same broker on a deterministic fake source.
   - Verify:
     - `python3 -m unittest hardware_tests.tests.test_frdm_evidence_scripts` exit 0;
     - an FRDM-GATE-AUDIO record from the board passes `alsa_card`, `capture_mode` and `capture_non_silent` with `--source array`.
-- [ ] **Step 2: The capture core and a deterministic fake source.**
+- [x] **Step 2: The capture core and a deterministic fake source.** (2026-10-19)
   - A C++ library in `media_broker/` (`bhp_media_capture`):
     - `CaptureSource` (open with an exact format, read one period with its
       hardware position and timestamp, close);
@@ -143,6 +143,9 @@ Host tests run the same broker on a deterministic fake source.
   - Tests cover the WAV header and size rule, each stop reason, every
     injected failure, the deviation rule against voice-lab's worked numbers,
     and the store bounds.
+  - Done: `media_broker/include/media_broker/{capture_source,continuity_log,take_store}.h`
+    (`bhp_media_capture`), tested by `media_broker/tests/media_capture_test.cpp`.
+    Only a clean take commits; a failed or abandoned take leaves no files.
   - Verify:
     - `ctest --test-dir .build/host-dev -R media_capture` exit 0;
     - `make verify` exit 0.
