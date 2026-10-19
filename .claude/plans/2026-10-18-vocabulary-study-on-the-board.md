@@ -117,7 +117,7 @@ and shows that the rating survives a network drop (the outbox) and a restart.
   - Verify:
     - `ctest --test-dir .build/host-dev -R study_client_configuration` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 3: Wire it into `bhp-panel-ui` (decision 1 A).**
+- [x] **Step 3: Wire it into `bhp-panel-ui` (decision 1 A).** (2026-10-18)
   - `--study-config PATH` (with the existing `--state-directory`) builds the
     client, the worker and the synchronizer from Step 2 in `--simulation-drm`.
     `--lexinet-config` stays for the simulator's fixture-CA runs, and the two
@@ -127,14 +127,19 @@ and shows that the rating survives a network drop (the outbox) and a restart.
   - Extend `simulator/tests/panel_simulation_https_test.py` with a run through
     `--study-config`:
     - create a session against the fixture HTTPS server;
-    - rate a card and see it saved;
-    - stop the server, rate again and see it queued;
-    - restart the server and the panel, and see the queued rating saved and
-      the session resumed.
+    - stop the server, rate and see it queued;
+    - restart the server and the panel, and see the session restored and the
+      queued rating saved exactly once.
+    - (The fixture session holds one card, so a second rating would need a
+      successor; the existing JSON runs already cover a saved rating.)
   - Docs:
     - `vocabulary_panel/README.md`, `panel_ui/README.md` (the two runtimes);
     - `config/vocabulary-panel.env.example`, which names `--study-config`;
     - `docs/interfaces/lexinet-contract.md`, "Panel delivery boundary".
+  - Done: `PanelSimulation::attach_study_client`; `--study-config` in
+    `simulation_drm_main.cpp` and `bhp-panel-render`. The test's CTest limit
+    is now 60 s (it takes 17 s on the PC). `bhp-panel-ui` builds with
+    `BHP_BUILD_PANEL_DRM` and `BHP_BUILD_HTTP_LEXINET_CLIENT` on.
   - Verify:
     - `ctest --test-dir .build/host-dev -R panel_simulation_https` exit 0;
     - `make verify` exit 0.

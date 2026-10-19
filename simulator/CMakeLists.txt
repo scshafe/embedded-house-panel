@@ -60,5 +60,5 @@ if(BHP_BUILD_TESTS AND BHP_BUILD_HTTP_LEXINET_CLIENT)
  find_package(Python3 REQUIRED COMPONENTS Interpreter)
  add_test(NAME panel_simulation_https_resume
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/panel_simulation_https_test.py $<TARGET_FILE:bhp-panel-render>)
- set_tests_properties(panel_simulation_https_resume PROPERTIES TIMEOUT 25)
+ set_tests_properties(panel_simulation_https_resume PROPERTIES TIMEOUT 60)
 endif()

@@ -56,7 +56,10 @@ int run_simulation_drm(int argc,char **argv){try{
  if(max_x<=min_x||max_y<=min_y)throw std::runtime_error("SIMULATOR.TOUCH_CALIBRATION_INVALID");
  const auto parsed_rotation=parse_display_rotation(options.at("--display-rotation"));if(!parsed_rotation)throw std::runtime_error("SIMULATOR.DISPLAY_ROTATION_INVALID");const auto rotation=*parsed_rotation;
  const auto uid=static_cast<std::uint32_t>(std::stoul(options.at("--supervisor-uid")));
+ if(options.count("--study-config")&&options.count("--lexinet-config"))throw std::runtime_error("SIMULATOR.STUDY_CLIENT_SOURCES_EXCLUSIVE");
  bhp::simulator::PanelSimulation app(false,options.count("--state-directory")?options.at("--state-directory"):"",options.count("--lexinet-config")?options.at("--lexinet-config"):"",options.count("--launcher-config")?options.at("--launcher-config"):"");
+ // The live study client (issue #21): the BHP_VOCABULARY_PANEL_* keys, production TLS only.
+ if(options.count("--study-config")){auto configuration=vocabulary_panel::read_study_client_configuration(options.at("--study-config"));if(!configuration.has_value())throw std::runtime_error(configuration.error().error_code);app.attach_study_client(configuration.value());}
  app.load(bhp::simulator::read_scenario(options.at("--scenario")));app.accept_lifecycle(app.supervisor.publish("blank"));app.render();
  if(options.count("--clock-preview")&&options.at("--clock-preview")=="on")app.enable_preview_clock(true);
  DrmPageFlipDisplay drm(options.at("--drm-device"),static_cast<std::uint32_t>(std::stoul(options.at("--drm-connector-id"))));

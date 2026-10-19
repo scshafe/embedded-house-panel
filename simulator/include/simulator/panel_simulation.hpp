@@ -1,4 +1,5 @@
 #pragma once
+#include "vocabulary_panel/study_client_configuration.h"
 #include "panel_ui/panel_scene.hpp"
 #include "panel_ui/lvgl_panel_display.hpp"
 #include "panel_ui/shell_controller.hpp"
@@ -41,6 +42,12 @@ class PanelSimulation final {
 public:
  explicit PanelSimulation(bool window,std::string state_directory={},std::string lexinet_configuration_path={},std::string application_catalog_path={});
  ~PanelSimulation();
+ /**
+  * Live study client from the BHP_VOCABULARY_PANEL_* configuration, instead of a
+  * --lexinet-config JSON. Needs a durable state directory and no other client.
+  * test_ca_pem is for the renderer's fixture-server tests only.
+  */
+ void attach_study_client(const vocabulary_panel::StudyClientConfiguration &configuration,const std::string &test_ca_pem={});
  void load(const Json &scenario,bool update_lifecycle=true,bool fixture_override=false);
  void accept_lifecycle(const bhp::panel_mode_protocol::Snapshot &snapshot);
  /** Cancels dependent work and latches black until a fresh authenticated snapshot arrives. */
