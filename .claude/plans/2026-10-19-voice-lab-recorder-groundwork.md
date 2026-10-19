@@ -128,13 +128,20 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'durable_store|study_store|resumable_upload|backoff'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 4: One contract-pin tool.**
+- [x] **Step 4: One contract-pin tool.** (2026-10-19)
   - `scripts/contracts/pinned_source.py`: the fetch and the clean-checkout
     check, parameterised by repository, provenance file and cache directory;
     `scripts/lexinet/pinned_source.py` becomes a thin lexinet configuration.
   - Write down in `docs/interfaces/` how a second contract is pinned (the
     provenance shape, `--check`, and the live check), so voice-lab's bundle
     uses the same mechanism when it lands.
+  - Done: `scripts/contracts/contract_pin.py` (`ContractPin`; error codes take
+    the contract's name). `scripts/lexinet/pinned_source.py` keeps its API and
+    `LEXINET_*` codes, and the study.v1 `--check` export is unchanged
+    (9 fixtures, bundle `b90be0dd…`). Written down in
+    `docs/interfaces/contract-pinning.md`. The module is named
+    `contract_pin.py`, not `pinned_source.py`, because two modules with the
+    same name on one import path shadow each other.
   - Verify:
     - `python3 -m unittest discover -s scripts/contracts/tests` exit 0;
     - `python3 -m unittest discover -s scripts/lexinet/tests` exit 0;
