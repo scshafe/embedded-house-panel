@@ -49,6 +49,8 @@ struct PanelScene {
   std::uint64_t take_ms{8400};
   int take_peak_tenths{-120};
   std::size_t queued_takes{2};
+  /** The committed take under review; empty in fixtures. */
+  std::string take_id;
  } voice_lab;
  std::string acknowledgement;
  bool stale{false};

@@ -14,6 +14,7 @@
 #include <utility>
 #include "simulator/fake_voice_connection.hpp"
 #include "simulator/preview_clock.hpp"
+#include "simulator/voice_lab_runtime.hpp"
 
 namespace bhp::simulator {
 using Json=nlohmann::json;
@@ -57,6 +58,8 @@ public:
  void semantic_intent(const std::string &id,const std::string &source);
  std::uint64_t render();
  void service();
+ /** Where the in-process broker keeps takes (a temporary directory). */
+ std::string voice_lab_take_root() const {return voice_lab_runtime_?voice_lab_runtime_->take_root():std::string();}
  /** Explicit simulation clock; advances fixture minutes, never household civil time. */
  void enable_preview_clock(bool enabled);
  void advance_preview_clock();
@@ -75,6 +78,7 @@ private:
  void seed_study();
  void pump_study();
  void pump_voice();
+ void pump_voice_lab();
  void pump_clock();
  void cancel_clock_animation();
  void utterance(const std::string &phrase);
@@ -82,6 +86,8 @@ private:
  void voice_lab_intent(const std::string &id);
  house_panel::panel_ui::ApplicationCatalog application_catalog_;
  std::unique_ptr<FakeVoiceConnection> voice_;
+ std::unique_ptr<VoiceLabRuntime> voice_lab_runtime_;
+ int voice_lab_take_peak_{-1200};
  bool voice_pending_{false};
  std::uint64_t utterance_sequence_{0};
  struct StudyNetwork;

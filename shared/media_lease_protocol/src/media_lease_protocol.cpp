@@ -201,6 +201,11 @@ Result<std::string> encode(const UiRequest &request)
 			       {"operation_ref", arm->operation_ref}},
 			      "arm");
 	}
+	if (const auto *discard = std::get_if<DiscardRequest>(&request)) {
+		if (!valid_take_id(discard->take_id))
+			return Result<std::string>::failure(wire_error("encode_discard"));
+		return finish({{"take_id", discard->take_id}}, "discard");
+	}
 	const bool start = std::holds_alternative<StartRequest>(request);
 	const auto &lease = start ? std::get<StartRequest>(request).lease_id : std::get<StopRequest>(request).lease_id;
 	if (!opaque_id(lease))
@@ -218,13 +223,18 @@ Result<std::string> encode(const BrokerEvent &event)
 					return Result<std::string>::failure(wire_error("encode_armed"));
 				return finish({{"request_id", value.request_id}, {"lease_id", value.lease_id}}, "armed");
 			} else if constexpr (std::is_same_v<Type, Refused>) {
-				if (!opaque_id(value.request_id) || !printable(value.error_code, 96))
+				if ((!opaque_id(value.request_id) && !valid_take_id(value.request_id)) ||
+				    !printable(value.error_code, 96))
 					return Result<std::string>::failure(wire_error("encode_refused"));
 				return finish({{"request_id", value.request_id}, {"error_code", value.error_code}}, "refused");
 			} else if constexpr (std::is_same_v<Type, Started>) {
 				if (!opaque_id(value.lease_id))
 					return Result<std::string>::failure(wire_error("encode_started"));
 				return finish({{"lease_id", value.lease_id}}, "started");
+			} else if constexpr (std::is_same_v<Type, Discarded>) {
+				if (!valid_take_id(value.take_id))
+					return Result<std::string>::failure(wire_error("encode_discarded"));
+				return finish({{"take_id", value.take_id}}, "discarded");
 			} else if constexpr (std::is_same_v<Type, Level>) {
 				if (!valid(value))
 					return Result<std::string>::failure(wire_error("encode_level"));
@@ -276,6 +286,13 @@ Result<UiRequest> decode_ui_request(std::string_view frame)
 			return Output::failure(wire_error("decode_arm", "values"));
 		return Output::success(std::move(arm));
 	}
+	if (type == "discard") {
+		std::string take;
+		if (!exact_keys(value, {"type", "version", "take_id"}) || !read_string(value, "take_id", take) ||
+		    !valid_take_id(take))
+			return Output::failure(wire_error("decode_discard"));
+		return Output::success(DiscardRequest{take});
+	}
 	if (type == "start" || type == "stop") {
 		std::string lease;
 		if (!exact_keys(value, {"type", "version", "lease_id"}) || !read_string(value, "lease_id", lease) ||
@@ -317,6 +334,12 @@ Result<BrokerEvent> decode_broker_event(std::string_view frame)
 		if (!exact_keys(value, {"type", "version", "lease_id"}) || !read_string(value, "lease_id", started.lease_id))
 			return Output::failure(wire_error("decode_started"));
 		return checked(started);
+	}
+	if (type == "discarded") {
+		Discarded discarded;
+		if (!exact_keys(value, {"type", "version", "take_id"}) || !read_string(value, "take_id", discarded.take_id))
+			return Output::failure(wire_error("decode_discarded"));
+		return checked(discarded);
 	}
 	if (type == "level") {
 		Level level;

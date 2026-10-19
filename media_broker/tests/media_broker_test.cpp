@@ -203,6 +203,14 @@ void test_requested_take_commits()
 		expect(json["device"]["model"] == "fixture" && json["frames"] == ended->frames && json["xruns"] == 0,
 		       "the record carries the device read at start");
 	}
+	if (ended && ended->outcome == lease::Outcome::Committed) {
+		h.send(lease::DiscardRequest{ended->take_id});
+		auto discarded = h.await<lease::Discarded>();
+		expect(discarded && discarded->take_id == ended->take_id && h.takes() == 0, "a rejected take is discarded");
+		h.send(lease::DiscardRequest{ended->take_id});
+		auto again = h.await<lease::Refused>();
+		expect(again && again->error_code == "MEDIA_TAKE.UNKNOWN", "a discarded take is gone");
+	}
 	h.send(lease::StopRequest{armed->lease_id});
 	auto unknown = h.await<lease::Refused>();
 	expect(unknown && unknown->error_code == "MEDIA_BROKER.LEASE_UNKNOWN", "a closed lease is terminal");

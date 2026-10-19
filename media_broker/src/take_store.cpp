@@ -206,6 +206,19 @@ std::vector<std::string> TakeStore::take_ids() const
 	return ids;
 }
 
+MediaResult<Done> TakeStore::discard(const std::string &take_id) const
+{
+	const std::string directory = root_ + "/" + take_id;
+	struct stat status {};
+	if (!is_take_id(take_id) || lstat(directory.c_str(), &status) != 0 || !S_ISDIR(status.st_mode))
+		return fail<Done>("MEDIA_TAKE.UNKNOWN", "No committed take has that ID", "take_store.discard");
+	remove_take_directory(directory);
+	if (access(directory.c_str(), F_OK) == 0)
+		return fail<Done>("MEDIA_TAKE.DISCARD_FAILED", "The take could not be removed", "take_store.discard");
+	fsync_path(root_, O_RDONLY | O_DIRECTORY);
+	return MediaResult<Done>::success({});
+}
+
 MediaResult<Done> TakeStore::admit(const std::uint64_t planned_bytes) const
 {
 	const auto ids = take_ids();

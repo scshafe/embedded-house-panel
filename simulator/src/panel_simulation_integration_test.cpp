@@ -8,13 +8,14 @@
 #include <stdexcept>
 #include <thread>
 #include <filesystem>
+#include <functional>
 using bhp::simulator::PanelSimulation;
 void require(bool condition,const char *message){if(!condition)throw std::runtime_error(message);}
 std::string read_bytes(const std::filesystem::path &path){
  std::ifstream input(path,std::ios::binary);require(input.good(),"test state file must exist");
  return {std::istreambuf_iterator<char>(input),std::istreambuf_iterator<char>()};
 }
-void test_voice_lab_fixture_flow(const std::filesystem::path &root){
+void test_voice_lab_records_through_the_broker(const std::filesystem::path &root){
  PanelSimulation app(false);
  app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
  app.semantic_intent("shell.open_voice_lab","touch");
@@ -23,20 +24,46 @@ void test_voice_lab_fixture_flow(const std::filesystem::path &root){
   for(const auto &target:app.display.hit_targets())if(target.intent_id==intent)return true;
   return false;
  };
+ const auto until=[&app](const std::function<bool()> &done,const char *message){
+  for(int i=0;i<300&&!done();++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+  require(done(),message);
+ };
+ const auto takes=[&app]{
+  std::size_t count=0;
+  for(const auto &entry:std::filesystem::directory_iterator(app.voice_lab_take_root()))
+   count+=entry.path().filename().string().rfind("take-",0)==0;
+  return count;
+ };
  require(has_target("voice_lab.record")&&has_target("voice_lab.skip")&&!has_target("voice_lab.keep"),"ready offers record and skip");
  app.semantic_intent("voice_lab.keep","touch");
- require(app.scene.voice_lab.state=="ready"&&app.scene.acknowledgement=="Action unavailable","keep needs a take");
- app.semantic_intent("voice_lab.record","touch");
- require(app.scene.voice_lab.state=="recording"&&has_target("voice_lab.stop"),"record starts a take");
- app.semantic_intent("voice_lab.stop","touch");
- require(app.scene.voice_lab.state=="review"&&has_target("voice_lab.keep")&&has_target("voice_lab.retake")&&has_target("voice_lab.reject"),"stop offers review");
- const auto queued=app.scene.voice_lab.queued_takes;const auto prompt=app.scene.voice_lab.prompt_number;
- app.semantic_intent("voice_lab.keep","touch");
- require(app.scene.voice_lab.state=="ready"&&app.scene.voice_lab.queued_takes==queued+1&&app.scene.voice_lab.prompt_number==prompt+1,"keep queues the take and moves on");
- app.semantic_intent("voice_lab.record","touch");app.semantic_intent("voice_lab.stop","touch");app.semantic_intent("voice_lab.reject","touch");
- require(app.scene.voice_lab.state=="ready"&&app.scene.voice_lab.queued_takes==queued+1&&app.scene.acknowledgement=="Take discarded","reject discards without queuing");
+ require(app.scene.acknowledgement=="Action unavailable","keep needs a take");
  app.semantic_intent("voice_lab.record","voice");
  require(app.scene.voice_lab.state=="ready","voice cannot start a take");
+ app.semantic_intent("voice_lab.record","touch");
+ until([&]{return app.scene.voice_lab.state=="recording";},"a touch arms a lease and the broker starts the take");
+ require(has_target("voice_lab.stop"),"recording offers stop");
+ until([&]{return app.scene.voice_lab.elapsed_ms>=200;},"level events advance the elapsed time");
+ require(app.scene.voice_lab.level_tenths.size()==6&&app.scene.voice_lab.level_tenths[0]>-1200,"six live channel levels");
+ app.semantic_intent("voice_lab.stop","touch");
+ until([&]{return app.scene.voice_lab.state=="review";},"stop commits the take for review");
+ require(!app.scene.voice_lab.take_id.empty()&&takes()==1&&app.scene.voice_lab.take_ms>0,"the committed take is on disk");
+ require(std::filesystem::exists(app.voice_lab_take_root()+"/"+app.scene.voice_lab.take_id+"/capture.json"),"with its capture record");
+ const auto queued=app.scene.voice_lab.queued_takes;const auto prompt=app.scene.voice_lab.prompt_number;
+ app.semantic_intent("voice_lab.keep","touch");
+ require(app.scene.voice_lab.state=="ready"&&app.scene.voice_lab.queued_takes==queued+1&&app.scene.voice_lab.prompt_number==prompt+1&&takes()==1,"keep keeps the take and moves on");
+ app.semantic_intent("voice_lab.record","touch");
+ until([&]{return app.scene.voice_lab.state=="recording";},"a second take starts");
+ app.semantic_intent("voice_lab.stop","touch");
+ until([&]{return app.scene.voice_lab.state=="review";},"the second take commits");
+ app.semantic_intent("voice_lab.reject","touch");
+ until([&]{return takes()==1;},"reject deletes the take through the broker");
+ require(app.scene.voice_lab.state=="ready"&&app.scene.voice_lab.queued_takes==queued+1,"a rejected take is not queued");
+ app.semantic_intent("voice_lab.record","touch");
+ until([&]{return app.scene.voice_lab.state=="recording";},"a third take starts");
+ app.event({{"type","lifecycle"},{"state","grace"}});
+ until([&]{return app.scene.voice_lab.state=="ready";},"leaving day-present closes the window and fails the take");
+ require(app.scene.acknowledgement=="Recording stopped"&&takes()==1,"a failed take leaves no files");
+ app.event({{"type","lifecycle"},{"state","day"}});
  app.semantic_intent("shell.home","touch");
  require(app.scene.surface_id=="home","home leaves the recorder");
 }
@@ -197,7 +224,7 @@ int main(){try{
  test_home_navigation_preserves_durable_requests(root);
  test_home_navigation_gates_and_retains_voice_state(root);
  test_home_weather_scenario_validation(root);
- test_voice_lab_fixture_flow(root);
+ test_voice_lab_records_through_the_broker(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

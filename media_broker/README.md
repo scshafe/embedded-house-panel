@@ -42,6 +42,8 @@ Steps 2, 3 and 5):
   - A take ends on `stop`, at 600 s, or as a failure on window closure, UI
     disconnect, an xrun, a device error or daemon stop. A failure leaves no
     files.
+  - `discard` deletes a committed take the reviewer rejected, while no lease
+    is active.
   - `--fake-source` records the paced fake source.
 
 Tests: `ctest --test-dir .build/host-dev -R media_` (the tool runs on the

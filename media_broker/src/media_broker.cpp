@@ -179,6 +179,8 @@ void MediaBroker::handle(const lease::UiRequest &request)
 		arm(*arm_request);
 	else if (const auto *start_request = std::get_if<lease::StartRequest>(&request))
 		start(start_request->lease_id);
+	else if (const auto *discard_request = std::get_if<lease::DiscardRequest>(&request))
+		discard(discard_request->take_id);
 	else
 		stop(std::get<lease::StopRequest>(request).lease_id);
 }
@@ -247,6 +249,15 @@ void MediaBroker::stop(const std::string &lease_id)
 											    : "MEDIA_BROKER.LEASE_UNKNOWN");
 	int expected = kStopNone;
 	stop_.compare_exchange_strong(expected, kStopRequested);
+}
+
+void MediaBroker::discard(const std::string &take_id)
+{
+	if (state_ != State::Idle)
+		return refuse(take_id, "MEDIA_BROKER.BUSY");
+	if (auto removed = store_.discard(take_id); !removed)
+		return refuse(take_id, removed.error().code);
+	send(lease::Discarded{take_id});
 }
 
 void MediaBroker::step_deadlines()

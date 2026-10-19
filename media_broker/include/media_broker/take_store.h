@@ -44,6 +44,8 @@ public:
 	 */
 	MediaResult<Done> admit(std::uint64_t planned_bytes) const;
 	std::vector<std::string> take_ids() const;
+	/** Deletes one committed take; MEDIA_TAKE.UNKNOWN when there is none by that ID. */
+	MediaResult<Done> discard(const std::string &take_id) const;
 	const std::string &root() const { return root_; }
 
 private:

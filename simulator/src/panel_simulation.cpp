@@ -131,6 +131,7 @@ PanelSimulation::PanelSimulation(bool window,std::string state_directory,std::st
  if(!made)throw std::runtime_error(std::string(made.error().code_string()));controller_=std::move(made).value();
  if(!lexinet_configuration_path.empty()){if(state_directory.empty())throw std::runtime_error("SIMULATOR.HTTPS_REQUIRES_DURABLE_STORE");network_=std::make_unique<StudyNetwork>(lexinet_configuration_path);}
  scene.lifecycle=supervisor.publish("day");
+ voice_lab_runtime_=VoiceLabRuntime::in_process();
 }
 void PanelSimulation::seed_study(){
  std::vector<vocabulary_panel::FlashCard> cards;
@@ -151,6 +152,7 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
  store_=fixture_override_?std::shared_ptr<vocabulary_panel::StudyStore>(std::make_shared<vocabulary_panel::MemoryStudyStore>()):persistent_store_;
  const bool network_active=network_&&!fixture_override_;
 
+ if(voice_lab_runtime_&&voice_lab_runtime_->busy()){voice_lab_runtime_->abort();(void)voice_lab_runtime_->pump();}
  scene=PanelScene{scene.lifecycle};scene.applications=application_catalog_;scene.scenario_id=j.at("scenario_id").get<std::string>();scene.surface_id=j.value("surface","study");scene.clock_text=j.value("fixture_clock","07:42");
  preview_clock_enabled_=false;clock_animation_live_=false;
  preview_clock_.reset(scene.clock_text,0,false);
@@ -302,26 +304,49 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
  }
  render();
 }
-// Fixture recorder transitions; the take itself is a preview until the simulator's
-// broker records one (recorder groundwork plan Step 6).
+// The recorder's intents. Takes go through the media broker (in-process on the
+// fake source); fixture scenarios only set the starting screen.
 void PanelSimulation::voice_lab_intent(const std::string &id){
  auto &v=scene.voice_lab;
  const auto next_prompt=[&v]{v.prompt_number=v.prompt_number%v.prompt_total+1;};
  if((id=="voice_lab.record"&&v.state=="ready")||(id=="voice_lab.retake"&&v.state=="review")){
-  v.state="recording";v.elapsed_ms=0;scene.acknowledgement=id=="voice_lab.retake"?"Take discarded":"";
+  if(id=="voice_lab.retake"){voice_lab_runtime_->discard(v.take_id);v.take_id.clear();v.state="ready";}
+  if(!voice_lab_runtime_->start_take("prompt:"+std::to_string(v.prompt_number))){scene.acknowledgement="Recorder busy";return;}
+  v.level_tenths.assign(6,-1200);v.elapsed_ms=0;voice_lab_take_peak_=-1200;scene.acknowledgement="Starting";
  }else if(id=="voice_lab.stop"&&v.state=="recording"){
-  v.state="review";v.take_ms=v.elapsed_ms==0?8400:v.elapsed_ms;
+  voice_lab_runtime_->stop();scene.acknowledgement="Stopping";
  }else if(id=="voice_lab.keep"&&v.state=="review"){
-  ++v.queued_takes;if(v.missing>0)--v.missing;next_prompt();v.state=v.missing==0?"complete":"ready";scene.acknowledgement="Take kept";
+  ++v.queued_takes;v.take_id.clear();if(v.missing>0)--v.missing;next_prompt();v.state=v.missing==0?"complete":"ready";scene.acknowledgement="Take kept";
  }else if(id=="voice_lab.reject"&&v.state=="review"){
-  v.state="ready";scene.acknowledgement="Take discarded";
+  voice_lab_runtime_->discard(v.take_id);v.take_id.clear();v.state="ready";scene.acknowledgement="Take discarded";
  }else if(id=="voice_lab.skip"&&v.state=="ready"){
   next_prompt();scene.acknowledgement="";
  }else scene.acknowledgement="Action unavailable";
 }
+void PanelSimulation::pump_voice_lab(){
+ if(!voice_lab_runtime_)return;
+ // The stand-in supervisor's window follows the same eligibility as the real one.
+ voice_lab_runtime_->set_window(lifecycle_available_&&scene.lifecycle.display_mode==DisplayMode::DayActive
+  &&scene.lifecycle.presence_state==PresenceState::Present&&scene.lifecycle.system_state==SystemState::Active);
+ bool changed=false;auto &v=scene.voice_lab;
+ for(const auto &event:voice_lab_runtime_->pump()){
+  using Kind=VoiceLabRuntime::Event::Kind;
+  changed=true;
+  if(event.kind==Kind::Started){v.state="recording";v.elapsed_ms=0;scene.acknowledgement="";}
+  else if(event.kind==Kind::Level){
+   v.level_tenths=event.level_tenths;v.elapsed_ms=event.elapsed_ms;
+   for(const auto level:event.level_tenths)voice_lab_take_peak_=std::max(voice_lab_take_peak_,level);
+  }else if(event.kind==Kind::Committed){
+   v.state="review";v.take_id=event.take_id;v.take_ms=event.elapsed_ms;v.take_peak_tenths=voice_lab_take_peak_;scene.acknowledgement="";
+  }else if(event.kind==Kind::Failed){
+   v.state="ready";scene.acknowledgement="Recording stopped";
+  }
+ }
+ if(changed)render();
+}
 void PanelSimulation::tap(int x,int y){if(scene.presentation_failure)return;for(auto it=display.hit_targets().rbegin();it!=display.hit_targets().rend();++it)if(x>=it->x&&x<it->x+it->width&&y>=it->y&&y<it->y+it->height){auto id=it->intent_id;semantic_intent(id,"touch");return;}}
 void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="clock_preview")enable_preview_clock(e.at("enabled").get<bool>());else if(type=="clock_step")advance_preview_clock();else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}
-void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_clock();}
+void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_voice_lab();pump_clock();}
 namespace {
 std::uint64_t clock_monotonic_ms(){return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());}
 }
