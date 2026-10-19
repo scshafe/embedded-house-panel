@@ -125,6 +125,16 @@ intentionally stops at the agenda reducer; the signed personal-context client,
 recording-artifact transfer, Tailnet route, and Mac companion are documented in
 [Personal Agenda and Birthday Wishes](personal-agenda-and-birthday-wishes.md).
 
+**Amended 2026-10-19 (issue #22):** the supervisor-to-broker edges now exist
+on the supervisor side. `MediaWindowEndpoint`
+(`BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET`) publishes the lifecycle window and
+redeems the broker's touch claims, with the wire format in
+`shared/media_window_protocol` (one session ID and a rising sequence per
+frame; a new session, a gap or a lost connection closes the window). The
+broker that uses it is the
+[voice-take capture plan](../../.claude/plans/2026-10-19-voice-take-capture.md)'s
+Step 5.
+
 ~~The diagram's former `panel_ui`-owned touch edge left the UI able to author
 the same touch claim consumed by a capability holder.~~ Under accepted
 [ADR 0005](../decisions/0005-validate-touch-provenance-at-capability-holders.md),

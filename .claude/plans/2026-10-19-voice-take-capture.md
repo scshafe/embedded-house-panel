@@ -125,6 +125,11 @@ Host tests run the same broker on a deterministic fake source.
     array.
   - Update the gate rows in `docs/operations/frdm-bringup.md`, ADR 0008's
     gate table (as an amendment) and `hardware_tests/README.md`.
+  - Progress (2026-10-19): `--source array` and its fixture tests are in. A
+    first board run found the array and its mode (`alsa_card` and
+    `capture_mode` pass) but the room was silent (loudest channel peak
+    -54.3 dBFS), so `capture_non_silent` failed as it should. The gate needs
+    a run with someone speaking near the array.
   - Verify:
     - `python3 -m unittest hardware_tests.tests.test_frdm_evidence_scripts` exit 0;
     - an FRDM-GATE-AUDIO record from the board passes `alsa_card`, `capture_mode` and `capture_non_silent` with `--source array`.
@@ -178,7 +183,7 @@ Host tests run the same broker on a deterministic fake source.
     - `ctest --test-dir .build/host-dev -R media_capture` exit 0;
     - a board record under `hardware_tests/results/frdm/voice-take-<UTC>/` shows a 30 s and a 600 s take with zero xruns, the measured maximum deviation, the firmware strings and the routing;
     - the capture-closure probe reports the array's capture open during the take and closed after it.
-- [ ] **Step 4: The supervisor's broker socket.**
+- [x] **Step 4: The supervisor's broker socket.** (2026-10-19)
   - A Unix socket in `panel_supervisord`, accepted only from the exact broker
     UID (`SO_PEERCRED`; the broker checks the supervisor's UID and the
     socket's root ownership):
@@ -193,6 +198,13 @@ Host tests run the same broker on a deterministic fake source.
     backstop.
   - Tests: wrong UID, a replay, a gap, a restart, an expired or consumed
     observation, a closed window, and the suspend ordering.
+  - Done: `shared/media_window_protocol` (frames and the broker-side
+    `MediaWindowClient`) and `panel_supervisor`'s `MediaWindowEndpoint`, which
+    `TouchObservationRuntime` drives from the same eligibility as touch. The
+    window closes in `publish()`, before the lifecycle publication, and the
+    supervisor publishes before any suspend request. Expiry is the authority's
+    own test. The socket listener itself needs root, so host tests use a
+    socketpair through the same UID check.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'media_window|panel_supervisor'` exit 0;
     - `make verify` exit 0.

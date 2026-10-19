@@ -135,6 +135,10 @@ std::string_view to_string(const ErrorCode error_code) noexcept
 		return "PANEL_SUPERVISOR.CAPTURE_TERMINATION_UNAVAILABLE";
 	case ErrorCode::MediaTerminationFailed:
 		return "PANEL_SUPERVISOR.MEDIA_TERMINATION_FAILED";
+	case ErrorCode::MediaWindowUnavailable:
+		return "PANEL_SUPERVISOR.MEDIA_WINDOW_UNAVAILABLE";
+	case ErrorCode::MediaWindowProtocolFailed:
+		return "PANEL_SUPERVISOR.MEDIA_WINDOW_PROTOCOL_FAILED";
 	}
 	return "PANEL_SUPERVISOR.UNRECOGNIZED_ERROR_CODE";
 }
