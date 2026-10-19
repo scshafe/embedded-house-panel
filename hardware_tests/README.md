@@ -34,7 +34,7 @@ printing its path on stdout.
 | `frdm_display_touch_backlight.sh` | DISPLAY, TOUCH, BACKLIGHT | read-only | `--execute-test-pattern S`, `--execute-backlight-off-trial S` (restores brightness) |
 | `frdm_suspend_wake.sh` | SUSPEND | read-only preflight | `--execute --mem-sleep s2idle\|deep --safety-rtc-seconds N` |
 | `frdm_wifi_resume_timing.sh --observe-seconds N [--after-next-resume]` | WIFI | read-only observer | none |
-| `frdm_mic_capture.sh --duration-seconds N` | AUDIO | records a WAV into results | none (mixer never changed) |
+| `frdm_mic_capture.sh --duration-seconds N [--source headset\|array]` | AUDIO | records a WAV into results; `array` is the USB XVF3800 (16 kHz, 6 channels, per-channel statistics) | none (mixer never changed) |
 | `frdm_power_input_log.sh --software-state S ... [--meter-csv FILE --instrument TEXT]` | POWER | read-only | none |
 
 Record semantics:
