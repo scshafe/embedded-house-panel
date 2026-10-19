@@ -4,6 +4,7 @@ endif()
 add_library(vocabulary_panel_core STATIC
   src/fixture_lexinet_client.cpp
   src/flash_card_session.cpp
+  src/study_client_configuration.cpp
   src/study_models.cpp
   src/study_store.cpp
   src/study_wire_codec.cpp
@@ -19,6 +20,20 @@ endif()
 
 add_executable(vocabulary_panel_terminal src/vocabulary_panel_terminal_main.cpp)
 target_link_libraries(vocabulary_panel_terminal PRIVATE vocabulary_panel_core)
+
+if(BHP_BUILD_TESTS)
+  add_executable(vocabulary_panel_study_client_configuration_test
+    tests/study_client_configuration_test.cpp)
+  target_link_libraries(vocabulary_panel_study_client_configuration_test PRIVATE vocabulary_panel_core)
+  target_compile_definitions(vocabulary_panel_study_client_configuration_test
+    PRIVATE BHP_SOURCE_ROOT="${PROJECT_SOURCE_DIR}")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(vocabulary_panel_study_client_configuration_test
+      PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME vocabulary_panel_study_client_configuration_test
+    COMMAND vocabulary_panel_study_client_configuration_test)
+endif()
 
 if(BHP_BUILD_HTTP_LEXINET_CLIENT)
   find_package(CURL REQUIRED)

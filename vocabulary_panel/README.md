@@ -48,6 +48,24 @@ production service enablement or any FRDM gate.
   receipt; a pending outbox syncs. A non-retryable error stops it until
   `reset()`, and `cancel()` drops the in-flight completion. Every host that
   shows the study surface uses it; the simulator was the first.
+- `read_study_client_configuration` (`@canonical study_client_configuration`)
+  reads the live client's settings from the `BHP_VOCABULARY_PANEL_*` lines of
+  an environment file (`config/vocabulary-panel.env.example`, or the image's
+  `panel-ui.env`; other keys and comments are skipped). Every study key is
+  required once. It rejects with a `STUDY_CONFIG.*` code that names the key,
+  never the value:
+  - an unknown or duplicated key, quotes, spaces or `$` in a value;
+  - a placeholder (`replace…`, `…placeholder…`);
+  - a base URL other than `https://HOST[:PORT]`;
+  - an auth mode other than `tailnet_node`, or a non-empty credential path
+    (ADR 0010);
+  - a profile or topic ref outside the `study.v1` pattern, more than 32
+    topics, or a repeated topic;
+  - a timeout or bound out of range, or a request timeout shorter than the
+    connect timeout.
+
+  The result always has the production transport policy: no test CA, no plain
+  HTTP, and an untrusted wall clock.
 
 ## Evidence and durability semantics
 

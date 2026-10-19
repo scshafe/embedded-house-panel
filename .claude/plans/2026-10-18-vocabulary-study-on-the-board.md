@@ -95,7 +95,7 @@ and shows that the rating survives a network drop (the outbox) and a restart.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'study_synchronizer|panel_simulation'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 2: Read the study configuration.**
+- [x] **Step 2: Read the study configuration.** (2026-10-18)
   - Add `read_study_client_configuration(path)` in `vocabulary_panel`. It reads
     the `BHP_VOCABULARY_PANEL_*` lines of an environment file (other prefixes,
     comments and blank lines are skipped, so the image's `panel-ui.env` works
@@ -112,6 +112,8 @@ and shows that the rating survives a network drop (the outbox) and a restart.
   - Tests in `vocabulary_panel/tests/study_client_configuration_test.cpp`,
     including `config/vocabulary-panel.env.example` itself (rejected for its
     placeholders) and a filled-in copy (accepted).
+  - Done: `vocabulary_panel/src/study_client_configuration.cpp`, in
+    `vocabulary_panel_core`, so it builds without libcurl.
   - Verify:
     - `ctest --test-dir .build/host-dev -R study_client_configuration` exit 0;
     - `make verify` exit 0.
