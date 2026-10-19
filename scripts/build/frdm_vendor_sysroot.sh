@@ -39,6 +39,11 @@ PACKAGES = [
     ('pool/main/z/zlib/zlib1g-dev_1.3.dfsg+really1.3.1-1+b1_arm64.deb', '745ebcf1fa115e230af76216355d7290a24f1790fe3780249b519c0e4d30534f'),
     ('pool/main/o/openssl/libssl3t64_3.5.7-1~deb13u2_arm64.deb', 'ec131326aa9fa9ec934eca386bc7991f328fe383eaefd3e43bd8901a9199c5ae'),
     ('pool/main/o/openssl/libssl-dev_3.5.7-1~deb13u2_arm64.deb', 'b81910e8728fab596158c8384d6aa101c8249c1769eb2d33c73643b2be7a0bcf'),
+    # The study client (issue #21). Linking only: the board runs its own vendor
+    # libcurl.so.4 (8.19.0, no symbol versions), which glibc accepts for these
+    # versioned references.
+    ('pool/main/c/curl/libcurl4t64_8.14.1-2+deb13u5_arm64.deb', 'af72e1cd69240a42a76a578e6902b65f9fa641f5e7352e4bfa0ec5aa38d25204'),
+    ('pool/main/c/curl/libcurl4-openssl-dev_8.14.1-2+deb13u5_arm64.deb', 'df32deabd874f03b0690a75217fa44042fdf84650b98011ad38aed59266c03c5'),
 ]
 debs = root/'.build/frdm-sysroot-debs'; sysroot = root/'.build/frdm-sysroot'
 print(json.dumps({'execute': execute, 'snapshot': SNAPSHOT, 'downloads': [p for p, _ in PACKAGES],

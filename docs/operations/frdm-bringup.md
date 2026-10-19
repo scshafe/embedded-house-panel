@@ -101,6 +101,80 @@ scripts/deploy/frdm_evidence_bundle.sh fetch --execute   # -> hardware_tests/res
 On the board, run scripts from `/root/bhp-evidence` as root. Each prints the path
 of the JSON record it wrote.
 
+### Tailnet identity (owner procedure, vendor image)
+
+Issue #21 needs the board on the tailnet as a node with exactly one tag,
+`tag:house-panel` (ADR 0010, node-capability mode). **The owner runs every
+step here:** it writes board storage outside `/tmp` and enrolls the board in
+the tailnet, both `owner_gated` in `dev.toml`. The agent runs none of it.
+The Buildroot image's `S50tailscaled` is a later, separate step.
+
+**Board facts** (read over ssh on 2026-10-18; nothing was changed):
+- **Tailscale:** none installed.
+- **Networking:** `/dev/net/tun` exists (`CONFIG_TUN=y`), and both `nft` and
+  `iptables` are present.
+- **Storage:** `/` is `mmcblk2p2`, ext4, read-write, and `/var/lib` is on it.
+  `/var/log` is the tmpfs `/var/volatile`.
+- **DNS:** `/etc/resolv.conf` is a symlink to connman's
+  `/etc/resolv-conf.connman`. connman, systemd-resolved and systemd-networkd
+  are all active.
+- **Time:** NTP is on and synchronized.
+
+**Steps:**
+
+- **Fetch and check the pinned archive on the PC.** The SHA-256 is the one
+  ADR 0010 records:
+
+  ```sh
+  curl -fLO https://pkgs.tailscale.com/stable/tailscale_1.102.2_arm64.tgz
+  echo '2b64e9ade7e73034b5ec9e9bcd537f5ddd14ae3abb435e57e929e7486ae42660  tailscale_1.102.2_arm64.tgz' | sha256sum -c
+  tar -xzf tailscale_1.102.2_arm64.tgz
+  ```
+
+- **Copy the two binaries and start `tailscaled`.** The state goes in
+  `/var/lib/tailscale` with mode `0700`. The unit is transient, so it does not
+  survive a reboot, and no unit file is written:
+
+  ```sh
+  ssh root@192.168.50.15 'mkdir -p /usr/local/bin && install -d -m 0700 /var/lib/tailscale'
+  scp tailscale_1.102.2_arm64/tailscale tailscale_1.102.2_arm64/tailscaled root@192.168.50.15:/usr/local/bin/
+  ssh root@192.168.50.15 'systemd-run --unit=tailscaled --collect /usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state'
+  ```
+
+- **Enroll with the tag.** Use a one-off auth key that carries
+  `tag:house-panel`. The key travels on stdin into tmpfs and is read from that
+  file, never put in an argument, and the file is deleted right after:
+
+  ```sh
+  ssh root@192.168.50.15 'umask 077 && mkdir -p /run/bhp-enroll && cat > /run/bhp-enroll/authkey' < ./authkey
+  ssh root@192.168.50.15 '/usr/local/bin/tailscale up --auth-key=file:/run/bhp-enroll/authkey --advertise-tags=tag:house-panel; rm -rf /run/bhp-enroll'
+  ```
+
+- **Check the identity and the name.** `Self.Tags` must be exactly
+  `["tag:house-panel"]`, and the listener's MagicDNS name must resolve to a
+  `100.x` address:
+
+  ```sh
+  ssh root@192.168.50.15 '/usr/local/bin/tailscale status --self --json' | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"].get("Tags"))'
+  ssh root@192.168.50.15 'getent hosts lexinet-study.<tailnet>.ts.net'
+  ```
+
+  connman owns `resolv.conf`, so Tailscale may or may not manage DNS here.
+  If the name does not resolve, stop and tell the agent. Do not edit
+  `/etc/hosts` or connman; a fix is a reviewed change.
+
+- **Undo.** Log out, stop the daemon and remove what the steps added. Restore
+  the connman symlink only if Tailscale replaced it. Then remove the node in
+  the admin console:
+
+  ```sh
+  ssh root@192.168.50.15 '/usr/local/bin/tailscale logout; systemctl stop tailscaled; rm -rf /var/lib/tailscale /usr/local/bin/tailscale /usr/local/bin/tailscaled; test -L /etc/resolv.conf || ln -sf /etc/resolv-conf.connman /etc/resolv.conf'
+  ```
+
+The on-board study check (plan
+`.claude/plans/2026-10-18-vocabulary-study-on-the-board.md`, Step 6) starts
+only after this, with the owner's go-ahead.
+
 ## Gate map
 
 | Gate | Evidence script | Closes profile keys | Also needs |
