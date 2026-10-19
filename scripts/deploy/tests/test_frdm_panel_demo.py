@@ -67,6 +67,27 @@ class BoardWritesStayInTmpfs(unittest.TestCase):
         self.assertIn("'setpriv', f'--reuid={UI_UID}', f'--regid={UI_UID}'", source)
         self.assertIn("'--no-new-privs'", source)
 
+    def test_the_broker_runs_as_its_own_unprivileged_uid(self):
+        board = load_board()
+        self.assertNotIn(board.BROKER_UID, (0, board.UI_UID))
+        source = BOARD.read_text()
+        self.assertIn("'setpriv', f'--reuid={BROKER_UID}', f'--regid={BROKER_UID}', f'--groups={audio}'", source)
+        command = board.broker_command()
+        self.assertEqual(command[0], '/tmp/bhp-demo/bin/bhp-media-broker')
+        self.assertEqual(command[command.index('--ui-uid') + 1], str(board.UI_UID))
+        self.assertEqual(command[command.index('--supervisor-uid') + 1], '0')
+        self.assertTrue(command[command.index('--take-root') + 1].startswith('/tmp/bhp-demo/state/'))
+        self.assertTrue(command[command.index('--window-socket') + 1].startswith('/run/bhp-sim/'))
+
+    def test_the_ui_records_through_the_broker_socket(self):
+        board = load_board()
+        record = {'touch': {'x_min': 0, 'x_max': 799, 'y_min': 0, 'y_max': 479},
+                  'drm': {'path': '/dev/dri/card1', 'connector_id': 40}, 'rotation': '180'}
+        command = board.ui_command(record)
+        self.assertEqual(command[command.index('--media-broker-socket') + 1],
+                         board.broker_command()[board.broker_command().index('--ui-socket') + 1])
+        self.assertEqual(command[command.index('--media-broker-uid') + 1], str(board.BROKER_UID))
+
 
 class RunnerDryRun(unittest.TestCase):
     def test_start_writes_only_into_tmp_bhp_demo(self):

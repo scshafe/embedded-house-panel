@@ -1,4 +1,5 @@
 #include "simulator/voice_lab_runtime.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -79,6 +80,16 @@ std::unique_ptr<VoiceLabRuntime> VoiceLabRuntime::in_process(const std::uint64_t
 	return runtime;
 }
 
+std::unique_ptr<VoiceLabRuntime> VoiceLabRuntime::external(const std::string &socket_path, const std::uint32_t broker_uid)
+{
+	auto client = lease::MediaLeaseClient::connect(socket_path, broker_uid);
+	if (!client)
+		throw std::runtime_error("SIMULATOR.VOICE_LAB_BROKER_UNAVAILABLE:" + client.error().code);
+	std::unique_ptr<VoiceLabRuntime> runtime(new VoiceLabRuntime());
+	runtime->client_ = std::move(client.value());
+	return runtime;
+}
+
 VoiceLabRuntime::~VoiceLabRuntime()
 {
 	broker_.reset();
@@ -90,7 +101,7 @@ VoiceLabRuntime::~VoiceLabRuntime()
 
 void VoiceLabRuntime::set_window(const bool open)
 {
-	if (window_sent_ && open == window_open_)
+	if (!supervisor_ || (window_sent_ && open == window_open_))
 		return;
 	window_open_ = open;
 	window_sent_ = true;
@@ -100,15 +111,24 @@ void VoiceLabRuntime::set_window(const bool open)
 		(void)supervisor_->send(frame.value());
 }
 
-bool VoiceLabRuntime::start_take(const std::string &operation_ref)
+bool VoiceLabRuntime::start_take(const std::string &operation_ref, const std::optional<TouchEvidence> &evidence)
 {
-	if (busy())
+	if (busy() || !client_->connected())
 		return false;
-	// A synthetic touch, granted once by the stand-in supervisor.
-	const auto touch = padded("simulated-touch-", ++counter_);
-	granted_touches_.push_back(touch);
-	request_id_ = padded("simulated-request-", ++counter_);
-	if (!client_->send(lease::ArmRequest{request_id_, lease::Purpose::VoiceTake, touch, kBinding, operation_ref}))
+	std::string touch;
+	window::PresentationBinding binding = kBinding;
+	if (broker_) {
+		// A synthetic touch, granted once by the stand-in supervisor.
+		touch = padded("simulated-touch-", ++counter_);
+		granted_touches_.push_back(touch);
+	} else {
+		if (!evidence)
+			return false;
+		touch = evidence->touch_observation_id;
+		binding = evidence->presentation_binding;
+	}
+	request_id_ = padded("ui-request-", ++counter_) + std::to_string(::getpid());
+	if (!client_->send(lease::ArmRequest{request_id_, lease::Purpose::VoiceTake, touch, binding, operation_ref}))
 		return false;
 	pending_ = Pending::Arming;
 	return true;
@@ -128,11 +148,16 @@ void VoiceLabRuntime::discard(const std::string &take_id)
 
 void VoiceLabRuntime::abort()
 {
-	broker_->abort("MEDIA_BROKER.ABORTED");
+	if (broker_)
+		broker_->abort("MEDIA_BROKER.ABORTED");
+	else if (pending_ == Pending::Recording)
+		(void)client_->send(lease::StopRequest{lease_id_});
 }
 
 void VoiceLabRuntime::pump_supervisor()
 {
+	if (!supervisor_)
+		return;
 	for (int frames = 0; frames < 4; ++frames) {
 		auto received = supervisor_->receive();
 		if (!received || !received.value())
@@ -161,13 +186,21 @@ void VoiceLabRuntime::pump_supervisor()
 std::vector<VoiceLabRuntime::Event> VoiceLabRuntime::pump()
 {
 	std::vector<Event> events;
-	pump_supervisor();
-	broker_->step();
-	pump_supervisor();
-	broker_->step();
+	if (broker_) {
+		pump_supervisor();
+		broker_->step();
+		pump_supervisor();
+		broker_->step();
+	}
 	auto received = client_->poll();
-	if (!received)
+	if (!received) {
+		// A broker that went away ends any take in progress.
+		if (pending_ != Pending::None) {
+			pending_ = Pending::None;
+			events.push_back({Event::Kind::Failed, {}, 0, {}, 0, "MEDIA_LEASE.BROKER_UNAVAILABLE"});
+		}
 		return events;
+	}
 	for (const auto &event : received.value()) {
 		if (const auto *armed = std::get_if<lease::Armed>(&event)) {
 			if (pending_ != Pending::Arming || armed->request_id != request_id_)

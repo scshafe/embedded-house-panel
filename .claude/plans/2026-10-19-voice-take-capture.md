@@ -256,6 +256,16 @@ Host tests run the same broker on a deterministic fake source.
   - The FRDM demo bundle runs the broker under its own UID next to the
     supervisor and the UI; a tap on the recorder records a 30 s take, and a
     presence lapse during a second take ends it as a failure.
+  - Progress (2026-10-19): the code path is in.
+    - The demo starts `bhp-media-broker` as UID 911 (group `audio`, the real
+      ALSA device) and gives the supervisor a window socket. The UI passes
+      each tap's touch-observation ID and binding to the broker.
+    - On the board, the broker connected to the supervisor's window, the UI
+      connected to the broker, and the recorder screen rendered.
+    - A take needs a person to tap Record: the supervisor holds the
+      touchscreen exclusively, so a touch cannot be injected.
+    - The XVF3800 control node is `root:root 0664`, so the demo broker
+      records the device identity as unread; Step 3 measured it as root.
   - Verify:
     - a board record under `hardware_tests/results/frdm/voice-take-<UTC>/` shows the touch-started take, its capture record, and the window-closure failure;
     - the owner's confirmation that the take sounds right on headphones.
