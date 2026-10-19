@@ -128,7 +128,7 @@ fixture data, recording through the media broker's `voice_take` purpose.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'http_runtime|http_lexinet'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 3: The shared durable store and outbox mechanics.**
+- [x] **Step 3: The shared durable store and outbox mechanics.** (2026-10-19)
   - `shared/durable_store`: the atomic file commit from `FileStudyStore`
     (owner-only directory, lock, fsync, rename, directory fsync, sticky
     uncertainty); `FileStudyStore` uses it with its file names and error
@@ -139,6 +139,10 @@ fixture data, recording through the media broker's `voice_take` purpose.
     server's offset, never from local belief, and stops on a structured
     refusal.
   - Update the ownership registry row for the outbox.
+  - Done: `shared/durable_store` (`DurableFile`, `Backoff`,
+    `ResumableUpload`). `FileStudyStore` wraps `DurableFile`; its file names,
+    error codes and crash test are unchanged. The ownership registry gains a
+    row for the mechanics, and the vocabulary outbox row keeps its rules.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'durable_store|study_store|resumable_upload|backoff'` exit 0;
     - `make verify` exit 0.

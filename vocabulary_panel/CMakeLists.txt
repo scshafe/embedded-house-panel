@@ -12,7 +12,8 @@ add_library(vocabulary_panel_core STATIC
 
 target_include_directories(vocabulary_panel_core PUBLIC include "${PROJECT_SOURCE_DIR}/shared/http_runtime/include")
 target_compile_features(vocabulary_panel_core PUBLIC cxx_std_17)
-target_link_libraries(vocabulary_panel_core PUBLIC bhp_structured_logging nlohmann_json::nlohmann_json)
+target_link_libraries(vocabulary_panel_core PUBLIC bhp_structured_logging nlohmann_json::nlohmann_json
+  PRIVATE bhp::durable_store)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(vocabulary_panel_core PRIVATE -Wall -Wextra -Wpedantic -Werror)
