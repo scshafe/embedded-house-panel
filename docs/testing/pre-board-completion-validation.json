@@ -229,7 +229,7 @@
       "commits": "see commits; delivered as bundles, fast-forwarded on the Mac, not pushed"
     },
     "lexinet": {
-      "path": "/Users/coleshaffer/lexinet",
+      "path": "~/lexinet",
       "head": "main@ce42272",
       "changed": false,
       "note": "built read-only by make verify-lexinet-live; no panel-integration branch was needed"
@@ -240,8 +240,8 @@
       "make verify",
       "make verify-docs"
     ],
-    "real_lexinet_contract": "make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=/Users/coleshaffer/lexinet",
-    "real_lexinet_contract_dry_run": "python3 scripts/lexinet/live_contract.py --lexinet-source-dir /Users/coleshaffer/lexinet",
+    "real_lexinet_contract": "make verify-lexinet-live BHP_LEXINET_SOURCE_DIR=~/lexinet",
+    "real_lexinet_contract_dry_run": "python3 scripts/lexinet/live_contract.py --lexinet-source-dir ~/lexinet",
     "service_principals": "python3 scripts/verification/verify_service_principals.py",
     "fault_matrix": "python3 scripts/verification/check_fault_matrix.py",
     "j18_candidates": "python3 scripts/verification/check_frdm_j18_candidates.py",

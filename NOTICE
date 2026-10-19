@@ -1,0 +1,30 @@
+embedded-house-panel
+Copyright (c) 2026 embedded-house-panel contributors
+
+The project is licensed under the MIT License (LICENSE), except for the
+files below, which keep the licence named in their SPDX-License-Identifier
+header.
+
+Linux kernel code: GPL-2.0-only
+  - presence_sensor/ kernel module, Kbuild and Makefiles
+  - scripts/sim/guest/backlight/bhp_sim_backlight.c (simulator kernel module)
+  - system_image/buildroot_external/board/beaglebone-house-panel/frdm-imx8mp/
+    patches/linux/ (patches to the Linux kernel's waveshare-dsi driver)
+
+Device-tree overlays and bindings: GPL-2.0-only OR BSD-2-Clause
+  - presence_sensor/**/*.dts, *.dtso.in and the devicetree binding
+  - system_image/buildroot_external/board/beaglebone-house-panel/frdm-imx8mp/
+    dts/
+
+Fonts: OFL-1.1
+  - shared/panel_fonts/fonts/Montserrat-Medium.ttf, Copyright 2011 The
+    Montserrat Project Authors; licence text in shared/panel_fonts/fonts/OFL.txt
+  - shared/panel_fonts/generated/ (bitmap fonts generated from Montserrat)
+
+Third-party software fetched at build time, not stored in this repository:
+  - LVGL (MIT), cmake/lvgl.cmake
+  - Buildroot and the packages it builds, each under its own licence
+
+NXP firmware: the IW612 Wi-Fi/Bluetooth firmware package is marked
+REDISTRIBUTE = NO. This repository never contains or distributes NXP firmware;
+a build that includes it requires accepting NXP's licence separately.
