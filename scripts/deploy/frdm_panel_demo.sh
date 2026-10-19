@@ -1,7 +1,11 @@
 #!/bin/sh
 # Builds and runs the FRDM panel UI demo (.claude/plans/2026-10-18-frdm-panel-ui-demo.md).
-# Inputs: build | start 0|180 | status | presence 0|1 | scenario NAME |
-#   screenshot NAME | backlight-samples N | stop, then optional --execute.
+# Inputs: build | start 0|180 [--study-config FILE] | status | presence 0|1 |
+#   scenario NAME | screenshot NAME | backlight-samples N | restart-ui | stop,
+#   then optional --execute.
+#   --study-config copies a vocabulary-panel.env (no credential; ADR 0010) to the
+#   board's /tmp/bhp-demo/config and runs the live study client from it.
+#   restart-ui restarts only the UI unit, keeping its study state.
 #   backlight-samples reads the backlight node N (1-6000) times, 10 ms apart. Default is a JSON dry run.
 #   Board commands need BHP_BOARD_SSH_TARGET (config/device.env or dev.toml ssh).
 # Side effects with --execute:
@@ -32,7 +36,7 @@ CURRENT_RUN = root/'.build/frdm-demo-current-run'
 BOARD_ROOT = '/tmp/bhp-demo'
 BOARD_SCRIPT = BOARD_ROOT + '/frdm_panel_demo_board.py'
 ALLOWED_NEEDED = {'libc.so.6', 'libm.so.6', 'ld-linux-aarch64.so.1', 'libdrm.so.2', 'libpng16.so.16',
-                  'libz.so.1', 'libcrypto.so.3'}
+                  'libz.so.1', 'libcrypto.so.3', 'libssl.so.3', 'libcurl.so.4'}
 MAXIMUM_GLIBC = (2, 41)
 BINARIES = {'bhp-panel-ui': BUILD/'panel_ui/bhp-panel-ui', 'panel_supervisord': BUILD/'panel_supervisor/panel_supervisord',
             'bhp-sim-pir': BUILD/'bhp-sim-pir'}
@@ -46,7 +50,7 @@ def build_commands():
         ['cmake', '-S', str(root), '-B', str(BUILD), '-G', 'Ninja',
          '-DCMAKE_TOOLCHAIN_FILE=' + str(root/'cmake/toolchains/frdm-vendor-aarch64.cmake'),
          '-DCMAKE_BUILD_TYPE=Release', '-DBHP_BUILD_TESTS=OFF', '-DBHP_BUILD_PANEL_RENDERER=ON',
-         '-DBHP_BUILD_PANEL_DRM=ON', '-DBHP_BUILD_HTTP_LEXINET_CLIENT=OFF'],
+         '-DBHP_BUILD_PANEL_DRM=ON', '-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON'],
         ['cmake', '--build', str(BUILD), '--target', 'bhp-panel-ui', 'panel_supervisord'],
         ['clang', '--target=aarch64-linux-gnu', '--sysroot=' + str(SYSROOT), '-fuse-ld=lld', '-mcpu=cortex-a53',
          '-std=gnu11', '-Wall', '-Wextra', '-Werror', '-O2', str(root/'scripts/sim/guest/pir_uinput.c'),
@@ -114,13 +118,23 @@ def record(directory, entry):
     with (directory/'run.jsonl').open('a') as log:
         log.write(json.dumps(entry) + '\n')
 
-def board(remote_arguments, start=False):
+def study_config_file(path):
+    file = Path(path)
+    if not file.is_file() or file.stat().st_size > 65536:
+        fail('FRDM_DEMO.STUDY_CONFIG_INVALID', 'a readable file of at most 64 KiB')
+    return file
+
+def board(remote_arguments, start=False, study_config=None):
     target = ssh_target()
+    if study_config:
+        remote_arguments = remote_arguments + ['--study-config']
     remote = 'python3 ' + BOARD_SCRIPT + ' ' + ' '.join(remote_arguments)
     commands = []
     if start:
         commands.append(ssh(target, 'test ! -e ' + BOARD_ROOT + ' && mkdir -m 755 ' + BOARD_ROOT +
                             ' && tar -xzf - -C ' + BOARD_ROOT + ' && cd ' + BOARD_ROOT + ' && sha256sum -c --quiet SHA256SUMS'))
+    if study_config:
+        commands.append(ssh(target, 'umask 077 && cat > ' + BOARD_ROOT + '/config/vocabulary-panel.env'))
     commands.append(ssh(target, remote))
     plan = {'command': remote_arguments[0], 'execute': execute, 'commands': commands, 'evidence': EVIDENCE}
     if not execute:
@@ -131,6 +145,9 @@ def board(remote_arguments, start=False):
     if start:
         with TARBALL.open('rb') as bundle:
             subprocess.run(commands[0], stdin=bundle, check=True)
+    if study_config:
+        with study_config.open('rb') as configuration:
+            subprocess.run(commands[-2], stdin=configuration, check=True)
     if remote_arguments == ['stop']:
         with (directory/'board-demo.tar.gz').open('wb') as fetched:
             subprocess.run(ssh(target, 'tar -czf - -C ' + BOARD_ROOT + ' logs state'), stdout=fetched, check=False)
@@ -153,7 +170,9 @@ def main():
         return build()
     if len(arguments) == 2 and arguments[0] == 'start' and arguments[1] in ('0', '180'):
         return board(['start', '--rotation', arguments[1]], start=True)
-    if arguments in (['status'], ['stop']):
+    if len(arguments) == 4 and arguments[0] == 'start' and arguments[1] in ('0', '180') and arguments[2] == '--study-config':
+        return board(['start', '--rotation', arguments[1]], start=True, study_config=study_config_file(arguments[3]))
+    if arguments in (['status'], ['stop'], ['restart-ui']):
         return board(arguments)
     if len(arguments) == 2 and arguments[0] == 'presence' and arguments[1] in ('0', '1'):
         return board(arguments)
@@ -161,7 +180,7 @@ def main():
         return board(arguments)
     if len(arguments) == 2 and arguments[0] in ('scenario', 'screenshot') and re.fullmatch('[a-z0-9_-]{1,80}', arguments[1]):
         return board(arguments)
-    fail('FRDM_DEMO.USAGE', 'build | start 0|180 | status | presence 0|1 | scenario NAME | screenshot NAME | backlight-samples N | stop [--execute]')
+    fail('FRDM_DEMO.USAGE', 'build | start 0|180 [--study-config FILE] | status | presence 0|1 | scenario NAME | screenshot NAME | backlight-samples N | restart-ui | stop [--execute]')
 
 print(json.dumps(main()))
 PY

@@ -52,6 +52,15 @@ class BoardWritesStayInTmpfs(unittest.TestCase):
         self.assertEqual(command[command.index('--display-rotation') + 1], '180')
         self.assertEqual(command[command.index('--drm-connector-id') + 1], '40')
 
+    def test_ui_command_adds_the_study_config_only_when_asked(self):
+        board = load_board()
+        record = {'touch': {'x_min': 0, 'x_max': 799, 'y_min': 0, 'y_max': 479},
+                  'drm': {'path': '/dev/dri/card1', 'connector_id': 40}, 'rotation': '180'}
+        self.assertNotIn('--study-config', board.ui_command(record))
+        command = board.ui_command(dict(record, study_config=True))
+        self.assertEqual(command[command.index('--study-config') + 1], '/tmp/bhp-demo/config/vocabulary-panel.env')
+        self.assertNotIn('--lexinet-config', command)
+
     def test_ui_drops_to_the_unprivileged_uid_without_a_passwd_entry(self):
         source = BOARD.read_text()
         self.assertNotIn("f'User={UI_UID}'", source)
@@ -69,6 +78,25 @@ class RunnerDryRun(unittest.TestCase):
         self.assertIn('tar -xzf - -C /tmp/bhp-demo', unpack)
         self.assertTrue(unpack.startswith('test ! -e /tmp/bhp-demo'))
         self.assertEqual(launch, 'python3 /tmp/bhp-demo/frdm_panel_demo_board.py start --rotation 180')
+
+    def test_start_with_a_study_config_copies_it_before_starting(self):
+        example = str(ROOT/'config/vocabulary-panel.env.example')
+        code, plan = dry_run('start', '180', '--study-config', example)
+        self.assertEqual(code, 0)
+        copy, remote = plan['commands'][1][-1], plan['commands'][2][-1]
+        self.assertEqual(copy, 'umask 077 && cat > /tmp/bhp-demo/config/vocabulary-panel.env')
+        self.assertTrue(remote.endswith('start --rotation 180 --study-config'), remote)
+        self.assertNotIn(example, ' '.join(plan['commands'][2]), 'the file travels on stdin, not as an argument')
+
+    def test_a_missing_study_config_fails_before_any_board_command(self):
+        code, result = dry_run('start', '0', '--study-config', '/nonexistent/vocabulary-panel.env')
+        self.assertEqual(code, 1)
+        self.assertEqual(result['error']['code'], 'FRDM_DEMO.STUDY_CONFIG_INVALID')
+
+    def test_restart_ui_runs_the_board_command(self):
+        code, plan = dry_run('restart-ui')
+        self.assertEqual(code, 0)
+        self.assertTrue(plan['commands'][-1][-1].endswith('frdm_panel_demo_board.py restart-ui'))
 
     def test_rotation_must_be_0_or_180(self):
         code, plan = dry_run('start', '90')
@@ -127,6 +155,7 @@ class RunnerDryRun(unittest.TestCase):
         self.assertEqual(code, 0)
         configure = plan['commands'][0]
         self.assertIn('-DBHP_BUILD_PANEL_DRM=ON', configure)
+        self.assertIn('-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON', configure)
         self.assertTrue(any(item.endswith('cmake/toolchains/frdm-vendor-aarch64.cmake') for item in configure))
 
 

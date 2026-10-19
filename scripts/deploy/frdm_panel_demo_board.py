@@ -28,6 +28,8 @@ from pathlib import Path
 ROOT = Path('/tmp/bhp-demo')
 RUN = Path('/run/bhp-sim')
 STATE = ROOT/'state'
+# Optional live study client settings (issue #21), copied in by the PC runner.
+STUDY_CONFIG = ROOT/'config/vocabulary-panel.env'
 LOGS = ROOT/'logs'
 EVIDENCE = 'demo_not_gate_evidence'
 UI_UID = 910
@@ -144,7 +146,7 @@ def demo_solar_position(start: float) -> dict:
             'scan_hours': DAY_SCAN_SECONDS//3600}
 
 
-def configure(rotation: str) -> dict:
+def configure(rotation: str, study_config: bool = False) -> dict:
     """Writes the demo supervisor env and runtime record. Mirrors the VM guest's configure()."""
     make_directory(RUN, 0, 0, 0o755)
     for name in ('lifecycle', 'touch'):
@@ -171,7 +173,8 @@ def configure(rotation: str) -> dict:
               'TOUCH_SLOTS': touch['slots'], 'TOUCH_SOCKET': str(RUN/'touch/observations.sock'),
               'TOUCH_TTL_MILLISECONDS': 1500, 'TOUCH_MAX_CONTACT_MILLISECONDS': 4000, 'TOUCH_MAX_OBSERVATIONS': 128}
     (STATE/'supervisor.env').write_text(''.join(f'BHP_PANEL_SUPERVISOR_{key}={value}\n' for key, value in values.items()))
-    record = {'touch': touch, 'drm': drm, 'rotation': rotation, 'solar': solar, 'evidence': EVIDENCE}
+    record = {'touch': touch, 'drm': drm, 'rotation': rotation, 'solar': solar, 'study_config': study_config,
+              'evidence': EVIDENCE}
     (STATE/'runtime.json').write_text(json.dumps(record, indent=2) + '\n')
     return record
 
@@ -187,7 +190,8 @@ def ui_command(record: dict) -> list[str]:
             '--launcher-config', str(ROOT/'config/applications.json'), '--clock-preview', 'on',
             '--state-directory', str(STATE/'study'), '--display-rotation', record['rotation'],
             '--touch-min-x', str(touch['x_min']), '--touch-max-x', str(touch['x_max']),
-            '--touch-min-y', str(touch['y_min']), '--touch-max-y', str(touch['y_max'])]
+            '--touch-min-y', str(touch['y_min']), '--touch-max-y', str(touch['y_max']),
+            *(['--study-config', str(STUDY_CONFIG)] if record.get('study_config') else [])]
 
 
 def transient(unit: str, command: list[str], *properties: str) -> None:
@@ -217,13 +221,19 @@ def libraries_resolve() -> None:
             raise ValueError('FRDM_DEMO.LIBRARY_MISSING ' + binary + ' ' + result.stdout.strip())
 
 
-def start(rotation: str) -> dict:
+def start(rotation: str, study_config: bool = False) -> dict:
     if rotation not in ('0', '180'):
         raise ValueError('FRDM_DEMO.ROTATION_INVALID')
     if any(unit_active(unit) for unit in UNITS):
         raise ValueError('FRDM_DEMO.ALREADY_RUNNING')
     libraries_resolve()
-    record = configure(rotation)
+    if study_config:
+        if not STUDY_CONFIG.is_file():
+            raise ValueError('FRDM_DEMO.STUDY_CONFIG_MISSING')
+        # Readable by the UI's group only; it holds no credential (ADR 0010).
+        os.chown(STUDY_CONFIG, 0, UI_UID)
+        os.chmod(STUDY_CONFIG, 0o640)
+    record = configure(rotation, study_config)
     weston = [unit for unit in WESTON_UNITS if unit_active(unit)]
     (STATE/'weston-was-active.json').write_text(json.dumps(weston) + '\n')
     if weston:
@@ -236,11 +246,26 @@ def start(rotation: str) -> dict:
     wait_for(lambda: (RUN/'lifecycle/mode.sock').exists(), 'FRDM_DEMO.SUPERVISOR_SOCKET_MISSING')
     # systemd's User= needs a passwd entry, and adding one would write the board's
     # storage; setpriv drops the unit to the bare UID instead.
+    start_ui(record)
+    return status()
+
+
+def start_ui(record: dict) -> None:
     video = grp.getgrnam(VIDEO_GROUP).gr_gid
     transient('bhp-demo-ui', ['setpriv', f'--reuid={UI_UID}', f'--regid={UI_UID}', f'--groups={video}',
                               '--inh-caps=-all', '--bounding-set=-all', '--no-new-privs', *ui_command(record)],
               'WorkingDirectory=' + str(ROOT))
     wait_for(lambda: (RUN/'ui/control.sock').exists(), 'FRDM_DEMO.UI_CONTROL_SOCKET_MISSING', 15)
+
+
+def restart_ui() -> dict:
+    """Stops and starts only the UI; its study state under state/study is kept."""
+    if not unit_active('bhp-demo-supervisor'):
+        raise ValueError('FRDM_DEMO.NOT_RUNNING')
+    invoke('systemctl', 'stop', 'bhp-demo-ui', check=False)
+    invoke('systemctl', 'reset-failed', 'bhp-demo-ui', check=False)
+    wait_for(lambda: not (RUN/'ui/control.sock').exists(), 'FRDM_DEMO.UI_DID_NOT_STOP')
+    start_ui(json.loads((STATE/'runtime.json').read_text()))
     return status()
 
 
@@ -263,6 +288,7 @@ def status() -> dict:
     return {'units': {unit: invoke('systemctl', 'is-active', unit, check=False) for unit in UNITS},
             'brightness': int((BACKLIGHT/'brightness').read_text()),
             'solar': json.loads((STATE/'runtime.json').read_text()).get('solar'),
+            'study_config': json.loads((STATE/'runtime.json').read_text()).get('study_config', False),
             'ui': latest_ui_status(), 'evidence': EVIDENCE}
 
 
@@ -343,6 +369,10 @@ def main(arguments: list[str]) -> dict:
     require_root()
     if arguments[:2] == ['start', '--rotation'] and len(arguments) == 3:
         return start(arguments[2])
+    if arguments[:2] == ['start', '--rotation'] and len(arguments) == 4 and arguments[3] == '--study-config':
+        return start(arguments[2], study_config=True)
+    if arguments == ['restart-ui']:
+        return restart_ui()
     if arguments == ['status']:
         return status()
     if len(arguments) == 2 and arguments[0] == 'presence':
