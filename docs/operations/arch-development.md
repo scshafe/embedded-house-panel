@@ -74,7 +74,7 @@ drafts. `archive/2026-09-30-pre-retarget-stash` preserves the superseded ADR sta
 These are historical recovery refs on GitHub; fetch one only if needed and do not
 merge them.~~ **Amended 2026-10-18:** a comparison with `main` found every file
 in the three `archive/2026-09-30-*` branches on `main`, identical or in a newer
-form, so they are retired (issue #20). The Mac's verification worktrees were
+form; they are retired once the owner agrees (issue #20). The Mac's verification worktrees were
 matched against committed file contents and removed.
 
 ## Install host dependencies explicitly
