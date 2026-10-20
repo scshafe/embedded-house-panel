@@ -7,9 +7,13 @@
 // Exit status: 0 when every check passed, 1 when a check failed, 2 on usage
 // errors.
 #include "bhp/http_runtime/http_request.h"
+#include "golden_take.hpp"
+#include "voice_lab_recorder/corpus_client.h"
 #include "voice_lab_recorder/pocket_id_sign_in.h"
+#include "voice_lab_recorder/take_package.h"
 #include <nlohmann/json.hpp>
 #include <chrono>
+#include <filesystem>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -24,6 +28,8 @@ using bhp::http_runtime::HttpMethod;
 using bhp::http_runtime::HttpRequest;
 using bhp::http_runtime::HttpResponse;
 using Json = nlohmann::ordered_json;
+/** voice-lab's answers, as the corpus client returns them. */
+using Wire = nlohmann::json;
 
 namespace
 {
@@ -180,10 +186,46 @@ public:
 		return loaded.has_value() ? loaded.value() : std::nullopt;
 	}
 
+	/** The corpus client on this session, with chunks of `chunk_bytes`; `drop_after_puts` simulates a lost link. */
+	std::unique_ptr<CorpusClient> corpus(VoiceLabSession &session, std::uint64_t chunk_bytes, int drop_after_puts = -1)
+	{
+		CorpusClientSettings corpus_settings;
+		corpus_settings.api_url = options_.api_url;
+		corpus_settings.chunk_bytes = chunk_bytes;
+		corpus_settings.trusted_ca_pem_for_tests = settings.trusted_ca_pem_for_tests;
+		return std::make_unique<CorpusClient>(
+			corpus_settings,
+			[this, drop_after_puts](const HttpRequest &request) {
+				if (request.method == HttpMethod::Put && drop_after_puts >= 0 &&
+				    static_cast<int>(puts++) >= drop_after_puts)
+					return bhp::http_runtime::Result<HttpResponse>::failure(
+						{"HTTP.TRANSPORT_FAILED", "simulated link loss", true, 56});
+				return bhp::http_runtime::perform(*runtime_, request, runtime_->cancellation());
+			},
+			AccessTokens{[&session] { return session.access_token(); },
+				     [&session] { session.invalidate_access_token(); }});
+	}
+
+	/** The golden take, packaged once into the state directory's outbox. */
+	std::string golden_package(Report &report)
+	{
+		const auto outbox = std::filesystem::path(options_.state_directory) / "outbox";
+		const auto take_id = "take-" + golden::example("take/continuity.json")["wav"]["sha256"].get<std::string>();
+		if (!std::filesystem::exists(outbox / take_id)) {
+			std::filesystem::create_directories(outbox);
+			const auto broker = golden::broker_take(std::filesystem::path(options_.state_directory) / "broker",
+								golden::golden_wav());
+			auto packaged = write_take_package(broker.string(), outbox.string(), golden::inputs());
+			report.check("golden_take_packaged", packaged.has_value());
+		}
+		return (outbox / take_id).string();
+	}
+
 	SignInSettings settings;
 	Endpoints endpoints;
 	HttpTransport transport;
 	unsigned token_requests{0};
+	unsigned puts{0};
 
 private:
 	Options options_;
@@ -295,6 +337,165 @@ int library(Live &live)
 	return report.finish();
 }
 
+/** An error's code and the server's refusal code, if any. */
+std::string describe(const Error &error)
+{
+	const auto refusal = error.context.find("error");
+	return error.code + (refusal == error.context.end() ? std::string() : " " + refusal->second);
+}
+
+std::optional<Wire> file_entry(const Wire &status, const std::string &path)
+{
+	if (status.is_object() && status.contains("files"))
+		for (const auto &file : status["files"])
+			if (file.value("path", std::string()) == path)
+				return file;
+	return std::nullopt;
+}
+
+/** Polls `poll` every 200 ms for up to 30 s while `pending` holds. */
+template <typename Poll, typename Pending> Result<Wire> await(Poll poll, Pending pending)
+{
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+	for (;;) {
+		auto answer = poll();
+		if (!answer.has_value() || !pending(answer.value()) || std::chrono::steady_clock::now() > deadline)
+			return answer;
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	}
+}
+
+/** Declare the golden take and lose the link after two 16 KiB chunks of its WAV. */
+int intake_interrupted(Live &live)
+{
+	Report report("intake_interrupted");
+	if (!live.discover_endpoints(report))
+		return report.finish();
+	auto session = live.session();
+	auto restored = session->restore();
+	if (!report.check("restored_signed_in", restored.has_value() && restored.value()))
+		return report.finish();
+	const auto package = live.golden_package(report);
+	const auto take_id = std::filesystem::path(package).filename().string();
+	auto client = live.corpus(*session, 16384, 2);
+	auto declared = client->declare(package);
+	report.check("declared_open", declared.has_value() && declared.value().value("state", std::string()) == "open");
+	if (!declared.has_value())
+		report.fact("declare_error", describe(declared.error()));
+	auto sent = client->send_file(package, take_id, "original.wav");
+	report.check("link_loss_is_retryable", !sent.has_value() && sent.error().retryable);
+	auto status = client->session(take_id);
+	const auto wav = status.has_value() ? file_entry(status.value(), "original.wav") : std::nullopt;
+	const auto held = wav ? wav->value("received_bytes", std::uint64_t{0}) : 0;
+	report.fact("server_received_bytes", held);
+	report.check("server_kept_two_chunks", held == 32768);
+	return report.finish();
+}
+
+/** A new process: declare again, resume from the server's offset, finalize, and wait for admission. */
+int intake_resume(Live &live)
+{
+	Report report("intake_resume");
+	if (!live.discover_endpoints(report))
+		return report.finish();
+	auto session = live.session();
+	auto restored = session->restore();
+	if (!report.check("restored_signed_in", restored.has_value() && restored.value()))
+		return report.finish();
+	const auto package = live.golden_package(report);
+	const auto take_id = std::filesystem::path(package).filename().string();
+	auto client = live.corpus(*session, 16384);
+	auto declared = client->declare(package);
+	const auto wav = declared.has_value() ? file_entry(declared.value(), "original.wav") : std::nullopt;
+	report.check("redeclared_session_kept_its_bytes",
+		     wav && wav->value("received_bytes", std::uint64_t{0}) == 32768);
+	auto finalized = client->upload(package);
+	if (!report.check("uploaded_and_finalized", finalized.has_value())) {
+		report.fact("upload_error", describe(finalized.error()));
+		return report.finish();
+	}
+	auto settled = await([&] { return client->session(take_id); },
+			     [](const Wire &status) { return status.value("state", std::string()) == "finalized"; });
+	const auto state = settled.has_value() ? settled.value().value("state", std::string()) : std::string();
+	report.fact("session_state", state);
+	if (settled.has_value() && settled.value().contains("refusal") && settled.value()["refusal"].is_string())
+		report.fact("refusal", settled.value()["refusal"].get<std::string>());
+	report.check("accepted_with_receipt", state == "accepted" && settled.value().contains("receipt") &&
+						      settled.value()["receipt"].is_object() &&
+						      settled.value()["receipt"].value("session_id", std::string()) == take_id);
+	auto library = client->library();
+	bool listed = false;
+	if (library.has_value())
+		for (const auto &row : library.value().body.value("rows", Wire::array()))
+			listed = listed || row.value("latest_take_id", Wire()) == take_id;
+	report.check("library_lists_the_take", listed);
+	return report.finish();
+}
+
+/** Keep the take with a stable request id, replay it, then meet a revision conflict. */
+int decide(Live &live)
+{
+	Report report("decide");
+	if (!live.discover_endpoints(report))
+		return report.finish();
+	auto session = live.session();
+	auto restored = session->restore();
+	if (!report.check("restored_signed_in", restored.has_value() && restored.value()))
+		return report.finish();
+	auto client = live.corpus(*session, 16384);
+	const Wire manifest = golden::example("take/manifest.json");
+	const std::string take_id = manifest["take_id"];
+	const std::string prompt_id = manifest["prompt"]["prompt_id"];
+	auto revision_of = [&]() -> std::optional<std::uint64_t> {
+		auto history = client->history(prompt_id);
+		if (history.has_value())
+			for (const auto &take : history.value().body.value("takes", Wire::array()))
+				if (take.value("take_id", std::string()) == take_id && take["decision_revision"].is_number_unsigned())
+					return take["decision_revision"].get<std::uint64_t>();
+		return std::nullopt;
+	};
+	const auto revision = revision_of();
+	if (!report.check("history_lists_the_take", revision.has_value()))
+		return report.finish();
+	report.fact("revision_before", *revision);
+	auto id = new_request_id();
+	const DecisionRequest keep{id.value(), "kept", *revision, std::nullopt};
+	auto queued = client->decide(take_id, keep);
+	report.check("decision_queued", queued.has_value());
+	auto status = [&](const std::string &request_id) {
+		return await([&] { return client->request_status(request_id); },
+			     [](const Wire &answer) { return answer.value("status", std::string()) == "queued"; });
+	};
+	auto applied = status(keep.request_id);
+	report.check("decision_applied", applied.has_value() && applied.value().value("status", std::string()) == "applied");
+	auto replayed = client->decide(take_id, keep);
+	auto replay_status = status(keep.request_id);
+	report.check("replay_answers_the_same_request",
+		     replayed.has_value() && replay_status.has_value() &&
+			     replay_status.value().value("status", std::string()) == "applied" &&
+			     replay_status.value()["outcome"] == applied.value()["outcome"]);
+	const auto after = revision_of();
+	report.check("revision_advanced_once", after && *after == *revision + 1);
+	auto stale_id = new_request_id();
+	const DecisionRequest stale{stale_id.value(), "rejected", *revision, std::string("too quiet")};
+	auto conflict_queued = client->decide(take_id, stale);
+	auto conflict = status(stale.request_id);
+	const Wire outcome = conflict.has_value() ? conflict.value().value("outcome", Wire()) : Wire();
+	report.check("stale_revision_refused",
+		     conflict_queued.has_value() && conflict.has_value() &&
+			     conflict.value().value("status", std::string()) == "refused" && outcome.is_object() &&
+			     outcome.value("code", std::string()) == "revision_conflict");
+	auto library = client->library();
+	std::string row_status;
+	if (library.has_value())
+		for (const auto &row : library.value().body.value("rows", Wire::array()))
+			if (row.value("prompt_id", std::string()) == prompt_id)
+				row_status = row.value("status", std::string());
+	report.fact("prompt_status", row_status);
+	report.check("prompt_kept_in_the_panel_view", row_status == "kept");
+	return report.finish();
+}
+
 /** Reusing a rotated refresh token revokes the family; the session then signs out and clears the store. */
 int reuse_revokes(Live &live)
 {
@@ -336,6 +537,12 @@ int main(int argc, char **argv)
 			status = sign_in(live);
 		else if (options.scenario == "library")
 			status = library(live);
+		else if (options.scenario == "intake_interrupted")
+			status = intake_interrupted(live);
+		else if (options.scenario == "intake_resume")
+			status = intake_resume(live);
+		else if (options.scenario == "decide")
+			status = decide(live);
 		else if (options.scenario == "reuse_revokes")
 			status = reuse_revokes(live);
 		else

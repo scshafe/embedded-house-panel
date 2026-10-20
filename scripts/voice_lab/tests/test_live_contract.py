@@ -26,7 +26,8 @@ class LiveContractDryRunTest(unittest.TestCase):
         plan = json.loads(result.stdout)
         self.assertFalse(plan["execute"])
         self.assertEqual(plan["evidence"], "simulation_not_hardware_evidence")
-        self.assertEqual(plan["scenarios"], ["sign_in", "library", "reuse_revokes"])
+        self.assertEqual(plan["scenarios"], ["sign_in", "library", "intake_interrupted", "intake_resume",
+                                             "decide", "reuse_revokes"])
         self.assertEqual(plan["fixture"], "cole_voice_lab.contract_fixture")
         self.assertEqual(plan["locked_closure"], "requirements/vault-linux.txt")
         self.assertFalse(Path("/nonexistent/state").exists())

@@ -273,6 +273,12 @@ Result<bool> VoiceLabSession::adopt(const TokenPair &tokens)
 	return Result<bool>::success(true);
 }
 
+void VoiceLabSession::invalidate_access_token()
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	access_token_.reset();
+}
+
 bool VoiceLabSession::signed_in() const
 {
 	std::lock_guard<std::mutex> lock(mutex_);

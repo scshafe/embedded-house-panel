@@ -140,6 +140,8 @@ public:
 	/** Keeps a fresh sign-in: saves its refresh token durably first. */
 	Result<bool> adopt(const TokenPair &tokens);
 	Result<std::string> access_token();
+	/** Forgets the access token, so the next `access_token()` refreshes: after a 401. */
+	void invalidate_access_token();
 	bool signed_in() const;
 	/** Successful refresh exchanges so far, for tests and diagnostics. */
 	unsigned refreshes() const;

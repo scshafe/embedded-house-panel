@@ -60,3 +60,19 @@ the tailnet.
 
 Test: `voice_lab_canonical_json_take_package_test` rebuilds the golden take
 from the pinned examples and compares every file.
+
+## The intake and decisions (wire plan Step 4)
+
+`corpus_client.h` is the panel's side of PROTOCOL.md sections 4–7:
+- **The intake.** Declare the session, send each file with `Content-Range`
+  from the bytes the server holds (`ResumableUpload`), finalize, and read
+  the session until it is `accepted` or `refused`.
+- **Decisions.** Each carries a stable `req-` id and the take's revision.
+  Poll the request until it is `applied` or `refused`.
+- **The views.** The catalog, the panel's library and a prompt's history,
+  each read with its `ETag`.
+
+A `401` refreshes the token once, then means sign in again. Every other
+answer is retryable or a refusal, as section 7 lists. Tests:
+- `voice_lab_intake_decision_client_test` runs against an in-memory intake;
+- `make verify-voice-lab-live` runs against voice-lab's own server.
