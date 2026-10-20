@@ -57,8 +57,9 @@ endif()
 if(BHP_BUILD_MEDIA_BROKER)
   add_subdirectory(media_broker)
 endif()
-if(BHP_BUILD_HTTP_LEXINET_CLIENT)
-  # The voice-lab recorder's HTTP pieces share the runtime the study client builds.
+if(BHP_BUILD_HTTP_LEXINET_CLIENT OR BHP_BUILD_PANEL_RENDERER)
+  # The uploader protocol always builds (the UI speaks it); the recorder's HTTP
+  # pieces share the runtime the study client builds.
   add_subdirectory(voice_lab_recorder)
 endif()
 if(BHP_BUILD_PANEL_RENDERER)

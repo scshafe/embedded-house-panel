@@ -65,6 +65,9 @@ int run_simulation_drm(int argc,char **argv){try{
  // The voice-lab recorder records through the bhp-media-broker process (issue #22).
  if(options.count("--media-broker-socket")!=options.count("--media-broker-uid"))throw std::runtime_error("SIMULATOR.MEDIA_BROKER_OPTIONS_INCOMPLETE");
  if(options.count("--media-broker-socket")){app.attach_media_broker(options.at("--media-broker-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--media-broker-uid"))));app.defer_level_renders(true);}
+ // Kept takes go to the bhp-voice-lab-uploader process (issue #23); it drives sign-in, approval and prompts.
+ if(options.count("--voice-lab-uploader-socket")!=options.count("--voice-lab-uploader-uid"))throw std::runtime_error("SIMULATOR.VOICE_LAB_UPLOADER_OPTIONS_INCOMPLETE");
+ if(options.count("--voice-lab-uploader-socket"))app.attach_voice_lab_uploader(options.at("--voice-lab-uploader-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--voice-lab-uploader-uid"))));
  DrmPageFlipDisplay drm(options.at("--drm-device"),static_cast<std::uint32_t>(std::stoul(options.at("--drm-connector-id"))));
  FixtureControl control(options.at("--simulation-control-socket"));
  std::mutex mutex;

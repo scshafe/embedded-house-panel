@@ -153,6 +153,8 @@
     "voice_lab_state": {
       "enum": [
         "signed_out",
+        "signing_in",
+        "approve",
         "ready",
         "recording",
         "review",

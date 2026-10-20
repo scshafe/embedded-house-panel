@@ -157,6 +157,18 @@ void VoiceLabRuntime::hand_off(const std::string &take_id)
 		(void)client_->send(lease::HandOffRequest{take_id});
 }
 
+void VoiceLabRuntime::attach_uploader(std::unique_ptr<voice_lab_recorder::uploader_protocol::UploaderClient> uploader)
+{
+	uploader_ = std::move(uploader);
+	if (uploader_)
+		(void)uploader_->send(voice_lab_recorder::uploader_protocol::StatusRequest{});
+}
+
+bool VoiceLabRuntime::send_uploader(const voice_lab_recorder::uploader_protocol::UiRequest &request)
+{
+	return uploader_ && uploader_->connected() && uploader_->send(request).has_value();
+}
+
 void VoiceLabRuntime::abort()
 {
 	if (broker_)
@@ -202,6 +214,23 @@ std::vector<VoiceLabRuntime::Event> VoiceLabRuntime::pump()
 		broker_->step();
 		pump_supervisor();
 		broker_->step();
+	}
+	if (uploader_) {
+		namespace wire = voice_lab_recorder::uploader_protocol;
+		auto from_uploader = uploader_->poll();
+		if (!from_uploader) {
+			uploader_.reset();
+			Event lost{Event::Kind::UploaderLost, {}, 0, {}, 0, from_uploader.error().code, std::nullopt, {}};
+			events.push_back(std::move(lost));
+		} else {
+			for (auto &event : from_uploader.value()) {
+				if (auto *state = std::get_if<wire::State>(&event))
+					events.push_back({Event::Kind::UploaderState, {}, 0, {}, 0, {}, std::move(*state), {}});
+				else if (const auto *refused = std::get_if<wire::Refused>(&event))
+					events.push_back({Event::Kind::UploaderRefused, {}, 0, {}, 0, refused->error_code,
+							  std::nullopt, refused->request});
+			}
+		}
 	}
 	auto received = client_->poll();
 	if (!received) {

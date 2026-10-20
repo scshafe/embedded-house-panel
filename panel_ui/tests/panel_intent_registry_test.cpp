@@ -46,6 +46,8 @@ int test_registry_contains_exact_version_one_union()
 		{"voice_lab.retake", {IntentEffectClass::CaptureStart, true, true, false, true}},
 		{"voice_lab.reject", {IntentEffectClass::Navigation, true, true, false, true}},
 		{"voice_lab.skip", {IntentEffectClass::Navigation, true, true, false, true}},
+		{"voice_lab.sign_in", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"voice_lab.approve", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
 	};
 	const PanelIntentRegistry registry;
 	if (registry.definitions().size() != expected.size()) {

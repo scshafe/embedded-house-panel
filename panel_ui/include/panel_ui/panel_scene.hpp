@@ -51,6 +51,15 @@ struct PanelScene {
   std::size_t queued_takes{2};
   /** The committed take under review; empty in fixtures. */
   std::string take_id;
+  /** The prompt on the screen, as the uploader's catalog names it. */
+  std::string prompt_id{"reference-neutral-01"};
+  /** The D-021 approval preview the owner reviews before confirming it. */
+  std::string approval_endpoint{"voice-lab.example.ts.net"};
+  std::string approval_node{"nEXAMPLE11CNTRL"};
+  std::string approval_expires{"2027-10-19"};
+  std::string approval_digest{"e5b522fd1ff6b4561e5d518b0e72906f30cb58b89c43d538b00c2343e7056114"};
+  /** Why uploads wait, in plain words, or empty. */
+  std::string notice;
  } voice_lab;
  std::string acknowledgement;
  bool stale{false};

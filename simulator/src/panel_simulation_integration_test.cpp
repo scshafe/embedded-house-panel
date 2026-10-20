@@ -1,5 +1,9 @@
 #include "simulator/panel_simulation.hpp"
 #include "vocabulary_panel/study_wire_codec.h"
+#include "bhp/media_window_protocol/media_window_protocol.h"
+#include "voice_lab_recorder/uploader_protocol.h"
+#include <sys/socket.h>
+#include <unistd.h>
 #include <algorithm>
 #include <fstream>
 #include <iterator>
@@ -69,6 +73,76 @@ void test_voice_lab_records_through_the_broker(const std::filesystem::path &root
  app.event({{"type","lifecycle"},{"state","day"}});
  app.semantic_intent("shell.home","touch");
  require(app.scene.surface_id=="home","home leaves the recorder");
+}
+// The recorder on the voice-lab uploader's protocol, with this test as the
+// uploader on the other end of a socket pair (the real uploader is tested in
+// voice_lab_recorder and live against voice-lab's server).
+void test_voice_lab_follows_the_uploader(const std::filesystem::path &root){
+ namespace wire=voice_lab_recorder::uploader_protocol;
+ PanelSimulation app(false);
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
+ app.semantic_intent("shell.open_voice_lab","touch");
+ int pair[2];
+ require(::socketpair(AF_UNIX,SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC,0,pair)==0,"socket pair");
+ app.attach_voice_lab_uploader_peer(pair[0],::getuid());
+ bhp::media_window_protocol::FrameChannel uploader(pair[1],wire::kMaximumFrameBytes);
+ const auto until=[&app](const std::function<bool()> &done,const char *message){
+  for(int i=0;i<400&&!done();++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+  require(done(),message);
+ };
+ const auto next_request=[&]()->wire::UiRequest{
+  for(int i=0;i<400;++i){
+   app.service();
+   auto frame=uploader.receive();
+   require(frame.has_value(),"the UI keeps the uploader connection");
+   if(frame.value()){auto request=wire::decode_ui_request(*frame.value());require(request.has_value(),"a valid request");return request.value();}
+   std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  throw std::runtime_error("no request reached the uploader");
+ };
+ std::uint64_t sequence=0;
+ const auto send=[&](wire::State state){state.sequence=++sequence;require(uploader.send(wire::encode(wire::UploaderEvent(state)).value()).has_value(),"state sent");};
+ require(std::holds_alternative<wire::StatusRequest>(next_request()),"the UI asks for the state when it attaches");
+ wire::State state;
+ send(state);
+ until([&]{return app.scene.voice_lab.state=="signed_out";},"signed out shows Sign in");
+ app.semantic_intent("voice_lab.sign_in","touch");
+ require(std::holds_alternative<wire::SignInRequest>(next_request()),"Sign in asks the uploader for a code");
+ state.sign_in={"pending","https://id.example.ts.net/device","WXYZ-1234",900};
+ send(state);
+ until([&]{return app.scene.voice_lab.state=="signing_in"&&app.scene.voice_lab.user_code=="WXYZ-1234";},"the code is shown");
+ require(app.scene.voice_lab.verification_uri=="id.example.ts.net/device","the plain URI, never a complete link");
+ state.sign_in={"signed_in","","",0};
+ state.approval={"preview","voice-lab.example.ts.net","nPC1","2027-10-20T12:00:00Z",std::string(64,'d')};
+ send(state);
+ until([&]{return app.scene.voice_lab.state=="approve";},"signed in, the PC is approved first");
+ require(app.scene.voice_lab.approval_node=="nPC1"&&app.scene.voice_lab.approval_expires=="2027-10-20","the preview is shown");
+ app.semantic_intent("voice_lab.approve","touch");
+ const auto approve=next_request();
+ require(std::holds_alternative<wire::ApproveRequest>(approve)&&std::get<wire::ApproveRequest>(approve).approval_sha256==std::string(64,'d'),"Approve names the reviewed digest");
+ state.approval={"in_force","voice-lab.example.ts.net","nPC1","2027-10-20T12:00:00Z",std::string(64,'d')};
+ state.catalog_version=1;
+ state.prompts={{"room-tone-01","","room-tone","missing"},{"reference-neutral-01","First prompt.","reference","missing"},{"reference-warm-01","Second prompt.","reference","missing"}};
+ send(state);
+ until([&]{return app.scene.voice_lab.state=="ready";},"approved, the recorder is ready");
+ require(app.scene.voice_lab.prompt_id=="reference-neutral-01"&&app.scene.voice_lab.prompt_text=="First prompt."&&app.scene.voice_lab.missing==2,"Continue Missing skips silent prompts");
+ app.semantic_intent("voice_lab.record","touch");
+ until([&]{return app.scene.voice_lab.state=="recording";},"recording");
+ app.semantic_intent("voice_lab.stop","touch");
+ until([&]{return app.scene.voice_lab.state=="review";},"review");
+ const auto take=app.scene.voice_lab.take_id;
+ app.semantic_intent("voice_lab.keep","touch");
+ const auto keep=next_request();
+ require(std::holds_alternative<wire::KeepRequest>(keep),"after the hand-off the uploader is asked to keep the take");
+ const auto &kept=std::get<wire::KeepRequest>(keep);
+ require(kept.take_id==take&&kept.prompt_id=="reference-neutral-01"&&kept.requested_at.size()==20,"for this prompt, with when it was shown");
+ require(std::filesystem::exists(app.voice_lab_handoff_root()+"/"+take+"/original.wav"),"the uploader finds the take in the hand-off directory");
+ state.queued=1;state.prompts[1].status="draft";state.blocked="VOICE_LAB.TAILNET_UNAVAILABLE";
+ send(state);
+ until([&]{return app.scene.voice_lab.notice=="Takes wait: the PC is not reachable";},"why uploads wait, in words");
+ require(app.scene.voice_lab.prompt_id=="reference-warm-01"&&app.scene.voice_lab.queued_takes==1&&app.scene.voice_lab.missing==1,"the next missing prompt, one take queued");
+ ::close(pair[1]);
+ until([&]{return app.scene.voice_lab.notice=="The uploader is not running";},"a lost uploader is shown");
 }
 void test_home_navigation_preserves_durable_requests(const std::filesystem::path &root){
  using namespace vocabulary_panel;
@@ -228,6 +302,7 @@ int main(){try{
  test_home_navigation_gates_and_retains_voice_state(root);
  test_home_weather_scenario_validation(root);
  test_voice_lab_records_through_the_broker(root);
+ test_voice_lab_follows_the_uploader(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

@@ -222,7 +222,7 @@ owner (Step 7).
     - `ctest --test-dir .build/host-dev -R 'voice_lab_uploader'` exit 0;
     - `make verify-voice-lab-live` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 7: The UI and the uploader (Decision 4), and the hand-off (Decision 3).**
+- [x] **Step 7: The UI and the uploader (Decision 4), and the hand-off (Decision 3).** (2026-10-20)
   - `bhp-voice-lab-uploader`, under its own UID, running the outbox and
     serving the UI's socket.
   - The uploader protocol and the recorder screens on it:
@@ -232,7 +232,7 @@ owner (Step 7).
     - the outbox status line.
   - The broker's hand-off on Keep, through the lease protocol.
   - The simulator runs the uploader in process against a fake voice-lab.
-  - Done in three PRs; parts 1 and 2 are done.
+  - Done in three PRs.
     - **Part 1 (the hand-off):** `hand_off` and `handed_off` in the lease
       protocol; `TakeStore::hand_off` and `MediaBroker::hand_off` with
       `--handoff-dir`; Keep in the recorder hands the take off. Until Step 8,
@@ -244,7 +244,23 @@ owner (Step 7).
       frame bound per channel; the media protocols keep 4,096 bytes. Live,
       the service goes from a device sign-in, through the approval by digest,
       to a missing prompt shown as kept.
-    - **Part 3:** the screens and the simulator's in-process uploader.
+    - **Part 3 (the screens):**
+      - Two intents, `voice_lab.sign_in` and `voice_lab.approve`, touch
+        only, with their effect-graph entries.
+      - Two screens: Sign in, with the code screen now its own
+        `signing_in` state, and Approve your PC, showing the endpoint, node,
+        expiry and the record's digest.
+      - The status line says why uploads wait.
+      - The simulator projects the uploader's state onto the screens and
+        sends its requests. After the broker's `handed_off`, it asks the
+        uploader to keep the take for its prompt.
+      - `bhp-panel-sim-drm` takes `--voice-lab-uploader-socket` and
+        `--voice-lab-uploader-uid`.
+      - The integration test plays the uploader over a socket pair through
+        sign-in, approval, a recorded and kept take, the next missing
+        prompt, and a lost uploader.
+      - There is no in-process uploader: the real one is tested in
+        `voice_lab_recorder` and live.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab|panel_simulation|media_broker'` exit 0;
     - `make verify` exit 0 with the new goldens recorded.

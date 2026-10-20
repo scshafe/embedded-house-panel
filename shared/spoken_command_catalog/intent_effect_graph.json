@@ -30,6 +30,9 @@
     "study.undo": [
       "correctable_learning"
     ],
+    "voice_lab.approve_home_host": [
+      "external_submission"
+    ],
     "voice_lab.discard_take": [
       "reversible_local"
     ],
@@ -38,6 +41,9 @@
     ],
     "voice_lab.select_prompt": [
       "reversible_local"
+    ],
+    "voice_lab.start_sign_in": [
+      "external_submission"
     ]
   },
   "handlers": {
@@ -105,6 +111,9 @@
     "study.rating.undo.handler": [
       "study.undo"
     ],
+    "voice_lab.approve.handler": [
+      "voice_lab.approve_home_host"
+    ],
     "voice_lab.keep.handler": [
       "voice_lab.queue_take",
       "voice_lab.select_prompt"
@@ -118,6 +127,9 @@
     "voice_lab.retake.handler": [
       "voice_lab.discard_take",
       "media.capture_start"
+    ],
+    "voice_lab.sign_in.handler": [
+      "voice_lab.start_sign_in"
     ],
     "voice_lab.skip.handler": [
       "voice_lab.select_prompt"
@@ -181,6 +193,9 @@
     "study.rating.undo": [
       "study.rating.undo.handler"
     ],
+    "voice_lab.approve": [
+      "voice_lab.approve.handler"
+    ],
     "voice_lab.keep": [
       "voice_lab.keep.handler"
     ],
@@ -192,6 +207,9 @@
     ],
     "voice_lab.retake": [
       "voice_lab.retake.handler"
+    ],
+    "voice_lab.sign_in": [
+      "voice_lab.sign_in.handler"
     ],
     "voice_lab.skip": [
       "voice_lab.skip.handler"
