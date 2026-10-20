@@ -40,6 +40,23 @@ jobs:
             ripgrep shellcheck ninja-build pkg-config device-tree-compiler \
             libcurl4-openssl-dev libssl-dev libpng-dev libdrm-dev libsdl2-dev libasound2-dev \
             nlohmann-json3-dev
+      # actions/setup-python v7.0.0: CPython 3.12 for the enclosure's CAD venv,
+      # whose build123d closure enclosure/requirements.txt hash-locks.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Install the enclosure CAD environment
+        run: |
+          make enclosure-venv ENCLOSURE_PYTHON="$pythonLocation/bin/python3"
       - name: Verify (dev.toml [verify] command)
         run: |
           make verify
+      - name: Build the mirror unit's printable parts
+        run: |
+          make enclosure
+      # actions/upload-artifact v7.0.1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mirror-unit-print
+          path: .build/enclosure/out/
+          if-no-files-found: error

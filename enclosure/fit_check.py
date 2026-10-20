@@ -35,21 +35,20 @@ def generated_blocks(layout: model.Layout) -> dict[str, str]:
     return {"harness": drawings.harness_table(layout), "calipers": drawings.caliper_table(layout)}
 
 
-def render_document(text: str, blocks: dict[str, str]) -> str:
+def render_document(text: str, blocks: dict[str, str], path: Path = LAYOUT_DOC) -> str:
     seen = set()
 
     def replace(match: re.Match[str]) -> str:
         name = match.group("name")
         if name not in blocks:
-            raise SystemExit(f"ENCLOSURE.UNKNOWN_BLOCK {name} in {LAYOUT_DOC.relative_to(ROOT)}")
+            raise SystemExit(f"ENCLOSURE.UNKNOWN_BLOCK {name} in {path.relative_to(ROOT)}")
         seen.add(name)
         return match.group(1) + blocks[name] + match.group(4)
 
     rendered = BLOCK.sub(replace, text)
     missing = set(blocks) - seen
     if missing:
-        raise SystemExit(f"ENCLOSURE.MISSING_BLOCK {', '.join(sorted(missing))} in "
-                         f"{LAYOUT_DOC.relative_to(ROOT)}")
+        raise SystemExit(f"ENCLOSURE.MISSING_BLOCK {', '.join(sorted(missing))} in {path.relative_to(ROOT)}")
     return rendered
 
 

@@ -1,0 +1,2 @@
+# Direct requirement of enclosure/cad; enclosure/requirements.txt locks the closure.
+build123d==0.13.0
