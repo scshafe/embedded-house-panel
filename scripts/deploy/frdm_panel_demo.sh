@@ -1,10 +1,14 @@
 #!/bin/sh
 # Builds and runs the FRDM panel UI demo (.claude/plans/2026-10-18-frdm-panel-ui-demo.md).
-# Inputs: build | start 0|180 [--study-config FILE] | status | presence 0|1 |
-#   scenario NAME | screenshot NAME | backlight-samples N | restart-ui | stop,
-#   then optional --execute.
+# Inputs: build | start 0|180 [--study-config FILE] [--voice-lab-config FILE] |
+#   status | presence 0|1 | scenario NAME | screenshot NAME | backlight-samples N |
+#   restart-ui | stop, then optional --execute.
 #   --study-config copies a vocabulary-panel.env (no credential; ADR 0010) to the
 #   board's /tmp/bhp-demo/config and runs the live study client from it.
+#   --voice-lab-config copies a voice-lab.json (issuer, api_url, endpoint,
+#   tailnet_suffix and, once measured, board_profile; no credential) there and
+#   runs bhp-voice-lab-uploader under its own UID (issue #23). Keep it out of Git:
+#   it names the tailnet.
 #   restart-ui restarts only the UI unit, keeping its study state.
 #   backlight-samples reads the backlight node N (1-6000) times, 10 ms apart. Default is a JSON dry run.
 #   Board commands need BHP_BOARD_SSH_TARGET (config/device.env or dev.toml ssh).
@@ -40,7 +44,8 @@ ALLOWED_NEEDED = {'libc.so.6', 'libm.so.6', 'ld-linux-aarch64.so.1', 'libdrm.so.
 MAXIMUM_GLIBC = (2, 41)
 BINARIES = {'bhp-panel-ui': BUILD/'panel_ui/bhp-panel-ui', 'panel_supervisord': BUILD/'panel_supervisor/panel_supervisord',
             'bhp-sim-pir': BUILD/'bhp-sim-pir', 'bhp-media-capture-check': BUILD/'media_broker/bhp-media-capture-check',
-            'bhp-media-broker': BUILD/'media_broker/bhp-media-broker'}
+            'bhp-media-broker': BUILD/'media_broker/bhp-media-broker',
+            'bhp-voice-lab-uploader': BUILD/'voice_lab_recorder/bhp-voice-lab-uploader'}
 
 def fail(code, detail=''):
     print(json.dumps({'data': None, 'error': {'code': code, 'detail': detail}, 'evidence': EVIDENCE}))
@@ -53,7 +58,8 @@ def build_commands():
          '-DCMAKE_BUILD_TYPE=Release', '-DBHP_BUILD_TESTS=OFF', '-DBHP_BUILD_PANEL_RENDERER=ON',
          '-DBHP_BUILD_PANEL_DRM=ON', '-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON',
          '-DBHP_BUILD_MEDIA_ALSA=ON'],
-        ['cmake', '--build', str(BUILD), '--target', 'bhp-panel-ui', 'panel_supervisord', 'bhp-media-capture-check', 'bhp-media-broker'],
+        ['cmake', '--build', str(BUILD), '--target', 'bhp-panel-ui', 'panel_supervisord', 'bhp-media-capture-check',
+         'bhp-media-broker', 'bhp-voice-lab-uploader'],
         ['clang', '--target=aarch64-linux-gnu', '--sysroot=' + str(SYSROOT), '-fuse-ld=lld', '-mcpu=cortex-a53',
          '-std=gnu11', '-Wall', '-Wextra', '-Werror', '-O2', str(root/'scripts/sim/guest/pir_uinput.c'),
          '-o', str(BINARIES['bhp-sim-pir'])],
@@ -126,10 +132,24 @@ def study_config_file(path):
         fail('FRDM_DEMO.STUDY_CONFIG_INVALID', 'a readable file of at most 64 KiB')
     return file
 
-def board(remote_arguments, start=False, study_config=None):
+def voice_lab_config_file(path):
+    file = Path(path)
+    if not file.is_file() or file.stat().st_size > 65536:
+        fail('FRDM_DEMO.VOICE_LAB_CONFIG_INVALID', 'a readable file of at most 64 KiB')
+    try:
+        settings = json.loads(file.read_text())
+    except ValueError:
+        fail('FRDM_DEMO.VOICE_LAB_CONFIG_INVALID', 'not JSON')
+    if not isinstance(settings, dict) or not {'issuer', 'api_url', 'endpoint', 'tailnet_suffix'} <= set(settings):
+        fail('FRDM_DEMO.VOICE_LAB_CONFIG_INVALID', 'needs issuer, api_url, endpoint and tailnet_suffix')
+    return file
+
+def board(remote_arguments, start=False, study_config=None, voice_lab_config=None):
     target = ssh_target()
     if study_config:
         remote_arguments = remote_arguments + ['--study-config']
+    if voice_lab_config:
+        remote_arguments = remote_arguments + ['--voice-lab']
     remote = 'python3 ' + BOARD_SCRIPT + ' ' + ' '.join(remote_arguments)
     commands = []
     if start:
@@ -137,6 +157,8 @@ def board(remote_arguments, start=False, study_config=None):
                             ' && tar -xzf - -C ' + BOARD_ROOT + ' && cd ' + BOARD_ROOT + ' && sha256sum -c --quiet SHA256SUMS'))
     if study_config:
         commands.append(ssh(target, 'umask 077 && cat > ' + BOARD_ROOT + '/config/vocabulary-panel.env'))
+    if voice_lab_config:
+        commands.append(ssh(target, 'umask 077 && cat > ' + BOARD_ROOT + '/config/voice-lab.json'))
     commands.append(ssh(target, remote))
     plan = {'command': remote_arguments[0], 'execute': execute, 'commands': commands, 'evidence': EVIDENCE}
     if not execute:
@@ -147,9 +169,10 @@ def board(remote_arguments, start=False, study_config=None):
     if start:
         with TARBALL.open('rb') as bundle:
             subprocess.run(commands[0], stdin=bundle, check=True)
-    if study_config:
-        with study_config.open('rb') as configuration:
-            subprocess.run(commands[-2], stdin=configuration, check=True)
+    copies = [file for file in (study_config, voice_lab_config) if file]
+    for offset, file in enumerate(copies):
+        with file.open('rb') as configuration:
+            subprocess.run(commands[-1 - len(copies) + offset], stdin=configuration, check=True)
     if remote_arguments == ['stop']:
         with (directory/'board-demo.tar.gz').open('wb') as fetched:
             subprocess.run(ssh(target, 'tar -czf - -C ' + BOARD_ROOT + ' logs state'), stdout=fetched, check=False)
@@ -172,8 +195,13 @@ def main():
         return build()
     if len(arguments) == 2 and arguments[0] == 'start' and arguments[1] in ('0', '180'):
         return board(['start', '--rotation', arguments[1]], start=True)
-    if len(arguments) == 4 and arguments[0] == 'start' and arguments[1] in ('0', '180') and arguments[2] == '--study-config':
-        return board(['start', '--rotation', arguments[1]], start=True, study_config=study_config_file(arguments[3]))
+    if len(arguments) in (4, 6) and arguments[0] == 'start' and arguments[1] in ('0', '180'):
+        flags = dict(zip(arguments[2::2], arguments[3::2]))
+        if len(flags) * 2 == len(arguments) - 2 and set(flags) <= {'--study-config', '--voice-lab-config'}:
+            return board(['start', '--rotation', arguments[1]], start=True,
+                         study_config=study_config_file(flags['--study-config']) if '--study-config' in flags else None,
+                         voice_lab_config=voice_lab_config_file(flags['--voice-lab-config'])
+                         if '--voice-lab-config' in flags else None)
     if arguments in (['status'], ['stop'], ['restart-ui']):
         return board(arguments)
     if len(arguments) == 2 and arguments[0] == 'presence' and arguments[1] in ('0', '1'):
@@ -182,7 +210,7 @@ def main():
         return board(arguments)
     if len(arguments) == 2 and arguments[0] in ('scenario', 'screenshot') and re.fullmatch('[a-z0-9_-]{1,80}', arguments[1]):
         return board(arguments)
-    fail('FRDM_DEMO.USAGE', 'build | start 0|180 [--study-config FILE] | status | presence 0|1 | scenario NAME | screenshot NAME | backlight-samples N | restart-ui | stop [--execute]')
+    fail('FRDM_DEMO.USAGE', 'build | start 0|180 [--study-config FILE] [--voice-lab-config FILE] | status | presence 0|1 | scenario NAME | screenshot NAME | backlight-samples N | restart-ui | stop [--execute]')
 
 print(json.dumps(main()))
 PY

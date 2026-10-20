@@ -71,7 +71,7 @@ class BoardWritesStayInTmpfs(unittest.TestCase):
         board = load_board()
         self.assertNotIn(board.BROKER_UID, (0, board.UI_UID))
         source = BOARD.read_text()
-        self.assertIn("'setpriv', f'--reuid={BROKER_UID}', f'--regid={BROKER_UID}', f'--groups={audio}'", source)
+        self.assertIn("'setpriv', f'--reuid={BROKER_UID}', f'--regid={BROKER_UID}', f'--groups={audio},{HANDOFF_GID}'", source)
         command = board.broker_command()
         self.assertEqual(command[0], '/tmp/bhp-demo/bin/bhp-media-broker')
         self.assertEqual(command[command.index('--ui-uid') + 1], str(board.UI_UID))
@@ -87,6 +87,52 @@ class BoardWritesStayInTmpfs(unittest.TestCase):
         self.assertEqual(command[command.index('--media-broker-socket') + 1],
                          board.broker_command()[board.broker_command().index('--ui-socket') + 1])
         self.assertEqual(command[command.index('--media-broker-uid') + 1], str(board.BROKER_UID))
+
+
+    def test_kept_takes_go_to_a_hand_off_only_the_broker_and_uploader_share(self):
+        board = load_board()
+        self.assertEqual(len({0, board.UI_UID, board.BROKER_UID, board.UPLOADER_UID}), 4)
+        self.assertNotIn(board.HANDOFF_GID, (0, board.UI_UID, board.BROKER_UID, board.UPLOADER_UID))
+        command = board.broker_command()
+        self.assertEqual(command[command.index('--handoff-dir') + 1], '/tmp/bhp-demo/state/voice-lab-handoff')
+        source = BOARD.read_text()
+        self.assertIn("make_directory(STATE/'voice-lab-handoff', UPLOADER_UID, HANDOFF_GID, 0o2770)", source)
+        self.assertIn("'setpriv', f'--reuid={UPLOADER_UID}', f'--regid={UPLOADER_UID}',\n"
+                      "                                    f'--groups={HANDOFF_GID}'", source)
+
+    def test_the_uploader_runs_from_the_copied_settings(self):
+        board = load_board()
+        settings = {'issuer': 'https://id.example', 'api_url': 'https://voice-lab.example', 'endpoint': 'voice-lab.example',
+                    'tailnet_suffix': 'example'}
+        command = board.uploader_command(settings)
+        self.assertEqual(command[0], '/tmp/bhp-demo/bin/bhp-voice-lab-uploader')
+        self.assertEqual(command[command.index('--ui-uid') + 1], str(board.UI_UID))
+        self.assertEqual(command[command.index('--handoff-dir') + 1], '/tmp/bhp-demo/state/voice-lab-handoff')
+        self.assertTrue(command[command.index('--state-dir') + 1].startswith('/tmp/bhp-demo/state/voice-lab'))
+        self.assertNotIn('--board-profile', command, 'no measured channel map, no profile: keep is refused')
+        with_profile = board.uploader_command(dict(settings, board_profile={'channels': []}))
+        self.assertEqual(with_profile[with_profile.index('--board-profile') + 1],
+                         '/tmp/bhp-demo/state/voice-lab/board-profile.json')
+
+    def test_the_ui_reaches_the_uploader_only_with_voice_lab(self):
+        board = load_board()
+        record = {'touch': {'x_min': 0, 'x_max': 799, 'y_min': 0, 'y_max': 479},
+                  'drm': {'path': '/dev/dri/card1', 'connector_id': 40}, 'rotation': '180'}
+        self.assertNotIn('--voice-lab-uploader-socket', board.ui_command(record))
+        command = board.ui_command(dict(record, voice_lab=True))
+        self.assertEqual(command[command.index('--voice-lab-uploader-socket') + 1], '/run/bhp-sim/uploader/ui.sock')
+        self.assertEqual(command[command.index('--voice-lab-uploader-uid') + 1], str(board.UPLOADER_UID))
+
+    def test_board_start_takes_each_option_once(self):
+        board = load_board()
+        board.require_root = lambda: None
+        started = []
+        board.start = lambda rotation, study_config=False, voice_lab=False: started.append((rotation, study_config, voice_lab))
+        board.main(['start', '--rotation', '0', '--voice-lab', '--study-config'])
+        self.assertEqual(started, [('0', True, True)])
+        for bad in (['start', '--rotation', '0', '--voice-lab', '--voice-lab'], ['start', '--rotation', '0', '--other']):
+            with self.assertRaises(ValueError):
+                board.main(bad)
 
 
 class RunnerDryRun(unittest.TestCase):
@@ -108,6 +154,29 @@ class RunnerDryRun(unittest.TestCase):
         self.assertEqual(copy, 'umask 077 && cat > /tmp/bhp-demo/config/vocabulary-panel.env')
         self.assertTrue(remote.endswith('start --rotation 180 --study-config'), remote)
         self.assertNotIn(example, ' '.join(plan['commands'][2]), 'the file travels on stdin, not as an argument')
+
+    def test_start_with_a_voice_lab_config_copies_it_and_starts_the_uploader(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.json') as config:
+            json.dump({'issuer': 'https://id.example', 'api_url': 'https://voice-lab.example',
+                       'endpoint': 'voice-lab.example', 'tailnet_suffix': 'example'}, config)
+            config.flush()
+            code, plan = dry_run('start', '0', '--study-config', str(ROOT/'config/vocabulary-panel.env.example'),
+                                 '--voice-lab-config', config.name)
+        self.assertEqual(code, 0)
+        copies = [command[-1] for command in plan['commands'][1:-1]]
+        self.assertEqual(copies, ['umask 077 && cat > /tmp/bhp-demo/config/vocabulary-panel.env',
+                                  'umask 077 && cat > /tmp/bhp-demo/config/voice-lab.json'])
+        self.assertTrue(plan['commands'][-1][-1].endswith('start --rotation 0 --study-config --voice-lab'))
+
+    def test_a_voice_lab_config_without_the_pc_fails_before_any_board_command(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.json') as config:
+            json.dump({'issuer': 'https://id.example'}, config)
+            config.flush()
+            code, result = dry_run('start', '0', '--voice-lab-config', config.name)
+        self.assertEqual(code, 1)
+        self.assertEqual(result['error']['code'], 'FRDM_DEMO.VOICE_LAB_CONFIG_INVALID')
 
     def test_a_missing_study_config_fails_before_any_board_command(self):
         code, result = dry_run('start', '0', '--study-config', '/nonexistent/vocabulary-panel.env')
@@ -178,6 +247,7 @@ class RunnerDryRun(unittest.TestCase):
         self.assertIn('-DBHP_BUILD_PANEL_DRM=ON', configure)
         self.assertIn('-DBHP_BUILD_HTTP_LEXINET_CLIENT=ON', configure)
         self.assertTrue(any(item.endswith('cmake/toolchains/frdm-vendor-aarch64.cmake') for item in configure))
+        self.assertIn('bhp-voice-lab-uploader', plan['commands'][1])
 
 
 if __name__ == '__main__':

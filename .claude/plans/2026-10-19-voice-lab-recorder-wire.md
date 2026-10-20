@@ -264,12 +264,27 @@ owner (Step 7).
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab|panel_simulation|media_broker'` exit 0;
     - `make verify` exit 0 with the new goldens recorded.
-- [ ] **Step 8: The uploader in the FRDM demo.**
+- [x] **Step 8: The uploader in the FRDM demo.** (2026-10-20)
   - Its UID, the hand-off and token directories, and its process in
     `frdm_panel_demo_board.py`. Off the tailnet it reports voice-lab
     unreachable.
+  - Done:
+    - **UIDs and directories:** the uploader runs as UID 912. GID 913 is the
+      hand-off group, which only the broker and the uploader join; both are
+      numeric, so nothing is written to the board's passwd or group files.
+      `state/voice-lab-handoff` is `912:913 2770`, and the broker always gets
+      `--handoff-dir`. The uploader's state is under `state/voice-lab`, and
+      its socket under `/run/bhp-sim/uploader`.
+    - **Opt-in:** `start 0|180 --voice-lab-config FILE` copies a
+      `voice-lab.json` on stdin. It holds the issuer, API, endpoint, tailnet
+      and, once measured, the board profile; it names the tailnet, so it
+      stays out of Git. Only then does the uploader run and the UI connect to
+      it.
+    - **Keep:** without a measured channel map the uploader refuses it
+      (`VOICE_LAB.CAPTURE_PROFILE_UNMEASURED`), and the take stays handed
+      off; `status` lists hand-offs.
   - Verify:
-    - `python3 -m unittest discover -s hardware_tests/tests` exit 0;
+    - `python3 -m unittest discover -s scripts/deploy/tests -p 'test_frdm_panel_demo.py'` exit 0;
     - `make verify` exit 0.
 - [ ] **Step 9: On the board (waits for the owner).**
   - The owner enrolls the panel, approves the first device code from a

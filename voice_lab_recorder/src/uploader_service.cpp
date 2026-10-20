@@ -128,6 +128,9 @@ std::vector<wire::UploaderEvent> UploaderService::handle(const wire::UiRequest &
 		preview_.reset();
 		outbox_due_ = ports_.steady_now();
 	} else if (const auto *keep = std::get_if<wire::KeepRequest>(&request)) {
+		// Which array channels are raw is measured on the board, never assumed.
+		if (!settings_.outbox.channels.is_array() || settings_.outbox.channels.empty())
+			return {wire::Refused{"keep", "VOICE_LAB.CAPTURE_PROFILE_UNMEASURED"}};
 		const auto prompt = find_prompt(keep->prompt_id);
 		if (!prompt)
 			return {wire::Refused{"keep", "VOICE_LAB.PROMPT_NOT_IN_CATALOG"}};

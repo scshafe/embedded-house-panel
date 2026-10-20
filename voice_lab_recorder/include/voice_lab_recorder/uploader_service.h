@@ -32,6 +32,7 @@ namespace voice_lab_recorder
 struct UploaderSettings {
 	SignInSettings sign_in;
 	CorpusClientSettings corpus;
+	/** Without a measured channel map (`outbox.channels` empty), keep is VOICE_LAB.CAPTURE_PROFILE_UNMEASURED. */
 	OutboxSettings outbox;
 	/** Owner-only: `refresh-token.json`. */
 	std::string token_directory;
