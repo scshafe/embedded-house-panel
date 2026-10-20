@@ -87,6 +87,10 @@ not always give the shortest digits.
 `voice_lab_canonical_json_take_package_test` passes every vector and rebuilds
 the golden take's records byte for byte.
 
+`voice_lab_recorder::CorpusClient` (`corpus_client.h`) sends the intake, the
+decisions and the library reads, and classifies answers as PROTOCOL.md
+section 7 does: retryable, sign in again, or refused (not retried).
+
 ## Compatibility
 
 As voice-lab's bundle README states it:
@@ -123,6 +127,9 @@ Pocket ID that behaves as v2.13 does. `scripts/voice_lab/live_contract.py`:
 | --- | --- |
 | `sign_in` | discovery; the device code with `verification_uri` and the user code; one `authorization_pending`, then approval; the refresh token saved |
 | `library` | restored from disk; a refresh that rotates the saved token before use; `GET /api/v1/catalog` with an `ETag`, then `304`; the panel's library view (`?profile=xvf3800-linear-4`) with its `ETag`, then `304`; the desktop view refused `403 client_scope`; no token refused `401` |
+| `intake_interrupted` | the golden take packaged by `write_take_package` and declared; the link drops after two 16 KiB chunks of `original.wav`, and the session shows 32,768 bytes held |
+| `intake_resume` | a new process declares again (the session kept its bytes), resumes from the server's offset, finalizes, and the session is `accepted` with its receipt; the library lists the take |
+| `decide` | `kept` with a new `req-` id and the history's revision is applied; the same request again answers the same outcome; the revision advanced once; a stale revision is refused `revision_conflict`; the prompt is `kept` in the panel's view |
 | `reuse_revokes` | a refresh, then the rotated-away token sent again: `invalid_grant`; the session's next refresh fails because the family is revoked, signs out and clears the store |
 
 Without `--execute` the script prints its plan and touches nothing. It is

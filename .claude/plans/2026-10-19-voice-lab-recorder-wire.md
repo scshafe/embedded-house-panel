@@ -116,13 +116,26 @@ owner (Step 7).
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'canonical_json|take_package'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 4: The intake and decisions.**
+- [x] **Step 4: The intake and decisions.** (2026-10-19)
   - The intake client on `ResumableUpload`: declare, send from the server's
     offset, finalize, and poll the session.
   - Decisions with stable request IDs, polled to `applied` or `refused`, and
     the library and history with their `ETag`.
   - The live check sends the golden take, interrupts an upload and resumes
     it, keeps the take, and meets a `revision_conflict`.
+  - Done: `voice_lab_recorder/include/voice_lab_recorder/corpus_client.h`
+    (`CorpusClient`, `intake_session_request`, `new_request_id`). A `401`
+    refreshes the access token once (`VoiceLabSession::invalidate_access_token`)
+    and asks again. The golden package's session request and the decision body
+    are the bundle's examples byte for byte. Live, at the pin:
+    - `intake_interrupted`: the link drops after two 16 KiB chunks, and the
+      server holds 32,768 bytes;
+    - `intake_resume`: a new process resumes from there, finalizes, and the
+      PC's own validator and admission accept the packaged golden take, with
+      its receipt;
+    - `decide`: `kept` is applied, a replay of the same request answers the
+      same outcome, the revision advances once, a stale revision is refused
+      `revision_conflict`, and the prompt is `kept` in the panel's view.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab_intake|voice_lab_decision'` exit 0;
     - `make verify-voice-lab-live` exit 0;
