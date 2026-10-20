@@ -92,11 +92,27 @@ owner (Step 7).
     - `python3 -m unittest discover -s scripts/voice_lab/tests` exit 0;
     - `make verify-voice-lab-live` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 3: Canonical JSON and the take package.**
+- [x] **Step 3: Canonical JSON and the take package.** (2026-10-19)
   - A canonical JSON writer that passes every vector, floats included.
   - The packager: from a broker take (its WAV and continuity log) and the
     prompt, catalog and device, the five files, written with `READY` last.
   - The golden take rebuilt byte for byte from the same inputs.
+  - Done: `voice_lab_recorder/include/voice_lab_recorder/canonical_json.h` and
+    `take_package.h` (`write_take_package`, `inspect_wav`, `qc_metrics`,
+    `xvf3800_capture_profile`).
+    - nlohmann's `dump()` disagreed with Python's `repr` for 29 of 1,216
+      floats (the switch to exponent form at 1e16, and digits that are not
+      the shortest), so floats are formatted from `std::to_chars` by Python's
+      rule.
+    - QC is voice-lab's at the pin, on the primary channel: exact integer
+      sums, the same thresholds and findings.
+    - The golden take's `manifest.json`, `qc.json`, `READY` and
+      `continuity.json` come out byte for byte from a broker take built from
+      the examples.
+    - The channel map, room and primary channel are inputs. The array reports
+      none of them, and which channels are raw on the board is unmeasured.
+      An unread serial, firmware string or setting is refused, never filled
+      in.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'canonical_json|take_package'` exit 0;
     - `make verify` exit 0.
