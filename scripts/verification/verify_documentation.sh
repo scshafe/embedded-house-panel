@@ -48,6 +48,7 @@ docs/research/sleep-wake-strategies.md
 docs/research/compute-platform-assessment.md
 docs/security/threat-model.md
 docs/hardware/enclosure-plan.md
+docs/hardware/mirror-unit-layout.md
 hardware_tests/README.md
 experiments/macos_personal_companion/README.md
 vocabulary_panel/README.md

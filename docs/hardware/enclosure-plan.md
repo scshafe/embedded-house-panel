@@ -53,7 +53,7 @@ wall power.
 - **Sizing:** 3M's static-load guideline is about 57 cm² of tape per kg
   (4 in² per lb). Use at least 3× that area to cover humidity, heat cycling,
   and the peel moment from a deep enclosure. Weigh the finished unit and record
-  the bonded area in `enclosure/params.yaml`.
+  the bonded area in `enclosure/params.toml`.
 - **Application:** clean with 50:50 isopropyl alcohol and water; apply at
   21–38 °C; press at about 15 psi (J-roller); wait 72 hours for full bond
   strength before hanging the unit.
@@ -112,7 +112,7 @@ Design rules:
 - A **perimeter cable channel** behind the bezel routes a harness from every
   bay to a small hub near the board header, so moving a module never needs
   re-soldering.
-- The CAD model is parameterized by a bay list in `enclosure/params.yaml`
+- The CAD model is parameterized by a bay list in `enclosure/params.toml`
   (position, module type, tilt), so an agent can regenerate the bezel and
   harness lengths from configuration.
 - Per-module constraints limit which bays are valid:
@@ -145,3 +145,13 @@ to the FRDM i.MX 8M Plus board and Waveshare 7inch DSI LCD (C) per
 [ADR 0008](../decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md). Waveshare does not publish the
 display's mechanical dimensions in text, so the measure-before-CAD rule still
 applies.
+
+**Amended 2026-10-20:** the owner asked for the printable case now, so the
+[fit-check enclosure plan](../../.claude/plans/2026-10-20-mirror-unit-fit-check-enclosure.md)
+designs from vendor data and estimates, each flagged, before the parts are
+measured. Its layout is in [mirror-unit-layout.md](mirror-unit-layout.md).
+It changes three things on this page:
+- The parameters are `enclosure/params.toml`, not YAML.
+- The microSD card is reached through the left wall, not the bottom edge.
+- The first build has one fixed PIR position (the chin's right); the
+  modular bays come later.
