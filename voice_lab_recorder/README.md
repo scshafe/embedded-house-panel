@@ -8,7 +8,7 @@ Its plans are the
 ## voice-lab's contract
 
 voice-lab's `contracts/corpus-client.v1/` bundle is pinned at voice-lab
-`8f51656` ([the voice-lab contract](../docs/interfaces/voice-lab-contract.md)).
+`ed0e891` ([the voice-lab contract](../docs/interfaces/voice-lab-contract.md)).
 Its examples sit in `tests/fixtures/corpus_client_v1/`, exported byte for byte
 by `scripts/voice_lab/export_corpus_client_v1_fixtures.py`, and
 `voice_lab_corpus_client_v1_contract_fixture_test` checks them offline.

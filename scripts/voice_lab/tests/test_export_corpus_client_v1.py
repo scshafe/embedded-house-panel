@@ -69,7 +69,7 @@ class ExportCorpusClientV1Test(unittest.TestCase):
         return caught.exception.code
 
     def test_the_pin_is_the_checked_in_revision(self) -> None:
-        self.assertEqual(voice_lab_pin.pinned_revision(), "8f516567a38a1ef10cae23060623633791b24b2f")
+        self.assertEqual(voice_lab_pin.pinned_revision(), "ed0e891a3291c459b23f288b430f579b46bfd982")
         self.assertEqual(voice_lab_pin.pin().name, "VOICE_LAB")
 
     def test_exports_the_examples_with_voice_labs_bundle_digest(self) -> None:
