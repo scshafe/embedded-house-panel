@@ -2,7 +2,7 @@
 
 <!-- @canonical mirror-unit-fit-check-enclosure-plan -->
 
-**Status (2026-10-20):** in progress; Steps 1 and 2 are done. The owner asked for a 3D-printable case for
+**Status (2026-10-20):** Steps 1–4 are done. Steps 5 and 6 are the owner's: check the templates, take the caliper list, then print and assemble. The owner asked for a 3D-printable case for
 the prototype, with the cables and the fit of every part accounted for in the
 drawings. This plan carries out Steps 4 and 5 of the
 [mirror-unit packaging plan](2026-10-11-mirror-unit-packaging.md) in the
@@ -119,7 +119,7 @@ mounting stay in the packaging plan's Steps 5 and 6.
     - `python3 enclosure/fit_check.py --check` exit 0;
     - the harness table lists every cable with its route length and bends;
     - `make verify` exit 0.
-- [ ] **Step 3: The printable parts in build123d.**
+- [x] **Step 3: The printable parts in build123d.** (2026-10-20)
   - The front shell (bezel with the glass pocket and lip, mic ports, chin
     with the PIR window, speaker grille and LED window, and vents only on
     the top and bottom edges), the panel frame, the rear plate carrying the
@@ -129,16 +129,31 @@ mounting stay in the packaging plan's Steps 5 and 6.
     The solid check fails if a printed part intersects a part box or a
     cable sweep, or exceeds the bed.
   - CI builds the venv and runs the solid check.
+  - Done: `enclosure/cad/parts.py` builds the front shell, rear plate,
+    mount plate, two panel clamps and the cable clamp, plus the board's
+    bought standoffs as a checked hardware item. The solid check passes with
+    no finding, and its tests prove it catches a collision, a cable in the
+    way, steel near the antenna and a part too big for the bed.
+    - Every internal feature prints without support: posts grow from the
+      bezel, and the wedges lean on the walls at 45°.
+    - The board's posts became bought M3 x 24 standoffs, because the rear
+      plate's back carries the cleat hook and needs its flat front face on
+      the bed.
+    - The estimated hanging mass is 755 g, which needs 129 cm² of VHB.
   - Verify:
     - `make verify-enclosure` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 4: The fit-check print package.**
+- [x] **Step 4: The fit-check print package.** (2026-10-20)
   - Fast 1:1 hole templates for the board and the panel (one or two
     layers), so the hole estimates are checked before the large parts are
     printed.
   - The full set of parts with loose fits, the print orientation and
     settings, the hardware list (screws, heat-set inserts, gasket, VHB), and
     the assembly order.
+  - Done: `docs/hardware/mirror-unit-print.md` has the generated parts and
+    hardware tables, the print settings, the template check, the assembly
+    order and what to report. CI uploads the files as the
+    `mirror-unit-print` artifact.
   - Verify:
     - `make verify-enclosure` exit 0;
     - the page lists every printed part with its orientation and the bed fit.

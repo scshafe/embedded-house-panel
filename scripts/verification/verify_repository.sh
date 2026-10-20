@@ -87,6 +87,7 @@ python3 "$SCRIPT_DIRECTORY/verify_panel_goldens.py" \
 (cd "$PROJECT_ROOT" && PYTHONDONTWRITEBYTECODE=1 \
   python3 -m unittest discover -s enclosure/tests -p 'test_*.py')
 PYTHONDONTWRITEBYTECODE=1 python3 "$PROJECT_ROOT/enclosure/fit_check.py" --check
+"$SCRIPT_DIRECTORY/verify_enclosure_solids.sh"
 "$SCRIPT_DIRECTORY/verify_aarch64_cross_build.sh"
 "$SCRIPT_DIRECTORY/verify_shell_scripts.sh"
 "$SCRIPT_DIRECTORY/verify_documentation.sh"

@@ -109,7 +109,7 @@ minimum slack. A made cable is cut to the route plus its service loop.
 | `array_usb` Array USB: gate board to the core board's PH-4 (5 V switched, D-, D+, GND) | wires | `xvf_core.usb_ph4` | `gate.core_usb` | 5V switched, D-, D+, GND | Ø3 | 2 | 25.48 | cut to 35.48 (10 loop) | 90° |  |
 | `speaker` Speaker leads to the core board's PH 2-pin | wires | `xvf_core.speaker` | `speaker.leads` | SPK+, SPK- | Ø2 | 2 | 101.16 | cut to 111.16 (10 loop) | 90°, 90°, 90°, 90°, 90° |  |
 | `pir` PIR: +5V, OUT, GND to the gate board (hub) | wires | `pir.header` | `gate.pir` | +5V, OUT (3.3 V), GND | Ø3 | 2.5 | 144.8 | cut to 159.8 (15 loop) | 90°, 90°, 90°, 90° |  |
-| `gate_j18` Gate board to J18: 5 V, GND, PIR OUT to the wake GPIO | wires | `frdm.j18` | `gate.frdm_j18` | 5V, GND, PIR OUT to the wake GPIO (FRDM-GATE-PIR) | Ø3 | 2.5 | 150.82 | cut to 165.82 (15 loop) | 90°, 90°, 90° |  |
+| `gate_j18` Gate board to J18: 5 V, GND, PIR OUT to the wake GPIO | wires | `frdm.j18` | `gate.frdm_j18` | 5V, GND, PIR OUT to the wake GPIO (FRDM-GATE-PIR) | Ø3 | 2.5 | 161.05 | cut to 176.05 (15 loop) | 90°, 90°, 90°, 90° |  |
 | `led` Mic-power LED, from the switched rail | wires | `gate.led` | `mic_led.leads` | LED+ from the switched rail, LED- | Ø2 | 2 | 33.43 | cut to 38.43 (5 loop) | 90°, 90° |  |
 <!-- /generated:harness -->
 
@@ -141,7 +141,11 @@ Estimates and placeholders, which decide the fit:
 | frdm | lvds1 | solid box | 43.8 x 6.8 x 9 at (8.6, 112.4, 0) | estimate |  |
 | frdm | backlight_jst | solid box | 14.5 x 15.6 x 6 at (54, 112.4, 0) | estimate |  |
 | frdm | jumpers | solid box | 7.3 x 6.3 x 8.5 at (69.6, 115.5, 0) | estimate |  |
-| frdm | caps_top | solid box | 80.8 x 24.1 x 8 at (7.7, 105.1, 0) | estimate |  |
+| frdm | cap_1 | solid box | 6.6 x 6.6 x 8 at (74.6, 122.6, 0) | estimate |  |
+| frdm | cap_2 | solid box | 6.6 x 6.6 x 8 at (81.9, 122.6, 0) | estimate |  |
+| frdm | cap_3 | solid box | 6.6 x 6.6 x 8 at (7.7, 105.1, 0) | estimate |  |
+| frdm | cap_4 | solid box | 6.6 x 6.6 x 8 at (53.3, 105.1, 0) | estimate |  |
+| frdm | cap_5 | solid box | 6.6 x 6.6 x 8 at (60.6, 105.1, 0) | estimate |  |
 | frdm | caps_mid | solid box | 26.1 x 15.1 x 8 at (44.2, 81.3, 0) | estimate |  |
 | frdm | inductors | solid box | 19.2 x 10.4 x 6 at (36.8, 91.6, 0) | estimate |  |
 | frdm | heatsink | solid box | 27.1 x 28.1 x 14 at (30, 42.6, 0) | estimate |  |

@@ -84,3 +84,27 @@ verify-lexinet-live:
 	cmake --preset host-dev >/dev/null
 	cmake --build .build/host-dev --target vocabulary_panel_study_live_lexinet_contract_client --parallel "$${CMAKE_BUILD_PARALLEL_LEVEL:-2}"
 	python3 scripts/lexinet/live_contract.py --execute $(if $(BHP_LEXINET_SOURCE_DIR),--lexinet-source-dir "$(BHP_LEXINET_SOURCE_DIR)")
+
+.PHONY: enclosure-venv verify-enclosure enclosure enclosure-doc
+
+# The CAD environment for enclosure/cad: a venv with the hash-locked
+# build123d closure. make verify runs the solid check only when it exists.
+ENCLOSURE_VENV := .build/enclosure/venv
+ENCLOSURE_PYTHON ?= $(shell command -v python3.12 || command -v python3)
+
+enclosure-venv:
+	test -x $(ENCLOSURE_VENV)/bin/pip || $(ENCLOSURE_PYTHON) -m venv --clear $(ENCLOSURE_VENV)
+	$(ENCLOSURE_VENV)/bin/python -m pip install --quiet --disable-pip-version-check --retries 5 --timeout 60 --require-hashes \
+		-r enclosure/requirements.txt
+
+# Build the printed parts and run the solid check (no export).
+verify-enclosure: enclosure-venv
+	./scripts/verification/verify_enclosure_solids.sh
+
+# Export STEP, STL, 3MF and summary.json to .build/enclosure/out/.
+enclosure: enclosure-venv
+	PYTHONDONTWRITEBYTECODE=1 $(ENCLOSURE_VENV)/bin/python enclosure/cad/build_enclosure.py
+
+# Regenerate the print page's tables (docs/hardware/mirror-unit-print.md).
+enclosure-doc: enclosure-venv
+	PYTHONDONTWRITEBYTECODE=1 $(ENCLOSURE_VENV)/bin/python enclosure/cad/build_enclosure.py --no-export --write-doc

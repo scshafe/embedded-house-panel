@@ -386,10 +386,34 @@ min = [69.6, 115.5, 0.0]
 size = [7.3, 6.3, 8.5]
 
 [[parts.shapes]]
-id = "caps_top"
-# Five 6.3 mm electrolytics along the top edge.
+id = "cap_1"
+# 6.3 mm electrolytic.
+min = [74.6, 122.6, 0.0]
+size = [6.6, 6.6, 8.0]
+
+[[parts.shapes]]
+id = "cap_2"
+# 6.3 mm electrolytic.
+min = [81.9, 122.6, 0.0]
+size = [6.6, 6.6, 8.0]
+
+[[parts.shapes]]
+id = "cap_3"
+# 6.3 mm electrolytic.
 min = [7.7, 105.1, 0.0]
-size = [80.8, 24.1, 8.0]
+size = [6.6, 6.6, 8.0]
+
+[[parts.shapes]]
+id = "cap_4"
+# 6.3 mm electrolytic.
+min = [53.3, 105.1, 0.0]
+size = [6.6, 6.6, 8.0]
+
+[[parts.shapes]]
+id = "cap_5"
+# 6.3 mm electrolytic.
+min = [60.6, 105.1, 0.0]
+size = [6.6, 6.6, 8.0]
 
 [[parts.shapes]]
 id = "caps_mid"
@@ -1031,7 +1055,7 @@ section = [3.0, 3.0]
 min_bend_radius = 2.5
 provenance = { status = "design", source = "3 x 26 AWG; the GPIO pin is FRDM-GATE-PIR's" }
 service_loop = 15.0
-route = [[44.85, -54.608, -36.5], [44.85, -54.608, -41.0], [44.85, -125.85, -41.0], [-19.75, -125.85, -41.0], [-19.75, -125.85, -27.3]]
+route = [[44.85, -54.608, -36.5], [44.85, -54.608, -41.0], [50.5, -54.608, -41.0], [50.5, -125.85, -41.0], [-19.75, -125.85, -41.0], [-19.75, -125.85, -27.3]]
 
 [[cables]]
 id = "led"
