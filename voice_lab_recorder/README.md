@@ -42,3 +42,21 @@ Tests: `voice_lab_device_code_token_store_test`, against a fake Pocket ID that
 behaves as voice-lab's D-056 records v2.13.0, and the live check against
 voice-lab's fake Pocket ID. A sign-in to the real Pocket ID needs the panel on
 the tailnet.
+
+## The take package (wire plan Step 3)
+
+`take_package.h` turns one committed media-broker take (`original.wav` and
+`capture.json`) into voice-lab's `cole-voice-lab.corpus-take/v2`:
+- the five files are `original.wav` unchanged, `continuity.json`,
+  `manifest.json`, `qc.json`, and `READY`, which is written last;
+- the package is assembled in `.incoming-<take id>`, renamed into place, and
+  written once;
+- every record is canonical JSON (`canonical_json.h`), byte for byte as the
+  bundle's vectors give it;
+- `qc.json` measures the primary channel as voice-lab's QC does. The PC
+  recomputes it anyway;
+- `xvf3800_capture_profile` builds the capture profile from the broker's
+  device record and the board's channel map, room and primary channel.
+
+Test: `voice_lab_canonical_json_take_package_test` rebuilds the golden take
+from the pinned examples and compares every file.

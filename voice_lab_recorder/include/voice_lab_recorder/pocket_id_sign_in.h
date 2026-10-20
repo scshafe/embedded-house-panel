@@ -1,6 +1,7 @@
 #pragma once
 #include "bhp/durable_store/durable_store.h"
 #include "bhp/http_runtime/http_request.h"
+#include "voice_lab_recorder/result.h"
 #include <chrono>
 #include <functional>
 #include <map>
@@ -21,30 +22,6 @@
  */
 namespace voice_lab_recorder
 {
-struct Error {
-	std::string code;
-	std::string message;
-	std::map<std::string, std::string> context;
-	bool retryable{false};
-};
-
-template <typename Value> class Result final
-{
-public:
-	static Result success(Value value) { return Result(std::move(value)); }
-	static Result failure(Error error) { return Result(std::move(error)); }
-	bool has_value() const { return std::holds_alternative<Value>(storage_); }
-	explicit operator bool() const { return has_value(); }
-	const Value &value() const { return std::get<Value>(storage_); }
-	Value &value() { return std::get<Value>(storage_); }
-	const Error &error() const { return std::get<Error>(storage_); }
-
-private:
-	explicit Result(Value value) : storage_(std::move(value)) {}
-	explicit Result(Error error) : storage_(std::move(error)) {}
-	std::variant<Value, Error> storage_;
-};
-
 using Clock = std::function<std::chrono::steady_clock::time_point()>;
 /** One HTTP exchange; production binds bhp::http_runtime::perform to the process runtime. */
 using HttpTransport = std::function<bhp::http_runtime::Result<bhp::http_runtime::HttpResponse>(

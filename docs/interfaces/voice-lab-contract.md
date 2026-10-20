@@ -77,6 +77,16 @@ reads only the checked-in copy:
   the invalid example shows;
 - the canonical form: each package record and each vector, byte for byte.
 
+## What the panel writes
+
+The recorder writes the five-file take package with
+`voice_lab_recorder::write_take_package` (`take_package.h`). Its canonical
+JSON writer formats floats as Python's `repr` from `std::to_chars`:
+nlohmann's `dump()` switches to exponent form at a different point and does
+not always give the shortest digits.
+`voice_lab_canonical_json_take_package_test` passes every vector and rebuilds
+the golden take's records byte for byte.
+
 ## Compatibility
 
 As voice-lab's bundle README states it:
