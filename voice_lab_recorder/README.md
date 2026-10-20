@@ -76,3 +76,19 @@ A `401` refreshes the token once, then means sign in again. Every other
 answer is retryable or a refusal, as section 7 lists. Tests:
 - `voice_lab_intake_decision_client_test` runs against an in-memory intake;
 - `make verify-voice-lab-live` runs against voice-lab's own server.
+
+## The D-021 approval and the ledger (wire plan Step 5)
+
+`home_host.h` keeps the owner's standing approval of the PC, as voice-lab's
+`home_host.py` does:
+- **The approval** names the endpoint, the tailnet, the node's stable id
+  and `tag:voice-lab`, for at most 366 days. It is stored write-once at
+  `0400` once its digest has been reviewed, and `binding.json` names it.
+- **`check_peer`** checks the node that answers against the approval
+  before every session.
+- **The ledger** is a hash chain: `upload-started` is written before the
+  first byte, then `upload-completed` (with the receipt) or
+  `upload-refused`.
+
+Test: `voice_lab_approval_ledger_test` reproduces the bundle's approval,
+binding and ledger examples byte for byte.

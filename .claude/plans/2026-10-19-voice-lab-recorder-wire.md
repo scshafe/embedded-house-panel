@@ -47,6 +47,30 @@ owner (Step 7).
    hash-locked closure (`requirements/vault-linux.txt`) and serves with a
    throwaway TLS certificate. Like `make verify-lexinet-live`, it is never
    part of `make verify`.
+3. **The uploader gets a kept take by a hand-off from the broker (taken;
+   the voice-take plan's Decision 4 left it to this plan).** The broker stays
+   the only owner of its store, and the uploader sees only takes the owner
+   kept, as ADR 0012 requires.
+   - The hand-off directory is owned by the uploader's UID, with the broker's
+     group and mode `2770`, so the broker can write there and nothing else
+     can enter.
+   - On Keep, the UI asks the broker, over the lease protocol, to hand the
+     take over. The broker copies `original.wav` and `capture.json` into
+     `.incoming-<take id>`, renames it into place, and deletes its own copy.
+   - The uploader packages the take into its outbox (Step 3) and removes the
+     hand-off copy. A take that is rejected or retaken never leaves the
+     broker.
+4. **The UI talks to the uploader over its own socket (taken).** It follows
+   ADR 0005's rules: exact-UID `SO_PEERCRED` both ways, newline-delimited JSON
+   frames with closed key sets, and stale-frame refusal. Frames may reach
+   64 KiB, because a catalog's prompts do not fit the media protocols' 4,096
+   bytes.
+   - The UI sends what the owner does: sign in, approve the PC, keep a take
+     for a prompt, and read the status.
+   - The uploader answers with its state: the device-code prompt (the URI and
+     code only), the approval preview, the outbox, and the prompts with their
+     status.
+   - The UI holds no token and makes no request to voice-lab.
 
 ## Steps
 
@@ -140,24 +164,61 @@ owner (Step 7).
     - `ctest --test-dir .build/host-dev -R 'voice_lab_intake|voice_lab_decision'` exit 0;
     - `make verify-voice-lab-live` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 5: The D-021 approval and the ledger.**
-  - The approval made on the panel's screen (endpoint, node, tag, expiry and
-    digest, then a confirmation), kept at `0400`, and its binding.
+- [x] **Step 5: The D-021 approval and the ledger.** (2026-10-19)
+  - The approval record (endpoint, tailnet, node, tag, expiry), stored
+    write-once at `0400` after its digest is reviewed, and its binding.
   - The hash-chained ledger, with `upload-started` before the first byte.
   - The node and tag check before each session, behind a port; the
     `tailscaled` side waits for enrollment.
+  - The approval screen, where the owner reviews and confirms, is Step 7.
+  - Done: `voice_lab_recorder/include/voice_lab_recorder/home_host.h`
+    (`home_host_approval`, `HomeHost::approve/load/entries/append`,
+    `check_peer`), following voice-lab's `home_host.py` at the pin.
+    - The example approval, binding and `upload-started` entry come out byte
+      for byte, and the approval's digest is the one the example binding names.
+    - Refused: more than 366 days, an endpoint outside the tailnet or in
+      upper case, unsorted classes, a wrong reviewed digest, a replaced
+      approval, a tampered or expired one, a completed upload without its
+      receipt, and a ledger with a gap.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab_approval|voice_lab_ledger'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 6: The uploader and the outbox.**
-  - The uploader process under its own UID, holding the refresh token
-    (ADR 0012), with a durable outbox of kept takes.
-  - The recorder screens on the uploader's catalog and library.
+- [ ] **Step 6: The uploader and its outbox.**
+  - `bhp-voice-lab-uploader`, under its own UID, holding the refresh token
+    (ADR 0012), the D-021 directory and a durable outbox.
+  - The outbox worker, one take at a time. It packages a handed-off take,
+    checks the approval and the node, writes `upload-started`, uploads, and
+    waits for the session's outcome. It then writes `upload-completed` or
+    `upload-refused` and, for an accepted take, sends `kept` with a stable
+    request id.
+  - It backs off on retryable answers, signs out on `invalid_grant`, and
+    stops a take for good on a refusal. After a restart it resumes from the
+    server's offset.
+  - Tests against an in-memory voice-lab and a fake node resolver, and live:
+    a handed-off golden take goes through the worker to `kept`.
   - Verify:
-    - `ctest --test-dir .build/host-dev -R 'voice_lab_uploader|panel_simulation'` exit 0;
+    - `ctest --test-dir .build/host-dev -R 'voice_lab_uploader'` exit 0;
     - `make verify-voice-lab-live` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 7: On the board (waits for the owner).**
+- [ ] **Step 7: The UI and the uploader (Decision 4), and the hand-off (Decision 3).**
+  - The uploader protocol and the recorder screens on it:
+    - sign-in (the URI and code);
+    - the approval preview and its confirmation;
+    - the prompts with "Continue Missing";
+    - the outbox status line.
+  - The broker's hand-off on Keep, through the lease protocol.
+  - The simulator runs the uploader in process against a fake voice-lab.
+  - Verify:
+    - `ctest --test-dir .build/host-dev -R 'voice_lab|panel_simulation|media_broker'` exit 0;
+    - `make verify` exit 0 with the new goldens recorded.
+- [ ] **Step 8: The uploader in the FRDM demo.**
+  - Its UID, the hand-off and token directories, and its process in
+    `frdm_panel_demo_board.py`. Off the tailnet it reports voice-lab
+    unreachable.
+  - Verify:
+    - `python3 -m unittest discover -s hardware_tests/tests` exit 0;
+    - `make verify` exit 0.
+- [ ] **Step 9: On the board (waits for the owner).**
   - The owner enrolls the panel, approves the first device code from a
     phone, and confirms the D-021 approval on the panel.
   - A spoken take is uploaded, accepted and kept.

@@ -91,6 +91,11 @@ the golden take's records byte for byte.
 decisions and the library reads, and classifies answers as PROTOCOL.md
 section 7 does: retryable, sign in again, or refused (not retried).
 
+The D-021 records (PROTOCOL.md section 2) are `voice_lab_recorder::HomeHost`
+(`home_host.h`): the approval, written once at `0400`, its binding, and the
+hash-chained ledger. `voice_lab_approval_ledger_test` reproduces the bundle's
+three examples byte for byte.
+
 ## Compatibility
 
 As voice-lab's bundle README states it:
