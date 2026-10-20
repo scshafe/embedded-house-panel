@@ -42,7 +42,8 @@ void request_stop(int) { stopping = 1; }
 const char *kUsage =
 	"usage: bhp-voice-lab-uploader --ui-socket PATH --ui-uid UID --state-dir DIR --handoff-dir DIR\n"
 	"  --issuer https://HOST --api-url https://HOST --endpoint HOST --tailnet-suffix NAME\n"
-	"  --board-profile FILE [--client-version TEXT] [--tailscale PATH] [--ca-file PEM]\n";
+	"  [--board-profile FILE] [--client-version TEXT] [--tailscale PATH] [--ca-file PEM]\n"
+	"  Without --board-profile (the array's measured channel map) keep is refused.\n";
 
 std::string utc_now()
 {
@@ -204,16 +205,16 @@ int main(int argc, char **argv)
 	}
 	if (ui_socket.empty() || ui_uid == 0 || ui_uid > 0xffffffffULL || state_dir.empty() || handoff_dir.empty() ||
 	    issuer.rfind("https://", 0) != 0 || api_url.rfind("https://", 0) != 0 || endpoint.empty() ||
-	    suffix.empty() || profile_path.empty() || ui_uid == static_cast<unsigned long long>(::geteuid())) {
+	    suffix.empty() || ui_uid == static_cast<unsigned long long>(::geteuid())) {
 		std::cerr << kUsage;
 		return 2;
 	}
-	const auto profile_text = read_file(profile_path);
+	const auto profile_text = profile_path.empty() ? std::optional<std::string>("{}") : read_file(profile_path);
 	const Json profile = profile_text ? Json::parse(*profile_text, nullptr, false) : Json();
-	if (!profile.is_object() || !profile.contains("channels") || !profile["channels"].is_array() ||
+	if (!profile_path.empty() && (!profile.is_object() || !profile.contains("channels") || !profile["channels"].is_array() ||
 	    !profile.contains("room") || !profile["room"].is_string() || !profile.contains("primary_channel") ||
 	    !profile["primary_channel"].is_number_unsigned() || !profile.contains("capture_host") ||
-	    !profile["capture_host"].is_string()) {
+	    !profile["capture_host"].is_string())) {
 		logger.log_error("voice_lab_board_profile_invalid", trace, "VOICE_LAB.BOARD_PROFILE_INVALID",
 				 "The board profile needs channels, room, primary_channel and capture_host", "");
 		return 2;
@@ -255,10 +256,10 @@ int main(int argc, char **argv)
 	settings.outbox.handoff_directory = handoff_dir;
 	settings.outbox.outbox_directory = state_dir + "/outbox";
 	settings.outbox.home_host_directory = state_dir + "/home-host";
-	settings.outbox.channels = profile["channels"];
-	settings.outbox.room = profile["room"];
-	settings.outbox.primary_channel = profile["primary_channel"];
-	settings.outbox.capture_host = profile["capture_host"];
+	settings.outbox.channels = profile.value("channels", Json::array());
+	settings.outbox.room = profile.value("room", std::string());
+	settings.outbox.primary_channel = profile.value("primary_channel", 0U);
+	settings.outbox.capture_host = profile.value("capture_host", std::string("house-panel"));
 	settings.outbox.client = {{"name", "embedded-house-panel"}, {"version", client_version}, {"platform", "Linux aarch64"}};
 	settings.approval_endpoint = endpoint;
 	settings.tailnet_suffix = suffix;

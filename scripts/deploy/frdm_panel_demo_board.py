@@ -7,7 +7,7 @@ and its own transient systemd units, whose output goes to /tmp/bhp-demo/logs
 rather than the journal. It stops weston for the demo and starts it again in
 `stop`. Every value it writes is a demo value; nothing here is gate evidence.
 
-Usage: frdm_panel_demo_board.py start --rotation 0|180 | status |
+Usage: frdm_panel_demo_board.py start --rotation 0|180 [--study-config] [--voice-lab] | status |
        presence 0|1 | scenario NAME | screenshot NAME | stop
 """
 from __future__ import annotations
@@ -30,6 +30,9 @@ RUN = Path('/run/bhp-sim')
 STATE = ROOT/'state'
 # Optional live study client settings (issue #21), copied in by the PC runner.
 STUDY_CONFIG = ROOT/'config/vocabulary-panel.env'
+# Optional voice-lab uploader settings (issue #23): the PC's issuer, API and node,
+# and the array's measured channel map when there is one. No credential.
+VOICE_LAB_CONFIG = ROOT/'config/voice-lab.json'
 LOGS = ROOT/'logs'
 EVIDENCE = 'demo_not_gate_evidence'
 UI_UID = 910
@@ -39,7 +42,11 @@ AUDIO_GROUP = 'audio'
 # The array's ALSA device, measured on 2026-10-19 (docs/hardware/xvf3800-array-on-frdm.md).
 ARRAY_PCM = 'hw:CARD=L16K6Ch,DEV=0'
 VIDEO_GROUP = 'video'
-UNITS = ('bhp-demo-ui', 'bhp-demo-broker', 'bhp-demo-supervisor', 'bhp-demo-pir')
+# The voice-lab uploader (issue #23, ADR 0012): its own UID. Its hand-off directory's
+# group is shared by the broker and the uploader alone (recorder wire plan Decision 3).
+UPLOADER_UID = 912
+HANDOFF_GID = 913
+UNITS = ('bhp-demo-ui', 'bhp-demo-uploader', 'bhp-demo-broker', 'bhp-demo-supervisor', 'bhp-demo-pir')
 WESTON_UNITS = ('weston.socket', 'weston.service')
 TOUCH_NAME = 'Goodix Capacitive TouchScreen'
 BACKLIGHT = Path('/sys/class/backlight/2-0045')
@@ -151,7 +158,7 @@ def demo_solar_position(start: float) -> dict:
             'scan_hours': DAY_SCAN_SECONDS//3600}
 
 
-def configure(rotation: str, study_config: bool = False) -> dict:
+def configure(rotation: str, study_config: bool = False, voice_lab: bool = False) -> dict:
     """Writes the demo supervisor env and runtime record. Mirrors the VM guest's configure()."""
     make_directory(RUN, 0, 0, 0o755)
     for name in ('lifecycle', 'touch'):
@@ -165,6 +172,12 @@ def configure(rotation: str, study_config: bool = False) -> dict:
     make_directory(STATE/'study', UI_UID, UI_UID, 0o700)
     make_directory(STATE/'screenshots', UI_UID, UI_UID, 0o755)
     make_directory(STATE/'media', BROKER_UID, BROKER_UID, 0o700)
+    # Kept takes leave the broker for the uploader here, voice-lab or not.
+    make_directory(STATE/'voice-lab-handoff', UPLOADER_UID, HANDOFF_GID, 0o2770)
+    if voice_lab:
+        make_directory(STATE/'voice-lab', UPLOADER_UID, UPLOADER_UID, 0o700)
+        # The uploader's UI socket inherits the UI's group through the setgid bit.
+        make_directory(RUN/'uploader', UPLOADER_UID, UI_UID, 0o2750)
     make_directory(LOGS, 0, 0, 0o755)
     touch = touch_device()
     drm = drm_device()
@@ -185,7 +198,7 @@ def configure(rotation: str, study_config: bool = False) -> dict:
               'MEDIA_BROKER_UID': BROKER_UID, 'MEDIA_WINDOW_SOCKET': str(RUN/'media/window.sock')}
     (STATE/'supervisor.env').write_text(''.join(f'BHP_PANEL_SUPERVISOR_{key}={value}\n' for key, value in values.items()))
     record = {'touch': touch, 'drm': drm, 'rotation': rotation, 'solar': solar, 'study_config': study_config,
-              'evidence': EVIDENCE}
+              'voice_lab': voice_lab, 'evidence': EVIDENCE}
     (STATE/'runtime.json').write_text(json.dumps(record, indent=2) + '\n')
     return record
 
@@ -203,13 +216,42 @@ def ui_command(record: dict) -> list[str]:
             '--touch-min-x', str(touch['x_min']), '--touch-max-x', str(touch['x_max']),
             '--touch-min-y', str(touch['y_min']), '--touch-max-y', str(touch['y_max']),
             '--media-broker-socket', str(RUN/'broker/ui.sock'), '--media-broker-uid', str(BROKER_UID),
-            *(['--study-config', str(STUDY_CONFIG)] if record.get('study_config') else [])]
+            *(['--study-config', str(STUDY_CONFIG)] if record.get('study_config') else []),
+            *(['--voice-lab-uploader-socket', str(RUN/'uploader/ui.sock'),
+               '--voice-lab-uploader-uid', str(UPLOADER_UID)] if record.get('voice_lab') else [])]
 
 
 def broker_command() -> list[str]:
     return [str(ROOT/'bin/bhp-media-broker'), '--ui-socket', str(RUN/'broker/ui.sock'), '--ui-uid', str(UI_UID),
             '--window-socket', str(RUN/'media/window.sock'), '--supervisor-uid', '0',
-            '--take-root', str(STATE/'media/takes'), '--pcm', ARRAY_PCM, '--maximum-seconds', '600']
+            '--take-root', str(STATE/'media/takes'), '--pcm', ARRAY_PCM, '--maximum-seconds', '600',
+            '--handoff-dir', str(STATE/'voice-lab-handoff')]
+
+
+def voice_lab_settings() -> dict:
+    """The copied voice-lab.json: https issuer and API, the PC's host name and tailnet."""
+    settings = json.loads(VOICE_LAB_CONFIG.read_text())
+    if not isinstance(settings, dict) or set(settings) - {'issuer', 'api_url', 'endpoint', 'tailnet_suffix', 'board_profile'}:
+        raise ValueError('FRDM_DEMO.VOICE_LAB_CONFIG_INVALID')
+    for key in ('issuer', 'api_url'):
+        if not re.fullmatch(r'https://[a-z0-9.-]+(:[0-9]+)?', str(settings.get(key, ''))):
+            raise ValueError('FRDM_DEMO.VOICE_LAB_CONFIG_INVALID ' + key)
+    for key in ('endpoint', 'tailnet_suffix'):
+        if not re.fullmatch(r'[a-z0-9.-]+', str(settings.get(key, ''))):
+            raise ValueError('FRDM_DEMO.VOICE_LAB_CONFIG_INVALID ' + key)
+    return settings
+
+
+def uploader_command(settings: dict) -> list[str]:
+    command = [str(ROOT/'bin/bhp-voice-lab-uploader'), '--ui-socket', str(RUN/'uploader/ui.sock'),
+               '--ui-uid', str(UI_UID), '--state-dir', str(STATE/'voice-lab/state'),
+               '--handoff-dir', str(STATE/'voice-lab-handoff'), '--issuer', settings['issuer'],
+               '--api-url', settings['api_url'], '--endpoint', settings['endpoint'],
+               '--tailnet-suffix', settings['tailnet_suffix']]
+    # Without the array's measured channel map the uploader refuses to package takes.
+    if 'board_profile' in settings:
+        command += ['--board-profile', str(STATE/'voice-lab/board-profile.json')]
+    return command
 
 
 def transient(unit: str, command: list[str], *properties: str) -> None:
@@ -233,13 +275,13 @@ def unit_active(unit: str) -> bool:
 
 
 def libraries_resolve() -> None:
-    for binary in ('bhp-panel-ui', 'panel_supervisord', 'bhp-sim-pir', 'bhp-media-broker'):
+    for binary in ('bhp-panel-ui', 'panel_supervisord', 'bhp-sim-pir', 'bhp-media-broker', 'bhp-voice-lab-uploader'):
         result = subprocess.run(['ldd', str(ROOT/'bin'/binary)], capture_output=True, text=True)
         if result.returncode != 0 or 'not found' in result.stdout:
             raise ValueError('FRDM_DEMO.LIBRARY_MISSING ' + binary + ' ' + result.stdout.strip())
 
 
-def start(rotation: str, study_config: bool = False) -> dict:
+def start(rotation: str, study_config: bool = False, voice_lab: bool = False) -> dict:
     if rotation not in ('0', '180'):
         raise ValueError('FRDM_DEMO.ROTATION_INVALID')
     if any(unit_active(unit) for unit in UNITS):
@@ -251,7 +293,17 @@ def start(rotation: str, study_config: bool = False) -> dict:
         # Readable by the UI's group only; it holds no credential (ADR 0010).
         os.chown(STUDY_CONFIG, 0, UI_UID)
         os.chmod(STUDY_CONFIG, 0o640)
-    record = configure(rotation, study_config)
+    settings = None
+    if voice_lab:
+        if not VOICE_LAB_CONFIG.is_file():
+            raise ValueError('FRDM_DEMO.VOICE_LAB_CONFIG_MISSING')
+        settings = voice_lab_settings()
+    record = configure(rotation, study_config, voice_lab)
+    if settings is not None and 'board_profile' in settings:
+        profile = STATE/'voice-lab/board-profile.json'
+        profile.write_text(json.dumps(settings['board_profile']) + '\n')
+        os.chown(profile, UPLOADER_UID, UPLOADER_UID)
+        os.chmod(profile, 0o600)
     weston = [unit for unit in WESTON_UNITS if unit_active(unit)]
     (STATE/'weston-was-active.json').write_text(json.dumps(weston) + '\n')
     if weston:
@@ -263,6 +315,8 @@ def start(rotation: str, study_config: bool = False) -> dict:
               'EnvironmentFile=' + str(STATE/'supervisor.env'))
     wait_for(lambda: (RUN/'lifecycle/mode.sock').exists(), 'FRDM_DEMO.SUPERVISOR_SOCKET_MISSING')
     start_broker()
+    if settings is not None:
+        start_uploader(settings)
     # systemd's User= needs a passwd entry, and adding one would write the board's
     # storage; setpriv drops the unit to the bare UID instead.
     start_ui(record)
@@ -271,10 +325,23 @@ def start(rotation: str, study_config: bool = False) -> dict:
 
 def start_broker() -> None:
     audio = grp.getgrnam(AUDIO_GROUP).gr_gid
-    transient('bhp-demo-broker', ['setpriv', f'--reuid={BROKER_UID}', f'--regid={BROKER_UID}', f'--groups={audio}',
+    transient('bhp-demo-broker', ['setpriv', f'--reuid={BROKER_UID}', f'--regid={BROKER_UID}', f'--groups={audio},{HANDOFF_GID}',
                                   '--inh-caps=-all', '--bounding-set=-all', '--no-new-privs', *broker_command()],
               'WorkingDirectory=' + str(ROOT))
     wait_for(lambda: (RUN/'broker/ui.sock').exists(), 'FRDM_DEMO.BROKER_SOCKET_MISSING')
+
+
+def start_uploader(settings: dict) -> None:
+    transient('bhp-demo-uploader', ['setpriv', f'--reuid={UPLOADER_UID}', f'--regid={UPLOADER_UID}',
+                                    f'--groups={HANDOFF_GID}', '--inh-caps=-all', '--bounding-set=-all',
+                                    '--no-new-privs', *uploader_command(settings)],
+              'WorkingDirectory=' + str(ROOT))
+    wait_for(lambda: (RUN/'uploader/ui.sock').exists(), 'FRDM_DEMO.UPLOADER_SOCKET_MISSING')
+
+
+def handed_off() -> list[str]:
+    """Kept takes the broker handed to the uploader that it has not packaged yet."""
+    return sorted(path.name for path in (STATE/'voice-lab-handoff').glob('take-*') if path.is_dir())
 
 
 def takes() -> list[dict]:
@@ -326,7 +393,8 @@ def status() -> dict:
             'brightness': int((BACKLIGHT/'brightness').read_text()),
             'solar': json.loads((STATE/'runtime.json').read_text()).get('solar'),
             'study_config': json.loads((STATE/'runtime.json').read_text()).get('study_config', False),
-            'takes': takes(), 'ui': latest_ui_status(), 'evidence': EVIDENCE}
+            'voice_lab': json.loads((STATE/'runtime.json').read_text()).get('voice_lab', False),
+            'takes': takes(), 'handed_off': handed_off(), 'ui': latest_ui_status(), 'evidence': EVIDENCE}
 
 
 def datagram(path: Path, payload: bytes) -> None:
@@ -404,10 +472,11 @@ def stop() -> dict:
 
 def main(arguments: list[str]) -> dict:
     require_root()
-    if arguments[:2] == ['start', '--rotation'] and len(arguments) == 3:
-        return start(arguments[2])
-    if arguments[:2] == ['start', '--rotation'] and len(arguments) == 4 and arguments[3] == '--study-config':
-        return start(arguments[2], study_config=True)
+    if arguments[:2] == ['start', '--rotation'] and len(arguments) >= 3:
+        options = arguments[3:]
+        if len(set(options)) != len(options) or set(options) - {'--study-config', '--voice-lab'}:
+            raise ValueError('FRDM_DEMO.USAGE')
+        return start(arguments[2], study_config='--study-config' in options, voice_lab='--voice-lab' in options)
     if arguments == ['restart-ui']:
         return restart_ui()
     if arguments == ['status']:

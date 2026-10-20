@@ -134,3 +134,18 @@ Tests:
 - the daemon's usage test;
 - the live check's `uploader` scenario, which drives the service by protocol
   requests alone, from sign-in to a missing prompt shown as kept.
+
+## On the FRDM demo (wire plan Step 8)
+
+`scripts/deploy/frdm_panel_demo.sh start 0|180 --voice-lab-config FILE`
+runs `bhp-voice-lab-uploader` on the board.
+- **Where it runs:** as UID 912, with hand-off group 913, from
+  `/tmp/bhp-demo`.
+- **The file:** `voice-lab.json` holds the issuer, `api_url`, `endpoint`,
+  `tailnet_suffix` and, once the array's channel map is measured,
+  `board_profile`. It holds no credential, but it names the tailnet, so keep
+  it out of Git.
+- **Off the tailnet** the recorder shows Sign in, and the sign-in reports
+  Pocket ID unreachable.
+- **Without `board_profile`** a kept take stays in the hand-off directory,
+  because Keep is refused (`VOICE_LAB.CAPTURE_PROFILE_UNMEASURED`).

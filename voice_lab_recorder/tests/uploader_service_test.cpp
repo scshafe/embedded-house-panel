@@ -74,6 +74,8 @@ struct World {
 		return json(404, {{"error", "not_found"}});
 	}
 
+	bool measured{true};
+
 	void open()
 	{
 		const Json profile = golden::example("take/manifest.json")["capture_profile"];
@@ -84,7 +86,7 @@ struct World {
 		settings.outbox.handoff_directory = (root / "handoff").string();
 		settings.outbox.outbox_directory = (root / "outbox").string();
 		settings.outbox.home_host_directory = (root / "home-host").string();
-		settings.outbox.channels = profile["channels"];
+		settings.outbox.channels = measured ? profile["channels"] : Json::array();
 		settings.outbox.room = profile["room"];
 		settings.outbox.primary_channel = profile["primary_channel"];
 		settings.outbox.client = {{"name", "embedded-house-panel"}, {"version", "0"}, {"platform", "Linux aarch64"}};
@@ -169,6 +171,23 @@ void restored_session_reads_views_and_approves()
 	       "a kept take is packaged into the outbox");
 }
 
+void unmeasured_channel_map()
+{
+	World world;
+	world.measured = false;
+	RefreshTokenStore((world.root / "token").string()).save(kIssuer, "voice-lab-panel", "refresh-0");
+	world.open();
+	if (!world.service)
+		return expect(false, "service opens");
+	world.service->tick();
+	const auto take = golden::broker_take(world.root / "handoff", golden::golden_wav(), golden::device_record());
+	auto kept = world.service->handle(wire::KeepRequest{take.filename().string(), "reference-neutral-01",
+							    "2026-10-19T12:00:00Z"});
+	expect(refused_of(kept) && refused_of(kept)->error_code == "VOICE_LAB.CAPTURE_PROFILE_UNMEASURED" &&
+		       fs::exists(take),
+	       "without a measured channel map a take is not packaged, and stays handed off");
+}
+
 void sign_in_flow()
 {
 	World world;
@@ -187,6 +206,7 @@ int main()
 	signed_out_and_unresolvable();
 	restored_session_reads_views_and_approves();
 	sign_in_flow();
+	unmeasured_channel_map();
 	if (failures)
 		std::cerr << failures << " failure(s)\n";
 	return failures ? 1 : 0;
