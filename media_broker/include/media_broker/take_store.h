@@ -46,6 +46,16 @@ public:
 	std::vector<std::string> take_ids() const;
 	/** Deletes one committed take; MEDIA_TAKE.UNKNOWN when there is none by that ID. */
 	MediaResult<Done> discard(const std::string &take_id) const;
+	/**
+	 * Moves one committed take into `handoff_directory` (the voice-lab uploader's,
+	 * recorder wire plan Decision 3): copies `original.wav` and `capture.json`
+	 * (0640, in a 0770 directory, for the group the broker and the uploader
+	 * share) into `.incoming-<take id>`, syncs and renames them into place, then deletes the
+	 * take here. A take already handed over is only deleted here.
+	 * MEDIA_TAKE.UNKNOWN for no such take, MEDIA_TAKE.HANDOFF_FAILED on I/O
+	 * (the partial copy is removed and the take stays).
+	 */
+	MediaResult<Done> hand_off(const std::string &take_id, const std::string &handoff_directory) const;
 	const std::string &root() const { return root_; }
 
 private:

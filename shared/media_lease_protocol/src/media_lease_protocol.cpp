@@ -206,6 +206,11 @@ Result<std::string> encode(const UiRequest &request)
 			return Result<std::string>::failure(wire_error("encode_discard"));
 		return finish({{"take_id", discard->take_id}}, "discard");
 	}
+	if (const auto *hand_off = std::get_if<HandOffRequest>(&request)) {
+		if (!valid_take_id(hand_off->take_id))
+			return Result<std::string>::failure(wire_error("encode_hand_off"));
+		return finish({{"take_id", hand_off->take_id}}, "hand_off");
+	}
 	const bool start = std::holds_alternative<StartRequest>(request);
 	const auto &lease = start ? std::get<StartRequest>(request).lease_id : std::get<StopRequest>(request).lease_id;
 	if (!opaque_id(lease))
@@ -235,6 +240,10 @@ Result<std::string> encode(const BrokerEvent &event)
 				if (!valid_take_id(value.take_id))
 					return Result<std::string>::failure(wire_error("encode_discarded"));
 				return finish({{"take_id", value.take_id}}, "discarded");
+			} else if constexpr (std::is_same_v<Type, HandedOff>) {
+				if (!valid_take_id(value.take_id))
+					return Result<std::string>::failure(wire_error("encode_handed_off"));
+				return finish({{"take_id", value.take_id}}, "handed_off");
 			} else if constexpr (std::is_same_v<Type, Level>) {
 				if (!valid(value))
 					return Result<std::string>::failure(wire_error("encode_level"));
@@ -293,6 +302,13 @@ Result<UiRequest> decode_ui_request(std::string_view frame)
 			return Output::failure(wire_error("decode_discard"));
 		return Output::success(DiscardRequest{take});
 	}
+	if (type == "hand_off") {
+		std::string take;
+		if (!exact_keys(value, {"type", "version", "take_id"}) || !read_string(value, "take_id", take) ||
+		    !valid_take_id(take))
+			return Output::failure(wire_error("decode_hand_off"));
+		return Output::success(HandOffRequest{take});
+	}
 	if (type == "start" || type == "stop") {
 		std::string lease;
 		if (!exact_keys(value, {"type", "version", "lease_id"}) || !read_string(value, "lease_id", lease) ||
@@ -340,6 +356,13 @@ Result<BrokerEvent> decode_broker_event(std::string_view frame)
 		if (!exact_keys(value, {"type", "version", "take_id"}) || !read_string(value, "take_id", discarded.take_id))
 			return Output::failure(wire_error("decode_discarded"));
 		return checked(discarded);
+	}
+	if (type == "handed_off") {
+		HandedOff handed_off;
+		if (!exact_keys(value, {"type", "version", "take_id"}) ||
+		    !read_string(value, "take_id", handed_off.take_id))
+			return Output::failure(wire_error("decode_handed_off"));
+		return checked(handed_off);
 	}
 	if (type == "level") {
 		Level level;

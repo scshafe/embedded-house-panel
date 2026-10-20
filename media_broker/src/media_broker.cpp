@@ -181,6 +181,8 @@ void MediaBroker::handle(const lease::UiRequest &request)
 		start(start_request->lease_id);
 	else if (const auto *discard_request = std::get_if<lease::DiscardRequest>(&request))
 		discard(discard_request->take_id);
+	else if (const auto *hand_off_request = std::get_if<lease::HandOffRequest>(&request))
+		hand_off(hand_off_request->take_id);
 	else
 		stop(std::get<lease::StopRequest>(request).lease_id);
 }
@@ -258,6 +260,17 @@ void MediaBroker::discard(const std::string &take_id)
 	if (auto removed = store_.discard(take_id); !removed)
 		return refuse(take_id, removed.error().code);
 	send(lease::Discarded{take_id});
+}
+
+void MediaBroker::hand_off(const std::string &take_id)
+{
+	if (state_ != State::Idle)
+		return refuse(take_id, "MEDIA_BROKER.BUSY");
+	if (settings_.handoff_directory.empty())
+		return refuse(take_id, "MEDIA_BROKER.HANDOFF_DISABLED");
+	if (auto moved = store_.hand_off(take_id, settings_.handoff_directory); !moved)
+		return refuse(take_id, moved.error().code);
+	send(lease::HandedOff{take_id});
 }
 
 void MediaBroker::step_deadlines()

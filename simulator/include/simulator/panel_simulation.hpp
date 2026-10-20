@@ -69,6 +69,7 @@ public:
  void service();
  /** Where the in-process broker keeps takes (a temporary directory). */
  std::string voice_lab_take_root() const {return voice_lab_runtime_?voice_lab_runtime_->take_root():std::string();}
+ std::string voice_lab_handoff_root() const {return voice_lab_runtime_?voice_lab_runtime_->handoff_root():std::string();}
  /** Explicit simulation clock; advances fixture minutes, never household civil time. */
  void enable_preview_clock(bool enabled);
  void advance_preview_clock();
