@@ -92,3 +92,20 @@ answer is retryable or a refusal, as section 7 lists. Tests:
 
 Test: `voice_lab_approval_ledger_test` reproduces the bundle's approval,
 binding and ledger examples byte for byte.
+
+## The outbox (wire plan Step 6)
+
+`outbox.h` is the uploader's durable queue of kept takes:
+- `keep` packages a take the broker handed off, records it in `outbox.json`,
+  and removes the hand-off copy.
+- `step` moves the oldest take one action along:
+  `queued`, `uploaded`, `accepted`, `kept`, or `refused`.
+- Every attempt first checks the D-021 approval and the node, and writes the
+  ledger.
+- The `kept` request id is saved before it is sent.
+- Retryable answers back off. A refusal ends that take. Signed out, no
+  approval, or another node blocks the queue, with the reason in `status()`.
+
+Test: `voice_lab_uploader_outbox_test` runs it against an in-memory
+voice-lab. `make verify-voice-lab-live` runs it against voice-lab's own
+server.

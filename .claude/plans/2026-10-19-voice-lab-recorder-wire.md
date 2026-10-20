@@ -183,9 +183,11 @@ owner (Step 7).
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab_approval|voice_lab_ledger'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 6: The uploader and its outbox.**
-  - `bhp-voice-lab-uploader`, under its own UID, holding the refresh token
-    (ADR 0012), the D-021 directory and a durable outbox.
+- [x] **Step 6: The uploader's outbox.** (2026-10-20)
+  - The outbox the uploader runs: its refresh token (ADR 0012), the D-021
+    directory and a durable queue. The process itself, `bhp-voice-lab-uploader`,
+    comes with its socket in Step 7: it has nothing to do until the UI can
+    send it a kept take.
   - The outbox worker, one take at a time. It packages a handed-off take,
     checks the approval and the node, writes `upload-started`, uploads, and
     waits for the session's outcome. It then writes `upload-completed` or
@@ -196,11 +198,32 @@ owner (Step 7).
     server's offset.
   - Tests against an in-memory voice-lab and a fake node resolver, and live:
     a handed-off golden take goes through the worker to `kept`.
+  - Done: `voice_lab_recorder/include/voice_lab_recorder/outbox.h`
+    (`Outbox::open/keep/step/status`).
+    - The queue is `outbox.json` in a DurableFile. A take moves through
+      `queued`, `uploaded`, `accepted` and `kept`, or ends at `refused`.
+    - `keep` builds the capture profile from the hand-off's device record and
+      the board's settings. With the golden device record, that gives the
+      golden manifest byte for byte. It removes the hand-off copy once the
+      package and its record are durable.
+    - Before each attempt it loads the approval, checks that it covers
+      `capture`, and checks the node. It writes `upload-started` once per
+      attempt in a process, and `upload-completed` with the receipt's
+      digest (voice-lab's `record_sha256`), or `upload-refused`.
+    - The `kept` request id is saved before the first send. A request that
+      was lost is sent again under the same id (404 on its status), and a
+      `revision_conflict` reads the history and decides again, at most twice.
+    - Tests: blocked without an approval, on another node, or signed out;
+      a restart that resumes without resending a byte; a refused take; a lost
+      decision. Live: a new take goes through the outbox to `kept` in
+      voice-lab's history.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab_uploader'` exit 0;
     - `make verify-voice-lab-live` exit 0;
     - `make verify` exit 0.
 - [ ] **Step 7: The UI and the uploader (Decision 4), and the hand-off (Decision 3).**
+  - `bhp-voice-lab-uploader`, under its own UID, running the outbox and
+    serving the UI's socket.
   - The uploader protocol and the recorder screens on it:
     - sign-in (the URI and code);
     - the approval preview and its confirmation;

@@ -9,10 +9,13 @@
 #include "bhp/http_runtime/http_request.h"
 #include "golden_take.hpp"
 #include "voice_lab_recorder/corpus_client.h"
+#include "voice_lab_recorder/home_host.h"
+#include "voice_lab_recorder/outbox.h"
 #include "voice_lab_recorder/pocket_id_sign_in.h"
 #include "voice_lab_recorder/take_package.h"
 #include <nlohmann/json.hpp>
 #include <chrono>
+#include <ctime>
 #include <filesystem>
 #include <cstdlib>
 #include <fstream>
@@ -179,6 +182,8 @@ public:
 		request.trusted_ca_pem_for_tests = settings.trusted_ca_pem_for_tests;
 		return bhp::http_runtime::perform(*runtime_, request, runtime_->cancellation());
 	}
+
+	const std::string &state_directory() const { return options_.state_directory; }
 
 	std::optional<std::string> stored_token()
 	{
@@ -496,6 +501,107 @@ int decide(Live &live)
 	return report.finish();
 }
 
+std::string utc_now()
+{
+	const std::time_t now = std::time(nullptr);
+	std::tm parts{};
+	gmtime_r(&now, &parts);
+	char text[32];
+	std::strftime(text, sizeof text, "%Y-%m-%dT%H:%M:%SZ", &parts);
+	return text;
+}
+
+/**
+ * The uploader's outbox, end to end: a new take handed off as the broker would,
+ * approved for a node a fake resolver vouches for (there is no tailnet here),
+ * then stepped until voice-lab holds it as kept.
+ */
+int outbox(Live &live)
+{
+	Report report("outbox");
+	if (!live.discover_endpoints(report))
+		return report.finish();
+	auto session = live.session();
+	auto restored = session->restore();
+	if (!report.check("restored_signed_in", restored.has_value() && restored.value()))
+		return report.finish();
+	auto client = live.corpus(*session, 16384);
+	const auto root = std::filesystem::path(live.state_directory()) / "uploader-outbox";
+	for (const char *name : {"handoff", "outbox", "home-host"}) {
+		std::filesystem::create_directories(root / name);
+		std::filesystem::permissions(root / name, std::filesystem::perms::owner_all,
+					     std::filesystem::perm_options::replace);
+	}
+	const std::string now = utc_now();
+	std::int64_t seconds = 0;
+	parse_utc(now, seconds);
+	const std::time_t later = static_cast<std::time_t>(seconds + 30 * 24 * 3600);
+	std::tm parts{};
+	gmtime_r(&later, &parts);
+	char expires[32];
+	std::strftime(expires, sizeof expires, "%Y-%m-%dT%H:%M:%SZ", &parts);
+	auto approval = home_host_approval({"pc-fixture", "pc.fixture.invalid", "fixture.invalid", "nFIXTURE1",
+					    {"capture"}, now, expires, "live check", "Takes from the live check."});
+	HomeHost home((root / "home-host").string());
+	const bool approved = approval.has_value() &&
+			      home.approve(approval.value(), record_sha256(approval.value()).value(), now).has_value();
+	report.check("approved", approved);
+
+	const Wire profile = golden::example("take/manifest.json")["capture_profile"];
+	OutboxSettings settings;
+	settings.handoff_directory = (root / "handoff").string();
+	settings.outbox_directory = (root / "outbox").string();
+	settings.home_host_directory = (root / "home-host").string();
+	settings.channels = profile["channels"];
+	settings.room = profile["room"];
+	settings.primary_channel = profile["primary_channel"];
+	settings.client = golden::example("take/manifest.json")["client"];
+	settings.capture_host = "house-panel";
+	settings.backoff = {std::chrono::milliseconds(200), std::chrono::milliseconds(2000), 0.0};
+	OutboxPorts ports;
+	ports.resolve = [](const std::string &) {
+		return Result<PeerIdentity>::success({"nFIXTURE1", {"tag:voice-lab"}, "pc.fixture.invalid."});
+	};
+	ports.utc_now = utc_now;
+	ports.steady_now = [] { return std::chrono::steady_clock::now(); };
+	ports.random01 = [] { return 0.5; };
+	ports.request_id = new_request_id;
+	auto opened = Outbox::open(settings, *client, ports);
+	if (!report.check("outbox_opened", opened.has_value()))
+		return report.finish();
+	auto &queue = *opened.value();
+	const auto take = golden::broker_take(root / "handoff", golden::variant_wav(7), golden::device_record());
+	const Wire manifest = golden::example("take/manifest.json");
+	auto kept = queue.keep({take.filename().string(), manifest["prompt"], manifest["catalog"], now});
+	report.check("handed_off_take_queued", kept.has_value());
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+	OutboxStep step;
+	while (std::chrono::steady_clock::now() < deadline) {
+		step = queue.step();
+		if (step.kind == OutboxStep::Kind::Idle || step.kind == OutboxStep::Kind::Blocked)
+			break;
+		std::this_thread::sleep_for(std::max(step.retry_after, std::chrono::milliseconds(10)));
+	}
+	const Wire status = queue.status();
+	report.fact("blocked", status["blocked"].is_string() ? status["blocked"].get<std::string>() : std::string());
+	const Wire entry = status["takes"].empty() ? Wire::object() : status["takes"][0];
+	report.fact("stage", entry.value("stage", std::string()));
+	report.check("kept_through_the_outbox", entry.value("stage", std::string()) == "kept");
+	auto entries = home.entries();
+	report.check("ledger_started_then_completed",
+		     entries.has_value() && entries.value().size() == 2 &&
+			     entries.value()[0].first["event"] == "upload-started" &&
+			     entries.value()[1].first["event"] == "upload-completed");
+	auto history = client->history(manifest["prompt"]["prompt_id"]);
+	bool listed_kept = false;
+	if (history.has_value())
+		for (const auto &item : history.value().body.value("takes", Wire::array()))
+			listed_kept = listed_kept || (item.value("take_id", std::string()) == take.filename().string() &&
+						      item.value("decision", std::string()) == "kept");
+	report.check("voice_lab_holds_it_kept", listed_kept);
+	return report.finish();
+}
+
 /** Reusing a rotated refresh token revokes the family; the session then signs out and clears the store. */
 int reuse_revokes(Live &live)
 {
@@ -543,6 +649,8 @@ int main(int argc, char **argv)
 			status = intake_resume(live);
 		else if (options.scenario == "decide")
 			status = decide(live);
+		else if (options.scenario == "outbox")
+			status = outbox(live);
 		else if (options.scenario == "reuse_revokes")
 			status = reuse_revokes(live);
 		else
