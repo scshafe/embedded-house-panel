@@ -232,13 +232,18 @@ owner (Step 7).
     - the outbox status line.
   - The broker's hand-off on Keep, through the lease protocol.
   - The simulator runs the uploader in process against a fake voice-lab.
-  - Done in three PRs; part 1 is done.
+  - Done in three PRs; parts 1 and 2 are done.
     - **Part 1 (the hand-off):** `hand_off` and `handed_off` in the lease
       protocol; `TakeStore::hand_off` and `MediaBroker::hand_off` with
       `--handoff-dir`; Keep in the recorder hands the take off. Until Step 8,
       the FRDM demo's broker has no hand-off directory, so a kept take stays
       in the broker's store there.
-    - **Part 2:** the uploader protocol and `bhp-voice-lab-uploader`.
+    - **Part 2 (the uploader):** `uploader_protocol.h` (with `UploaderClient`)
+      and `uploader_service.h`, and `bhp-voice-lab-uploader`, which resolves
+      the PC's node with `tailscale status --json`. `FrameChannel` gains a
+      frame bound per channel; the media protocols keep 4,096 bytes. Live,
+      the service goes from a device sign-in, through the approval by digest,
+      to a missing prompt shown as kept.
     - **Part 3:** the screens and the simulator's in-process uploader.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab|panel_simulation|media_broker'` exit 0;

@@ -105,8 +105,15 @@ Result<ClaimRequest> decode_claim_request(std::string_view frame);
 class FrameChannel final
 {
 public:
-	/** Takes ownership of a connected, nonblocking descriptor. */
-	explicit FrameChannel(int descriptor) : descriptor_(descriptor) {}
+	/**
+	 * Takes ownership of a connected, nonblocking descriptor. `maximum_frame_bytes`
+	 * bounds one frame; the media protocols keep 4096, the voice-lab uploader's
+	 * protocol uses more (recorder wire plan Decision 4).
+	 */
+	explicit FrameChannel(int descriptor, std::size_t maximum_frame_bytes = kMaximumFrameBytes)
+		: descriptor_(descriptor), maximum_frame_bytes_(maximum_frame_bytes)
+	{
+	}
 	~FrameChannel();
 	FrameChannel(const FrameChannel &) = delete;
 	FrameChannel &operator=(const FrameChannel &) = delete;
@@ -120,6 +127,7 @@ public:
 
 private:
 	int descriptor_;
+	std::size_t maximum_frame_bytes_;
 	std::string buffered_;
 };
 

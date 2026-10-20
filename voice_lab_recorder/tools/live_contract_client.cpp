@@ -11,12 +11,15 @@
 #include "voice_lab_recorder/corpus_client.h"
 #include "voice_lab_recorder/home_host.h"
 #include "voice_lab_recorder/outbox.h"
+#include "voice_lab_recorder/uploader_service.h"
 #include "voice_lab_recorder/pocket_id_sign_in.h"
 #include "voice_lab_recorder/take_package.h"
 #include <nlohmann/json.hpp>
 #include <chrono>
 #include <ctime>
+#include <algorithm>
 #include <filesystem>
+#include <functional>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -184,6 +187,7 @@ public:
 	}
 
 	const std::string &state_directory() const { return options_.state_directory; }
+	const std::string &api_url() const { return options_.api_url; }
 
 	std::optional<std::string> stored_token()
 	{
@@ -602,6 +606,113 @@ int outbox(Live &live)
 	return report.finish();
 }
 
+/**
+ * The uploader service end to end, driven only by the UI's requests: a new
+ * device sign-in, the approval preview confirmed by its digest, then a take
+ * the broker handed off, kept for a prompt of the served catalog, until the
+ * panel's view shows that prompt kept.
+ */
+int uploader(Live &live)
+{
+	namespace wire = uploader_protocol;
+	Report report("uploader");
+	const auto root = std::filesystem::path(live.state_directory()) / "uploader-service";
+	for (const char *name : {"", "token", "handoff", "outbox", "home-host"}) {
+		std::filesystem::create_directories(root / name);
+		std::filesystem::permissions(root / name, std::filesystem::perms::owner_all,
+					     std::filesystem::perm_options::replace);
+	}
+	const Wire profile = golden::example("take/manifest.json")["capture_profile"];
+	UploaderSettings settings;
+	settings.sign_in = live.settings;
+	settings.corpus.api_url = live.api_url();
+	settings.corpus.chunk_bytes = 16384;
+	settings.corpus.trusted_ca_pem_for_tests = live.settings.trusted_ca_pem_for_tests;
+	settings.token_directory = (root / "token").string();
+	settings.outbox.handoff_directory = (root / "handoff").string();
+	settings.outbox.outbox_directory = (root / "outbox").string();
+	settings.outbox.home_host_directory = (root / "home-host").string();
+	settings.outbox.channels = profile["channels"];
+	settings.outbox.room = profile["room"];
+	settings.outbox.primary_channel = profile["primary_channel"];
+	settings.outbox.client = golden::example("take/manifest.json")["client"];
+	settings.outbox.capture_host = "house-panel";
+	settings.outbox.backoff = {std::chrono::milliseconds(200), std::chrono::milliseconds(2000), 0.0};
+	settings.approval_endpoint = "pc.fixture.invalid";
+	settings.tailnet_suffix = "fixture.invalid";
+	UploaderPorts ports;
+	ports.transport = live.transport;
+	ports.resolve = [](const std::string &) {
+		return Result<PeerIdentity>::success({"nFIXTURE2", {"tag:voice-lab"}, "pc.fixture.invalid."});
+	};
+	ports.utc_now = utc_now;
+	ports.steady_now = [] { return std::chrono::steady_clock::now(); };
+	ports.random01 = [] { return 0.5; };
+	ports.request_id = new_request_id;
+	auto opened = UploaderService::open(settings, ports);
+	if (!report.check("service_opened", opened.has_value()))
+		return report.finish();
+	auto &service = *opened.value();
+	auto run_until = [&](const std::function<bool(const wire::State &)> &done) {
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+		while (std::chrono::steady_clock::now() < deadline) {
+			const auto wait = service.tick();
+			const auto state = service.state();
+			if (done(state))
+				return true;
+			std::this_thread::sleep_for(std::clamp(wait, std::chrono::milliseconds(10), std::chrono::milliseconds(250)));
+		}
+		return false;
+	};
+	report.check("starts_signed_out", service.state().sign_in.state == "signed_out");
+	auto started = service.handle(wire::SignInRequest{});
+	const auto *pending = started.empty() ? nullptr : std::get_if<wire::State>(&started[0]);
+	report.check("sign_in_shows_the_uri_and_code",
+		     pending && pending->sign_in.state == "pending" && !pending->sign_in.user_code.empty() &&
+			     pending->sign_in.verification_uri.rfind("https://", 0) == 0);
+	report.check("signed_in", run_until([](const wire::State &s) { return s.sign_in.state == "signed_in"; }));
+	report.check("catalog_and_prompts",
+		     run_until([](const wire::State &s) { return s.catalog_version && !s.prompts.empty(); }));
+	const auto preview = service.state().approval;
+	report.check("approval_preview", preview.state == "preview" && preview.node_stable_id == "nFIXTURE2");
+	auto wrong = service.handle(wire::ApproveRequest{std::string(64, '0')});
+	const auto *refused = wrong.empty() ? nullptr : std::get_if<wire::Refused>(&wrong[0]);
+	report.check("wrong_digest_refused", refused && refused->error_code == "VOICE_LAB.APPROVAL_DIGEST_MISMATCH");
+	auto approved = service.handle(wire::ApproveRequest{preview.approval_sha256});
+	const auto *in_force = approved.empty() ? nullptr : std::get_if<wire::State>(&approved[0]);
+	report.check("approved_by_digest", in_force && in_force->approval.state == "in_force");
+
+	// A spoken prompt still missing in the panel's view, so its change to kept is this take's.
+	std::string prompt_id;
+	for (const auto &prompt : service.state().prompts)
+		if (prompt_id.empty() && prompt.status == "missing" && prompt.category != "room-tone" &&
+		    prompt.category != "procedure")
+			prompt_id = prompt.prompt_id;
+	report.fact("prompt_id", prompt_id);
+	if (!report.check("a_missing_prompt", !prompt_id.empty()))
+		return report.finish();
+	const auto take = golden::broker_take(root / "handoff", golden::variant_wav(11), golden::device_record());
+	auto kept = service.handle(wire::KeepRequest{take.filename().string(), prompt_id, utc_now()});
+	const auto *queued = kept.empty() ? nullptr : std::get_if<wire::State>(&kept[0]);
+	report.check("keep_queued", queued && queued->queued == 1);
+	auto unknown = service.handle(wire::KeepRequest{take.filename().string(), "no-such-prompt", utc_now()});
+	report.check("unknown_prompt_refused",
+		     !unknown.empty() && std::holds_alternative<wire::Refused>(unknown[0]));
+	const bool done = run_until([&](const wire::State &s) {
+		if (s.kept != 1)
+			return false;
+		for (const auto &prompt : s.prompts)
+			if (prompt.prompt_id == prompt_id)
+				return prompt.status == "kept";
+		return false;
+	});
+	const auto final_state = service.state();
+	report.fact("blocked", final_state.blocked);
+	report.fact("error", final_state.error);
+	report.check("kept_and_shown_kept", done);
+	return report.finish();
+}
+
 /** Reusing a rotated refresh token revokes the family; the session then signs out and clears the store. */
 int reuse_revokes(Live &live)
 {
@@ -649,6 +760,8 @@ int main(int argc, char **argv)
 			status = intake_resume(live);
 		else if (options.scenario == "decide")
 			status = decide(live);
+		else if (options.scenario == "uploader")
+			status = uploader(live);
 		else if (options.scenario == "outbox")
 			status = outbox(live);
 		else if (options.scenario == "reuse_revokes")

@@ -327,8 +327,8 @@ Result<std::optional<std::string>> FrameChannel::receive()
 	if (descriptor_ < 0)
 		return closed("not_open");
 	if (buffered_.find('\n') == std::string::npos) {
-		std::array<char, kMaximumFrameBytes> bytes{};
-		const auto room = kMaximumFrameBytes - buffered_.size();
+		std::vector<char> bytes(maximum_frame_bytes_);
+		const auto room = maximum_frame_bytes_ - buffered_.size();
 		const auto count = ::recv(descriptor_, bytes.data(), room, MSG_DONTWAIT);
 		if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
 			return Output::success(std::nullopt);
@@ -338,7 +338,7 @@ Result<std::optional<std::string>> FrameChannel::receive()
 	}
 	const auto end = buffered_.find('\n');
 	if (end == std::string::npos) {
-		if (buffered_.size() >= kMaximumFrameBytes)
+		if (buffered_.size() >= maximum_frame_bytes_)
 			return closed("frame_bound");
 		return Output::success(std::nullopt);
 	}

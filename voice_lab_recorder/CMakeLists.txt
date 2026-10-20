@@ -8,20 +8,55 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(voice_lab_recorder_sign_in PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
+# @canonical voice_lab_recorder_uploader_protocol_library -- the UI's side of the uploader socket.
+add_library(voice_lab_recorder_uploader_protocol STATIC src/uploader_protocol.cpp)
+target_include_directories(voice_lab_recorder_uploader_protocol PUBLIC include)
+target_compile_features(voice_lab_recorder_uploader_protocol PUBLIC cxx_std_17)
+target_link_libraries(voice_lab_recorder_uploader_protocol
+  PUBLIC bhp::media_window_protocol PRIVATE nlohmann_json::nlohmann_json)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(voice_lab_recorder_uploader_protocol PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 # @canonical voice_lab_recorder_take_package_library -- canonical JSON, the corpus-take/v2
 # packager, the corpus client (intake, decisions, the library views) and the D-021 approval and ledger.
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 add_library(voice_lab_recorder_take_package STATIC
-  src/canonical_json.cpp src/take_package.cpp src/corpus_client.cpp src/home_host.cpp src/outbox.cpp)
+  src/canonical_json.cpp src/take_package.cpp src/corpus_client.cpp src/home_host.cpp src/outbox.cpp
+  src/uploader_service.cpp)
 target_include_directories(voice_lab_recorder_take_package PUBLIC include)
 target_compile_features(voice_lab_recorder_take_package PUBLIC cxx_std_17)
 target_link_libraries(voice_lab_recorder_take_package
-  PUBLIC nlohmann_json::nlohmann_json bhp_http_runtime bhp::durable_store OpenSSL::Crypto)
+  PUBLIC nlohmann_json::nlohmann_json bhp_http_runtime bhp::durable_store OpenSSL::Crypto
+    voice_lab_recorder_sign_in voice_lab_recorder_uploader_protocol)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(voice_lab_recorder_take_package PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
+# The uploader process (wire plan Step 7, ADR 0012): its own UID, the refresh token, the outbox.
+add_executable(bhp-voice-lab-uploader tools/uploader_main.cpp)
+target_link_libraries(bhp-voice-lab-uploader PRIVATE voice_lab_recorder_take_package bhp_structured_logging)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(bhp-voice-lab-uploader PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 if(BHP_BUILD_TESTS)
+  add_test(NAME voice_lab_uploader_daemon_usage_test COMMAND bhp-voice-lab-uploader --ui-socket /nonexistent)
+  set_tests_properties(voice_lab_uploader_daemon_usage_test PROPERTIES WILL_FAIL TRUE)
+  add_executable(voice_lab_uploader_protocol_test tests/uploader_protocol_test.cpp)
+  target_link_libraries(voice_lab_uploader_protocol_test PRIVATE voice_lab_recorder_uploader_protocol)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(voice_lab_uploader_protocol_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME voice_lab_uploader_protocol_test COMMAND voice_lab_uploader_protocol_test)
+  add_executable(voice_lab_uploader_service_test tests/uploader_service_test.cpp)
+  target_link_libraries(voice_lab_uploader_service_test PRIVATE voice_lab_recorder_take_package)
+  target_compile_definitions(voice_lab_uploader_service_test
+    PRIVATE BHP_VOICE_LAB_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/corpus_client_v1")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(voice_lab_uploader_service_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME voice_lab_uploader_service_test COMMAND voice_lab_uploader_service_test)
   add_executable(voice_lab_canonical_json_take_package_test tests/take_package_test.cpp)
   target_link_libraries(voice_lab_canonical_json_take_package_test PRIVATE voice_lab_recorder_take_package)
   target_compile_definitions(voice_lab_canonical_json_take_package_test
