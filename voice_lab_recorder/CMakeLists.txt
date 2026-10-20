@@ -15,6 +15,14 @@ if(BHP_BUILD_TESTS)
     target_compile_options(voice_lab_device_code_token_store_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
   add_test(NAME voice_lab_device_code_token_store_test COMMAND voice_lab_device_code_token_store_test)
+  # Live corpus-client.v1 client. `make verify-voice-lab-live` runs it against
+  # voice-lab's fixture server; it is never part of default CTest.
+  add_executable(voice_lab_recorder_live_contract_client tools/live_contract_client.cpp)
+  target_link_libraries(voice_lab_recorder_live_contract_client
+    PRIVATE voice_lab_recorder_sign_in nlohmann_json::nlohmann_json)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(voice_lab_recorder_live_contract_client PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_test(
     NAME voice_lab_corpus_client_v1_contract_fixture_test

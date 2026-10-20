@@ -12,6 +12,8 @@ voice-lab's `contracts/corpus-client.v1/` bundle is pinned at voice-lab
 Its examples sit in `tests/fixtures/corpus_client_v1/`, exported byte for byte
 by `scripts/voice_lab/export_corpus_client_v1_fixtures.py`, and
 `voice_lab_corpus_client_v1_contract_fixture_test` checks them offline.
+`make verify-voice-lab-live` signs in and reads the library against
+voice-lab's own fixture server (`tools/live_contract_client.cpp`).
 
 ## Sign-in and the refresh token (Step 7)
 
@@ -37,5 +39,6 @@ by `scripts/voice_lab/export_corpus_client_v1_fixtures.py`, and
   - `invalid_grant` signs out and clears the store.
 
 Tests: `voice_lab_device_code_token_store_test`, against a fake Pocket ID that
-behaves as voice-lab's D-056 records v2.13.0. A live sign-in needs the panel
-on the tailnet.
+behaves as voice-lab's D-056 records v2.13.0, and the live check against
+voice-lab's fake Pocket ID. A sign-in to the real Pocket ID needs the panel on
+the tailnet.
