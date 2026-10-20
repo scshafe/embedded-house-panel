@@ -1,10 +1,17 @@
 # voice-lab Recorder
 
 The panel app that records takes for voice-lab's training corpus (issue #23).
-Its plan is the
-[recorder groundwork plan](../.claude/plans/2026-10-19-voice-lab-recorder-groundwork.md).
-The take package and the intake wire format wait for voice-lab's
-`contracts/corpus-client.v1/` bundle.
+Its plans are the
+[recorder groundwork plan](../.claude/plans/2026-10-19-voice-lab-recorder-groundwork.md)
+(done) and the [recorder wire plan](../.claude/plans/2026-10-19-voice-lab-recorder-wire.md).
+
+## voice-lab's contract
+
+voice-lab's `contracts/corpus-client.v1/` bundle is pinned at voice-lab
+`8f51656` ([the voice-lab contract](../docs/interfaces/voice-lab-contract.md)).
+Its examples sit in `tests/fixtures/corpus_client_v1/`, exported byte for byte
+by `scripts/voice_lab/export_corpus_client_v1_fixtures.py`, and
+`voice_lab_corpus_client_v1_contract_fixture_test` checks them offline.
 
 ## Sign-in and the refresh token (Step 7)
 

@@ -15,4 +15,10 @@ if(BHP_BUILD_TESTS)
     target_compile_options(voice_lab_device_code_token_store_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
   add_test(NAME voice_lab_device_code_token_store_test COMMAND voice_lab_device_code_token_store_test)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(
+    NAME voice_lab_corpus_client_v1_contract_fixture_test
+    COMMAND
+      "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/corpus_client_v1_contract_fixture_test.py")
 endif()

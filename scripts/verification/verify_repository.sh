@@ -81,6 +81,8 @@ python3 "$SCRIPT_DIRECTORY/verify_panel_goldens.py" \
 (cd "$PROJECT_ROOT" && python3 -m unittest discover -s scripts/contracts/tests -p 'test_*.py')
 (cd "$PROJECT_ROOT" && PYTHONDONTWRITEBYTECODE=1 \
   python3 -m unittest discover -s scripts/lexinet/tests -p 'test_*.py')
+(cd "$PROJECT_ROOT" && PYTHONDONTWRITEBYTECODE=1 \
+  python3 -m unittest discover -s scripts/voice_lab/tests -p 'test_*.py')
 "$SCRIPT_DIRECTORY/verify_aarch64_cross_build.sh"
 "$SCRIPT_DIRECTORY/verify_shell_scripts.sh"
 "$SCRIPT_DIRECTORY/verify_documentation.sh"
