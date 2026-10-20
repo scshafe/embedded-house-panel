@@ -29,6 +29,7 @@ docs/behavior/panel-policy.md
 docs/behavior/flash-card-ux.md
 docs/interfaces/lexinet-contract.md
 docs/interfaces/panel-mode-protocol.md
+docs/interfaces/voice-lab-contract.md
 docs/legacy/recovery-summary.md
 docs/decisions/README.md
 docs/decisions/0003-characterize-beaglebone-before-selecting-product-platform.md

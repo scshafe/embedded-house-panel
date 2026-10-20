@@ -2,8 +2,10 @@
 
 <!-- @canonical voice-lab-recorder-groundwork-plan -->
 
-**Status (2026-10-19):** In progress (issue #23, phase 3, the parts that do
-not need voice-lab's wire format). The decisions below are the agent's, taken
+**Status (2026-10-19):** Done (issue #23, phase 3, the parts that do not
+need voice-lab's wire format). The rest continues in the
+[recorder wire plan](2026-10-19-voice-lab-recorder-wire.md), now that
+voice-lab has published its bundle. The decisions below are the agent's, taken
 where issue #23 and voice-lab's D-056 leave a choice; the owner may change
 them before the step that depends on them merges.
 

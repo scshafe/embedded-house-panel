@@ -2,10 +2,9 @@
 
 <!-- @canonical contract-pinning -->
 
-**Status (2026-10-19):** the mechanism behind the lexinet `study.v1` pin,
-written down for the second contract, voice-lab's `contracts/corpus-client.v1/`
-bundle (issue #23). The voice-lab pin does not exist yet: voice-lab publishes
-the bundle in its D-056 step 5.
+**Status (2026-10-19):** the mechanism behind two pins: lexinet's `study.v1`
+and voice-lab's `corpus-client.v1` ([the voice-lab contract](voice-lab-contract.md),
+issue #23).
 
 ## What a pin is
 
@@ -52,24 +51,28 @@ for repinning, is used as given.
 - the study.v1 provenance under `vocabulary_panel/tests/fixtures/study_v1/`;
 - the cache `.build/lexinet/source/`.
 
-## Adding a second contract
+## Adding a contract
 
-For voice-lab, once the bundle is published:
+voice-lab's pin was added this way:
 
-1. Add a `ContractPin("VOICE_LAB", "https://github.com/scshafe/voice-lab",
-   <provenance>, <ROOT>/.build/voice-lab/source)` beside the recorder's
-   fixtures.
-2. Write the exporter for the bundle's own manifest layout. Each contract
-   defines its own layout, so exporters are per contract; the pin and the
-   fetch are shared. Give it `--check`, and an explicit-checkout option for
-   repinning.
-3. Check in the provenance and the exported fixtures, and add the `--check`
-   run to the plan's verification map, as lexinet's is.
-4. Add a live check, like `make verify-lexinet-live`, against voice-lab's
-   fixture server from the same pinned source.
-5. Write `docs/interfaces/voice-lab-contract.md`, listing the pin and the
-   repin commands, as [the lexinet contract](lexinet-contract.md) does.
+1. A `ContractPin` configuration beside the contract's tools:
+   `scripts/voice_lab/voice_lab_pin.py` is `ContractPin("VOICE_LAB",
+   "https://github.com/scshafe/voice-lab", <provenance>,
+   <ROOT>/.build/voice-lab/source)`, with the provenance under
+   `voice_lab_recorder/tests/fixtures/corpus_client_v1/`.
+2. An exporter for the bundle's own manifest layout. Each contract defines
+   its own layout, so exporters are per contract; the pin and the fetch are
+   shared. It has `--check`, and an explicit-checkout option for repinning.
+3. The provenance and the exported fixtures checked in, with the `--check`
+   run in the plan's verification map.
+4. A live check against the contract owner's server from the same pinned
+   source (`make verify-lexinet-live`; voice-lab's is its wire plan's Step 2).
+5. An interface document listing the pin and the repin commands, as
+   [the lexinet contract](lexinet-contract.md) and
+   [the voice-lab contract](voice-lab-contract.md) do.
 
 Tests: `scripts/contracts/tests/test_contract_pin.py` runs the mechanism under
 the name `VOICE_LAB` against a local repository, and
-`scripts/lexinet/tests/test_pinned_source.py` runs the lexinet configuration.
+`scripts/lexinet/tests/test_pinned_source.py` runs the lexinet configuration,
+and `scripts/voice_lab/tests/` runs the voice-lab exporter against a synthetic
+bundle.

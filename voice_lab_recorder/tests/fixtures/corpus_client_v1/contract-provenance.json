@@ -1,0 +1,197 @@
+{
+  "export_schema_version": 1,
+  "contract": {
+    "id": "corpus-client.v1",
+    "schema_version": 1,
+    "manifest_version": 1,
+    "required_semantics": [
+      "device_code_sign_in_without_resource",
+      "single_flight_refresh_rotation",
+      "standing_approval_and_ledger_entry_before_the_first_byte",
+      "corpus_take_v2_in_five_files",
+      "canonical_json_byte_for_byte",
+      "alsa_continuity_rule_in_integer_nanoseconds",
+      "profile_scoped_library_and_history",
+      "resumable_chunked_upload",
+      "finalize_takes_only_the_clients_profile",
+      "decisions_with_stable_request_ids_and_expected_revisions"
+    ]
+  },
+  "source": {
+    "repository": "voice-lab",
+    "repository_base_revision": "8f516567a38a1ef10cae23060623633791b24b2f",
+    "contract_root": "contracts/corpus-client.v1",
+    "manifest_path": "contracts/corpus-client.v1/manifest.json",
+    "manifest_sha256": "845038524025c37d09e30ec6efdc8dcf6334e55dbecf5e16f8d534e7bdf6475b",
+    "openapi_path": "contracts/corpus-client.v1/openapi.json",
+    "openapi_sha256": "ec1290e6936b8cc96b1b9f44ebd98ad2fd0c5d45bb8a2325d44478d661e4e3ca",
+    "bundle_files": 42,
+    "contract_bundle_sha256": "496302a49ba4123816a87dd487d0fb175c02e3bf9448cf21ddf1a60f3db945d1"
+  },
+  "fixtures": [
+    {
+      "source_path": "examples/take/manifest.json",
+      "export_path": "examples/take/manifest.json",
+      "schema": "CorpusTakeManifestV2",
+      "expected": "valid",
+      "sha256": "8782992dd7be853b9633b73a8c723a5f962b126624456d8b329cee8d8d9bff59",
+      "size_bytes": 2676
+    },
+    {
+      "source_path": "examples/take/continuity.json",
+      "export_path": "examples/take/continuity.json",
+      "schema": "AlsaContinuityEvidence",
+      "expected": "valid",
+      "sha256": "e5f190490f8970590d8e78aeb05ba0b7c93e385fd2180de1d976d0e3d884acf3",
+      "size_bytes": 631
+    },
+    {
+      "source_path": "examples/take/qc.json",
+      "export_path": "examples/take/qc.json",
+      "schema": "QcReport",
+      "expected": "valid",
+      "sha256": "21059a20d981b8313cfed425a8c6aa926bd0b005b0cc6f2c4cd8d8ae3841ba03",
+      "size_bytes": 565
+    },
+    {
+      "source_path": "examples/take/READY",
+      "export_path": "examples/take/READY",
+      "schema": "ReadyMarker",
+      "expected": "valid",
+      "sha256": "ba661eacfaee86ab8930fee36be19d5403a85b10015377859290e8f49ef58343",
+      "size_bytes": 398
+    },
+    {
+      "source_path": "examples/take/original.wav.recipe.json",
+      "export_path": "examples/take/original.wav.recipe.json",
+      "schema": "WavRecipe",
+      "expected": "valid",
+      "sha256": "1829a67b44f5acdab16a69a8dce8243008eddb7afb817f5e3bdefc8c3b51f723",
+      "size_bytes": 254
+    },
+    {
+      "source_path": "examples/intake-session-request.json",
+      "export_path": "examples/intake-session-request.json",
+      "schema": "IntakeSessionRequest",
+      "expected": "valid",
+      "sha256": "45017b3c71e11b16ba0675733dfaa69a3c9d5a9733f688d6f517d755014b6ee2",
+      "size_bytes": 818
+    },
+    {
+      "source_path": "examples/home-host-approval.json",
+      "export_path": "examples/home-host-approval.json",
+      "schema": "HomeHostApproval",
+      "expected": "valid",
+      "sha256": "e5b522fd1ff6b4561e5d518b0e72906f30cb58b89c43d538b00c2343e7056114",
+      "size_bytes": 421
+    },
+    {
+      "source_path": "examples/home-host-binding.json",
+      "export_path": "examples/home-host-binding.json",
+      "schema": "HomeHostBinding",
+      "expected": "valid",
+      "sha256": "4af06e5411a7f0b1a08ae90b898132198b8c4301f5630fd8214c3cf171fd7499",
+      "size_bytes": 205
+    },
+    {
+      "source_path": "examples/home-host-ledger-upload-started.json",
+      "export_path": "examples/home-host-ledger-upload-started.json",
+      "schema": "HomeHostLedgerEntry",
+      "expected": "valid",
+      "sha256": "aebcf6ab42de763fc8e10168073bb813fb319fa37d73ce3d5b3ac29b248a309a",
+      "size_bytes": 544
+    },
+    {
+      "source_path": "examples/take-decision-request.json",
+      "export_path": "examples/take-decision-request.json",
+      "schema": "TakeDecisionRequest",
+      "expected": "valid",
+      "sha256": "5078a7039638695b7cc74eaebaf6fed947e3dc7cba9924f9d683177b6b0cff4d",
+      "size_bytes": 171
+    },
+    {
+      "source_path": "examples/refusal-client-scope.json",
+      "export_path": "examples/refusal-client-scope.json",
+      "schema": "ApiRefusal",
+      "expected": "valid",
+      "sha256": "cf1822288e0895499d45c14a5021415bfcd462cd65f43d28b03561892b4b4065",
+      "size_bytes": 143
+    },
+    {
+      "source_path": "examples/refusal-take-profile-not-allowed.json",
+      "export_path": "examples/refusal-take-profile-not-allowed.json",
+      "schema": "ApiRefusal",
+      "expected": "valid",
+      "sha256": "4121c951db6732d9c890e74a889d59ea5188dfdb8b0b7916756066ed2925103e",
+      "size_bytes": 167
+    },
+    {
+      "source_path": "examples/canonical-json-vectors.json",
+      "export_path": "examples/canonical-json-vectors.json",
+      "schema": "CanonicalJsonVectors",
+      "expected": "valid",
+      "sha256": "66535235bc4a43d14d45986f98f81628ae70e47245ef0443c90cc3350d80724b",
+      "size_bytes": 1304
+    },
+    {
+      "source_path": "examples/invalid/manifest-48-khz.json",
+      "export_path": "examples/invalid/manifest-48-khz.json",
+      "schema": "CorpusTakeManifestV2",
+      "expected": "invalid",
+      "refusal": {
+        "where": "the publisher refuses the package: the session's state is refused",
+        "message_contains": "takes 16 kHz audio"
+      },
+      "sha256": "11f12b0b896fba1ffcce7d811178baebf430655b6a8e28ea72869f2fe3505ac9",
+      "size_bytes": 2690
+    },
+    {
+      "source_path": "examples/invalid/manifest-another-vendor.json",
+      "export_path": "examples/invalid/manifest-another-vendor.json",
+      "schema": "CorpusTakeManifestV2",
+      "expected": "invalid",
+      "refusal": {
+        "where": "the publisher refuses the package: the session's state is refused",
+        "message_contains": "Seeed USB device"
+      },
+      "sha256": "d8cd63766dd8d38201ac220dddf66e3a22a1278cdb5df04a9e60743cd56529ff",
+      "size_bytes": 2675
+    },
+    {
+      "source_path": "examples/invalid/manifest-another-product.json",
+      "export_path": "examples/invalid/manifest-another-product.json",
+      "schema": "CorpusTakeManifestV2",
+      "expected": "invalid",
+      "refusal": {
+        "where": "the publisher refuses the package: the session's state is refused",
+        "message_contains": "product 0x0022"
+      },
+      "sha256": "396d7c408534bdc2520039ee1078694064955d86a7125ecbd545e1b16e735eea",
+      "size_bytes": 2676
+    },
+    {
+      "source_path": "examples/invalid/continuity-lost-period.json",
+      "export_path": "examples/invalid/continuity-lost-period.json",
+      "schema": "AlsaContinuityEvidence",
+      "expected": "invalid",
+      "refusal": {
+        "where": "the publisher refuses the package: the session's state is refused",
+        "message_contains": "beyond the tolerance"
+      },
+      "sha256": "6f03bf37fec42aa0532bd2a863a3998a202b245199c0b6e78ae5decd8d26f9be",
+      "size_bytes": 633
+    },
+    {
+      "source_path": "examples/invalid/take-decision-request-unknown-field.json",
+      "export_path": "examples/invalid/take-decision-request-unknown-field.json",
+      "schema": "TakeDecisionRequest",
+      "expected": "invalid",
+      "refusal": {
+        "where": "the API answers 422",
+        "code": "invalid_request"
+      },
+      "sha256": "5d24ec0abb74102d5db451a6474cd85cd5e17b0c6642b9e582181e1d22564a73",
+      "size_bytes": 194
+    }
+  ]
+}
