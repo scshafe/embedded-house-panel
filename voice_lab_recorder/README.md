@@ -109,3 +109,28 @@ binding and ledger examples byte for byte.
 Test: `voice_lab_uploader_outbox_test` runs it against an in-memory
 voice-lab. `make verify-voice-lab-live` runs it against voice-lab's own
 server.
+
+## The uploader process (wire plan Step 7)
+
+`bhp-voice-lab-uploader` runs `UploaderService` (`uploader_service.h`) under
+its own UID, and serves the UI's socket with the uploader protocol
+(`uploader_protocol.h`, Decision 4).
+- **The socket:** exact-UID peers in both directions, closed key sets, and
+  frames up to 64 KiB.
+- **What the UI sends:** `status`, `sign_in`, `approve` (with the reviewed
+  digest) and `keep` (a handed-off take, for a prompt).
+- **What the uploader answers:** `state` whenever something changed, or
+  `refused`.
+- **What runs in the background:**
+  - the device-code sign-in;
+  - the D-021 approval preview for the node `tailscale status --json`
+    reports, kept stable for ten minutes so the reviewed digest stays the
+    one confirmed;
+  - the catalog and the panel's library, read with their `ETag`s;
+  - the outbox.
+
+Tests:
+- `voice_lab_uploader_protocol_test` and `voice_lab_uploader_service_test`;
+- the daemon's usage test;
+- the live check's `uploader` scenario, which drives the service by protocol
+  requests alone, from sign-in to a missing prompt shown as kept.

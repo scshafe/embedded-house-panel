@@ -373,4 +373,12 @@ broker remain unimplemented.
 Pocket ID refresh token for voice-lab's `voice-lab-panel` client, held only by
 the voice-lab uploader's UID (issue #23). The table row above and ADR 0012
 give the controls and the accepted limitation. ADR 0010 still keeps every
-Lexinet credential off the panel. The uploader is not built yet.
+Lexinet credential off the panel.
+
+**Amended 2026-10-20 (recorder wire plan Step 7):** the uploader exists as
+`bhp-voice-lab-uploader`. It keeps the token in `<state>/token/` (`0600` in an
+owner-only directory) and serves the UI only through its socket, which is
+exact-UID in both directions. The UI's state frames carry the device code's
+URI and user code while a sign-in is pending, and never a token. It reads a
+take only from the broker's hand-off directory, mode `2770`, whose group only
+the broker and the uploader share. It runs on the board from Step 8.

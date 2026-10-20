@@ -35,7 +35,7 @@ DEFAULT_CLIENT = ROOT / ".build/host-dev/voice_lab_recorder/voice_lab_recorder_l
 FIXTURE_MODULE = "cole_voice_lab.contract_fixture"
 LOCKED_CLOSURE = "requirements/vault-linux.txt"
 REQUIRED_PYTHON = (3, 12)
-SCENARIO_ORDER = ("sign_in", "library", "intake_interrupted", "intake_resume", "decide", "outbox", "reuse_revokes")
+SCENARIO_ORDER = ("sign_in", "library", "intake_interrupted", "intake_resume", "decide", "outbox", "uploader", "reuse_revokes")
 READY_SECONDS = 60
 
 

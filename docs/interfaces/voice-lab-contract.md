@@ -136,6 +136,7 @@ Pocket ID that behaves as v2.13 does. `scripts/voice_lab/live_contract.py`:
 | `intake_resume` | a new process declares again (the session kept its bytes), resumes from the server's offset, finalizes, and the session is `accepted` with its receipt; the library lists the take |
 | `decide` | `kept` with a new `req-` id and the history's revision is applied; the same request again answers the same outcome; the revision advanced once; a stale revision is refused `revision_conflict`; the prompt is `kept` in the panel's view |
 | `outbox` | a new take handed off as the broker would, approved for a node a fake resolver vouches for (there is no tailnet here), goes through `Outbox::step` to `kept`; the ledger holds `upload-started` then `upload-completed`, and voice-lab's history shows the take kept |
+| `uploader` | `UploaderService` driven only by the UI's requests: a device sign-in, the approval preview confirmed by its digest (a wrong one refused), a handed-off take kept for a prompt still `missing`, and the state's prompt list showing it `kept` |
 | `reuse_revokes` | a refresh, then the rotated-away token sent again: `invalid_grant`; the session's next refresh fails because the family is revoked, signs out and clears the store |
 
 Without `--execute` the script prints its plan and touches nothing. It is
