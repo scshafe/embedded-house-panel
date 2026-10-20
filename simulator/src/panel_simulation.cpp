@@ -316,7 +316,7 @@ void PanelSimulation::voice_lab_intent(const std::string &id){
  }else if(id=="voice_lab.stop"&&v.state=="recording"){
   voice_lab_runtime_->stop();scene.acknowledgement="Stopping";
  }else if(id=="voice_lab.keep"&&v.state=="review"){
-  ++v.queued_takes;v.take_id.clear();if(v.missing>0)--v.missing;next_prompt();v.state=v.missing==0?"complete":"ready";scene.acknowledgement="Take kept";
+  voice_lab_runtime_->hand_off(v.take_id);++v.queued_takes;v.take_id.clear();if(v.missing>0)--v.missing;next_prompt();v.state=v.missing==0?"complete":"ready";scene.acknowledgement="Take kept";
  }else if(id=="voice_lab.reject"&&v.state=="review"){
   voice_lab_runtime_->discard(v.take_id);v.take_id.clear();v.state="ready";scene.acknowledgement="Take discarded";
  }else if(id=="voice_lab.skip"&&v.state=="ready"){

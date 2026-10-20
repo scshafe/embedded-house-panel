@@ -23,7 +23,7 @@ class VoiceLabRuntime final
 {
 public:
 	struct Event {
-		enum class Kind { Started, Level, Committed, Failed, Discarded };
+		enum class Kind { Started, Level, Committed, Failed, Discarded, HandedOff };
 		Kind kind{Kind::Failed};
 		std::vector<int> level_tenths;
 		std::uint64_t elapsed_ms{0};
@@ -60,11 +60,15 @@ public:
 	bool external_broker() const { return !broker_; }
 	void stop();
 	void discard(const std::string &take_id);
+	/** Keep: the broker moves the take to the voice-lab uploader's hand-off directory. */
+	void hand_off(const std::string &take_id);
 	/** Ends any take as a failure (a scenario reload); its files are erased. */
 	void abort();
 	std::vector<Event> pump();
 	bool busy() const { return pending_ != Pending::None; }
 	const std::string &take_root() const { return take_root_; }
+	/** In-process mode only: where kept takes go. */
+	const std::string &handoff_root() const { return handoff_root_; }
 
 private:
 	enum class Pending { None, Arming, Starting, Recording };
@@ -73,6 +77,7 @@ private:
 
 	std::string temporary_root_;
 	std::string take_root_;
+	std::string handoff_root_;
 	std::unique_ptr<media_broker::MediaBroker> broker_;
 	std::unique_ptr<media_window_protocol::FrameChannel> supervisor_;
 	std::unique_ptr<media_lease_protocol::MediaLeaseClient> client_;

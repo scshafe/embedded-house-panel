@@ -219,6 +219,55 @@ MediaResult<Done> TakeStore::discard(const std::string &take_id) const
 	return MediaResult<Done>::success({});
 }
 
+MediaResult<Done> TakeStore::hand_off(const std::string &take_id, const std::string &handoff_directory) const
+{
+	const std::string directory = root_ + "/" + take_id;
+	struct stat status {};
+	if (!is_take_id(take_id) || lstat(directory.c_str(), &status) != 0 || !S_ISDIR(status.st_mode))
+		return fail<Done>("MEDIA_TAKE.UNKNOWN", "No committed take has that ID", "take_store.hand_off");
+	const std::string target = handoff_directory + "/" + take_id;
+	if (lstat(target.c_str(), &status) != 0) {
+		const std::string incoming = handoff_directory + "/" + kIncomingPrefix + take_id;
+		remove_take_directory(incoming);
+		// The hand-off directory's group is shared by the broker and the uploader
+		// alone (2770): the uploader reads the take and removes it when packaged.
+		bool copied = mkdir(incoming.c_str(), 0770) == 0 && chmod(incoming.c_str(), 0770) == 0;
+		for (const char *name : {kWavName, kRecordName}) {
+			if (!copied)
+				break;
+			const int input = ::open((directory + "/" + name).c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+			const int output =
+				::open((incoming + "/" + name).c_str(), O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, 0640);
+			std::vector<std::uint8_t> buffer(1 << 20);
+			copied = input >= 0 && output >= 0 && fchmod(output, 0640) == 0;
+			while (copied) {
+				const ssize_t got = ::read(input, buffer.data(), buffer.size());
+				if (got < 0 && errno == EINTR)
+					continue;
+				if (got <= 0) {
+					copied = got == 0;
+					break;
+				}
+				copied = write_all(output, buffer.data(), static_cast<std::size_t>(got));
+			}
+			copied = copied && fsync(output) == 0;
+			if (input >= 0)
+				::close(input);
+			if (output >= 0)
+				copied = ::close(output) == 0 && copied;
+		}
+		copied = copied && fsync_path(incoming, O_RDONLY | O_DIRECTORY) &&
+			 rename(incoming.c_str(), target.c_str()) == 0 &&
+			 fsync_path(handoff_directory, O_RDONLY | O_DIRECTORY);
+		if (!copied) {
+			remove_take_directory(incoming);
+			return fail<Done>("MEDIA_TAKE.HANDOFF_FAILED", "The take could not be handed over",
+					  "take_store.hand_off");
+		}
+	}
+	return discard(take_id);
+}
+
 MediaResult<Done> TakeStore::admit(const std::uint64_t planned_bytes) const
 {
 	const auto ids = take_ids();

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace bhp::simulator
@@ -40,6 +41,9 @@ std::unique_ptr<VoiceLabRuntime> VoiceLabRuntime::in_process(const std::uint64_t
 		throw std::runtime_error("SIMULATOR.VOICE_LAB_UNAVAILABLE");
 	runtime->temporary_root_ = pattern;
 	runtime->take_root_ = pattern + "/takes";
+	runtime->handoff_root_ = pattern + "/handoff";
+	if (::mkdir(runtime->handoff_root_.c_str(), 0700) != 0)
+		throw std::runtime_error("SIMULATOR.VOICE_LAB_UNAVAILABLE");
 	auto store = media_broker::TakeStore::open(runtime->take_root_, {32, 1ULL << 31, 0});
 	if (!store)
 		throw std::runtime_error("SIMULATOR.VOICE_LAB_UNAVAILABLE");
@@ -47,6 +51,7 @@ std::unique_ptr<VoiceLabRuntime> VoiceLabRuntime::in_process(const std::uint64_t
 	settings.request = {"simulated", media_broker::SampleFormat::S16_LE, 16000, 6, 1024, 4096};
 	settings.maximum_frames = maximum_seconds * settings.request.rate;
 	settings.tolerance_ns = 1'000'000;
+	settings.handoff_directory = runtime->handoff_root_;
 	auto *self = runtime.get();
 	media_broker::BrokerPorts ports{
 		[self] {
@@ -146,6 +151,12 @@ void VoiceLabRuntime::discard(const std::string &take_id)
 		(void)client_->send(lease::DiscardRequest{take_id});
 }
 
+void VoiceLabRuntime::hand_off(const std::string &take_id)
+{
+	if (!take_id.empty())
+		(void)client_->send(lease::HandOffRequest{take_id});
+}
+
 void VoiceLabRuntime::abort()
 {
 	if (broker_)
@@ -230,6 +241,8 @@ std::vector<VoiceLabRuntime::Event> VoiceLabRuntime::pump()
 			}
 		} else if (const auto *discarded = std::get_if<lease::Discarded>(&event)) {
 			events.push_back({Event::Kind::Discarded, {}, 0, discarded->take_id, 0, {}});
+		} else if (const auto *handed_off = std::get_if<lease::HandedOff>(&event)) {
+			events.push_back({Event::Kind::HandedOff, {}, 0, handed_off->take_id, 0, {}});
 		}
 	}
 	return events;

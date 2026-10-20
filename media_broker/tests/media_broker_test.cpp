@@ -59,7 +59,8 @@ struct Harness {
 	std::string buffered;
 	int counter{0};
 
-	explicit Harness(std::uint64_t maximum_frames = 16000 * 600, std::chrono::milliseconds start_deadline = std::chrono::milliseconds(1000))
+	explicit Harness(std::uint64_t maximum_frames = 16000 * 600, std::chrono::milliseconds start_deadline = std::chrono::milliseconds(1000),
+			 bool handoff = true)
 	{
 		const char *base = std::getenv("TMPDIR");
 		root = std::string(base ? base : "/tmp") + "/media-broker-test-XXXXXX";
@@ -74,6 +75,10 @@ struct Harness {
 		settings.maximum_frames = maximum_frames;
 		settings.tolerance_ns = 1'000'000;
 		settings.start_deadline = start_deadline;
+		if (handoff) {
+			settings.handoff_directory = root + "/handoff";
+			std::filesystem::create_directory(settings.handoff_directory);
+		}
 		BrokerPorts ports{[this] { return std::make_unique<FakeCaptureSource>(faults, true, 1'000'000'000, ++counter); },
 				  [] { return nlohmann::json{{"model", "fixture"}}; },
 				  [] { return std::string("2026-10-19T12:00:00Z"); },
@@ -364,6 +369,53 @@ void test_lease_client()
 }
 } // namespace
 
+void test_kept_take_is_handed_off()
+{
+	for (const bool enabled : {true, false}) {
+		Harness h(16000 * 600, std::chrono::milliseconds(1000), enabled);
+		h.authority.observations[kObservation] = false;
+		h.endpoint->set_window(true, wire::WindowReason::DayPresent);
+		h.arm(kObservation);
+		auto armed = h.await<lease::Armed>();
+		if (!armed) {
+			expect(false, "armed for the hand-off");
+			continue;
+		}
+		h.send(lease::StartRequest{armed->lease_id});
+		(void)h.await<lease::Started>();
+		h.send(lease::StopRequest{armed->lease_id});
+		auto ended = h.await<lease::Ended>();
+		if (!ended || ended->outcome != lease::Outcome::Committed) {
+			expect(false, "a take to hand off");
+			continue;
+		}
+		h.send(lease::HandOffRequest{ended->take_id});
+		if (!enabled) {
+			auto refused = h.await<lease::Refused>();
+			expect(refused && refused->error_code == "MEDIA_BROKER.HANDOFF_DISABLED" && h.takes() == 1,
+			       "without a hand-off directory the take stays");
+			continue;
+		}
+		auto handed = h.await<lease::HandedOff>();
+		const auto moved = std::filesystem::path(h.root) / "handoff" / ended->take_id;
+		expect(handed && handed->take_id == ended->take_id && h.takes() == 0, "a kept take leaves the broker");
+		expect(std::filesystem::exists(moved / "original.wav") && std::filesystem::exists(moved / "capture.json"),
+		       "and is in the hand-off directory");
+		const auto status = std::filesystem::status(moved / "original.wav").permissions();
+		expect((status & std::filesystem::perms::all) ==
+			       (std::filesystem::perms::owner_read | std::filesystem::perms::owner_write |
+				std::filesystem::perms::group_read),
+		       "hand-off files are 0640");
+		std::size_t entries = 0;
+		for (const auto &entry : std::filesystem::directory_iterator(std::filesystem::path(h.root) / "handoff"))
+			entries += entry.path().filename().string().rfind(".incoming-", 0) == 0 ? 100 : 1;
+		expect(entries == 1, "no partial copy is left");
+		h.send(lease::HandOffRequest{ended->take_id});
+		auto again = h.await<lease::Refused>();
+		expect(again && again->error_code == "MEDIA_TAKE.UNKNOWN", "a handed-off take is no longer the broker's");
+	}
+}
+
 int main()
 {
 	test_window_and_purpose_gates();
@@ -371,6 +423,7 @@ int main()
 	test_maximum_duration();
 	test_start_deadline();
 	test_failures_leave_nothing();
+	test_kept_take_is_handed_off();
 	test_lease_client();
 	std::cout << "media_broker: " << failures << " failures\n";
 	return failures ? 1 : 0;

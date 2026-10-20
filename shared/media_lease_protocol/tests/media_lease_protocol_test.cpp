@@ -36,6 +36,13 @@ void test_requests()
 	expect(!encode(UiRequest(DiscardRequest{"take-xyz"})), "discard names a take ID");
 	auto discarded = decode_broker_event(encode(BrokerEvent(Discarded{take})).value());
 	expect(discarded && std::get<Discarded>(discarded.value()).take_id == take, "discarded round trip");
+	auto hand_off = decode_ui_request(encode(UiRequest(HandOffRequest{take})).value());
+	expect(hand_off && std::get<HandOffRequest>(hand_off.value()).take_id == take, "hand_off round trip");
+	expect(!encode(UiRequest(HandOffRequest{"take-xyz"})), "hand_off names a take ID");
+	auto handed_off = decode_broker_event(encode(BrokerEvent(HandedOff{take})).value());
+	expect(handed_off && std::get<HandedOff>(handed_off.value()).take_id == take, "handed_off round trip");
+	expect(!decode_ui_request(R"({"type":"hand_off","version":1,"take_id":")" + take + R"(","extra":1})" "\n"),
+	       "hand_off has a closed key set");
 	auto stop = decode_ui_request(encode(UiRequest(StopRequest{kLease})).value());
 	expect(stop && std::holds_alternative<StopRequest>(stop.value()), "stop round trip");
 	auto bad = arm;

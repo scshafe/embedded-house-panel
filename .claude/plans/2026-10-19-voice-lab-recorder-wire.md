@@ -51,9 +51,10 @@ owner (Step 7).
    the voice-take plan's Decision 4 left it to this plan).** The broker stays
    the only owner of its store, and the uploader sees only takes the owner
    kept, as ADR 0012 requires.
-   - The hand-off directory is owned by the uploader's UID, with the broker's
-     group and mode `2770`, so the broker can write there and nothing else
-     can enter.
+   - The hand-off directory is owned by the uploader's UID, with a group that
+     only the broker and the uploader belong to, mode `2770`. A take's
+     directory there is `0770` and its files `0640`, so the uploader can read
+     a take and remove it, and nothing else can enter.
    - On Keep, the UI asks the broker, over the lease protocol, to hand the
      take over. The broker copies `original.wav` and `capture.json` into
      `.incoming-<take id>`, renames it into place, and deletes its own copy.
@@ -231,6 +232,14 @@ owner (Step 7).
     - the outbox status line.
   - The broker's hand-off on Keep, through the lease protocol.
   - The simulator runs the uploader in process against a fake voice-lab.
+  - Done in three PRs; part 1 is done.
+    - **Part 1 (the hand-off):** `hand_off` and `handed_off` in the lease
+      protocol; `TakeStore::hand_off` and `MediaBroker::hand_off` with
+      `--handoff-dir`; Keep in the recorder hands the take off. Until Step 8,
+      the FRDM demo's broker has no hand-off directory, so a kept take stays
+      in the broker's store there.
+    - **Part 2:** the uploader protocol and `bhp-voice-lab-uploader`.
+    - **Part 3:** the screens and the simulator's in-process uploader.
   - Verify:
     - `ctest --test-dir .build/host-dev -R 'voice_lab|panel_simulation|media_broker'` exit 0;
     - `make verify` exit 0 with the new goldens recorded.

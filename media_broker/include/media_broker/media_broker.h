@@ -23,6 +23,8 @@ struct BrokerSettings {
 	std::chrono::milliseconds start_deadline{1000};
 	std::chrono::milliseconds claim_deadline{2000};
 	std::chrono::milliseconds level_interval{100};
+	/** The voice-lab uploader's hand-off directory; empty refuses `hand_off` (MEDIA_BROKER.HANDOFF_DISABLED). */
+	std::string handoff_directory;
 };
 
 struct BrokerPorts {
@@ -51,7 +53,8 @@ std::string voice_take_operation_digest(const std::string &request_id, const std
  * (requested), at `maximum_frames` (maximum-duration), or as a failure on a
  * closed window, a UI that leaves, an xrun or a device error. A failed take
  * leaves no files. `discard` deletes a committed take while no lease is
- * active. `step()` never blocks on audio.
+ * active, and `hand_off` moves one to the voice-lab uploader's hand-off
+ * directory. `step()` never blocks on audio.
  */
 class MediaBroker final
 {
@@ -89,6 +92,7 @@ private:
 	void start(const std::string &lease_id);
 	void stop(const std::string &lease_id);
 	void discard(const std::string &take_id);
+	void hand_off(const std::string &take_id);
 	void send(const bhp::media_lease_protocol::BrokerEvent &event);
 	void refuse(const std::string &request_id, const std::string &code);
 	void end_failed(const std::string &code);

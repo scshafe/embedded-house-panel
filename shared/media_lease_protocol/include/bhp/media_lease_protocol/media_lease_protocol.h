@@ -17,7 +17,9 @@
  * `start` and `stop`; the broker answers `armed` or `refused`, then `started`,
  * `level` about every 100 ms while recording, and exactly one `ended` per
  * started lease. `discard` deletes a committed take (`discarded` or `refused`,
- * whose request ID is then the take ID). The UI never sends audio, a provenance claim or a digest: it
+ * whose request ID is then the take ID). `hand_off` gives a kept take to the
+ * voice-lab uploader (`handed_off` or `refused` the same way; recorder wire
+ * plan Decision 3). The UI never sends audio, a provenance claim or a digest: it
  * names a touch observation, and the broker claims it from the supervisor.
  */
 namespace bhp::media_lease_protocol
@@ -52,7 +54,11 @@ struct StopRequest {
 struct DiscardRequest {
 	std::string take_id;
 };
-using UiRequest = std::variant<ArmRequest, StartRequest, StopRequest, DiscardRequest>;
+/** Moves a committed take the owner kept into the uploader's hand-off directory; only while no lease is active. */
+struct HandOffRequest {
+	std::string take_id;
+};
+using UiRequest = std::variant<ArmRequest, StartRequest, StopRequest, DiscardRequest, HandOffRequest>;
 
 struct Armed {
 	std::string request_id;
@@ -84,7 +90,10 @@ struct Ended {
 struct Discarded {
 	std::string take_id;
 };
-using BrokerEvent = std::variant<Armed, Refused, Started, Level, Ended, Discarded>;
+struct HandedOff {
+	std::string take_id;
+};
+using BrokerEvent = std::variant<Armed, Refused, Started, Level, Ended, Discarded, HandedOff>;
 
 /**
  * @canonical media_lease_client -- the UI's side of one broker connection.

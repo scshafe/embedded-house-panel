@@ -44,6 +44,11 @@ Steps 2, 3 and 5):
     files.
   - `discard` deletes a committed take the reviewer rejected, while no lease
     is active.
+  - `hand_off` moves a take the owner kept into `--handoff-dir`, the
+    voice-lab uploader's hand-off directory: a `0770` take directory with
+    `0640` files, for the group the broker and the uploader share (recorder
+    wire plan Decision 3). Without `--handoff-dir` it is
+    `MEDIA_BROKER.HANDOFF_DISABLED`, and the take stays.
   - `--fake-source` records the paced fake source.
 
 Tests: `ctest --test-dir .build/host-dev -R media_` (the tool runs on the
