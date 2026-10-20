@@ -256,8 +256,12 @@ microSD. Ethernet is for the bench only.
     while the PIR holds; with the switch off, never; the LED follows the rail;
     the time from presence to "ready for a command" is recorded.
 - [ ] **Step 4: Measure the real stack and mock it up.**
+  - 2026-10-20: the owner asked for the printed case first; the
+    [fit-check enclosure plan](2026-10-20-mirror-unit-fit-check-enclosure.md)
+    designs it from vendor data, flagged, and its Step 5 brings back the
+    calipers.
   - Calipers on every part; cardboard/foam mockup; cable routing; weight.
-  - Verify: `enclosure/params.yaml` holds measured values with photos.
+  - Verify: `enclosure/params.toml` holds measured values with photos.
 - [ ] **Step 5: First printed enclosure, on the bench.**
   - Thermal soak closed (SoC temperature under load), acoustic test through
     the ports and membranes, speaker echo test.
