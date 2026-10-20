@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <openssl/evp.h>
 #include <sstream>
 #include <string>
 
@@ -78,11 +79,57 @@ inline std::string golden_wav()
 	return wav_from_recipe(example("take/original.wav.recipe.json"));
 }
 
-/** Writes the golden take into `<broker_root>/<take id>/` in the take store's format. */
-inline fs::path broker_take(const fs::path &broker_root, const std::string &wav)
+inline std::string sha256_hex(const std::string &bytes)
+{
+	unsigned char digest[EVP_MAX_MD_SIZE];
+	unsigned int size = 0;
+	EVP_Digest(bytes.data(), bytes.size(), digest, &size, EVP_sha256(), nullptr);
+	static const char *hex = "0123456789abcdef";
+	std::string text;
+	for (unsigned at = 0; at < size; ++at) {
+		text += hex[digest[at] >> 4];
+		text += hex[digest[at] & 15];
+	}
+	return text;
+}
+
+/** The broker's device record (`capture.json` `device`) that gives the golden capture profile. */
+inline Json device_record()
+{
+	const Json profile = example("take/manifest.json")["capture_profile"];
+	const Json device = profile["device"];
+	return {{"model", device["model"]},
+		{"usb_vendor_id", device["usb_vendor_id"]},
+		{"usb_product_id", device["usb_product_id"]},
+		{"serial", device["serial"]},
+		{"usb_node", "/dev/bus/usb/001/004"},
+		{"identity",
+		 {{"firmware",
+		   {{"VERSION", device["firmware"]["version"]},
+		    {"BLD_MSG", device["firmware"]["build_message"]},
+		    {"BLD_REPO_HASH", device["firmware"]["build_repo_hash"]}}},
+		  {"settings", profile["settings"]},
+		  {"routing", Json::object()},
+		  {"unread", Json::object()}}}};
+}
+
+/** Another take of the golden recipe (`offset` shifts the sawtooth): new audio, a new take id. */
+inline std::string variant_wav(long offset)
+{
+	Json recipe = example("take/original.wav.recipe.json");
+	recipe["offset"] = offset;
+	return wav_from_recipe(recipe);
+}
+
+/**
+ * Writes a take into `<broker_root>/<take id>/` in the take store's format,
+ * with the golden take's continuity, and `device` as its device record.
+ */
+inline fs::path broker_take(const fs::path &broker_root, const std::string &wav, const Json &device = nullptr)
 {
 	const Json continuity = example("take/continuity.json");
-	const std::string take_id = "take-" + continuity["wav"]["sha256"].get<std::string>();
+	const std::string sha256 = sha256_hex(wav);
+	const std::string take_id = "take-" + sha256;
 	const fs::path directory = broker_root / take_id;
 	fs::create_directories(directory);
 	write_bytes(directory / "original.wav", wav);
@@ -92,7 +139,9 @@ inline fs::path broker_take(const fs::path &broker_root, const std::string &wav)
 	capture["schema_version"] = "bhp.media.voice-take/v1";
 	capture["take_id"] = take_id;
 	capture["purpose"] = "voice_take";
-	capture["device"] = nullptr;
+	capture["wav"]["sha256"] = sha256;
+	capture["wav"]["size_bytes"] = wav.size();
+	capture["device"] = device;
 	write_bytes(directory / "capture.json", capture.dump() + "\n");
 	return directory;
 }
