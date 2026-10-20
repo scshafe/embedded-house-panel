@@ -48,11 +48,13 @@
     "study-saved",
     "study-stale",
     "study-tracking-paused",
+    "voice-lab-approve",
     "voice-lab-complete",
     "voice-lab-ready",
     "voice-lab-recording",
     "voice-lab-review",
     "voice-lab-signed-out",
+    "voice-lab-signing-in",
     "voice-lab-unavailable"
   ]
 }

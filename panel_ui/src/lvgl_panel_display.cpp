@@ -427,6 +427,27 @@ void LvglPanelDisplay::draw_voice_lab(lv_obj_t *, lv_obj_t *content, const Panel
  };
  if(state == "signed_out") {
   label(content, "Sign in to voice-lab", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, "The panel records takes for your voice-lab corpus.", 24, 128, 896, 37, &bhp_font_28, 0xaab8b7);
+  label(content, "Sign in once, from your phone.", 24, 168, 896, 37, &bhp_font_28, 0xaab8b7);
+  queued(240);
+  action(0, layout::primary_width, "Sign in", "voice_lab.sign_in", 0xf4f0e8);
+  return;
+ }
+ if(state == "approve") {
+  label(content, "Approve your PC", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, "Takes upload only to", 24, 120, 896, 31, &bhp_font_24, 0xaab8b7);
+  label(content, v.approval_endpoint, 24, 152, 896, 37, &bhp_font_28, 0xf4f0e8);
+  label(content, "Node " + v.approval_node + " · tag:voice-lab · until " + v.approval_expires, 24, 196, 896, 31,
+        &bhp_font_24, 0xaab8b7);
+  label(content, "Record digest", 24, 240, 896, 31, &bhp_font_24, 0xaab8b7);
+  label(content, v.approval_digest.substr(0, 32), 24, 272, 896, 31, &bhp_font_24, 0xe9c480);
+  label(content, v.approval_digest.size() > 32 ? v.approval_digest.substr(32) : std::string(), 24, 304, 896, 31,
+        &bhp_font_24, 0xe9c480);
+  action(0, layout::primary_width, "Approve", "voice_lab.approve", 0xf4f0e8);
+  return;
+ }
+ if(state == "signing_in") {
+  label(content, "Sign in to voice-lab", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
   label(content, "On your phone, open", 24, 128, 896, 37, &bhp_font_28, 0xaab8b7);
   label(content, v.verification_uri, 24, 168, 896, 44, &bhp_font_36, 0xf4f0e8);
   label(content, "and enter the code", 24, 224, 896, 37, &bhp_font_28, 0xaab8b7);
@@ -437,6 +458,7 @@ void LvglPanelDisplay::draw_voice_lab(lv_obj_t *, lv_obj_t *content, const Panel
  if(state == "ready") {
   label(content, v.prompt_text, 24, 64, 896, 176, &bhp_font_36, 0xf4f0e8);
   queued(296);
+  if(!v.notice.empty()) label(content, v.notice, 24, 336, 896, 31, &bhp_font_24, 0xe9c480);
   action(0, layout::primary_width, "Record", "voice_lab.record", 0xf4f0e8);
   action(3, layout::action_width, "Skip", "voice_lab.skip", 0xdbe5df);
   return;
@@ -472,6 +494,7 @@ void LvglPanelDisplay::draw_voice_lab(lv_obj_t *, lv_obj_t *content, const Panel
   label(content, "Every prompt is recorded", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
   label(content, "New prompts appear when voice-lab adds them.", 24, 128, 896, 37, &bhp_font_28, 0xaab8b7);
   queued(184);
+  if(!v.notice.empty()) label(content, v.notice, 24, 224, 896, 31, &bhp_font_24, 0xe9c480);
   return;
  }
  label(content, "Recorder unavailable", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);

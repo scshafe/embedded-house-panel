@@ -2,6 +2,7 @@
 #include "bhp/media_lease_protocol/media_lease_protocol.h"
 #include "bhp/media_window_protocol/media_window_protocol.h"
 #include "media_broker/media_broker.h"
+#include "voice_lab_recorder/uploader_protocol.h"
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -23,13 +24,16 @@ class VoiceLabRuntime final
 {
 public:
 	struct Event {
-		enum class Kind { Started, Level, Committed, Failed, Discarded, HandedOff };
+		enum class Kind { Started, Level, Committed, Failed, Discarded, HandedOff, UploaderState, UploaderRefused, UploaderLost };
 		Kind kind{Kind::Failed};
 		std::vector<int> level_tenths;
 		std::uint64_t elapsed_ms{0};
 		std::string take_id;
 		std::uint64_t frames{0};
 		std::string code;
+		/** UploaderState: what the uploader shows; UploaderRefused: the request in `code`'s context. */
+		std::optional<voice_lab_recorder::uploader_protocol::State> uploader_state;
+		std::string request;
 	};
 
 	/** The supervisor's touch observation that started a take, as the touch stream delivered it. */
@@ -62,6 +66,14 @@ public:
 	void discard(const std::string &take_id);
 	/** Keep: the broker moves the take to the voice-lab uploader's hand-off directory. */
 	void hand_off(const std::string &take_id);
+	/**
+	 * The voice-lab uploader (wire plan Step 7): its socket and exact UID, or a
+	 * connected test peer. Without one, kept takes are only handed off.
+	 */
+	void attach_uploader(std::unique_ptr<voice_lab_recorder::uploader_protocol::UploaderClient> uploader);
+	bool uploader_attached() const { return uploader_ && uploader_->connected(); }
+	/** Sends a request to the uploader; false without one. */
+	bool send_uploader(const voice_lab_recorder::uploader_protocol::UiRequest &request);
 	/** Ends any take as a failure (a scenario reload); its files are erased. */
 	void abort();
 	std::vector<Event> pump();
@@ -81,6 +93,7 @@ private:
 	std::unique_ptr<media_broker::MediaBroker> broker_;
 	std::unique_ptr<media_window_protocol::FrameChannel> supervisor_;
 	std::unique_ptr<media_lease_protocol::MediaLeaseClient> client_;
+	std::unique_ptr<voice_lab_recorder::uploader_protocol::UploaderClient> uploader_;
 	std::uint64_t supervisor_sequence_{0};
 	bool window_open_{false};
 	bool window_sent_{false};

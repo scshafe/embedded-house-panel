@@ -5,6 +5,7 @@
 #include "bhp/panel_mode_protocol/codec.h"
 #include "vocabulary_panel/fixture_lexinet_client.h"
 #include <algorithm>
+#include <ctime>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -306,9 +307,69 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
 }
 // The recorder's intents. Takes go through the media broker (in-process on the
 // fake source); fixture scenarios only set the starting screen.
+namespace {
+std::string utc_now_text(){
+ const std::time_t now=std::time(nullptr);std::tm parts{};gmtime_r(&now,&parts);
+ char text[32];std::strftime(text,sizeof text,"%Y-%m-%dT%H:%M:%SZ",&parts);return text;
+}
+bool spoken_prompt(const voice_lab_recorder::uploader_protocol::Prompt &p){return p.category!="room-tone"&&p.category!="procedure";}
+// What the outbox is waiting for, in the words the recorder shows.
+std::string uploader_notice(const std::string &code){
+ if(code.empty())return {};
+ if(code=="VOICE_LAB.SIGN_IN_REQUIRED")return "Sign in again to upload takes";
+ if(code.rfind("VOICE_LAB.APPROVAL",0)==0)return "Approve the PC to upload takes";
+ if(code=="VOICE_LAB.TAILNET_UNAVAILABLE"||code=="VOICE_LAB.HOME_HOST_IDENTITY_MISMATCH")return "Takes wait: the PC is not reachable";
+ return "Takes wait: "+code;
+}
+}
+// The uploader's state drives the recorder's screens, except during a take.
+void PanelSimulation::project_uploader(const voice_lab_recorder::uploader_protocol::State &state){
+ uploader_state_=state;
+ auto &v=scene.voice_lab;
+ v.queued_takes=state.queued;
+ v.notice=uploader_notice(state.blocked.empty()?state.error:state.blocked);
+ if(v.state=="recording"||v.state=="review")return;
+ if(state.sign_in.state=="pending"){
+  v.state="signing_in";
+  auto uri=state.sign_in.verification_uri;if(uri.rfind("https://",0)==0)uri.erase(0,8);
+  v.verification_uri=uri;v.user_code=state.sign_in.user_code;return;
+ }
+ if(state.sign_in.state!="signed_in"){v.state="signed_out";if(state.sign_in.state=="expired")v.notice="The sign-in code expired";return;}
+ if(state.approval.state=="preview"){
+  v.state="approve";v.approval_endpoint=state.approval.endpoint;v.approval_node=state.approval.node_stable_id;
+  v.approval_expires=state.approval.expires_at.substr(0,10);v.approval_digest=state.approval.approval_sha256;return;
+ }
+ // Continue Missing: keep the prompt on the screen while it is still missing, else the next missing one.
+ std::size_t missing=0;std::optional<std::size_t> current,first;
+ for(std::size_t at=0;at<state.prompts.size();++at){
+  const auto &p=state.prompts[at];if(p.status!="missing"||!spoken_prompt(p))continue;
+  ++missing;if(!first)first=at;if(p.prompt_id==v.prompt_id)current=at;
+ }
+ v.prompt_total=state.prompts.size();v.missing=missing;
+ if(!first){v.state=state.catalog_version?"complete":"unavailable";return;}
+ const auto chosen=current?*current:*first;
+ if(state.prompts[chosen].prompt_id!=v.prompt_id||v.state!="ready")prompt_requested_at_=utc_now_text();
+ v.prompt_id=state.prompts[chosen].prompt_id;v.prompt_text=state.prompts[chosen].text;v.prompt_number=chosen+1;v.state="ready";
+}
 void PanelSimulation::voice_lab_intent(const std::string &id){
  auto &v=scene.voice_lab;
- const auto next_prompt=[&v]{v.prompt_number=v.prompt_number%v.prompt_total+1;};
+ const auto next_prompt=[this,&v]{
+  if(uploader_state_){
+   // The next missing prompt after this one, in catalog order.
+   const auto &prompts=uploader_state_->prompts;
+   for(std::size_t step=1;step<=prompts.size();++step){
+    const auto &p=prompts[(v.prompt_number-1+step)%prompts.size()];
+    if(p.status=="missing"&&spoken_prompt(p)&&p.prompt_id!=v.prompt_id){v.prompt_id=p.prompt_id;v.prompt_text=p.text;v.prompt_number=(v.prompt_number-1+step)%prompts.size()+1;prompt_requested_at_=utc_now_text();return;}
+   }
+   return;
+  }
+  v.prompt_number=v.prompt_number%v.prompt_total+1;};
+ if(id=="voice_lab.sign_in"&&v.state=="signed_out"){
+  scene.acknowledgement=voice_lab_runtime_->send_uploader(voice_lab_recorder::uploader_protocol::SignInRequest{})?"Asking for a code":"Uploader unavailable";return;
+ }
+ if(id=="voice_lab.approve"&&v.state=="approve"){
+  scene.acknowledgement=voice_lab_runtime_->send_uploader(voice_lab_recorder::uploader_protocol::ApproveRequest{v.approval_digest})?"Approving":"Uploader unavailable";return;
+ }
  if((id=="voice_lab.record"&&v.state=="ready")||(id=="voice_lab.retake"&&v.state=="review")){
   if(id=="voice_lab.retake"){voice_lab_runtime_->discard(v.take_id);v.take_id.clear();v.state="ready";}
   if(!voice_lab_runtime_->start_take("prompt:"+std::to_string(v.prompt_number),pending_touch_evidence_)){scene.acknowledgement=voice_lab_runtime_->external_broker()&&!pending_touch_evidence_?"Tap Record on the panel":"Recorder busy";return;}
@@ -316,6 +377,7 @@ void PanelSimulation::voice_lab_intent(const std::string &id){
  }else if(id=="voice_lab.stop"&&v.state=="recording"){
   voice_lab_runtime_->stop();scene.acknowledgement="Stopping";
  }else if(id=="voice_lab.keep"&&v.state=="review"){
+  pending_keeps_[v.take_id]={v.prompt_id,prompt_requested_at_.empty()?utc_now_text():prompt_requested_at_};
   voice_lab_runtime_->hand_off(v.take_id);++v.queued_takes;v.take_id.clear();if(v.missing>0)--v.missing;next_prompt();v.state=v.missing==0?"complete":"ready";scene.acknowledgement="Take kept";
  }else if(id=="voice_lab.reject"&&v.state=="review"){
   voice_lab_runtime_->discard(v.take_id);v.take_id.clear();v.state="ready";scene.acknowledgement="Take discarded";
@@ -340,11 +402,35 @@ void PanelSimulation::pump_voice_lab(){
    v.state="review";v.take_id=event.take_id;v.take_ms=event.elapsed_ms;v.take_peak_tenths=voice_lab_take_peak_;scene.acknowledgement="";
   }else if(event.kind==Kind::Failed){
    v.state="ready";scene.acknowledgement="Recording stopped";
+  }else if(event.kind==Kind::HandedOff){
+   // The broker moved the kept take: now the uploader may package it.
+   const auto keep=pending_keeps_.find(event.take_id);
+   if(keep!=pending_keeps_.end()){
+    if(voice_lab_runtime_->uploader_attached())
+     (void)voice_lab_runtime_->send_uploader(voice_lab_recorder::uploader_protocol::KeepRequest{event.take_id,keep->second.first,keep->second.second});
+    pending_keeps_.erase(keep);
+   }
+  }else if(event.kind==Kind::UploaderState&&event.uploader_state){
+   project_uploader(*event.uploader_state);
+  }else if(event.kind==Kind::UploaderRefused){
+   scene.acknowledgement=event.request=="keep"?"Upload refused: "+event.code:event.code;
+  }else if(event.kind==Kind::UploaderLost){
+   uploader_state_.reset();v.notice="The uploader is not running";
   }
  }
  if(changed)render();
 }
 void PanelSimulation::tap(int x,int y,const VoiceLabRuntime::TouchEvidence &evidence){pending_touch_evidence_=evidence;tap(x,y);pending_touch_evidence_.reset();}
+void PanelSimulation::attach_voice_lab_uploader(const std::string &socket_path,std::uint32_t uploader_uid){
+ auto uploader=voice_lab_recorder::uploader_protocol::UploaderClient::connect(socket_path,uploader_uid);
+ if(!uploader)throw std::runtime_error("SIMULATOR.VOICE_LAB_UPLOADER_UNAVAILABLE:"+uploader.error().code);
+ voice_lab_runtime_->attach_uploader(std::move(uploader.value()));
+}
+void PanelSimulation::attach_voice_lab_uploader_peer(int descriptor,std::uint32_t uploader_uid){
+ auto uploader=voice_lab_recorder::uploader_protocol::UploaderClient::for_connected_peer(descriptor,uploader_uid);
+ if(!uploader)throw std::runtime_error("SIMULATOR.VOICE_LAB_UPLOADER_UNAVAILABLE:"+uploader.error().code);
+ voice_lab_runtime_->attach_uploader(std::move(uploader.value()));
+}
 void PanelSimulation::attach_media_broker(const std::string &socket_path,std::uint32_t broker_uid){
  if(voice_lab_runtime_&&voice_lab_runtime_->busy())throw std::runtime_error("SIMULATOR.VOICE_LAB_BUSY");
  voice_lab_runtime_=VoiceLabRuntime::external(socket_path,broker_uid);

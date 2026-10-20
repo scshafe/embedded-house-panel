@@ -1,13 +1,3 @@
-# @canonical voice_lab_recorder_library -- the voice-lab recorder's sign-in and token store.
-add_library(voice_lab_recorder_sign_in STATIC src/pocket_id_sign_in.cpp)
-target_include_directories(voice_lab_recorder_sign_in PUBLIC include)
-target_compile_features(voice_lab_recorder_sign_in PUBLIC cxx_std_17)
-target_link_libraries(voice_lab_recorder_sign_in
-  PUBLIC bhp_http_runtime bhp::durable_store PRIVATE nlohmann_json::nlohmann_json)
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  target_compile_options(voice_lab_recorder_sign_in PRIVATE -Wall -Wextra -Wpedantic -Werror)
-endif()
-
 # @canonical voice_lab_recorder_uploader_protocol_library -- the UI's side of the uploader socket.
 add_library(voice_lab_recorder_uploader_protocol STATIC src/uploader_protocol.cpp)
 target_include_directories(voice_lab_recorder_uploader_protocol PUBLIC include)
@@ -16,6 +6,30 @@ target_link_libraries(voice_lab_recorder_uploader_protocol
   PUBLIC bhp::media_window_protocol PRIVATE nlohmann_json::nlohmann_json)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(voice_lab_recorder_uploader_protocol PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+if(BHP_BUILD_TESTS)
+  add_executable(voice_lab_uploader_protocol_test tests/uploader_protocol_test.cpp)
+  target_link_libraries(voice_lab_uploader_protocol_test PRIVATE voice_lab_recorder_uploader_protocol)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(voice_lab_uploader_protocol_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME voice_lab_uploader_protocol_test COMMAND voice_lab_uploader_protocol_test)
+endif()
+
+# Everything below speaks HTTP: it shares the runtime the study client builds.
+if(NOT BHP_BUILD_HTTP_LEXINET_CLIENT)
+  return()
+endif()
+
+# @canonical voice_lab_recorder_library -- the voice-lab recorder's sign-in and token store.
+add_library(voice_lab_recorder_sign_in STATIC src/pocket_id_sign_in.cpp)
+target_include_directories(voice_lab_recorder_sign_in PUBLIC include)
+target_compile_features(voice_lab_recorder_sign_in PUBLIC cxx_std_17)
+target_link_libraries(voice_lab_recorder_sign_in
+  PUBLIC bhp_http_runtime bhp::durable_store PRIVATE nlohmann_json::nlohmann_json)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(voice_lab_recorder_sign_in PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 # @canonical voice_lab_recorder_take_package_library -- canonical JSON, the corpus-take/v2
@@ -43,12 +57,6 @@ endif()
 if(BHP_BUILD_TESTS)
   add_test(NAME voice_lab_uploader_daemon_usage_test COMMAND bhp-voice-lab-uploader --ui-socket /nonexistent)
   set_tests_properties(voice_lab_uploader_daemon_usage_test PROPERTIES WILL_FAIL TRUE)
-  add_executable(voice_lab_uploader_protocol_test tests/uploader_protocol_test.cpp)
-  target_link_libraries(voice_lab_uploader_protocol_test PRIVATE voice_lab_recorder_uploader_protocol)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(voice_lab_uploader_protocol_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
-  endif()
-  add_test(NAME voice_lab_uploader_protocol_test COMMAND voice_lab_uploader_protocol_test)
   add_executable(voice_lab_uploader_service_test tests/uploader_service_test.cpp)
   target_link_libraries(voice_lab_uploader_service_test PRIVATE voice_lab_recorder_take_package)
   target_compile_definitions(voice_lab_uploader_service_test

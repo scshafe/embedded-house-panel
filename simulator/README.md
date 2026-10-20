@@ -214,12 +214,29 @@ the real media broker, in process, on the paced fake source
 - **Window and touch:** a stand-in supervisor opens the broker's window while
   the scripted lifecycle is day-active with presence asserted, and grants each
   synthetic touch once.
-- **Flow:** Record arms and starts a lease and live levels follow. Stop
-  commits the take for review. Keep moves on to the next prompt. Reject and
-  Retake delete the take through the broker's `discard`.
+- **Flow:**
+  - Record arms and starts a lease, and live levels follow.
+  - Stop commits the take for review.
+  - Keep hands the take to the uploader's hand-off directory through the
+    broker's `hand_off`, then moves on to the next prompt.
+  - Reject and Retake delete the take through the broker's `discard`.
 - **Leaving day-present** fails the take and leaves no files.
 
-Scenario files set only the starting screen (`voice_lab_state`: `signed_out`,
-`ready`, `recording`, `review`, `complete`, `unavailable`). The prompts, the
-sign-in code and the queue count are fixtures until voice-lab's bundle lands.
+**With the voice-lab uploader attached** (`--voice-lab-uploader-socket` and
+`--voice-lab-uploader-uid`, or `attach_voice_lab_uploader_peer` in tests), its
+state drives the recorder, except during a take:
+- **Signing in:** Sign in asks it for a device code, which is shown with the
+  plain verification URI.
+- **The PC:** the D-021 preview is shown with its digest, and Approve sends
+  that digest.
+- **Prompts:** "Continue Missing" walks its prompts, skipping room tone and
+  procedures.
+- **Keeping a take:** once the broker has handed the take off, the uploader
+  is asked to keep it for the prompt, with when the prompt was shown.
+- **The status line:** the queue count, and why uploads wait.
+
+Without an uploader the prompts, the sign-in code and the queue count stay
+fixtures. Scenario files set only the starting screen (`voice_lab_state`:
+`signed_out`, `signing_in`, `approve`, `ready`, `recording`, `review`,
+`complete`, `unavailable`).
 

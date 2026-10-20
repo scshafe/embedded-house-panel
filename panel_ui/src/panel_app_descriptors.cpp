@@ -52,10 +52,12 @@ const std::vector<PanelAppDescriptor> &panel_app_descriptors()
 			 {"voice_lab.retake", IntentEffectClass::CaptureStart, true, true, false, true},
 			 {"voice_lab.reject", IntentEffectClass::Navigation, true, true, false, true},
 			 {"voice_lab.skip", IntentEffectClass::Navigation, true, true, false, true},
+			 {"voice_lab.sign_in", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 {"voice_lab.approve", IntentEffectClass::ExternalSubmission, true, true, false, true},
 		 },
 		 {"shell.home"},
 		 "voice_lab_state",
-		 {"signed_out", "ready", "recording", "review", "complete", "unavailable"}},
+		 {"signed_out", "signing_in", "approve", "ready", "recording", "review", "complete", "unavailable"}},
 	};
 	return descriptors;
 }

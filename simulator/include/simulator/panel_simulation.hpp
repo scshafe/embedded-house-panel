@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <map>
 #include <optional>
 #include <string>
 #include <utility>
@@ -59,6 +60,10 @@ public:
  void tap(int x,int y,const VoiceLabRuntime::TouchEvidence &evidence);
  /** Records through the bhp-media-broker process instead of the in-process fake (the board). */
  void attach_media_broker(const std::string &socket_path,std::uint32_t broker_uid);
+ /** The voice-lab uploader's socket (exact UID): the recorder's sign-in, approval, prompts and outbox. */
+ void attach_voice_lab_uploader(const std::string &socket_path,std::uint32_t uploader_uid);
+ /** Test seam: an already-connected uploader peer (its UID is still checked). */
+ void attach_voice_lab_uploader_peer(int descriptor,std::uint32_t uploader_uid);
  /**
   * Level-only recorder updates wait for the next lifecycle render instead of drawing
   * at once, so a live meter cannot keep touches from matching the committed frame.
@@ -94,6 +99,13 @@ private:
  void utterance(const std::string &phrase);
  void route_intent(const house_panel::panel_ui::InteractionIntentEnvelope &intent);
  void voice_lab_intent(const std::string &id);
+ void project_uploader(const voice_lab_recorder::uploader_protocol::State &state);
+ /** The last state the uploader sent, while one is attached. */
+ std::optional<voice_lab_recorder::uploader_protocol::State> uploader_state_;
+ /** Kept takes waiting for the broker's hand-off: take id to (prompt id, requested at). */
+ std::map<std::string,std::pair<std::string,std::string>> pending_keeps_;
+ /** When the current prompt was put on the screen (RFC 3339 UTC). */
+ std::string prompt_requested_at_;
  house_panel::panel_ui::ApplicationCatalog application_catalog_;
  std::unique_ptr<FakeVoiceConnection> voice_;
  std::unique_ptr<VoiceLabRuntime> voice_lab_runtime_;
