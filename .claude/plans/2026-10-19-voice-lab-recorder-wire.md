@@ -71,7 +71,7 @@ owner (Step 7).
     - `python3 scripts/voice_lab/export_corpus_client_v1_fixtures.py --check` exit 0;
     - `ctest --test-dir .build/host-dev -R 'corpus_client_v1'` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 2: The live check: sign-in and the library.**
+- [x] **Step 2: The live check: sign-in and the library.** (2026-10-19)
   - `scripts/voice_lab/live_contract.py` and `make verify-voice-lab-live`:
     the fixture server from the pinned checkout, as Decision 2 says.
   - A live client (`voice_lab_recorder_live_contract_client`) on the
@@ -82,6 +82,12 @@ owner (Step 7).
     - `GET` the catalog and the panel's library view, then a `304` with
       `If-None-Match`;
     - the library without `?profile=`, refused `403 client_scope`.
+  - Done: three scenarios, `sign_in`, `library` and `reuse_revokes`, all
+    passed against the fixture at the pin. The fixture's root is in the
+    temporary directory because voice-lab's corpus store refuses its own
+    files on btrfs (`os.listdir()` on an older directory descriptor misses new
+    entries there). The report carries checks, counts and error codes, never a
+    token.
   - Verify:
     - `python3 -m unittest discover -s scripts/voice_lab/tests` exit 0;
     - `make verify-voice-lab-live` exit 0;

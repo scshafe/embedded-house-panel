@@ -89,7 +89,31 @@ As voice-lab's bundle README states it:
 
 ## The live check
 
-voice-lab's fixture server, `python -m cole_voice_lab.contract_fixture
-serve`, runs the PC's real API with a fake Pocket ID that behaves as v2.13
-does. `make verify-voice-lab-live` will run it from the pinned checkout; it
-is the wire plan's Step 2.
+`make verify-voice-lab-live` runs voice-lab's fixture server,
+`python -m cole_voice_lab.contract_fixture serve`, from the pinned checkout
+(or `BHP_VOICE_LAB_SOURCE_DIR`). The server is the PC's real API with a fake
+Pocket ID that behaves as v2.13 does. `scripts/voice_lab/live_contract.py`:
+
+- makes a venv under `.build/voice-lab/live-contract/` with CPython 3.12
+  (`--python`, `BHP_VOICE_LAB_PYTHON`, `python3.12` or uv's) and the API
+  image's hash-locked closure, `requirements/vault-linux.txt`; the package
+  runs from the checkout through a `.pth` file and is never built;
+- serves on loopback with a throwaway self-signed certificate, which the
+  client trusts as a test-only anchor;
+- puts the fixture's root in the temporary directory. On btrfs,
+  `os.listdir()` on a directory descriptor opened earlier misses entries
+  created since, and voice-lab's corpus store then refuses its own database
+  (`CORPUS.STORE_UNSAFE`); tmpfs lists them;
+- runs `voice_lab_recorder_live_contract_client` once per scenario, each a
+  new process sharing the token store, and writes `report.json`. The key,
+  the token store and the fixture's root are deleted after the run, and no
+  token is printed.
+
+| Scenario | Checks |
+| --- | --- |
+| `sign_in` | discovery; the device code with `verification_uri` and the user code; one `authorization_pending`, then approval; the refresh token saved |
+| `library` | restored from disk; a refresh that rotates the saved token before use; `GET /api/v1/catalog` with an `ETag`, then `304`; the panel's library view (`?profile=xvf3800-linear-4`) with its `ETag`, then `304`; the desktop view refused `403 client_scope`; no token refused `401` |
+| `reuse_revokes` | a refresh, then the rotated-away token sent again: `invalid_grant`; the session's next refresh fails because the family is revoked, signs out and clears the store |
+
+Without `--execute` the script prints its plan and touches nothing. It is
+never part of `make verify`: it needs the network, CPython 3.12 and openssl.

@@ -63,6 +63,17 @@ verify-panel-media:
 verify-panel-vm:
 	python3 scripts/verification/verify_panel_vm.py
 
+.PHONY: verify-voice-lab-live
+
+# Live corpus-client.v1 contract against voice-lab's own fixture server. Uses an
+# explicit BHP_VOICE_LAB_SOURCE_DIR checkout when set; otherwise it fetches the
+# pinned commit from GitHub into .build/voice-lab/source/. Needs CPython 3.12
+# (BHP_VOICE_LAB_PYTHON, python3.12 or uv's) and openssl. Never part of `make verify`.
+verify-voice-lab-live:
+	cmake --preset host-dev >/dev/null
+	cmake --build .build/host-dev --target voice_lab_recorder_live_contract_client --parallel "$${CMAKE_BUILD_PARALLEL_LEVEL:-2}"
+	python3 scripts/voice_lab/live_contract.py --execute $(if $(BHP_VOICE_LAB_SOURCE_DIR),--voice-lab-source-dir "$(BHP_VOICE_LAB_SOURCE_DIR)")
+
 .PHONY: verify-lexinet-live
 
 # Live study.v1 contract against a disposable real Lexinet. Uses an explicit
