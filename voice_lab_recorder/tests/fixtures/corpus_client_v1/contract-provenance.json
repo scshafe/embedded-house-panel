@@ -19,7 +19,7 @@
   },
   "source": {
     "repository": "voice-lab",
-    "repository_base_revision": "8f516567a38a1ef10cae23060623633791b24b2f",
+    "repository_base_revision": "ed0e891a3291c459b23f288b430f579b46bfd982",
     "contract_root": "contracts/corpus-client.v1",
     "manifest_path": "contracts/corpus-client.v1/manifest.json",
     "manifest_sha256": "845038524025c37d09e30ec6efdc8dcf6334e55dbecf5e16f8d534e7bdf6475b",

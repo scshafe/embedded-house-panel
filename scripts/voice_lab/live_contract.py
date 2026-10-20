@@ -21,7 +21,6 @@ import shutil
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -56,6 +55,16 @@ def run(command: list[str], *, env: dict[str, str] | None = None, cwd: Path | No
         timeout: float = 120) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True,
                           timeout=timeout, check=False)
+
+
+def remove_tree(path: Path) -> None:
+    """Delete a fixture tree. voice-lab makes accepted takes read-only, so give
+    every directory back its write bit first."""
+    if not path.exists():
+        return
+    for directory, _, _ in os.walk(path):
+        os.chmod(directory, 0o700)
+    shutil.rmtree(path)
 
 
 def require(result: subprocess.CompletedProcess[str], code: str) -> str:
@@ -154,11 +163,10 @@ class LiveContract:
         if self.panel_state.exists():
             shutil.rmtree(self.panel_state)
         self.panel_state.mkdir(parents=True)
-        # The fixture's root goes in the temporary directory, not under .build/: on
-        # btrfs, os.listdir() on a directory descriptor opened earlier misses entries
-        # created since, and voice-lab's corpus store then refuses its own files
-        # (CORPUS.STORE_UNSAFE). tmpfs and ext4 list them.
-        self.fixture_root = Path(tempfile.mkdtemp(prefix="bhp-voice-lab-fixture-"))
+        self.fixture_root = self.state / "fixture"
+        remove_tree(self.fixture_root)
+        self.fixture_root.mkdir()
+        os.chmod(self.fixture_root, 0o700)
         os.chmod(self.panel_state, 0o700)
         report = self.state / "fixture.json"
         report.unlink(missing_ok=True)
@@ -224,7 +232,7 @@ class LiveContract:
         shutil.rmtree(self.tls, ignore_errors=True)
         shutil.rmtree(self.panel_state, ignore_errors=True)
         if self.fixture_root and not self.args.keep_state:
-            shutil.rmtree(self.fixture_root, ignore_errors=True)
+            remove_tree(self.fixture_root)
         elif self.fixture_root:
             self.report["fixture_root"] = str(self.fixture_root)
 

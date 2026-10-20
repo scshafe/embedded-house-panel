@@ -36,7 +36,7 @@ class LiveContractDryRunTest(unittest.TestCase):
         result = self.run_script("--state-root", "/nonexistent/state")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["voice_lab_source_dir"],
-                         "pinned_fetch:8f516567a38a1ef10cae23060623633791b24b2f")
+                         "pinned_fetch:ed0e891a3291c459b23f288b430f579b46bfd982")
 
     def test_an_invalid_checkout_fails_closed_and_leaves_no_secrets(self) -> None:
         with tempfile.TemporaryDirectory(prefix="bhp-voice-lab-live-test-") as temporary:
@@ -68,6 +68,21 @@ class LiveContractDryRunTest(unittest.TestCase):
         with self.assertRaises(live_contract.ContractError) as caught:
             live_contract.find_python(sys.executable)
         self.assertEqual(caught.exception.code, "PYTHON_VERSION_MISMATCH")
+
+
+
+class RemoveTreeTest(unittest.TestCase):
+    def test_read_only_takes_are_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "fixture"
+            take = root / "lab/raw/take"
+            take.mkdir(parents=True)
+            (take / "READY").write_text("{}\n", encoding="utf-8")
+            (take / "READY").chmod(0o400)
+            take.chmod(0o500)
+            live_contract.remove_tree(root)
+            self.assertFalse(root.exists())
+            live_contract.remove_tree(root)  # gone already: no error
 
 
 if __name__ == "__main__":

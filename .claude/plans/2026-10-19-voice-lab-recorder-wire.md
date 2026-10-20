@@ -112,7 +112,9 @@ owner (Step 7).
     temporary directory because voice-lab's corpus store refuses its own
     files on btrfs (`os.listdir()` on an older directory descriptor misses new
     entries there). The report carries checks, counts and error codes, never a
-    token.
+    token. (2026-10-20: voice-lab#113 fixed the store. The pin moved to
+    `ed0e891`, with a byte-identical bundle, and the root now lives under
+    `.build/`.)
   - Verify:
     - `python3 -m unittest discover -s scripts/voice_lab/tests` exit 0;
     - `make verify-voice-lab-live` exit 0;

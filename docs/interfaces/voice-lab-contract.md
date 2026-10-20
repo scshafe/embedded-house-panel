@@ -8,6 +8,12 @@ for the recorder (issue #23). The bundle is voice-lab's D-056 step 5
 the [recorder wire plan](../../.claude/plans/2026-10-19-voice-lab-recorder-wire.md);
 none of them runs against the PC until the board is on the tailnet.
 
+**Amended 2026-10-20:** repinned from `8f51656` to `ed0e891`, voice-lab#113's
+merge. That change fixed the corpus store's directory listing on btrfs. The
+bundle is byte-identical, with the same manifest and bundle digests. The
+live check now keeps the fixture's root under `.build/`, which is btrfs on
+the development PC, instead of the tmpfs workaround.
+
 The wire authority is voice-lab's `contracts/corpus-client.v1/` at the pinned
 revision:
 - `openapi.json`, the routes a corpus client's token reaches;
@@ -25,7 +31,7 @@ The checked-in
 pins:
 
 - contract `corpus-client.v1`, schema version `1`, manifest version `1`;
-- voice-lab revision `8f516567a38a1ef10cae23060623633791b24b2f`;
+- voice-lab revision `ed0e891a3291c459b23f288b430f579b46bfd982`;
 - `manifest.json` SHA-256
   `845038524025c37d09e30ec6efdc8dcf6334e55dbecf5e16f8d534e7bdf6475b`;
 - the bundle digest
@@ -119,10 +125,7 @@ Pocket ID that behaves as v2.13 does. `scripts/voice_lab/live_contract.py`:
   runs from the checkout through a `.pth` file and is never built;
 - serves on loopback with a throwaway self-signed certificate, which the
   client trusts as a test-only anchor;
-- puts the fixture's root in the temporary directory. On btrfs,
-  `os.listdir()` on a directory descriptor opened earlier misses entries
-  created since, and voice-lab's corpus store then refuses its own database
-  (`CORPUS.STORE_UNSAFE`); tmpfs lists them;
+- puts the fixture's root in `.build/voice-lab/live-contract/fixture/`;
 - runs `voice_lab_recorder_live_contract_client` once per scenario, each a
   new process sharing the token store, and writes `report.json`. The key,
   the token store and the fixture's root are deleted after the run, and no
