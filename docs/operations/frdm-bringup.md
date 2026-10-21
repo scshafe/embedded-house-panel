@@ -587,9 +587,12 @@ reboot).** Raw records are in
     2026-10-21).
 - **p1 access date.** p1's hash also changed, to `7949b713…0efde`. Its FAT
   last-access date for `imx8mp-frdm-waveshare-7inch-c-panel.dtb` moved from
-  2026-10-10 to 2026-10-21, read raw (`p1-fat-metadata.txt`). That date
-  changes when a file is opened on the mounted p1 from Linux, as in the
-  2026-10-10 correction above, and U-Boot's `fatload` does not change it.
+  2026-10-10 to 2026-10-21, read raw (`p1-fat-metadata.txt`). The owner
+  explained the cause. Before the env change, the owner session ran `ls` of
+  `/run/media/mmcblk2p1` and `sha256sum` of that DTB (`3c0e0466…5438`) to
+  confirm the file existed. Opening the file on the vfat mount (`relatime`)
+  updated its access date, as in the 2026-10-10 correction above. U-Boot's
+  `fatload` does not change it.
 - **Rollback.** At the U-Boot prompt, run
   `setenv fdtfile '"imx8mp-frdm.dtb"'; saveenv`. The default value includes
   the double quotes. Alternatively, `env default -a; saveenv` stores the full
