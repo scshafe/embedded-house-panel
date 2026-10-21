@@ -553,6 +553,54 @@ again. Weston came back after `stop`. Two findings:
   The board script now uses a position in polar day (latitude ±89.9), which
   stays day for months, and at least about 4 days next to an equinox.
 
+**Panel DTB made persistent (2026-10-21, owner-approved env write and one
+reboot).** Raw records are in
+`hardware_tests/results/frdm/uboot-env-20261021T223747Z/`.
+- **Why.** Every power-cycle since 2026-10-18 had booted
+  `imx8mp-frdm.dtb`, because the panel boots used `setenv` without `saveenv`.
+  With that DTB there was no DPI connector, backlight or touch, and weston
+  failed (`wiring-check-20261021T203453Z`).
+- **How.** The board has no `/etc/fw_env.config` and no `fw_setenv`, so the
+  change was made in U-Boot. A console script stopped autoboot and recorded
+  `printenv` (`printenv-before.txt`). It then ran
+  `setenv fdtfile imx8mp-frdm-waveshare-7inch-c-panel.dtb`, then `saveenv`
+  ("Writing to MMC(2)... OK"), then `boot`. Before the write, the stored
+  environment had a bad CRC and U-Boot used its defaults, so `saveenv` wrote
+  a fresh environment.
+- **What changed.**
+  - Of the eMMC's first 8 MiB, hashed per 64 KiB block before and after, only
+    block 112 changed, at offset `0x700000`.
+  - The 16 KiB environment there has a valid CRC32. It holds the same 58
+    variables as the pre-write `printenv`, except `fdtfile`, which is now
+    the panel DTB (`env-stored-vars.txt`).
+  - U-Boot reads this copy at every boot, so no second power-cycle was needed
+    to prove it.
+  - `make verify-board` now reports a new `storage_bootloader_region` hash
+    (`1bffa42d…490c`), which is expected after this write.
+- **After the boot.** All of these were read-only checks:
+  - `card1-DPI-1` is `connected` at 1024x600, and `fb0` is 1024×600;
+  - `/sys/class/backlight/2-0045` is `raw`, max 255, brightness 255;
+  - "Goodix Capacitive TouchScreen" is on `2-0014` with the `Goodix-TS`
+    driver, and `2-0045` is bound to `ws_dsi2dpi`;
+  - weston is active, and no unit has failed (`health-check/20261021T225143Z`).
+  - The owner saw the panel showing the weston desktop (owner observation,
+    2026-10-21).
+- **p1 access date.** p1's hash also changed, to `7949b713…0efde`. Its FAT
+  last-access date for `imx8mp-frdm-waveshare-7inch-c-panel.dtb` moved from
+  2026-10-10 to 2026-10-21, read raw (`p1-fat-metadata.txt`). The owner
+  explained the cause. Before the env change, the owner session ran `ls` of
+  `/run/media/mmcblk2p1` and `sha256sum` of that DTB (`3c0e0466…5438`) to
+  confirm the file existed. Opening the file on the vfat mount (`relatime`)
+  updated its access date, as in the 2026-10-10 correction above. U-Boot's
+  `fatload` does not change it.
+- **Rollback.** At the U-Boot prompt, run
+  `setenv fdtfile '"imx8mp-frdm.dtb"'; saveenv`. The default value includes
+  the double quotes. Alternatively, `env default -a; saveenv` stores the full
+  default environment with a valid CRC. Either way the stored copy then has a
+  valid CRC, unlike the factory's. Only a restore
+  ([frdm-factory-restore.md](frdm-factory-restore.md)) brings back the
+  original bad-CRC bytes.
+
 **J18 and J27 pin sources.** UM12340 Rev 1.0 says J18 carries I2S, UART, I2C
 and GPIO but has no pin table. The quick-start guide's J18 drawing uses
 Raspberry Pi names in the Pi layout: 5V on pins 2 and 4, 3V3 on 1, Ground on
