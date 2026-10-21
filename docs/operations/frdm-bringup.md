@@ -136,9 +136,9 @@ The Buildroot image's `S50tailscaled` is a later, separate step.
   survive a reboot, and no unit file is written:
 
   ```sh
-  ssh root@192.168.50.15 'mkdir -p /usr/local/bin && install -d -m 0700 /var/lib/tailscale'
-  scp tailscale_1.102.2_arm64/tailscale tailscale_1.102.2_arm64/tailscaled root@192.168.50.15:/usr/local/bin/
-  ssh root@192.168.50.15 'systemd-run --unit=tailscaled --collect /usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state'
+  ssh root@192.168.50.19 'mkdir -p /usr/local/bin && install -d -m 0700 /var/lib/tailscale'
+  scp tailscale_1.102.2_arm64/tailscale tailscale_1.102.2_arm64/tailscaled root@192.168.50.19:/usr/local/bin/
+  ssh root@192.168.50.19 'systemd-run --unit=tailscaled --collect /usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state'
   ```
 
 - **Enroll with the tag.** Use a one-off auth key that carries
@@ -146,8 +146,8 @@ The Buildroot image's `S50tailscaled` is a later, separate step.
   file, never put in an argument, and the file is deleted right after:
 
   ```sh
-  ssh root@192.168.50.15 'umask 077 && mkdir -p /run/bhp-enroll && cat > /run/bhp-enroll/authkey' < ./authkey
-  ssh root@192.168.50.15 '/usr/local/bin/tailscale up --auth-key=file:/run/bhp-enroll/authkey --advertise-tags=tag:house-panel; rm -rf /run/bhp-enroll'
+  ssh root@192.168.50.19 'umask 077 && mkdir -p /run/bhp-enroll && cat > /run/bhp-enroll/authkey' < ./authkey
+  ssh root@192.168.50.19 '/usr/local/bin/tailscale up --auth-key=file:/run/bhp-enroll/authkey --advertise-tags=tag:house-panel; rm -rf /run/bhp-enroll'
   ```
 
 - **Check the identity and the name.** `Self.Tags` must be exactly
@@ -155,8 +155,8 @@ The Buildroot image's `S50tailscaled` is a later, separate step.
   `100.x` address:
 
   ```sh
-  ssh root@192.168.50.15 '/usr/local/bin/tailscale status --self --json' | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"].get("Tags"))'
-  ssh root@192.168.50.15 'getent hosts lexinet-study.<tailnet>.ts.net'
+  ssh root@192.168.50.19 '/usr/local/bin/tailscale status --self --json' | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"].get("Tags"))'
+  ssh root@192.168.50.19 'getent hosts lexinet-study.<tailnet>.ts.net'
   ```
 
   connman owns `resolv.conf`, so Tailscale may or may not manage DNS here.
@@ -168,7 +168,7 @@ The Buildroot image's `S50tailscaled` is a later, separate step.
   the admin console:
 
   ```sh
-  ssh root@192.168.50.15 '/usr/local/bin/tailscale logout; systemctl stop tailscaled; rm -rf /var/lib/tailscale /usr/local/bin/tailscale /usr/local/bin/tailscaled; test -L /etc/resolv.conf || ln -sf /etc/resolv-conf.connman /etc/resolv.conf'
+  ssh root@192.168.50.19 '/usr/local/bin/tailscale logout; systemctl stop tailscaled; rm -rf /var/lib/tailscale /usr/local/bin/tailscale /usr/local/bin/tailscaled; test -L /etc/resolv.conf || ln -sf /etc/resolv-conf.connman /etc/resolv.conf'
   ```
 
 The on-board study check (plan
@@ -526,6 +526,12 @@ opening a file is not.
   address, so it used the console. The owner chose to keep the new address
   (2026-10-18): `dev.toml [hardware] ssh` is now `root@192.168.50.15`; the
   agent's host grant still names the old address until the owner changes it.
+  Amended 2026-10-21: the PC moved and the board rebooted with it. `eth0`
+  (MAC `10:07:23:6e:cc:0c`) took 192.168.50.19/24 and `eth1` is down. The
+  ECDSA host key is unchanged
+  (`SHA256:OU9fQXVIdWnPfmp+yH1FgZwcTfVW+7bPvDLADuKIysc`). The owner moved the
+  agent's grant to 192.168.50.19:22, and `dev.toml [hardware] ssh` follows it.
+  The address is still a DHCP lease; a reservation is the owner's.
 - Console: when the agent's logger opened `if00` (05:00:19Z) the board
   logged line noise and then `sysrq: HELP`, so the UART saw a break. A
   break followed by a SysRq command key would act on it (for example `b`

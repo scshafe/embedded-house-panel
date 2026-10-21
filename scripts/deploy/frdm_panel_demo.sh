@@ -106,7 +106,7 @@ def build():
 def ssh_target():
     target = os.environ.get('BHP_BOARD_SSH_TARGET', '')
     if not re.fullmatch(r'root@[0-9.]+', target):
-        fail('FRDM_DEMO.SSH_TARGET_REQUIRED', 'export BHP_BOARD_SSH_TARGET, for example root@192.168.50.15')
+        fail('FRDM_DEMO.SSH_TARGET_REQUIRED', 'export BHP_BOARD_SSH_TARGET, for example root@192.168.50.19')
     return target
 
 def ssh(target, remote):

@@ -25,7 +25,7 @@ board = "frdm-imx8mp"
 soc = "NXP i.MX 8M Plus; FRDM-IMX8MPLUS, 4 GB LPDDR4, 32 GB eMMC"
 console = "/dev/serial/by-id/usb-1a86_USB_Dual_Serial_535A000001-if00"
 baud = 115200
-ssh = "root@192.168.50.15"
+ssh = "root@192.168.50.19"
 access = "agent"
 verify = "make verify-board"
 owner_gated = [
@@ -55,8 +55,8 @@ selected = []
 # they are.
 [template]
 source = "scshafe/scshafe-dev"
-version = "0.11.0"
-commit = "cf4ba8ba026008725c01f48891a72139ca3cc2a4"
+version = "0.16.0"
+commit = "31b678701850c9992b5c99006765618e4f7eb15f"
 released = true
 dirty = false
 mode = "adopted"
