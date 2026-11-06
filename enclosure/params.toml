@@ -31,7 +31,7 @@ mic_to_speaker = 80.0
 
 [acoustic]
 mic_part = "mic_strip"
-speaker_shape = "speaker.body"
+speaker_shape = "speaker.frame"
 
 [allow]
 # The gate board's USB-A plug sits inside the board's USB-A receptacle.
@@ -86,9 +86,9 @@ size = [24.0, 24.0, 13.5]
 [[shell.openings]]
 id = "speaker_grille"
 face = "+z"
-purpose = "speaker grille"
-min = [14.5, -129.25, 0.0]
-size = [35.9, 18.5, 3.5]
+purpose = "speaker grille, over the cone and inside the frame's screw holes"
+min = [17.45, -127.0, 0.0]
+size = [30.0, 12.0, 3.5]
 
 [[shell.openings]]
 id = "led_window"
@@ -838,27 +838,52 @@ source = "Adafruit back photo, +/-1 mm"
 
 [[parts]]
 id = "speaker"
-name = "Micro speaker (placeholder: Same Sky CES-361810-18PM)"
+name = "Micro speaker: PUI Audio AS04008CO-2-LW100-R (8 ohm, 1.5 W)"
 metal = true
-pose = { at = [32.45, -120.0, -0.5] }
-provenance = { status = "placeholder", source = "Same Sky ces-361810-18pm.pdf (sha256 2d29605f...8510); not chosen" }
-mass_g = { value = 4.1, status = "placeholder", source = "CES-361810-18PM datasheet" }
+pose = { at = [32.45, -121.0, -0.5] }
+provenance = { status = "vendor", source = "PUI drawing specs-AS04008CO-2-LW100-R.pdf (sha256 2112ccaa...71b5); chosen in docs/hardware/mirror-unit-speaker-and-gate.md" }
+mass_g = { value = 7.8, status = "vendor", source = "AS04008CO-2-LW100-R drawing" }
 
 [[parts.shapes]]
-id = "body"
-min = [-17.95, -9.25, -10.7]
-size = [35.9, 18.5, 10.7]
+# The 40 x 20 mm frame, 2.8 mm thick; its front face (the cone side) is z = 0.
+id = "frame"
+min = [-20.0, -10.0, -2.8]
+size = [40.0, 20.0, 2.8]
 
 [[parts.shapes]]
-id = "ears"
-min = [-22.45, -9.25, -3.25]
-size = [44.9, 18.5, 3.25]
+# The magnet, a 14.8 mm cylinder to 8 mm behind the front face.
+id = "magnet"
+min = [-7.4, -7.4, -8.0]
+size = [14.8, 14.8, 5.2]
+
+[[parts.holes]]
+id = "tl"
+at = [-18.0, 8.0, -1.4]
+d = 2.2
+
+[[parts.holes]]
+id = "tr"
+at = [18.0, 8.0, -1.4]
+d = 2.2
+
+[[parts.holes]]
+id = "bl"
+at = [-18.0, -8.0, -1.4]
+d = 2.2
+
+[[parts.holes]]
+id = "br"
+at = [18.0, -8.0, -1.4]
+d = 2.2
 
 [[parts.connectors]]
+# The 24 AWG leads leave the frame's left end.
 id = "leads"
-at = [-17.95, 0.0, -5.35]
+at = [-20.0, 0.0, -0.5]
 exit = "-x"
 straight = 1.0
+status = "estimate"
+source = "AS04008CO drawing: leads at the left end, height on the frame not drawn"
 
 # ---------------------------------------------------------------------------
 # Privacy and presence gate board: not designed yet (packaging plan Step 3).
@@ -1029,9 +1054,9 @@ kind = "wires"
 ends = ["xvf_core.speaker", "speaker.leads"]
 section = [2.0, 2.0]
 min_bend_radius = 2.0
-provenance = { status = "design", source = "re-terminated from the speaker's PicoBlade to JST PH 2.0" }
+provenance = { status = "design", source = "pre-crimped JST PH leads soldered to the speaker's 24 AWG leads (speaker-and-gate doc)" }
 service_loop = 10.0
-route = [[-19.555, -56.45, -4.0], [-19.555, -56.45, -1.0], [-19.555, -108.0, -1.0], [5.0, -108.0, -1.0], [5.0, -120.0, -1.0], [5.0, -120.0, -5.85], [14.5, -120.0, -5.85]]
+route = [[-19.555, -56.45, -4.0], [-19.555, -56.45, -1.0], [-19.555, -108.0, -1.0], [5.0, -108.0, -1.0], [5.0, -121.0, -1.0], [12.45, -121.0, -1.0]]
 
 [[cables]]
 id = "pir"

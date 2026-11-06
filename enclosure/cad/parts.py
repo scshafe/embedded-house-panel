@@ -14,6 +14,8 @@ The parts:
 - ``panel_clamp_left`` and ``panel_clamp_right``: they pull the panel onto
   the bezel's gasket, from its M3 standoffs to wedge bosses on the walls.
 - ``cable_clamp``: grips the USB-C power cable at the bottom wall.
+- ``speaker_chamber``: the speaker's sealed back volume, a cup screwed to
+  the front plate around it.
 """
 
 from __future__ import annotations
@@ -50,6 +52,14 @@ RIM_WEDGE_WIDTH = 10.0
 CABLE_BOSS_DEPTH = 9.0
 #: The FRDM board's component face (its posts end there).
 FRDM_COMPONENT_FACE = -20.0
+#: The speaker's sealed back chamber: wall and back thickness, the least air
+#: behind the driver (design value, docs/hardware/mirror-unit-speaker-and-gate.md),
+#: and its screw lugs; M2 clearance.
+CHAMBER_WALL = 2.0
+CHAMBER_BACK = 1.6
+CHAMBER_MIN_AIR_CM3 = 5.0
+CHAMBER_LUG = 7.0
+CLEAR_M2 = 2.4
 
 
 @dataclass(frozen=True)
@@ -270,13 +280,17 @@ def front_shell(layout: Layout) -> Printed:
         features.append(cylinder_z(x, y, pir_face, 0.0, 4.5))
         cuts.append(cylinder_z(x, y, pir_face - 1.0, 2.0, PILOT_M2))
         fasteners.append(Fastener(f"pir_screw_{hole_id}", (x, y, pir_face), "screw_m2", "steel"))
-    # Speaker: pads under its flange holes, M2 self-tapping screws.
-    ears = _shape(layout, "speaker.ears")
-    for side, x in (("left", ears.center[0] - 20.45), ("right", ears.center[0] + 20.45)):
-        y = ears.center[1]
-        features.append(cylinder_z(x, y, ears.high[2], 0.0, 4.5))
-        cuts.append(cylinder_z(x, y, ears.high[2] - 1.0, 2.0, PILOT_M2))
-        fasteners.append(Fastener(f"speaker_screw_{side}", (x, y, ears.high[2]), "screw_m2", "steel"))
+    # Speaker: pads under its four frame holes, M2 self-tapping screws from
+    # behind; the gap between the pads takes the foam gasket.
+    frame = _shape(layout, "speaker.frame")
+    for hole in layout.part("speaker").holes:
+        x, y, _ = hole.at
+        features.append(cylinder_z(x, y, frame.high[2], 0.0, 4.5))
+        cuts.append(cylinder_z(x, y, frame.high[2] - 1.0, 2.0, PILOT_M2))
+        fasteners.append(Fastener(f"speaker_screw_{hole.id}", (x, y, frame.low[2]), "screw_m2", "steel"))
+    # The speaker's back chamber screws to the front plate through its lugs.
+    for x, y in speaker_chamber_lugs(layout):
+        cuts.append(cylinder_z(x, y, -1.0, 2.0, PILOT_M2))
     # LED: a collar that holds a 5 mm LED behind its window.
     led = _shape(layout, "mic_led.body")
     features.append(cylinder_z(led.center[0], led.center[1], -5.0, 0.0, 8.5))
@@ -302,6 +316,58 @@ def front_shell(layout: Layout) -> Printed:
                    # which its square layout box overstates.
                    touches={"xvf_core.low_parts", "mic_led.body", "pir.lens"},
                    fasteners=fasteners)
+
+
+# ---------------------------------------------------------------------------
+# Speaker back chamber.
+
+def _speaker_cavity(layout: Layout) -> Box:
+    """The chamber's air space: around the frame with fit clearance, from the
+    front plate back far enough to hold CHAMBER_MIN_AIR_CM3 beside the driver."""
+    frame, magnet = _shape(layout, "speaker.frame"), _shape(layout, "speaker.magnet")
+    low_xy = (frame.low[0] - FIT, frame.low[1] - FIT)
+    high_xy = (frame.high[0] + FIT, frame.high[1] + FIT)
+    area = (high_xy[0] - low_xy[0]) * (high_xy[1] - low_xy[1])
+    driver = (frame.size[0] * frame.size[1] * frame.size[2]
+              + math.pi * (magnet.size[0] / 2.0) ** 2 * magnet.size[2])
+    depth = (CHAMBER_MIN_AIR_CM3 * 1000.0 + driver) / area
+    depth = max(math.ceil(depth * 2.0) / 2.0, -magnet.low[2] + 1.0)
+    return Box((low_xy[0], low_xy[1], -depth), (high_xy[0], high_xy[1], 0.0))
+
+
+def speaker_chamber_lugs(layout: Layout) -> list[tuple[float, float]]:
+    """Two screw lugs on diagonal corners, clear of the leads at the left end."""
+    cavity = _speaker_cavity(layout)
+    reach = CHAMBER_WALL + CHAMBER_LUG / 2.0
+    return [(cavity.low[0] - reach, cavity.low[1] - CHAMBER_WALL + CHAMBER_LUG / 2.0),
+            (cavity.high[0] + reach, cavity.high[1] + CHAMBER_WALL - CHAMBER_LUG / 2.0)]
+
+
+def speaker_chamber(layout: Layout) -> Printed:
+    """A sealed cup behind the speaker; its rim beds on the front plate in silicone.
+
+    It prints back down, rim up, so the walls and the full-height lugs need no
+    support. The leads leave through a notch in the rim, sealed after wiring.
+    """
+    cavity = _speaker_cavity(layout)
+    w, back = CHAMBER_WALL, CHAMBER_BACK
+    z0 = cavity.low[2] - back
+    solid = block((cavity.low[0] - w, cavity.low[1] - w, z0), (cavity.high[0] + w, cavity.high[1] + w, 0.0))
+    for x, y in speaker_chamber_lugs(layout):
+        half = CHAMBER_LUG / 2.0
+        solid = solid + block((x - half, y - half, z0), (x + half, y + half, 0.0))
+    cuts = [box_solid(cavity)]
+    fasteners = []
+    for index, (x, y) in enumerate(speaker_chamber_lugs(layout)):
+        cuts.append(cylinder_z(x, y, z0 - 1.0, 1.0, CLEAR_M2))
+        fasteners.append(Fastener(f"chamber_screw_{index}", (x, y, z0), "screw_m2", "steel"))
+    leads = layout.connector("speaker.leads").at
+    cable = next(cable for cable in layout.cables if cable.id == "speaker")
+    half = max(cable.width, cable.thickness) / 2.0 + FIT
+    cuts.append(block((cavity.low[0] - w - 1.0, leads[1] - half, leads[2] - half),
+                      (cavity.low[0] + 1.0, leads[1] + half, 1.0)))
+    return Printed("speaker_chamber", "Speaker back chamber", subtract(solid, cuts), [],
+                   orientation="back down, rim up", fasteners=fasteners)
 
 
 # ---------------------------------------------------------------------------
@@ -421,7 +487,7 @@ def cable_clamp(layout: Layout) -> Printed:
 
 def build(layout: Layout) -> list[Printed]:
     return [front_shell(layout), rear_plate(layout), mount_plate(layout), panel_clamp(layout, "left"),
-            panel_clamp(layout, "right"), cable_clamp(layout), frdm_standoffs(layout)]
+            panel_clamp(layout, "right"), cable_clamp(layout), speaker_chamber(layout), frdm_standoffs(layout)]
 
 
 # ---------------------------------------------------------------------------

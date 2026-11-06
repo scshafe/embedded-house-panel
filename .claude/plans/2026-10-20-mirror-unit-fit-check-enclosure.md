@@ -172,6 +172,9 @@ mounting stay in the packaging plan's Steps 5 and 6.
 - The heatsink's height and the tallest parts on the FRDM board (no public
   drawing). These set the unit's depth; the estimate is on the caliper list.
 - The speaker and the gate board are not chosen or built; their boxes are
-  placeholders.
+  placeholders. Amended 2026-11-06: the speaker is chosen (PUI
+  AS04008CO-2-LW100-R, [mirror-unit-speaker-and-gate.md](../../docs/hardware/mirror-unit-speaker-and-gate.md));
+  `params.toml` has its vendor outline and the CAD adds its sealed back
+  chamber. The gate board stays a placeholder until its PCB is laid out.
 - Whether J27's Dupont housings should become right-angle connectors to
   save depth (decided in Step 2 from the check).
