@@ -145,7 +145,10 @@ only (an amplifier cannot record).
   datasheet, not the 12 V figure). Amended 2026-11-06: chosen in
   [mirror-unit-speaker-and-gate.md](../../docs/hardware/mirror-unit-speaker-and-gate.md):
   PUI AS04008CO-2-LW100-R, 8 Ω, for the TPA3139D2 at 5 V. Whether that
-  amplifier runs at 5 V at all is a step 3 bench check.
+  amplifier runs at 5 V at all is a step 3 bench check. Higher-quality
+  options, and what each would need, are in
+  [mirror-unit-speaker-options.md](../../docs/hardware/mirror-unit-speaker-options.md);
+  they are for the owner to pick.
 - **Consequence of the presence gate:** the speaker is powered with the array,
   so the unit cannot make a sound while nobody is in front of it. A chime for
   an empty room would need a separate speaker path (for example the WM8962
@@ -259,7 +262,9 @@ microSD. Ethernet is for the bench only.
     [mirror-unit-speaker-and-gate.md](../../docs/hardware/mirror-unit-speaker-and-gate.md)
     (schematic, BOM, build form, bench checks). The PIR's own retrigger hold is
     the timer; the board adds one only if this step's measurements need it. A
-    fabbed PCB for the enclosure follows the perfboard build.
+    fabbed PCB for the enclosure follows the perfboard build. The owner
+    approved KiCad for its layout (2026-11-06) and installs it when the agent
+    says the layout is due.
   - Verify: with Linux running and the switch on, the array is powered only
     while the PIR holds; with the switch off, never; the LED follows the rail;
     the time from presence to "ready for a command" is recorded.

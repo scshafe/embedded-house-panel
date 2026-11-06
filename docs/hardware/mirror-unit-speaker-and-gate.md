@@ -16,7 +16,10 @@ or writes to it.
 ## Decisions
 
 - **Speaker:** PUI Audio AS04008CO-2-LW100-R (8 Ω, 1.5 W rated, 40 × 20 × 8 mm),
-  $3.59 at Digi-Key. Runner-up: Same Sky CMS-402008-18SP.
+  $3.59 at Digi-Key. Runner-up: Same Sky CMS-402008-18SP. Higher-quality
+  drivers are compared in
+  [mirror-unit-speaker-options.md](mirror-unit-speaker-options.md). This stays
+  the baseline unless the owner picks another.
 - **Gate:** the privacy switch and the presence gate are wired in series on the
   array's USB 5 V:
   - a mechanical slide switch;
@@ -328,8 +331,11 @@ checkout and were not checked.
     18.8 × 22 mm.
   - Perfboard cannot carry the 2.0 mm-pitch plug or the PH headers.
 - **Laying the PCB out needs KiCad.** It is not installed on the development
-  PC, and installing it is the owner's call. The layout and its gerbers are a
-  follow-up.
+  PC. The layout and its gerbers are a follow-up.
+  - Amended 2026-11-06: the owner approved KiCad for when the layout is
+    actually needed, after the step 3 bench build.
+  - The agent has no sudo, so at that point it tells the owner, who installs
+    it on the PC.
 
 The two forms differ by about $5 and the PCB's two-week wait. This choice
 changes no privacy property, because the circuit is the same.
@@ -362,7 +368,10 @@ array on the gate.
   outline sits 1 mm lower than the placeholder, clear of the core board's
   audio jack, and the CAD's `speaker_chamber` holds 5.35 cm³ of air behind it.
   The gate board's outline stays a placeholder until the PCB is laid out.
-- **The PCB layout and gerbers,** after step 3, once KiCad is available.
+- **The PCB layout and gerbers,** after step 3.
+  - KiCad was approved by the owner on 2026-11-06 for this step.
+  - When step 3's measurements are in, the agent asks the owner to install
+    it; the agent has no sudo.
 - **Order list for the owner** (nothing is bought by the agent): the BOM above
   with the perfboard extras. Add CMS-402008-18SP if the PUI speaker is out of
   stock.
