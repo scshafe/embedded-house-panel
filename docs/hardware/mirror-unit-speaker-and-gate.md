@@ -358,10 +358,10 @@ array on the gate.
 
 - **ARRIVAL-08 and ARRIVAL-10 (owner).** Take the meter reading on the PIR pad
   bank, then wire the PIR. These fix the wake interface (R4 or a divider).
-- **`enclosure/params.toml`.** Replace the speaker placeholder with the
-  AS04008CO outline and add its sealed back chamber. Replace the gate board's
-  placeholder outline once the PCB is laid out. Then rerun the fit and solid
-  checks.
+- **`enclosure/params.toml`.** Done for the speaker (2026-11-06): its vendor
+  outline sits 1 mm lower than the placeholder, clear of the core board's
+  audio jack, and the CAD's `speaker_chamber` holds 5.35 cm³ of air behind it.
+  The gate board's outline stays a placeholder until the PCB is laid out.
 - **The PCB layout and gerbers,** after step 3, once KiCad is available.
 - **Order list for the owner** (nothing is bought by the agent): the BOM above
   with the perfboard extras. Add CMS-402008-18SP if the PUI speaker is out of

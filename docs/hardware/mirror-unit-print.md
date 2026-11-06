@@ -50,6 +50,7 @@ send the numbers back before printing the rest.
 | `panel_clamp_left` | Panel clamp, left | back down, pads up | 38.5 x 73.5 | 3.8 |
 | `panel_clamp_right` | Panel clamp, right | back down, pads up | 36.4 x 73.5 | 3.8 |
 | `cable_clamp` | Power-cable clamp | back down, channel up | 20.0 x 8.6 | 4.0 |
+| `speaker_chamber` | Speaker back chamber | back down, rim up | 58.8 x 24.8 | 11.6 |
 | `frdm_template` | FRDM hole template (print first) | flat | 120.3 x 130.3 | 1.2 |
 | `panel_template` | Panel standoff template (print first) | flat | 165.0 x 100.0 | 1.2 |
 <!-- /generated:printed-parts -->
@@ -73,7 +74,7 @@ Brim the shell and the plates if your bed lifts PETG corners.
 | Hardware | Material | Count | Where |
 |---|---|---|---|
 | M3 heat-set insert (for a 4.0 mm hole, 4-5 mm long) | brass | 18 | `front_shell` x18 |
-| M2 self-tapping screw | steel | 4 | `front_shell` x4 |
+| M2 self-tapping screw | steel | 8 | `front_shell` x6, `speaker_chamber` x2 |
 | M3 screw | nylon | 4 | `panel_clamp_left` x2, `panel_clamp_right` x2 |
 | M3 screw | steel | 26 | `cable_clamp` x2, `frdm_standoffs` x4, `front_shell` x6, `panel_clamp_left` x2, `panel_clamp_right` x2, `rear_plate` x10 |
 | M3 x 24 hex standoff, female-female | brass | 4 | `frdm_standoffs` x4 |
@@ -108,8 +109,12 @@ Also:
 4. **The chin.**
    - The XVF3800 core board goes on its four posts. Fit the 24-pin mic flex
      between it and the strip.
-   - Then the PIR (two M2), the speaker (two M2) and the LED in its collar.
-   - Plug the speaker leads into the core board.
+   - Then the PIR (two M2) and the LED in its collar.
+   - The speaker: a thin foam gasket on its frame's front face, then four
+     M2 through its frame holes into the pads over the grille.
+   - Plug the speaker leads into the core board, then fit the speaker
+     chamber over it: a bead of silicone on its rim, the leads in the rim's
+     notch, two M2 through its lugs. Seal the notch around the leads.
 5. **The board and the rear plate.**
    - Put the four standoffs on the rear plate (countersunk M3 from the
      back), then the board on them, component side down.

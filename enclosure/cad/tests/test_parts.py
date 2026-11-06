@@ -43,6 +43,15 @@ class PrintedPartsTest(unittest.TestCase):
                 inside = build_enclosure._overlap_volume(shell.solid, probe)
                 self.assertLess(inside, probe.volume, f"{opening.id} is not cut")
 
+    def test_the_speaker_chamber_holds_its_air_and_the_driver(self) -> None:
+        chamber = next(item for item in BUILT if item.id == "speaker_chamber")
+        cavity = parts.box_solid(parts._speaker_cavity(LAYOUT))
+        driver = parts.union(parts.box_solid(shape.world) for shape in LAYOUT.part("speaker").shapes)
+        self.assertGreaterEqual((cavity.volume - driver.volume) / 1000.0, parts.CHAMBER_MIN_AIR_CM3)
+        self.assertAlmostEqual(build_enclosure._overlap_volume(chamber.solid, driver), 0.0, places=6)
+        # The rim beds on the front plate's inner face.
+        self.assertAlmostEqual(chamber.solid.bounding_box().max.Z, 0.0, places=6)
+
     def test_a_part_in_the_way_is_found(self) -> None:
         intruder = parts.Printed("intruder", "test", parts.block((-10, -10, -5), (10, 10, -1)), [])
         self.assertIn("CAD.PART_COLLISION", codes([intruder]))
