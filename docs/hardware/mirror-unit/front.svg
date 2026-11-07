@@ -6,6 +6,7 @@
 <rect x="307.69" y="688.75" width="56.4" height="66" fill="#65a30d" fill-opacity="0.08" stroke="#65a30d" stroke-width="0.8" stroke-dasharray="1 2"><title>gate.back_parts (solid, placeholder: packaging plan Step 3; not designed)</title></rect>
 <rect x="307.69" y="688.75" width="56.4" height="66" fill="#65a30d" fill-opacity="0.08" stroke="#65a30d" stroke-width="0.8" stroke-dasharray="1 2"><title>gate.pcb (solid, placeholder: packaging plan Step 3; not designed)</title></rect>
 <rect x="317.89" y="652.75" width="36" height="36" fill="#65a30d" fill-opacity="0.08" stroke="#65a30d" stroke-width="0.8"><title>gate.usb_plug (solid, vendor: USB 2.0 Fig 6-7: plug shell 12.00 x 4.50)</title></rect>
+<rect x="594.88" y="647.8" width="78" height="78" fill="#0891b2" fill-opacity="0.08" stroke="#0891b2" stroke-width="0.8" stroke-dasharray="4 2"><title>speaker.motor (solid, estimate: 26.1 behind the flange from the Dayton drawing; 26 mm across and 10.5 deep, scaled)</title></rect>
 <rect x="351.64" y="292.02" width="43.5" height="46.8" fill="#059669" fill-opacity="0.08" stroke="#059669" stroke-width="0.8" stroke-dasharray="4 2"><title>frdm.backlight_jst (solid, estimate: UM12340 Rev 1.0 Figure 2 photo scaled at 9.6 px/mm; heights typical for the part type)</title></rect>
 <rect x="490.54" y="407.52" width="42.3" height="11.1" fill="#059669" fill-opacity="0.08" stroke="#059669" stroke-width="0.8" stroke-dasharray="4 2"><title>frdm.buttons (solid, estimate: UM12340 Rev 1.0 Figure 2 photo scaled at 9.6 px/mm; heights typical for the part type)</title></rect>
 <rect x="313.54" y="288.42" width="19.8" height="19.8" fill="#059669" fill-opacity="0.08" stroke="#059669" stroke-width="0.8" stroke-dasharray="4 2"><title>frdm.cap_1 (solid, estimate: UM12340 Rev 1.0 Figure 2 photo scaled at 9.6 px/mm; heights typical for the part type)</title></rect>
@@ -77,27 +78,28 @@
 <rect x="413.2" y="370.35" width="24" height="15" fill="#2563eb" fill-opacity="0.08" stroke="#2563eb" stroke-width="0.8"><title>panel.touch_connector (solid, vendor: Waveshare 7inch-dsi-lcd-c.stp (3D zip sha256 5f138287...a0f9) and Exterior-Size.jpg (sha256 ea79a99e...750b))</title></rect>
 <rect x="471.65" y="623.33" width="25.95" height="43.8" fill="#7c3aed" fill-opacity="0.08" stroke="#7c3aed" stroke-width="0.8"><title>xvf_core.audio_jack (solid, vendor: Seeed reSpeaker_xvf3800_flex_Separate.step (sha256 d1b3f7dc...03ef) and _2d.dxf (sha256 bb17991f...49a1))</title></rect>
 <rect x="337.2" y="634.56" width="36" height="25.8" fill="#7c3aed" fill-opacity="0.08" stroke="#7c3aed" stroke-width="0.8"><title>xvf_core.usb_ph4 (solid, vendor: Seeed reSpeaker_xvf3800_flex_Separate.step (sha256 d1b3f7dc...03ef) and _2d.dxf (sha256 bb17991f...49a1))</title></rect>
+<rect x="573.88" y="626.8" width="120" height="120" fill="#0891b2" fill-opacity="0.08" stroke="#0891b2" stroke-width="0.8" stroke-dasharray="4 2"><title>speaker.basket (solid, estimate: 40.0 from the Dayton drawing; 15.6 deep, scaled)</title></rect>
 <rect x="345.47" y="506.49" width="18" height="14.1" fill="#7c3aed" fill-opacity="0.08" stroke="#7c3aed" stroke-width="0.8"><title>xvf_core.speaker_ph (solid, vendor: Seeed reSpeaker_xvf3800_flex_Separate.step (sha256 d1b3f7dc...03ef) and _2d.dxf (sha256 bb17991f...49a1))</title></rect>
 <rect x="331.58" y="536.98" width="58.97" height="21" fill="#7c3aed" fill-opacity="0.08" stroke="#7c3aed" stroke-width="0.8"><title>xvf_core.electrolytics (solid, vendor: Seeed reSpeaker_xvf3800_flex_Separate.step (sha256 d1b3f7dc...03ef) and _2d.dxf (sha256 bb17991f...49a1))</title></rect>
-<rect x="488.29" y="685" width="44.4" height="44.4" fill="#0891b2" fill-opacity="0.08" stroke="#0891b2" stroke-width="0.8"><title>speaker.magnet (solid, vendor: PUI drawing specs-AS04008CO-2-LW100-R.pdf (sha256 2112ccaa...71b5); chosen in docs/hardware/mirror-unit-speaker-and-gate.md)</title></rect>
 <rect x="460.41" y="504.57" width="22.5" height="22.2" fill="#7c3aed" fill-opacity="0.08" stroke="#7c3aed" stroke-width="0.8"><title>xvf_core.terminal_12v (solid, vendor: Seeed reSpeaker_xvf3800_flex_Separate.step (sha256 d1b3f7dc...03ef) and _2d.dxf (sha256 bb17991f...49a1))</title></rect>
-<rect x="581.23" y="548.15" width="97.02" height="72.09" fill="#db2777" fill-opacity="0.08" stroke="#db2777" stroke-width="0.8" stroke-dasharray="4 2"><title>pir.back_parts (solid, estimate: 24.66 total less the lens and PCB)</title></rect>
+<rect x="581.23" y="533.15" width="97.02" height="72.09" fill="#db2777" fill-opacity="0.08" stroke="#db2777" stroke-width="0.8" stroke-dasharray="4 2"><title>pir.back_parts (solid, estimate: 24.66 total less the lens and PCB)</title></rect>
 <rect x="393.85" y="158.8" width="46.5" height="14.7" fill="#d97706" fill-opacity="0.08" stroke="#d97706" stroke-width="0.8"><title>mic_strip.fpc_connector (solid, vendor: Seeed reSpeaker_xvf3800_flex_linear_2d.dxf (sha256 de6eef83...c038) and .step (sha256 3f364668...9ddb))</title></rect>
 <rect x="266.14" y="154.54" width="306" height="12" fill="#d97706" fill-opacity="0.08" stroke="#d97706" stroke-width="0.8"><title>mic_strip.mics (solid, vendor: Seeed reSpeaker_xvf3800_flex_linear_2d.dxf (sha256 de6eef83...c038) and .step (sha256 3f364668...9ddb))</title></rect>
+<rect x="564.88" y="617.8" width="138" height="138" fill="#0891b2" fill-opacity="0.08" stroke="#0891b2" stroke-width="0.8"><title>speaker.frame (solid, vendor: Dayton DMA45-8 specification sheet (sha256 27e8072f...b168); chosen in docs/hardware/mirror-unit-speaker-and-gate.md)</title></rect>
 <rect x="254.14" y="142" width="330" height="33" fill="#d97706" fill-opacity="0.08" stroke="#d97706" stroke-width="0.8"><title>mic_strip.pcb (solid, vendor: Seeed reSpeaker_xvf3800_flex_linear_2d.dxf (sha256 de6eef83...c038) and .step (sha256 3f364668...9ddb))</title></rect>
-<rect x="581.23" y="548.15" width="97.02" height="72.09" fill="#db2777" fill-opacity="0.08" stroke="#db2777" stroke-width="0.8"><title>pir.pcb (solid, vendor: Adafruit product 189 page (32.34 x 24.03, 24.66 tall with the lens) and back photo proximity_PIRbackLabeled.jpg)</title></rect>
+<rect x="581.23" y="533.15" width="97.02" height="72.09" fill="#db2777" fill-opacity="0.08" stroke="#db2777" stroke-width="0.8"><title>pir.pcb (solid, vendor: Adafruit product 189 page (32.34 x 24.03, 24.66 tall with the lens) and back photo proximity_PIRbackLabeled.jpg)</title></rect>
 <rect x="170.46" y="196.34" width="496.03" height="301.01" fill="#2563eb" fill-opacity="0.08" stroke="#2563eb" stroke-width="0.8"><title>panel.lcd_stack (solid, vendor: Waveshare 7inch-dsi-lcd-c.stp (3D zip sha256 5f138287...a0f9) and Exterior-Size.jpg (sha256 ea79a99e...750b))</title></rect>
 <rect x="393.23" y="492.7" width="64.55" height="10.18" fill="#2563eb" fill-opacity="0.08" stroke="#2563eb" stroke-width="0.8"><title>panel.touch_fpc_wrap (solid, vendor: Waveshare 7inch-dsi-lcd-c.stp (3D zip sha256 5f138287...a0f9) and Exterior-Size.jpg (sha256 ea79a99e...750b))</title></rect>
-<rect x="450.49" y="677.2" width="120" height="60" fill="#0891b2" fill-opacity="0.08" stroke="#0891b2" stroke-width="0.8"><title>speaker.frame (solid, vendor: PUI drawing specs-AS04008CO-2-LW100-R.pdf (sha256 2112ccaa...71b5); chosen in docs/hardware/mirror-unit-speaker-and-gate.md)</title></rect>
+<rect x="577.93" y="630.85" width="111.9" height="111.9" fill="#0891b2" fill-opacity="0.08" stroke="#0891b2" stroke-width="0.8" stroke-dasharray="4 2"><title>speaker.surround (solid, estimate: scaled from the Dayton drawing (11.8 px/mm): 37.3 mm across, 1.8 mm proud)</title></rect>
 <rect x="224.44" y="695.05" width="17.4" height="17.4" fill="#dc2626" fill-opacity="0.08" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="1 2"><title>mic_led.body (solid, placeholder: 5 mm through-hole LED; not chosen)</title></rect>
 <rect x="123.7" y="178.06" width="578.88" height="332.28" fill="#2563eb" fill-opacity="0.08" stroke="#2563eb" stroke-width="0.8"><title>panel.glass (solid, vendor: Waveshare 7inch-dsi-lcd-c.stp (3D zip sha256 5f138287...a0f9) and Exterior-Size.jpg (sha256 ea79a99e...750b))</title></rect>
-<rect x="595.24" y="549.7" width="69" height="69" fill="#db2777" fill-opacity="0.08" stroke="#db2777" stroke-width="0.8" stroke-dasharray="4 2"><title>pir.lens (solid, estimate: dome 23 mm (generic HC-SR501 datasheet); height = 24.66 - 1.6 - back parts)</title></rect>
+<rect x="595.24" y="534.7" width="69" height="69" fill="#db2777" fill-opacity="0.08" stroke="#db2777" stroke-width="0.8" stroke-dasharray="4 2"><title>pir.lens (solid, estimate: dome 23 mm (generic HC-SR501 datasheet); height = 24.66 - 1.6 - back parts)</title></rect>
 <rect x="267.64" y="157.54" width="6" height="6" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening mic0: acoustic port, MIC3 (strip x +49.5)</title></rect>
 <rect x="366.64" y="157.54" width="6" height="6" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening mic1: acoustic port, MIC2</title></rect>
 <rect x="465.64" y="157.54" width="6" height="6" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening mic2: acoustic port, MIC1</title></rect>
 <rect x="564.64" y="157.54" width="6" height="6" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening mic3: acoustic port, MIC0 (strip x -49.5)</title></rect>
-<rect x="593.74" y="548.2" width="72" height="72" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening pir_window: PIR lens dome</title></rect>
-<rect x="465.49" y="689.2" width="90" height="36" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening speaker_grille: speaker grille, over the cone and inside the frame&#x27;s screw holes</title></rect>
+<rect x="593.74" y="533.2" width="72" height="72" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening pir_window: PIR lens dome</title></rect>
+<rect x="584.38" y="637.3" width="99" height="99" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening speaker_grille: speaker grille, 10 slots (464 mm2 open) over the 33 mm cone, inside the flange&#x27;s screw pads</title></rect>
 <rect x="227.14" y="697.75" width="12" height="12" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening led_window: microphone-power LED</title></rect>
 <rect x="141.64" y="753.7" width="27" height="13.5" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening power: USB-C PD cable entry with strain-relief clamp</title></rect>
 <rect x="321.64" y="753.7" width="28.5" height="13.5" fill="#fecaca" fill-opacity="0.5" stroke="#dc2626"><title>opening privacy_switch: microphone privacy slide switch</title></rect>
@@ -115,9 +117,9 @@
 <text x="155.14" y="140.2" font-size="8" text-anchor="middle" fill="#ea580c">power</text>
 <polyline points="355.2,678.85 355.2,739.75 355.2,739.75" fill="none" stroke="#9333ea" stroke-width="5.4" stroke-linejoin="round" stroke-opacity="0.85"><title>cable array_usb: Array USB: gate board to the core board&#x27;s PH-4 (5 V switched, D-, D+, GND)</title></polyline>
 <text x="355.2" y="739.75" font-size="8" text-anchor="middle" fill="#9333ea">array_usb</text>
-<polyline points="354.47,513.55 354.47,513.55 354.47,668.2 428.14,668.2 428.14,707.2 450.49,707.2" fill="none" stroke="#0f766e" stroke-width="3.6" stroke-linejoin="round" stroke-opacity="0.85"><title>cable speaker: Speaker leads to the core board&#x27;s PH 2-pin</title></polyline>
+<polyline points="354.47,513.55 354.47,513.55 354.47,668.2 428.14,668.2 428.14,686.8 428.14,686.8 573.88,686.8" fill="none" stroke="#0f766e" stroke-width="3.6" stroke-linejoin="round" stroke-opacity="0.85"><title>cable speaker: Speaker leads to the core board&#x27;s PH 2-pin</title></polyline>
 <text x="428.14" y="668.2" font-size="8" text-anchor="middle" fill="#0f766e">speaker</text>
-<polyline points="629.29,613.6 629.29,613.6 629.29,736.75 398.14,736.75 398.14,736.75 364.09,736.75" fill="none" stroke="#b45309" stroke-width="5.4" stroke-linejoin="round" stroke-opacity="0.85"><title>cable pir: PIR: +5V, OUT, GND to the gate board (hub)</title></polyline>
+<polyline points="629.29,598.6 629.29,598.6 629.29,736.75 398.14,736.75 398.14,736.75 364.09,736.75" fill="none" stroke="#b45309" stroke-width="5.4" stroke-linejoin="round" stroke-opacity="0.85"><title>cable pir: PIR: +5V, OUT, GND to the gate board (hub)</title></polyline>
 <text x="398.14" y="736.75" font-size="8" text-anchor="middle" fill="#b45309">pir</text>
 <polyline points="547.69,508.02 547.69,508.02 564.64,508.02 564.64,721.75 353.89,721.75 353.89,721.75" fill="none" stroke="#be123c" stroke-width="5.4" stroke-linejoin="round" stroke-opacity="0.85"><title>cable gate_j18: Gate board to J18: 5 V, GND, PIR OUT to the wake GPIO</title></polyline>
 <text x="564.64" y="721.75" font-size="8" text-anchor="middle" fill="#be123c">gate_j18</text>
@@ -133,8 +135,8 @@
 <text x="417.1" y="504.55" font-size="6.5" text-anchor="start" fill="#374151">xvf_core.fpc</text>
 <text x="355.2" y="678.85" font-size="6.5" text-anchor="start" fill="#374151">xvf_core.usb_ph4</text>
 <text x="354.47" y="513.55" font-size="6.5" text-anchor="start" fill="#374151">xvf_core.speaker</text>
-<text x="629.29" y="613.6" font-size="6.5" text-anchor="start" fill="#374151">pir.header</text>
-<text x="450.49" y="707.2" font-size="6.5" text-anchor="start" fill="#374151">speaker.leads</text>
+<text x="629.29" y="598.6" font-size="6.5" text-anchor="start" fill="#374151">pir.header</text>
+<text x="573.88" y="686.8" font-size="6.5" text-anchor="start" fill="#374151">speaker.leads</text>
 <text x="355.2" y="739.75" font-size="6.5" text-anchor="start" fill="#374151">gate.core_usb</text>
 <text x="364.09" y="736.75" font-size="6.5" text-anchor="start" fill="#374151">gate.pir</text>
 <text x="320.89" y="703.75" font-size="6.5" text-anchor="start" fill="#374151">gate.led</text>
@@ -154,7 +156,7 @@
 <rect x="40" y="932.2" width="10" height="10" fill="#db2777" fill-opacity="0.5" stroke="#db2777"/>
 <text x="56" y="941.2" font-size="10" fill="#374151">pir: Adafruit 189 PIR (BISS0001)</text>
 <rect x="40" y="946.2" width="10" height="10" fill="#0891b2" fill-opacity="0.5" stroke="#0891b2"/>
-<text x="56" y="955.2" font-size="10" fill="#374151">speaker: Micro speaker: PUI Audio AS04008CO-2-LW100-R (8 ohm, 1.5 W)</text>
+<text x="56" y="955.2" font-size="10" fill="#374151">speaker: Full-range driver: Dayton Audio DMA45-8 (8 ohm, 10 W)</text>
 <rect x="40" y="960.2" width="10" height="10" fill="#65a30d" fill-opacity="0.5" stroke="#65a30d"/>
 <text x="56" y="969.2" font-size="10" fill="#374151">gate: Privacy/presence gate board (placeholder)</text>
 <rect x="40" y="974.2" width="10" height="10" fill="#dc2626" fill-opacity="0.5" stroke="#dc2626"/>

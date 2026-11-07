@@ -148,7 +148,11 @@ only (an amplifier cannot record).
   amplifier runs at 5 V at all is a step 3 bench check. Higher-quality
   options, and what each would need, are in
   [mirror-unit-speaker-options.md](../../docs/hardware/mirror-unit-speaker-options.md);
-  they are for the owner to pick.
+  they are for the owner to pick. Amended 2026-11-06 (owner): the Dayton
+  DMA45-8 in a sealed corner chamber of about 48 cm³ replaces it, with the
+  PIR 5 mm higher, inside the same outline. It is still 8 Ω on the same
+  amplifier. The PUI is the fallback, and the host high-passes playback for
+  the driver.
 - **Consequence of the presence gate:** the speaker is powered with the array,
   so the unit cannot make a sound while nobody is in front of it. A chime for
   an empty room would need a separate speaker path (for example the WM8962

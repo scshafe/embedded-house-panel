@@ -2,7 +2,8 @@
 
 <!-- @canonical mirror-unit-speaker-and-gate -->
 
-**Status (2026-11-06):** designed, not bought or built. This document chooses the
+**Status (2026-11-06):** designed, not bought or built. Amended 2026-11-06:
+the speaker is now the Dayton DMA45-8 (owner); the PUI is the fallback. This document chooses the
 speaker (requirement R5) and designs the privacy/presence gate board (step 3) of
 the [mirror-unit packaging plan](../../.claude/plans/2026-10-11-mirror-unit-packaging.md).
 Every value comes from a vendor datasheet or is marked as a design value, an
@@ -15,11 +16,19 @@ or writes to it.
 
 ## Decisions
 
-- **Speaker:** PUI Audio AS04008CO-2-LW100-R (8 Ω, 1.5 W rated, 40 × 20 × 8 mm),
-  $3.59 at Digi-Key. Runner-up: Same Sky CMS-402008-18SP. Higher-quality
-  drivers are compared in
-  [mirror-unit-speaker-options.md](mirror-unit-speaker-options.md). This stays
-  the baseline unless the owner picks another.
+- **Speaker:** Dayton Audio DMA45-8, a 1.5-inch full-range driver (8 Ω,
+  10 W rated, 46 × 46 mm flange, 29.1 mm deep), in a sealed corner chamber of
+  about 48 cm³. $8.98 at Parts Express, back-ordered to 2026-12-18.
+  - Amended 2026-11-06: the owner picked it from
+    [mirror-unit-speaker-options.md](mirror-unit-speaker-options.md)
+    (option 3a). The PIR moves up 5 mm and its cable runs behind the
+    chamber, inside the same outline. It stays 8 Ω, and the power path does
+    not change.
+  - **Fallback:** the PUI Audio AS04008CO-2-LW100-R first chosen here (8 Ω,
+    1.5 W, 40 × 20 × 8 mm, $3.59 at Digi-Key); runner-up to that, Same Sky
+    CMS-402008-18SP. See [Fallback](#fallback-pui-audio-as04008co-2-lw100-r).
+  - The host filters out what the driver cannot play (a low-cut filter on
+    playback, owner 2026-11-06).
 - **Gate:** the privacy switch and the presence gate are wired in series on the
   array's USB 5 V:
   - a mechanical slide switch;
@@ -88,7 +97,69 @@ Feeding the array 12 V instead is not an option. Seeed says the 12 V terminal
 "supplies 12V to the whole system", which would power the microphones around
 the gate.
 
-### The choice: PUI Audio AS04008CO-2-LW100-R
+### The choice: Dayton Audio DMA45-8
+
+From Dayton's
+[specification sheet](https://daytonaudio.com/images/resources/295-581--dayton-audio-dma45-8-specification-sheet.pdf)
+(sha256 `27e8072f…b168`):
+
+| | |
+|---|---|
+| Size | 46 × 46 mm flange, 3.0 mm thick; 26.1 mm behind it; basket 40 mm across; four Ø3.3 mm holes on a Ø50.2 mm circle (35.5 mm square) |
+| Impedance | 8 Ω nominal, Re 7.0 Ω |
+| Power | 10 W RMS |
+| Output | 76.9 dB at 2.83 V / 1 m |
+| Thiele–Small | Fs 150.7 Hz, Qts 0.59, Vas 55 cm³, Sd 8.6 cm², Xmax 2.0 mm |
+| Range | 150 Hz–20 kHz (Dayton's usable range) |
+| Terminals | solder tabs on the motor's sides; no leads |
+| Mass | not published; Parts Express lists 0.15 lb (68 g), which may include packaging |
+| Price | $8.98 at Parts Express (295-581, MSRP $11.99), **back-ordered**, "Estimated back in stock 12/18/2026" (read 2026-11-06) |
+
+**Other sources** (read 2026-11-06; check before ordering):
+- **Solen (Canada):** CA$14.66, "13 left in stock". It ships worldwide, but
+  US shipping cost was not shown.
+  [solen.ca](https://solen.ca/en/products/dayton-audio-dma45-8-1-1-2-dual-magnet-aluminum-cone-full-range-driver-8-ohm)
+- **Reverb and eBay (US):** $18.95, 10 or more each. These were seen only in
+  search listings, not on the pages.
+- **Sound Imports (Netherlands):** €12.11, listed as pre-order with 10 or
+  more (search listing).
+- **Amazon (US),** ASIN B07L9JFCJ7: the page did not load, so price and stock
+  are unknown.
+
+The quickest US option is Solen if its shipping suits. Otherwise wait for
+Parts Express.
+
+Why this one (the full comparison is in
+[mirror-unit-speaker-options.md](mirror-unit-speaker-options.md)):
+- **Low end.** Its −3 dB point in this chamber is about 190 Hz (estimate),
+  against about 730 Hz for the PUI in its 5.35 cm³ chamber. That brings back
+  the voice fundamentals and the 100–500 Hz warmth band.
+- **Clean excursion.** 2.0 mm of linear travel puts the excursion limit at
+  200 Hz about 9 dB above what 5 V can drive. The PUI class is already at its
+  limit there.
+- **Loudness.** It is about as loud as the PUI: about 78 dB at 1 m at full
+  swing (76.9 dB at 2.83 V plus 1.5 dB for 3.35 V).
+- **Power and current.** 8 Ω, so the 5 V current stays at about 0.34 A at
+  1.4 W, as for the PUI. Its 10 W rating is far above anything 5 V gives, so
+  no volume cap is needed.
+
+**The box (estimate).** Net air about 48 cm³; the CAD keeps at least 45 cm³.
+With Vas 55 cm³:
+
+| Net air | Fc | Qtc | −3 dB |
+|---|---|---|---|
+| 45 cm³ (the floor) | 225 Hz | 0.88 | 189 Hz |
+| 48 cm³ (as drawn) | 221 Hz | 0.86 | 188 Hz |
+
+These are small-signal sealed-box figures, not measurements. Step 5 of the
+packaging plan listens through the real grille.
+
+### Fallback: PUI Audio AS04008CO-2-LW100-R
+
+This was the first choice (2026-11-06) and stays documented as the fallback,
+for example if the DMA45-8 cannot be had in time. Using it again means
+restoring its outline and its 5.35 cm³ chamber, as merged in #65, and
+setting the playback filter's profile to it.
 
 From [PUI's drawing](https://puiaudio.com/file/specs-AS04008CO-2-LW100-R.pdf)
 (sha256 `2112ccaa…71b5`):
@@ -104,22 +175,23 @@ From [PUI's drawing](https://puiaudio.com/file/specs-AS04008CO-2-LW100-R.pdf)
 | Mass | 7.8 g |
 | Price | $3.59 at qty 1, [Digi-Key](https://www.digikey.com/en/products/detail/pui-audio-inc/AS04008CO-2-LW100-R/11618410), 2026-11-06 (20 in stock, 27-week lead time after that) |
 
-Why this one:
+Why it was chosen first:
 - **Impedance.** 8 Ω roughly halves the current drawn from the FRDM's USB port
   compared with 4 Ω. The port's current limit is not published, so this is the
   margin worth keeping.
 - **Power.** The 1.5 W rating covers the amplifier's 1.4 W at 1 % THD+N into
   8 Ω at 5 V. The 3 W maximum covers clipping. No software volume cap is
   needed.
-- **Fit.** The 40 × 20 mm frame fits the chin, which is about 30 mm tall, in
-  place of the layout's 35.9 × 18.5 mm placeholder.
+- **Fit.** The 40 × 20 mm frame fits the chin in place of the layout's
+  35.9 × 18.5 mm placeholder. (The chin is 84.6 mm tall, not the 30 mm first
+  assumed; see the options doc.)
 - **Resonance.** It resonates at about 550 Hz, against about 1 kHz for the
   placeholder (Same Sky CES-361810-18PM), which is 1 W rated and comes in its
   own fixed box.
 - **Back volume.** The frame is open, so its back volume is the one the
   enclosure gives it.
 
-**Runner-up: Same Sky CMS-402008-18SP.**
+**Runner-up to the fallback: Same Sky CMS-402008-18SP.**
 - Specification: 8 Ω, 1.5 W rated, 3 W maximum, 550 Hz (440–660), the same
   40 × 20 × 8 mm frame and 7.6 g. Source:
   [Same Sky datasheet](https://www.sameskydevices.com/product/resource/cms-402008-18sp.pdf),
@@ -130,22 +202,56 @@ Why this one:
 
 ### Mounting and wiring
 
-- **Back volume (design value).** The front shell gets a sealed back chamber
-  behind the speaker, at least 5 cm³ (40 × 20 mm footprint by about 7 mm
-  behind the magnet). It has a foam gasket on the frame's front face and no
-  leaks around the leads (seal them with a dab of silicone). Neither maker
-  publishes a back volume for these drivers. PUI rates a similar 40 mm part,
-  the AS04004MO-SP40, in a 5 cm³ box. A small sealed box raises the resonance, which
-  costs little for speech. Step 5 of the packaging plan listens through the
-  real grille.
+- **Where it sits.** In the chin's bottom-right corner, below the PIR: the
+  flange's centre is at x 73.6, y −114.2 mm, 0.4 mm off the shell's floor
+  and right wall. The PIR moved up 5 mm to make room. Its window now ends
+  7.6 mm below the glass.
+- **Front.** Four M3 self-tapping screws go through the flange's holes into
+  Ø6.5 mm pads on the front plate. The pads hold the flange 2.3 mm off the
+  plate, which clears the surround's 1.8 mm roll. A 2.3 mm foam gasket ring
+  closes that gap around the cone.
+- **Mass.** The driver adds about 60 g over the PUI, and the printed parts about
+  5 g. The solid check's estimate of the hanging mass goes from about 762 g
+  to about 827 g, and the VHB it asks for from about 130 cm² to about
+  141 cm². The 190 × 194 mm mounting plate has room for that.
+- **Grille.** 10 slots of 1.6 × 29 mm on a 3.2 mm pitch over the 33 mm cone,
+  464 mm² open, which is 54 % of the cone's area. With an estimated
+  2.5–3.5 cm³ front cavity, the grille resonates at about 6.4–7.6 kHz
+  (estimate), above the speech band.
+- **Back volume (design value).** The CAD's `speaker_chamber` is a printed
+  wall-and-back piece; the shell's floor and right wall close its other two
+  sides.
+  - It is full width (the flange plus 0.4 mm) back to 1 mm in front of the
+    FRDM board's J18 tails. Behind that it narrows to the 40 mm basket,
+    clear of the board's edge and of the bottom intake vent.
+  - It keeps at least 45 cm³ of net air (about 48 cm³ as drawn). The open
+    basket counts as air; the flange, the gasketed front and the motor do
+    not.
+  - Its edges bed in silicone on the front plate, the floor and the right
+    wall across a 0.4 mm gap. Two M2 screws through its lugs hold it to the
+    front plate.
+  - The leads leave through a hole in its left wall; seal it after wiring.
+- **The intake vent.** The bottom intake vent (x 55–90, z −40 to −25) lies
+  under the chamber. The chamber's rear part has its own bottom wall, so the
+  vent stays outside the sealed air. But the chamber stands in front of the
+  vent's upper 9 mm, leaving the lower 6 mm clear behind it. Whether intake
+  air still reaches the board is for the thermal check (packaging plan
+  step 4). If it is short, the vent can move under the board; that is a
+  layout change for the owner.
 - **Wiring.** The amplifier's connector is J9, a 2-pin JST PH, 2.0 mm pitch,
   according to Seeed's STEP model; matching it to the "SPEAKER" silkscreen is
   inferred from the board photo.
-  - Cut a pre-crimped PH lead (`ASPHSPH24K152`) in half and solder each half to
-    a speaker lead under heat-shrink.
-  - Push both into a `PHR-2` housing, + to the pin marked + on the board.
-  - Crimping the speaker's own 24 AWG leads would put their insulation at the
-    upper limit of the `SPH-002T-P0.5S` crimp.
+  - The DMA45-8 has solder tabs. Cut a pre-crimped PH lead (`ASPHSPH24K152`,
+    6 in) in half and solder each half straight to a tab.
+  - The layout's lead runs about 140 mm plus a 10 mm loop (the harness table
+    in [mirror-unit-layout.md](mirror-unit-layout.md)). Each half of a 6 in
+    lead is about 76 mm, so cut a 12 in lead (`ASPHSPH24K305`) in half
+    instead.
+  - Push both into a `PHR-2` housing, + to the pin marked + on the board, and
+    + to the driver's tab marked +.
+  - (For the PUI fallback, solder each half to a speaker lead under
+    heat-shrink. Crimping its own 24 AWG leads would put their insulation at
+    the upper limit of the `SPH-002T-P0.5S` crimp.)
 
 ## Gate board
 
@@ -278,8 +384,9 @@ powered from that rail. Software has no path to it.
 
 ### Bill of materials
 
-Prices are Digi-Key at qty 1, read on 2026-11-06. "Not checked" means no price
-was looked up; a standard part costs cents.
+Prices are Digi-Key at qty 1, read on 2026-11-06, except the speaker's (its
+sources are [above](#the-choice-dayton-audio-dma45-8)). "Not checked" means
+no price was looked up; a standard part costs cents.
 
 | Ref | Part | Maker PN | Digi-Key PN | Qty | Unit |
 |---|---|---|---|---|---|
@@ -294,8 +401,12 @@ was looked up; a standard part costs cents.
 | C1, C2 | 1 µF X7R ceramic | any | — | 2 | not checked |
 | — | PH 4-pin housing (to J10) | PHR-4 | — | 1 | $0.10 |
 | — | PH 2-pin housing (speaker) | PHR-2 | 455-1165-ND | 1 | $0.10 |
-| — | pre-crimped PH leads, 6 in, 24 AWG | ASPHSPH24K152 | 455-3082-ND | 3 | $0.40 |
-| — | speaker | AS04008CO-2-LW100-R | (see above) | 1 | $3.59 |
+| — | pre-crimped PH leads, 6 in, 24 AWG | ASPHSPH24K152 | 455-3082-ND | 2 | $0.40 |
+| — | pre-crimped PH lead, 12 in, 24 AWG (speaker) | ASPHSPH24K305 | 455-3083-ND | 1 | about $0.63 (Digi-Key Singapore listing; US price not checked) |
+| — | speaker | Dayton Audio DMA45-8 | Parts Express 295-581 (not Digi-Key) | 1 | $8.98, back-ordered to 2026-12-18; or Solen, CA$14.66, in stock (above) |
+| — | foam gasket ring for the flange, 2.3 mm thick, about 46 mm outside and 38 mm inside | any closed-cell foam tape | — | 1 | not checked |
+| — | M3 self-tapping screws, 6–8 mm, for the flange | any | — | 4 | not checked |
+| — | *fallback only:* speaker | AS04008CO-2-LW100-R | (see above) | 0 | $3.59 |
 
 **Perfboard build (step 3)**, in addition to the parts above:
 - a SparkFun BOB-00717 SOT-23-to-DIP adapter for U1, $1.25;
@@ -364,14 +475,17 @@ array on the gate.
 
 - **ARRIVAL-08 and ARRIVAL-10 (owner).** Take the meter reading on the PIR pad
   bank, then wire the PIR. These fix the wake interface (R4 or a divider).
-- **`enclosure/params.toml`.** Done for the speaker (2026-11-06): its vendor
-  outline sits 1 mm lower than the placeholder, clear of the core board's
-  audio jack, and the CAD's `speaker_chamber` holds 5.35 cm³ of air behind it.
-  The gate board's outline stays a placeholder until the PCB is laid out.
+- **`enclosure/params.toml`.** Done for the speaker (2026-11-06): the
+  DMA45-8's outline is in the bottom-right corner, with the PIR 5 mm higher
+  and its cable behind the chamber. The CAD's `speaker_chamber` holds about
+  48 cm³ of air behind it. The PUI's outline and 5.35 cm³ chamber are in
+  #65 if the fallback is needed. The gate board's outline stays a
+  placeholder until the PCB is laid out.
 - **The PCB layout and gerbers,** after step 3.
   - KiCad was approved by the owner on 2026-11-06 for this step.
   - When step 3's measurements are in, the agent asks the owner to install
     it; the agent has no sudo.
 - **Order list for the owner** (nothing is bought by the agent): the BOM above
-  with the perfboard extras. Add CMS-402008-18SP if the PUI speaker is out of
-  stock.
+  with the perfboard extras. The DMA45-8 is back-ordered at Parts Express
+  until 2026-12-18; Solen had 13 on 2026-11-06. The PUI fallback (or
+  CMS-402008-18SP) only if the DMA45-8 cannot be had.
