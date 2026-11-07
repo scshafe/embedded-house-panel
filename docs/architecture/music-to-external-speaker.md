@@ -2,7 +2,11 @@
 
 <!-- @canonical music-to-external-speaker -->
 
-**Status (2026-11-06):** a design, asked for by the owner. Nothing is built,
+**Status (2026-11-06):** a design, asked for by the owner. Amended
+2026-11-07: the owner chose option 4, Spotify Connect with the panel as a
+remote only (the music is Spotify and the account is Premium, #69). The
+token rules are [ADR 0013](../decisions/0013-keep-a-spotify-refresh-token-on-the-panel.md).
+When written, nothing was built,
 installed, flashed or paired, and the panel has not contacted the speaker.
 The panel sends music to the owner's Bose Portable Home Speaker. The mirror
 unit's own speaker ([mirror-unit-speaker-and-gate.md](../hardware/mirror-unit-speaker-and-gate.md))

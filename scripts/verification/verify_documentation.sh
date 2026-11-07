@@ -37,6 +37,7 @@ docs/decisions/0006-accept-product-semantics-and-atomic-protocol-v2-cutover.md
 docs/decisions/0007-validate-complete-protocol-v2-commitments.md
 docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md
 docs/decisions/0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md
+docs/decisions/0013-keep-a-spotify-refresh-token-on-the-panel.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md
