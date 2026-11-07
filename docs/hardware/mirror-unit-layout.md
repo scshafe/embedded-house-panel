@@ -107,8 +107,8 @@ minimum slack. A made cable is cut to the route plus its service loop.
 | `panel_i2c` Panel I2C and 5 V: J27 pins 9/7/6/2 to the panel's SDA1/SCL1/GND/5V | wires | `frdm.j27` | `panel.i2c_header` | J27-9 SDA to SDA1, J27-7 SCL to SCL1, J27-6 GND to GND, J27-2 5V to 5V | Ø3.5 | 3 | 157.95 | cut to 177.95 (20 loop) | 90°, 90°, 90°, 90° | Behind the board, round its right edge, up to the header. |
 | `power` USB-C PD power, 45-65 W charger (straight plug) | round | `frdm.j2` | `outside` | VBUS 12-20 V PD, CC, GND | Ø4.5 | 10 | 250.73 | 250.73 inside the unit | 90°, 90° | J2 points up behind the panel; the cable loops left over the board and runs down the left side to a strain-relief clamp. Drip loop outside. |
 | `array_usb` Array USB: gate board to the core board's PH-4 (5 V switched, D-, D+, GND) | wires | `xvf_core.usb_ph4` | `gate.core_usb` | 5V switched, D-, D+, GND | Ø3 | 2 | 25.48 | cut to 35.48 (10 loop) | 90° |  |
-| `speaker` Speaker leads to the core board's PH 2-pin | wires | `xvf_core.speaker` | `speaker.leads` | SPK+, SPK- | Ø2 | 2 | 96.12 | cut to 106.12 (10 loop) | 90°, 90°, 90°, 90° |  |
-| `pir` PIR: +5V, OUT, GND to the gate board (hub) | wires | `pir.header` | `gate.pir` | +5V, OUT (3.3 V), GND | Ø3 | 2.5 | 144.8 | cut to 159.8 (15 loop) | 90°, 90°, 90°, 90° |  |
+| `speaker` Speaker leads to the core board's PH 2-pin | wires | `xvf_core.speaker` | `speaker.leads` | SPK+, SPK- | Ø2 | 2 | 140.39 | cut to 150.39 (10 loop) | 90°, 90°, 90°, 90°, 90° |  |
+| `pir` PIR: +5V, OUT, GND to the gate board (hub) | wires | `pir.header` | `gate.pir` | +5V, OUT (3.3 V), GND | Ø3 | 2.5 | 167.4 | cut to 182.4 (15 loop) | 90°, 90°, 90°, 90° |  |
 | `gate_j18` Gate board to J18: 5 V, GND, PIR OUT to the wake GPIO | wires | `frdm.j18` | `gate.frdm_j18` | 5V, GND, PIR OUT to the wake GPIO (FRDM-GATE-PIR) | Ø3 | 2.5 | 161.05 | cut to 176.05 (15 loop) | 90°, 90°, 90°, 90° |  |
 | `led` Mic-power LED, from the switched rail | wires | `gate.led` | `mic_led.leads` | LED+ from the switched rail, LED- | Ø2 | 2 | 33.43 | cut to 38.43 (5 loop) | 90°, 90° |  |
 <!-- /generated:harness -->
@@ -186,7 +186,10 @@ Estimates and placeholders, which decide the fit:
 | pir | back_parts | solid box | 32.34 x 24.03 x 11.06 at (-16.17, -12.02, -12.66) | estimate | 24.66 total less the lens and PCB |
 | pir | header | connector exit | (-0.15, -9.8, -16.66) | estimate | Adafruit back photo, +/-1 mm |
 | pir | mass | mass (g) | 7 | estimate | typical HC-SR501-class module |
-| speaker | leads | connector exit | (-20, 0, -0.5) | estimate | AS04008CO drawing: leads at the left end, height on the frame not drawn |
+| speaker | surround | solid box | 37.3 x 37.3 x 1.8 at (-18.65, -18.65, 0) | estimate | scaled from the Dayton drawing (11.8 px/mm): 37.3 mm across, 1.8 mm proud |
+| speaker | basket | solid box | 40 x 40 x 15.6 at (-20, -20, -18.6) | estimate | 40.0 from the Dayton drawing; 15.6 deep, scaled |
+| speaker | motor | solid box | 26 x 26 x 10.5 at (-13, -13, -29.1) | estimate | 26.1 behind the flange from the Dayton drawing; 26 mm across and 10.5 deep, scaled |
+| speaker | mass | mass (g) | 68 | estimate | Parts Express lists 0.15 lb, possibly with packaging; Dayton publishes none |
 | gate | pcb | solid box | 18.8 x 22 x 1.6 at (-9.4, -11, -1.6) | placeholder |  |
 | gate | front_parts | solid box | 18.8 x 22 x 8 at (-9.4, -11, 0) | placeholder |  |
 | gate | back_parts | solid box | 18.8 x 22 x 3 at (-9.4, -11, -4.6) | placeholder |  |
@@ -207,7 +210,7 @@ A blank source means the part's own:
 - `mic_strip`: Seeed reSpeaker_xvf3800_flex_linear_2d.dxf (sha256 de6eef83...c038) and .step (sha256 3f364668...9ddb)
 - `xvf_core`: Seeed reSpeaker_xvf3800_flex_Separate.step (sha256 d1b3f7dc...03ef) and _2d.dxf (sha256 bb17991f...49a1)
 - `pir`: Adafruit product 189 page (32.34 x 24.03, 24.66 tall with the lens) and back photo proximity_PIRbackLabeled.jpg
-- `speaker`: PUI drawing specs-AS04008CO-2-LW100-R.pdf (sha256 2112ccaa...71b5); chosen in docs/hardware/mirror-unit-speaker-and-gate.md
+- `speaker`: Dayton DMA45-8 specification sheet (sha256 27e8072f...b168); chosen in docs/hardware/mirror-unit-speaker-and-gate.md
 - `gate`: packaging plan Step 3; not designed
 - `mic_led`: 5 mm through-hole LED; not chosen
 
@@ -218,6 +221,6 @@ Vendor values, to spot-check against the real part:
 - `mic_strip`: 10 vendor values (Seeed reSpeaker_xvf3800_flex_linear_2d.dxf (sha256 de6eef83...c038) and .step (sha256 3f364668...9ddb) where the row does not say otherwise). Spot-check the outline, the holes and each connector's position.
 - `xvf_core`: 18 vendor values (Seeed reSpeaker_xvf3800_flex_Separate.step (sha256 d1b3f7dc...03ef) and _2d.dxf (sha256 bb17991f...49a1) where the row does not say otherwise). Spot-check the outline, the holes and each connector's position.
 - `pir`: 3 vendor values (Adafruit product 189 page (32.34 x 24.03, 24.66 tall with the lens) and back photo proximity_PIRbackLabeled.jpg where the row does not say otherwise). Spot-check the outline, the holes and each connector's position.
-- `speaker`: 7 vendor values (PUI drawing specs-AS04008CO-2-LW100-R.pdf (sha256 2112ccaa...71b5); chosen in docs/hardware/mirror-unit-speaker-and-gate.md where the row does not say otherwise). Spot-check the outline, the holes and each connector's position.
+- `speaker`: 5 vendor values (Dayton DMA45-8 specification sheet (sha256 27e8072f...b168); chosen in docs/hardware/mirror-unit-speaker-and-gate.md where the row does not say otherwise). Spot-check the outline, the holes and each connector's position.
 - `gate`: 1 vendor values (packaging plan Step 3; not designed where the row does not say otherwise). Spot-check the outline, the holes and each connector's position.
 <!-- /generated:calipers -->

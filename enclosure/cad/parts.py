@@ -14,8 +14,9 @@ The parts:
 - ``panel_clamp_left`` and ``panel_clamp_right``: they pull the panel onto
   the bezel's gasket, from its M3 standoffs to wedge bosses on the walls.
 - ``cable_clamp``: grips the USB-C power cable at the bottom wall.
-- ``speaker_chamber``: the speaker's sealed back volume, a cup screwed to
-  the front plate around it.
+- ``speaker_chamber``: the speaker's sealed back volume in the chin's
+  bottom-right corner, screwed to the front plate; the shell's floor and right
+  wall close two of its sides.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from bhp_enclosure.model import Layout
 INSERT_M3 = (4.0, 5.0)
 CLEAR_M3 = 3.4
 PILOT_M2 = 1.6
+PILOT_M3 = 2.5
 #: Printed-fit clearance between mating printed parts.
 FIT = 0.4
 #: Cleat geometry: the 45-degree rail and hook, their y band.
@@ -52,12 +54,13 @@ RIM_WEDGE_WIDTH = 10.0
 CABLE_BOSS_DEPTH = 9.0
 #: The FRDM board's component face (its posts end there).
 FRDM_COMPONENT_FACE = -20.0
-#: The speaker's sealed back chamber: wall and back thickness, the least air
-#: behind the driver (design value, docs/hardware/mirror-unit-speaker-and-gate.md),
-#: and its screw lugs; M2 clearance.
+#: The speaker's sealed back chamber: wall and back thickness, the least net
+#: air behind the driver (design value, docs/hardware/mirror-unit-speaker-and-gate.md),
+#: the air behind the motor, and its screw lugs; M2 clearance.
 CHAMBER_WALL = 2.0
 CHAMBER_BACK = 1.6
-CHAMBER_MIN_AIR_CM3 = 5.0
+CHAMBER_MIN_AIR_CM3 = 45.0
+CHAMBER_MOTOR_AIR = 1.0
 CHAMBER_LUG = 7.0
 CLEAR_M2 = 2.4
 
@@ -280,14 +283,17 @@ def front_shell(layout: Layout) -> Printed:
         features.append(cylinder_z(x, y, pir_face, 0.0, 4.5))
         cuts.append(cylinder_z(x, y, pir_face - 1.0, 2.0, PILOT_M2))
         fasteners.append(Fastener(f"pir_screw_{hole_id}", (x, y, pir_face), "screw_m2", "steel"))
-    # Speaker: pads under its four frame holes, M2 self-tapping screws from
-    # behind; the gap between the pads takes the foam gasket.
+    # Speaker: pads under its four flange holes, self-tapping screws from
+    # behind (M3 for holes of 3 mm or more); the gap between the pads takes
+    # the foam gasket.
     frame = _shape(layout, "speaker.frame")
     for hole in layout.part("speaker").holes:
         x, y, _ = hole.at
-        features.append(cylinder_z(x, y, frame.high[2], 0.0, 4.5))
-        cuts.append(cylinder_z(x, y, frame.high[2] - 1.0, 2.0, PILOT_M2))
-        fasteners.append(Fastener(f"speaker_screw_{hole.id}", (x, y, frame.low[2]), "screw_m2", "steel"))
+        m3 = hole.diameter >= 3.0
+        features.append(cylinder_z(x, y, frame.high[2], 0.0, 6.5 if m3 else 4.5))
+        cuts.append(cylinder_z(x, y, frame.high[2] - 1.0, 2.0, PILOT_M3 if m3 else PILOT_M2))
+        fasteners.append(Fastener(f"speaker_screw_{hole.id}", (x, y, frame.low[2]),
+                                  "screw_m3_tapping" if m3 else "screw_m2", "steel"))
     # The speaker's back chamber screws to the front plate through its lugs.
     for x, y in speaker_chamber_lugs(layout):
         cuts.append(cylinder_z(x, y, -1.0, 2.0, PILOT_M2))
@@ -313,59 +319,92 @@ def front_shell(layout: Layout) -> Printed:
                    orientation="face down: the bezel on the bed",
                    # The core's posts stand on its component face; the LED sits in its
                    # collar; the PIR's dome (round, 23 mm) passes the 24 mm window,
-                   # which its square layout box overstates.
-                   touches={"xvf_core.low_parts", "mic_led.body", "pir.lens"},
+                   # and the speaker's round surround passes between its pads, both
+                   # of which their square layout boxes overstate.
+                   touches={"xvf_core.low_parts", "mic_led.body", "pir.lens", "speaker.surround"},
                    fasteners=fasteners)
 
 
 # ---------------------------------------------------------------------------
 # Speaker back chamber.
 
-def _speaker_cavity(layout: Layout) -> Box:
-    """The chamber's air space: around the frame with fit clearance, from the
-    front plate back far enough to hold CHAMBER_MIN_AIR_CM3 beside the driver."""
-    frame, magnet = _shape(layout, "speaker.frame"), _shape(layout, "speaker.magnet")
-    low_xy = (frame.low[0] - FIT, frame.low[1] - FIT)
-    high_xy = (frame.high[0] + FIT, frame.high[1] + FIT)
-    area = (high_xy[0] - low_xy[0]) * (high_xy[1] - low_xy[1])
-    driver = (frame.size[0] * frame.size[1] * frame.size[2]
-              + math.pi * (magnet.size[0] / 2.0) ** 2 * magnet.size[2])
-    depth = (CHAMBER_MIN_AIR_CM3 * 1000.0 + driver) / area
-    depth = max(math.ceil(depth * 2.0) / 2.0, -magnet.low[2] + 1.0)
-    return Box((low_xy[0], low_xy[1], -depth), (high_xy[0], high_xy[1], 0.0))
+def _volume(box: Box) -> float:
+    return box.size[0] * box.size[1] * box.size[2]
+
+
+def _speaker_cavity(layout: Layout) -> tuple[Box, Box]:
+    """The chamber's air space, in two bands.
+
+    The front band holds the flange with fit clearance and runs to the shell's
+    floor and right wall, back to 1 mm in front of the FRDM board's J18 tails.
+    The rear band narrows to the basket, clear of the board's edge and of the
+    bottom intake vent, and runs back far enough for CHAMBER_MIN_AIR_CM3 and
+    CHAMBER_MOTOR_AIR behind the motor.
+    """
+    frame, basket, motor = (_shape(layout, f"speaker.{name}") for name in ("frame", "basket", "motor"))
+    inner = layout.shell.interior
+    step = _shape(layout, "frdm.tails_j18").high[2] + layout.clearances.part
+    top = frame.high[1] + FIT
+    front = Box((frame.low[0] - FIT, inner.low[1], step), (inner.high[0], top, 0.0))
+    rear_low = (basket.low[0] - FIT, basket.low[1] - FIT)
+    rear_area = (inner.high[0] - rear_low[0]) * (top - rear_low[1])
+    needed = CHAMBER_MIN_AIR_CM3 * 1000.0 + _speaker_displacement(layout) - _volume(front)
+    back = step - max(needed / rear_area, step - motor.low[2] + CHAMBER_MOTOR_AIR)
+    back = math.floor(back * 2.0) / 2.0
+    return front, Box((rear_low[0], rear_low[1], back), (inner.high[0], top, step))
+
+
+def _speaker_displacement(layout: Layout) -> float:
+    """What the driver takes from the chamber, in mm^3: everything in front of
+    the flange's back face over the flange (the flange and the gasketed front
+    side), and the motor. The open basket is air."""
+    frame, motor = _shape(layout, "speaker.frame"), _shape(layout, "speaker.motor")
+    return frame.size[0] * frame.size[1] * -frame.low[2] + _volume(motor)
+
+
+def speaker_chamber_air_cm3(layout: Layout) -> float:
+    """The chamber's net air (design estimate)."""
+    return (sum(_volume(box) for box in _speaker_cavity(layout)) - _speaker_displacement(layout)) / 1000.0
 
 
 def speaker_chamber_lugs(layout: Layout) -> list[tuple[float, float]]:
-    """Two screw lugs on diagonal corners, clear of the leads at the left end."""
-    cavity = _speaker_cavity(layout)
-    reach = CHAMBER_WALL + CHAMBER_LUG / 2.0
-    return [(cavity.low[0] - reach, cavity.low[1] - CHAMBER_WALL + CHAMBER_LUG / 2.0),
-            (cavity.high[0] + reach, cavity.high[1] + CHAMBER_WALL - CHAMBER_LUG / 2.0)]
+    """Two screw lugs on the closed corners: beside the left wall at the floor,
+    and above the top wall at the right wall, clear of the PIR."""
+    front, _ = _speaker_cavity(layout)
+    half = CHAMBER_LUG / 2.0
+    return [(front.low[0] - CHAMBER_WALL - half, front.low[1] + FIT + half),
+            (front.high[0] - FIT - half, front.high[1] + CHAMBER_WALL + half)]
 
 
 def speaker_chamber(layout: Layout) -> Printed:
-    """A sealed cup behind the speaker; its rim beds on the front plate in silicone.
+    """Walls and a back behind the speaker; the floor and the right wall close
+    the other two sides. Its edges bed on the front plate, the floor and the
+    right wall in silicone, across a FIT gap.
 
-    It prints back down, rim up, so the walls and the full-height lugs need no
-    support. The leads leave through a notch in the rim, sealed after wiring.
+    It prints back down, rim up, so the walls and the lugs need no support.
+    The leads leave through a hole in the left wall, sealed after wiring.
     """
-    cavity = _speaker_cavity(layout)
+    front, rear = _speaker_cavity(layout)
     w, back = CHAMBER_WALL, CHAMBER_BACK
-    z0 = cavity.low[2] - back
-    solid = block((cavity.low[0] - w, cavity.low[1] - w, z0), (cavity.high[0] + w, cavity.high[1] + w, 0.0))
+    z0 = rear.low[2] - back
+    right, bottom = front.high[0] - FIT, front.low[1] + FIT
+    solid = union([block((front.low[0] - w, bottom, front.low[2]), (right, front.high[1] + w, 0.0)),
+                   block((rear.low[0] - w, bottom, z0), (right, rear.high[1] + w, rear.high[2]))])
+    half = CHAMBER_LUG / 2.0
     for x, y in speaker_chamber_lugs(layout):
-        half = CHAMBER_LUG / 2.0
-        solid = solid + block((x - half, y - half, z0), (x + half, y + half, 0.0))
-    cuts = [box_solid(cavity)]
+        solid = solid + block((x - half, y - half, front.low[2]), (x + half, y + half, 0.0))
+    # The cavity's cut runs through the open sides.
+    cuts = [block((front.low[0], front.low[1] - 1.0, front.low[2]), (front.high[0] + 1.0, front.high[1], 1.0)),
+            block((rear.low[0], rear.low[1], rear.low[2]), (rear.high[0] + 1.0, rear.high[1], rear.high[2] + 0.01))]
     fasteners = []
     for index, (x, y) in enumerate(speaker_chamber_lugs(layout)):
-        cuts.append(cylinder_z(x, y, z0 - 1.0, 1.0, CLEAR_M2))
-        fasteners.append(Fastener(f"chamber_screw_{index}", (x, y, z0), "screw_m2", "steel"))
+        cuts.append(cylinder_z(x, y, front.low[2] - 1.0, 1.0, CLEAR_M2))
+        fasteners.append(Fastener(f"chamber_screw_{index}", (x, y, front.low[2]), "screw_m2", "steel"))
     leads = layout.connector("speaker.leads").at
     cable = next(cable for cable in layout.cables if cable.id == "speaker")
-    half = max(cable.width, cable.thickness) / 2.0 + FIT
-    cuts.append(block((cavity.low[0] - w - 1.0, leads[1] - half, leads[2] - half),
-                      (cavity.low[0] + 1.0, leads[1] + half, 1.0)))
+    hole = max(cable.width, cable.thickness) / 2.0 + FIT
+    cuts.append(block((front.low[0] - w - 1.0, leads[1] - hole, leads[2] - hole),
+                      (front.low[0] + 1.0, leads[1] + hole, leads[2] + hole)))
     return Printed("speaker_chamber", "Speaker back chamber", subtract(solid, cuts), [],
                    orientation="back down, rim up", fasteners=fasteners)
 

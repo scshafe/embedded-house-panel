@@ -45,12 +45,27 @@ class PrintedPartsTest(unittest.TestCase):
 
     def test_the_speaker_chamber_holds_its_air_and_the_driver(self) -> None:
         chamber = next(item for item in BUILT if item.id == "speaker_chamber")
-        cavity = parts.box_solid(parts._speaker_cavity(LAYOUT))
         driver = parts.union(parts.box_solid(shape.world) for shape in LAYOUT.part("speaker").shapes)
-        self.assertGreaterEqual((cavity.volume - driver.volume) / 1000.0, parts.CHAMBER_MIN_AIR_CM3)
+        self.assertGreaterEqual(parts.speaker_chamber_air_cm3(LAYOUT), parts.CHAMBER_MIN_AIR_CM3)
         self.assertAlmostEqual(build_enclosure._overlap_volume(chamber.solid, driver), 0.0, places=6)
         # The rim beds on the front plate's inner face.
         self.assertAlmostEqual(chamber.solid.bounding_box().max.Z, 0.0, places=6)
+
+    def test_the_speaker_chamber_is_closed_by_the_floor_and_the_right_wall(self) -> None:
+        chamber = next(item for item in BUILT if item.id == "speaker_chamber")
+        inner = LAYOUT.shell.interior
+        bounds = chamber.solid.bounding_box()
+        self.assertAlmostEqual(inner.high[0] - bounds.max.X, parts.FIT, places=6)
+        self.assertAlmostEqual(bounds.min.Y - inner.low[1], parts.FIT, places=6)
+        # The driver's flange sits FIT off both, so only the gaps need silicone.
+        frame = LAYOUT.part("speaker").shapes[0].world
+        self.assertAlmostEqual(inner.high[0] - frame.high[0], parts.FIT, places=6)
+        self.assertAlmostEqual(frame.low[1] - inner.low[1], parts.FIT, places=6)
+        # The bottom intake vent stays outside the chamber's air.
+        vent = LAYOUT.opening("vent_bottom").box
+        for cavity in parts._speaker_cavity(LAYOUT):
+            if cavity.low[2] < vent.high[2]:
+                self.assertGreater(cavity.low[1], inner.low[1] + parts.CHAMBER_WALL)
 
     def test_a_part_in_the_way_is_found(self) -> None:
         intruder = parts.Printed("intruder", "test", parts.block((-10, -10, -5), (10, 10, -1)), [])

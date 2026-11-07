@@ -80,15 +80,15 @@ size = [2.0, 2.0, 3.5]
 id = "pir_window"
 face = "+z"
 purpose = "PIR lens dome"
-min = [60.2, -92.0, -1.5]
+min = [60.2, -87.0, -1.5]
 size = [24.0, 24.0, 13.5]
 
 [[shell.openings]]
 id = "speaker_grille"
 face = "+z"
-purpose = "speaker grille, over the cone and inside the frame's screw holes"
-min = [17.45, -127.0, 0.0]
-size = [30.0, 12.0, 3.5]
+purpose = "speaker grille, 10 slots (464 mm2 open) over the 33 mm cone, inside the flange's screw pads"
+min = [57.08, -130.7, 0.0]
+size = [33.0, 33.0, 3.5]
 
 [[shell.openings]]
 id = "led_window"
@@ -782,12 +782,14 @@ straight = 1.0
 
 # ---------------------------------------------------------------------------
 # Adafruit 189 PIR. Local frame: board centre, lens side +z, the 3-pin header
-# toward -y. In the chin's right side, where nothing sits behind it.
+# toward -y. In the chin's right side, where nothing sits behind it; 5 mm
+# higher than first placed, to clear the speaker's chamber below it (owner,
+# 2026-11-06).
 
 [[parts]]
 id = "pir"
 name = "Adafruit 189 PIR (BISS0001)"
-pose = { at = [72.2, -80.0, -1.0] }
+pose = { at = [72.2, -75.0, -1.0] }
 provenance = { status = "vendor", source = "Adafruit product 189 page (32.34 x 24.03, 24.66 tall with the lens) and back photo proximity_PIRbackLabeled.jpg" }
 mass_g = { value = 7.0, status = "estimate", source = "typical HC-SR501-class module" }
 
@@ -832,58 +834,80 @@ status = "estimate"
 source = "Adafruit back photo, +/-1 mm"
 
 # ---------------------------------------------------------------------------
-# Speaker: a placeholder until one is chosen. Dimensions are Same Sky
-# CES-361810-18PM (8 ohm, 1 W, sealed ABS box with a front flange). Local
-# frame: centre of the front face, the sound toward +z.
+# Speaker: Dayton Audio DMA45-8 (owner, 2026-11-06; the PUI AS04008CO stays
+# the documented fallback). Local frame: centre of the flange's front face, the
+# sound toward +z. It sits in the chin's bottom-right corner, its flange 0.4 mm
+# off the floor and the right wall, which close two sides of its chamber.
 
 [[parts]]
 id = "speaker"
-name = "Micro speaker: PUI Audio AS04008CO-2-LW100-R (8 ohm, 1.5 W)"
+name = "Full-range driver: Dayton Audio DMA45-8 (8 ohm, 10 W)"
 metal = true
-pose = { at = [32.45, -121.0, -0.5] }
-provenance = { status = "vendor", source = "PUI drawing specs-AS04008CO-2-LW100-R.pdf (sha256 2112ccaa...71b5); chosen in docs/hardware/mirror-unit-speaker-and-gate.md" }
-mass_g = { value = 7.8, status = "vendor", source = "AS04008CO-2-LW100-R drawing" }
+pose = { at = [73.58, -114.2, -2.3] }
+provenance = { status = "vendor", source = "Dayton DMA45-8 specification sheet (sha256 27e8072f...b168); chosen in docs/hardware/mirror-unit-speaker-and-gate.md" }
+mass_g = { value = 68.0, status = "estimate", source = "Parts Express lists 0.15 lb, possibly with packaging; Dayton publishes none" }
 
 [[parts.shapes]]
-# The 40 x 20 mm frame, 2.8 mm thick; its front face (the cone side) is z = 0.
+# The 46 x 46 mm flange, 3.0 mm thick; its front face is z = 0.
 id = "frame"
-min = [-20.0, -10.0, -2.8]
-size = [40.0, 20.0, 2.8]
+min = [-23.0, -23.0, -3.0]
+size = [46.0, 46.0, 3.0]
 
 [[parts.shapes]]
-# The magnet, a 14.8 mm cylinder to 8 mm behind the front face.
-id = "magnet"
-min = [-7.4, -7.4, -8.0]
-size = [14.8, 14.8, 5.2]
+# The surround's roll stands proud of the flange; the foam gasket's 2.3 mm
+# gap to the front plate clears it.
+id = "surround"
+min = [-18.65, -18.65, 0.0]
+size = [37.3, 37.3, 1.8]
+status = "estimate"
+source = "scaled from the Dayton drawing (11.8 px/mm): 37.3 mm across, 1.8 mm proud"
+
+[[parts.shapes]]
+# The open 8-spoke basket, 40 mm across (the drawing's dimension); its depth
+# to the motor is scaled. It is air inside the chamber, drawn as its envelope.
+id = "basket"
+min = [-20.0, -20.0, -18.6]
+size = [40.0, 40.0, 15.6]
+status = "estimate"
+source = "40.0 from the Dayton drawing; 15.6 deep, scaled"
+
+[[parts.shapes]]
+# The dual-neodymium motor, to 26.1 mm behind the flange (the drawing).
+id = "motor"
+min = [-13.0, -13.0, -29.1]
+size = [26.0, 26.0, 10.5]
+status = "estimate"
+source = "26.1 behind the flange from the Dayton drawing; 26 mm across and 10.5 deep, scaled"
 
 [[parts.holes]]
 id = "tl"
-at = [-18.0, 8.0, -1.4]
-d = 2.2
+at = [-17.75, 17.75, -1.5]
+d = 3.3
 
 [[parts.holes]]
 id = "tr"
-at = [18.0, 8.0, -1.4]
-d = 2.2
+at = [17.75, 17.75, -1.5]
+d = 3.3
 
 [[parts.holes]]
 id = "bl"
-at = [-18.0, -8.0, -1.4]
-d = 2.2
+at = [-17.75, -17.75, -1.5]
+d = 3.3
 
 [[parts.holes]]
 id = "br"
-at = [18.0, -8.0, -1.4]
-d = 2.2
+at = [17.75, -17.75, -1.5]
+d = 3.3
 
 [[parts.connectors]]
-# The 24 AWG leads leave the frame's left end.
+# Leads soldered to the tabs leave the basket's left side, through the
+# chamber's left wall.
 id = "leads"
-at = [-20.0, 0.0, -0.5]
+at = [-20.0, 0.0, -9.5]
 exit = "-x"
 straight = 1.0
-status = "estimate"
-source = "AS04008CO drawing: leads at the left end, height on the frame not drawn"
+status = "design"
+source = "tabs on the motor's sides (Dayton drawing); the leads' exit is a design choice"
 
 # ---------------------------------------------------------------------------
 # Privacy and presence gate board: not designed yet (packaging plan Step 3).
@@ -1056,7 +1080,7 @@ section = [2.0, 2.0]
 min_bend_radius = 2.0
 provenance = { status = "design", source = "pre-crimped JST PH leads soldered to the speaker's 24 AWG leads (speaker-and-gate doc)" }
 service_loop = 10.0
-route = [[-19.555, -56.45, -4.0], [-19.555, -56.45, -1.0], [-19.555, -108.0, -1.0], [5.0, -108.0, -1.0], [5.0, -121.0, -1.0], [12.45, -121.0, -1.0]]
+route = [[-19.555, -56.45, -4.0], [-19.555, -56.45, -1.0], [-19.555, -108.0, -1.0], [5.0, -108.0, -1.0], [5.0, -114.2, -1.0], [5.0, -114.2, -11.8], [53.58, -114.2, -11.8]]
 
 [[cables]]
 id = "pir"
@@ -1066,9 +1090,9 @@ kind = "wires"
 ends = ["pir.header", "gate.pir"]
 section = [3.0, 3.0]
 min_bend_radius = 2.5
-provenance = { status = "design", source = "the PIR's 3-wire lead, re-terminated" }
+provenance = { status = "design", source = "the PIR's 3-wire lead, re-terminated; behind the speaker's chamber (owner, 2026-11-06)" }
 service_loop = 15.0
-route = [[72.05, -89.8, -17.66], [72.05, -89.8, -28.0], [72.05, -130.85, -28.0], [-5.0, -130.85, -28.0], [-5.0, -130.85, -18.7], [-16.35, -130.85, -18.7]]
+route = [[72.05, -84.8, -17.66], [72.05, -84.8, -36.8], [72.05, -130.85, -36.8], [-5.0, -130.85, -36.8], [-5.0, -130.85, -18.7], [-16.35, -130.85, -18.7]]
 
 [[cables]]
 id = "gate_j18"

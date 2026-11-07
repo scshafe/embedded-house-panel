@@ -45,6 +45,7 @@ FASTENER_NAMES = {
     "insert_m3": "M3 heat-set insert (for a 4.0 mm hole, 4-5 mm long)",
     "screw_m3": "M3 screw",
     "screw_m2": "M2 self-tapping screw",
+    "screw_m3_tapping": "M3 self-tapping screw",
     "standoff_m3x24": "M3 x 24 hex standoff, female-female",
 }
 #: Intersections smaller than this (mm^3) are tessellation noise.

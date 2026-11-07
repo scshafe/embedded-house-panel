@@ -2,11 +2,13 @@
 
 <!-- @canonical mirror-unit-speaker-options -->
 
-**Status (2026-11-06):** a comparison, asked for by the owner. The baseline
-stays the PUI AS04008CO-2-LW100-R chosen in
-[mirror-unit-speaker-and-gate.md](mirror-unit-speaker-and-gate.md) unless the
-owner picks another driver. Nothing here is bought, and the enclosure model is
-unchanged. Every option that would move a part, grow the enclosure or change
+**Status (2026-11-06):** a comparison, asked for by the owner. Amended
+2026-11-06: the owner picked option 3(a), the Dayton DMA45-8 with the PIR
+moved up 5 mm, and a host-side low-cut filter (option 2). Both are now in
+[mirror-unit-speaker-and-gate.md](mirror-unit-speaker-and-gate.md) and the
+enclosure model, and the PUI AS04008CO-2-LW100-R is the fallback. The rest
+of this page is the comparison as written. When written, nothing here was
+bought and the enclosure model was unchanged. Every option that would move a part, grow the enclosure or change
 the power path is written as a recommendation for the owner
 ([Decisions for the owner](#decisions-for-the-owner)).
 
@@ -282,7 +284,7 @@ Ranked, for speech from the mirror unit:
 
 ## Decisions for the owner
 
-Nothing below is done. The model and the baseline stay as they are.
+Amended 2026-11-06: the owner chose 2 and 3(a). The rest stays as written.
 
 1. **Keep the baseline for now** (no change). Step 3 still answers first
    whether the TPA3139D2 plays at 5 V. Every option here is 8 Ω or 4 Ω on
