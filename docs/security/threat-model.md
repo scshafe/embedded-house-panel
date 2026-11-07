@@ -391,3 +391,13 @@ app, held only by `bhp-music-control`'s UID (#69). Music reaches the Bose
 speaker through Spotify Connect: the panel sends playback commands and never
 carries music audio, so the music principal opens no audio device. The table
 rows above and ADR 0013 give the controls and the accepted limitations.
+
+**Amended 2026-11-07 (`music_control/`):** `bhp-music-control` exists. It keeps
+the token in `<state>/token/spotify-token.json` (`0600` in an owner-only
+directory) and serves the UI only through its socket, which is exact-UID in
+both directions. Its frames carry the speaker's name and the playback state,
+never a token or a device ID. `bhp-music-spotify-sign-in` runs in the owner's
+account on the PC, binds `127.0.0.1` only, checks the redirect's `state`,
+keeps the PKCE verifier in memory, and prints only the token file's path;
+its end-to-end test checks that nothing printed holds the token, the code or
+the verifier. The owner's steps are in `docs/operations/spotify-owner-setup.md`.

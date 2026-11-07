@@ -9,7 +9,7 @@ the panel as a remote control only
 option 4). That needs a Spotify refresh token on the panel. This record
 writes down where the token lives, how it rotates and how it is revoked
 (2026-11-07). Deployment waits for the owner's Spotify app and one-time
-sign-in, whose steps come with the sign-in tool.
+sign-in ([spotify-owner-setup.md](../operations/spotify-owner-setup.md)).
 
 **Date:** 2026-11-07
 
@@ -120,6 +120,8 @@ rules were read on 2026-11-07:
 
 - #69, the owner's decision (2026-11-07)
 - [Music to an external speaker](../architecture/music-to-external-speaker.md)
+- [Owner setup: the Spotify app and the one-time sign-in](../operations/spotify-owner-setup.md)
+- [`music_control/`](../../music_control/README.md), the code that holds the token
 - [Security and trust map](../security/threat-model.md)
 - [ADR 0010](0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md),
   [ADR 0012](0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md)

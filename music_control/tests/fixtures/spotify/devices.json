@@ -1,0 +1,34 @@
+{
+  "devices": [
+    {
+      "id": "5fbb3ba6aa454b5534c4ba43a8c7e8e45a63ad0e",
+      "is_active": false,
+      "is_private_session": false,
+      "is_restricted": false,
+      "name": "Living Room Bose",
+      "type": "Speaker",
+      "volume_percent": 35,
+      "supports_volume": true
+    },
+    {
+      "id": "8c0b8e4f2d9a61b7e3f05a1c9d2e7b4a6f3c1d08",
+      "is_active": true,
+      "is_private_session": false,
+      "is_restricted": false,
+      "name": "Kitchen phone",
+      "type": "Smartphone",
+      "volume_percent": 80,
+      "supports_volume": false
+    },
+    {
+      "id": null,
+      "is_active": false,
+      "is_private_session": false,
+      "is_restricted": true,
+      "name": "Hallway TV",
+      "type": "TV",
+      "volume_percent": null,
+      "supports_volume": false
+    }
+  ]
+}

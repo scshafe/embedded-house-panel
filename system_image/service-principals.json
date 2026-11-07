@@ -80,6 +80,16 @@
       "reserved_gid": 1104,
       "owns": [],
       "cutover": "Reserved for the agenda work after the human safety review; no service or device access."
+    },
+    {
+      "role": "music_control",
+      "installed": false,
+      "reserved_user": "bhp-music",
+      "reserved_uid": 1105,
+      "reserved_group": "bhp-music",
+      "reserved_gid": 1105,
+      "owns": [],
+      "cutover": "The only holder of the Spotify refresh token (ADR 0013), in /var/lib/bhp-music/token outside the image. Sends Spotify Web API commands only: no audio device, no bhp-mic, no video or input group."
     }
   ],
   "retired": [

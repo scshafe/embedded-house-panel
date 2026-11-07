@@ -1,0 +1,74 @@
+{
+  "device": {
+    "id": "5fbb3ba6aa454b5534c4ba43a8c7e8e45a63ad0e",
+    "is_active": true,
+    "is_private_session": false,
+    "is_restricted": false,
+    "name": "Living Room Bose",
+    "type": "Speaker",
+    "volume_percent": 35,
+    "supports_volume": true
+  },
+  "repeat_state": "off",
+  "shuffle_state": false,
+  "context": {
+    "type": "playlist",
+    "href": "https://api.spotify.com/v1/playlists/fixture",
+    "external_urls": {
+      "spotify": "https://open.spotify.com/playlist/fixture"
+    },
+    "uri": "spotify:playlist:fixture"
+  },
+  "timestamp": 1794040000000,
+  "progress_ms": 61234,
+  "is_playing": true,
+  "item": {
+    "album": {
+      "album_type": "album",
+      "total_tracks": 11,
+      "name": "Morning Light",
+      "release_date": "2024-03-01",
+      "type": "album",
+      "uri": "spotify:album:fixture",
+      "artists": [
+        {
+          "name": "The Fixture Band",
+          "type": "artist"
+        }
+      ]
+    },
+    "artists": [
+      {
+        "name": "The Fixture Band",
+        "type": "artist",
+        "uri": "spotify:artist:fixture1"
+      },
+      {
+        "name": "Café Ensemble",
+        "type": "artist",
+        "uri": "spotify:artist:fixture2"
+      }
+    ],
+    "duration_ms": 215000,
+    "explicit": false,
+    "name": "Slow Sunrise — Live",
+    "popularity": 40,
+    "track_number": 3,
+    "type": "track",
+    "uri": "spotify:track:fixture",
+    "is_local": false
+  },
+  "currently_playing_type": "track",
+  "actions": {
+    "interrupting_playback": false,
+    "pausing": true,
+    "resuming": false,
+    "seeking": true,
+    "skipping_next": true,
+    "skipping_prev": true,
+    "toggling_repeat_context": true,
+    "toggling_shuffle": true,
+    "toggling_repeat_track": true,
+    "transferring_playback": true
+  }
+}
