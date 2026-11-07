@@ -27,8 +27,9 @@ or writes to it.
   - **Fallback:** the PUI Audio AS04008CO-2-LW100-R first chosen here (8 Ω,
     1.5 W, 40 × 20 × 8 mm, $3.59 at Digi-Key); runner-up to that, Same Sky
     CMS-402008-18SP. See [Fallback](#fallback-pui-audio-as04008co-2-lw100-r).
-  - The host filters out what the driver cannot play (a low-cut filter on
-    playback, owner 2026-11-06).
+  - The host filters out what the driver cannot play: a low-cut filter on
+    all playback (owner 2026-11-06; see
+    [Playback filter](#playback-filter)).
 - **Gate:** the privacy switch and the presence gate are wired in series on the
   array's USB 5 V:
   - a mechanical slide switch;
@@ -154,12 +155,64 @@ With Vas 55 cm³:
 These are small-signal sealed-box figures, not measurements. Step 5 of the
 packaging plan listens through the real grille.
 
+### Playback filter
+
+Everything the host plays goes through a second-order Butterworth high-pass
+before it reaches the array (`media_broker`'s `PlaybackHighPass`, owner
+2026-11-06).
+
+**Corner.** 150 Hz for the DMA45-8, which is its free-air resonance.
+- **Why it is needed.** In its chamber the driver is already a second-order
+  high-pass (Fc about 221 Hz, Qtc about 0.86). Below that its output falls
+  12 dB per octave, but the cone and the amplifier still swing for anything
+  sent to them. Anything below the box's range only uses up the 5 V
+  headroom and shakes the cabinet, whose vibration reaches the microphones.
+- **What it gives (estimate).** The filter adds a second order below the
+  box, so together they fall 24 dB per octave.
+  - The combined −3 dB point moves from about 188 Hz to about 207 Hz.
+  - The response is down 1.2 dB at 200 Hz and flat within 0.3 dB from
+    300 Hz up.
+  - The filter is 16 dB down at 60 Hz (mains hum, handling noise) and 7.8 dB
+    down at 100 Hz.
+- **The PUI fallback.** Its profile, `pui-as04008co`, uses 500 Hz. That keeps
+  the 40 × 20 mm class below its 0.1 mm travel: it is 14.5 dB down at
+  200 Hz.
+
+**Where it sits.** On the host, before USB.
+- The XVF3800 takes its echo canceller's reference from the USB playback
+  stream. Filtering there keeps the reference equal to what the speaker
+  plays.
+- A filter after the array would leave the reference holding content the
+  speaker never played.
+
+**How it runs.** The broker has no playback path yet.
+- Until it does, `bhp-media-playback-filter` is the stage every playback
+  goes through. It reads raw S16_LE frames on stdin and writes them filtered
+  to stdout, defaulting to 2 channels at 16 kHz and `--speaker dma45-8`. For
+  example:
+  `bhp-media-playback-filter < reply.raw | aplay -D hw:CARD=L16K6Ch,DEV=0 -t raw -f S16_LE -c 2 -r 16000`.
+- When the broker gains playback, it calls `PlaybackHighPass` itself.
+- A different speaker needs its own profile in `speaker_high_pass`. The
+  profile changes with the speaker.
+
+**Tested** on the host only (`ctest -R media_playback`):
+- the corner, the passband and the stopband;
+- DC removal;
+- saturation without wrap-round;
+- state across calls and independent channels;
+- the tool's framing and errors.
+
+**On the board, not yet.** It needs a speaker (not bought) and an aarch64
+build of the tool; this PC has no cross compiler. Copying the tool to
+`/tmp` and piping a tone into `aplay` would install nothing. It joins the
+step 3 bench check of the amplifier at 5 V.
+
 ### Fallback: PUI Audio AS04008CO-2-LW100-R
 
 This was the first choice (2026-11-06) and stays documented as the fallback,
 for example if the DMA45-8 cannot be had in time. Using it again means
 restoring its outline and its 5.35 cm³ chamber, as merged in #65, and
-setting the playback filter's profile to it.
+the playback filter's `--speaker pui-as04008co` profile.
 
 From [PUI's drawing](https://puiaudio.com/file/specs-AS04008CO-2-LW100-R.pdf)
 (sha256 `2112ccaa…71b5`):
@@ -465,7 +518,9 @@ array on the gate.
    at full speaker volume (tone at 1 kHz). Measure the inrush when EN rises.
    These decide R1.
 4. **The amplifier on 5 V.** Play a tone through the array's playback device.
-   Silence means the BD mode: use the fallback amplifier above.
+   Silence means the BD mode: use the fallback amplifier above. Then play
+   speech and a 60 Hz tone through `bhp-media-playback-filter`, and check
+   by ear that the low tone is gone and the speech is not thinner.
 5. **Presence to ready.** Measure the time from the PIR going high to the array
    enumerating, and to a capture opening. Also time how fast `5V_MIC` falls
    below 0.5 V after EN drops. The array's bulk capacitance is not published:
