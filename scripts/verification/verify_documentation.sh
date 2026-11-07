@@ -52,6 +52,7 @@ docs/hardware/mirror-unit-layout.md
 docs/hardware/mirror-unit-print.md
 docs/hardware/mirror-unit-speaker-and-gate.md
 docs/hardware/mirror-unit-speaker-options.md
+docs/architecture/music-to-external-speaker.md
 hardware_tests/README.md
 experiments/macos_personal_companion/README.md
 vocabulary_panel/README.md
