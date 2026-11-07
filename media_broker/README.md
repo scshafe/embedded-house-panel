@@ -1,5 +1,19 @@
 # Fake Media Broker
 
+**Amended 2026-11-06 (owner):** all playback is high-passed for the mirror
+unit's speaker before it reaches the array.
+- `PlaybackHighPass` (`playback_filter.h`) is a per-channel biquad on
+  interleaved S16 frames. It runs in double precision and saturates to 16
+  bits.
+- `speaker_high_pass` gives each speaker's design: `dma45-8` (the default,
+  150 Hz) or `pui-as04008co` (the fallback, 500 Hz). Why these corners is
+  in
+  [mirror-unit-speaker-and-gate.md](../docs/hardware/mirror-unit-speaker-and-gate.md#playback-filter).
+- The broker has no playback path yet. Until it does,
+  `bhp-media-playback-filter` is the filter as a stdin-to-stdout stage in
+  front of `aplay`.
+- Tests: `ctest --test-dir .build/host-dev -R media_playback`.
+
 **Amended 2026-10-19 (issue #22):** `media_broker/` now also holds the C++
 capture core for the real broker's `voice_take` purpose
 ([voice-take capture plan](../.claude/plans/2026-10-19-voice-take-capture.md),

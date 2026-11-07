@@ -7,6 +7,7 @@ add_library(bhp_media_capture STATIC
   src/take_store.cpp
   src/xvf3800_control.cpp
   src/media_broker.cpp
+  src/playback_filter.cpp
 )
 add_library(bhp::media_capture ALIAS bhp_media_capture)
 target_include_directories(bhp_media_capture PUBLIC include)
@@ -24,6 +25,27 @@ if(BHP_BUILD_TESTS)
     target_compile_options(media_capture_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
   add_test(NAME media_capture_test COMMAND media_capture_test)
+
+  add_executable(playback_filter_test tests/playback_filter_test.cpp)
+  target_link_libraries(playback_filter_test PRIVATE bhp_media_capture)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(playback_filter_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME media_playback_filter_test COMMAND playback_filter_test)
+endif()
+
+# @canonical media_playback_filter_tool -- bhp-media-playback-filter, the speaker's
+# low-cut filter as a stdin-to-stdout stage until the broker owns playback.
+add_executable(bhp-media-playback-filter tools/playback_filter_main.cpp)
+target_link_libraries(bhp-media-playback-filter PRIVATE bhp_media_capture)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(bhp-media-playback-filter PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+if(BHP_BUILD_TESTS)
+  add_test(NAME media_playback_filter_tool_test
+    COMMAND ${CMAKE_COMMAND} -DTOOL=$<TARGET_FILE:bhp-media-playback-filter>
+      -DROOT=${CMAKE_CURRENT_BINARY_DIR}/playback-filter-tool
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/playback_filter_tool_test.cmake)
 endif()
 
 # @canonical media_broker_daemon -- bhp-media-broker, the one audio owner.

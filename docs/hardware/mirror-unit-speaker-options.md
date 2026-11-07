@@ -284,7 +284,10 @@ Ranked, for speech from the mirror unit:
 
 ## Decisions for the owner
 
-Amended 2026-11-06: the owner chose 2 and 3(a). The rest stays as written.
+Amended 2026-11-06: the owner chose 2 and 3(a). For 2, the corner is
+150 Hz for the DMA45-8 and 500 Hz for the PUI fallback
+([Playback filter](mirror-unit-speaker-and-gate.md#playback-filter)). The
+rest stays as written.
 
 1. **Keep the baseline for now** (no change). Step 3 still answers first
    whether the TPA3139D2 plays at 5 V. Every option here is 8 Ω or 4 Ω on
