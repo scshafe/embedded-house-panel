@@ -61,6 +61,8 @@ if(BHP_BUILD_HTTP_LEXINET_CLIENT OR BHP_BUILD_PANEL_RENDERER)
   # The uploader protocol always builds (the UI speaks it); the recorder's HTTP
   # pieces share the runtime the study client builds.
   add_subdirectory(voice_lab_recorder)
+  # The same split: the music-control protocol always builds; the Spotify client needs the runtime.
+  add_subdirectory(music_control)
 endif()
 if(BHP_BUILD_PANEL_RENDERER)
   add_subdirectory(simulator)
