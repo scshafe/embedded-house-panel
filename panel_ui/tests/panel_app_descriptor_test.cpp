@@ -58,8 +58,9 @@ int main()
 		       !contains(study, "shell.open_study"),
 	       "study routes its own actions and home, not its launcher");
 	const auto agenda = surface_routes(*find_app_descriptor("agenda"));
-	expect(agenda.size() == 3 && contains(agenda, "agenda.submit_wish") && contains(agenda, "shell.home"),
-	       "agenda routes its two actions and home");
+	expect(agenda.size() == 4 && contains(agenda, "agenda.submit_wish") && contains(agenda, "shell.home") &&
+		       contains(agenda, "shell.open_report"),
+	       "agenda routes its two actions, home and the Report button");
 	expect(find_app_descriptor("weather") == nullptr, "an unknown surface has no descriptor");
 	std::cout << "panel_app_descriptor: " << failures << " failures\n";
 	return failures ? 1 : 0;

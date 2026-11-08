@@ -13,8 +13,6 @@ const std::vector<PanelAppDescriptor> &panel_app_descriptors()
 			 {"shell.home", IntentEffectClass::Navigation, true, true, false, true, "home"},
 			 {"shell.apps_previous", IntentEffectClass::Navigation, true, true, false, true},
 			 {"shell.apps_next", IntentEffectClass::Navigation, true, true, false, true},
-			 // The day bar's Report button (bug-reports-and-self-repair.md); voice comes in step 3.
-			 {"shell.open_report", IntentEffectClass::Navigation, true, true, false, true, "report"},
 		 },
 		 {"shell.open_report"},
 		 {},
@@ -77,6 +75,8 @@ const std::vector<PanelAppDescriptor> &panel_app_descriptors()
 		// The report screen: a typed description, then Send; the report goes only to the owner's PC.
 		{"report",
 		 {
+			 // The day bar's Report button on every surface (bug-reports-and-self-repair.md); voice comes in step 3.
+			 {"shell.open_report", IntentEffectClass::Navigation, true, true, false, true, "report"},
 			 {"report.send", IntentEffectClass::ExternalSubmission, true, true, false, true},
 			 {"report.cancel", IntentEffectClass::Navigation, true, true, false, true},
 			 {"report.done", IntentEffectClass::Navigation, true, true, false, true},
