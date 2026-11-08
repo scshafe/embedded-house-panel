@@ -22,6 +22,7 @@ still occupy their filename and are never treated as a free number.
 | [0010](0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md) | Accepted; Tailnet- and hardware-gated | Authenticate the panel by node capability and install pinned official Tailscale `1.102.2` |
 | [0011](0011-blank-before-presentation-changes-not-every-cycle.md) | Accepted; checked on the FRDM panel 2026-10-18 | Blank before presentation changes, not every cycle |
 | [0012](0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md) | Accepted; waits for voice-lab's bundle and the uploader | Keep one rotating Pocket ID refresh token for voice-lab, held only by the uploader |
+| [0013](0013-keep-a-spotify-refresh-token-on-the-panel.md) | Accepted; waits for the owner's Spotify app and sign-in | Keep one Spotify refresh token for playback control, held only by `bhp-music-control` |
 
 No later number is reserved by a plan.
 
@@ -79,3 +80,8 @@ superseded; its platform ranking and measurement contract remain.
 keep a voice-lab refresh token on the panel, with its rules and threat model.
 It is a narrow exception to ADR 0010, which still keeps every Lexinet
 credential off the panel.
+
+**Amended 2026-11-07:** registered ADR 0013, the owner's #69 decision to send
+music to the Bose speaker through Spotify Connect, which keeps a Spotify
+refresh token on the panel. It is a second narrow exception to ADR 0010, next
+to ADR 0012.
