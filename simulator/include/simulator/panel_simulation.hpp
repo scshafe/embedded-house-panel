@@ -16,6 +16,7 @@
 #include "simulator/fake_voice_connection.hpp"
 #include "simulator/preview_clock.hpp"
 #include "simulator/voice_lab_runtime.hpp"
+#include "music_control/music_protocol.h"
 
 namespace bhp::simulator {
 using Json=nlohmann::json;
@@ -64,6 +65,10 @@ public:
  void attach_voice_lab_uploader(const std::string &socket_path,std::uint32_t uploader_uid);
  /** Test seam: an already-connected uploader peer (its UID is still checked). */
  void attach_voice_lab_uploader_peer(int descriptor,std::uint32_t uploader_uid);
+ /** The music-control service's socket (exact UID): the music remote's state and commands (ADR 0013). */
+ void attach_music_control(const std::string &socket_path,std::uint32_t service_uid);
+ /** Test seam: an already-connected music-control peer (its UID is still checked). */
+ void attach_music_control_peer(int descriptor,std::uint32_t service_uid);
  /**
   * Level-only recorder updates wait for the next lifecycle render instead of drawing
   * at once, so a live meter cannot keep touches from matching the committed frame.
@@ -100,6 +105,13 @@ private:
  void route_intent(const house_panel::panel_ui::InteractionIntentEnvelope &intent);
  void voice_lab_intent(const std::string &id);
  void project_uploader(const voice_lab_recorder::uploader_protocol::State &state);
+ void pump_music();
+ void music_intent(const std::string &id);
+ void project_music(const music_control::protocol::State &state);
+ void attach_music_client(std::unique_ptr<music_control::protocol::MusicClient> client);
+ /** The music-control connection and the last state it sent, while one is attached. */
+ std::unique_ptr<music_control::protocol::MusicClient> music_;
+ std::optional<music_control::protocol::State> music_state_;
  /** The last state the uploader sent, while one is attached. */
  std::optional<voice_lab_recorder::uploader_protocol::State> uploader_state_;
  /** Kept takes waiting for the broker's hand-off: take id to (prompt id, requested at). */

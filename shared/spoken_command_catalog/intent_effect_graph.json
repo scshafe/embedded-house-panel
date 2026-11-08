@@ -9,6 +9,9 @@
     "media.capture_stop": [
       "capture_stop"
     ],
+    "music.command_speaker": [
+      "external_submission"
+    ],
     "personal_context.dispatch": [
       "external_submission"
     ],
@@ -59,6 +62,24 @@
     "agenda.submit_wish.handler": [
       "personal_context.dispatch"
     ],
+    "music.next.handler": [
+      "music.command_speaker"
+    ],
+    "music.pause.handler": [
+      "music.command_speaker"
+    ],
+    "music.play.handler": [
+      "music.command_speaker"
+    ],
+    "music.use_speaker.handler": [
+      "music.command_speaker"
+    ],
+    "music.volume_down.handler": [
+      "music.command_speaker"
+    ],
+    "music.volume_up.handler": [
+      "music.command_speaker"
+    ],
     "shell.apps_next.handler": [
       "shell.page_apps"
     ],
@@ -69,6 +90,9 @@
       "shell.switch_surface"
     ],
     "shell.open_agenda.handler": [
+      "shell.switch_surface"
+    ],
+    "shell.open_music.handler": [
       "shell.switch_surface"
     ],
     "shell.open_study.handler": [
@@ -151,6 +175,24 @@
     "agenda.submit_wish": [
       "agenda.submit_wish.handler"
     ],
+    "music.next": [
+      "music.next.handler"
+    ],
+    "music.pause": [
+      "music.pause.handler"
+    ],
+    "music.play": [
+      "music.play.handler"
+    ],
+    "music.use_speaker": [
+      "music.use_speaker.handler"
+    ],
+    "music.volume_down": [
+      "music.volume_down.handler"
+    ],
+    "music.volume_up": [
+      "music.volume_up.handler"
+    ],
     "shell.apps_next": [
       "shell.apps_next.handler"
     ],
@@ -162,6 +204,9 @@
     ],
     "shell.open_agenda": [
       "shell.open_agenda.handler"
+    ],
+    "shell.open_music": [
+      "shell.open_music.handler"
     ],
     "shell.open_study": [
       "shell.open_study.handler"

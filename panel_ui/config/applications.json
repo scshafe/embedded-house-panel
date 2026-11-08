@@ -32,6 +32,16 @@
       "icon_color": "5b4a72",
       "preview": true,
       "enabled": true
+    },
+    {
+      "application_id": "music",
+      "title": "Music",
+      "subtitle": "Spotify",
+      "launch_intent": "shell.open_music",
+      "icon": "monogram",
+      "monogram": "M",
+      "icon_color": "2f5d4a",
+      "enabled": true
     }
   ]
 }

@@ -68,6 +68,9 @@ int run_simulation_drm(int argc,char **argv){try{
  // Kept takes go to the bhp-voice-lab-uploader process (issue #23); it drives sign-in, approval and prompts.
  if(options.count("--voice-lab-uploader-socket")!=options.count("--voice-lab-uploader-uid"))throw std::runtime_error("SIMULATOR.VOICE_LAB_UPLOADER_OPTIONS_INCOMPLETE");
  if(options.count("--voice-lab-uploader-socket"))app.attach_voice_lab_uploader(options.at("--voice-lab-uploader-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--voice-lab-uploader-uid"))));
+ // Music on the owner's speaker goes through the bhp-music-control process (ADR 0013); the UI holds no token.
+ if(options.count("--music-control-socket")!=options.count("--music-control-uid"))throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_OPTIONS_INCOMPLETE");
+ if(options.count("--music-control-socket"))app.attach_music_control(options.at("--music-control-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--music-control-uid"))));
  DrmPageFlipDisplay drm(options.at("--drm-device"),static_cast<std::uint32_t>(std::stoul(options.at("--drm-connector-id"))));
  FixtureControl control(options.at("--simulation-control-socket"));
  std::mutex mutex;

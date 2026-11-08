@@ -189,7 +189,8 @@ intent registry. Change `columns` (1–4), `rows` (1–2), array order, `enabled
 `title`, `subtitle`, `icon`, `icon_color` and `preview` there. Restart the preview
 to apply it. The default is a 3×2 grid that retains the approved spacious layout
 with few apps; it holds Lexinet, Agenda and, since 2026-10-19, Voice lab (issue
-#23, a fixture preview until voice-lab's bundle lands). More apps automatically get pages; Home remembers
+#23, a fixture preview until voice-lab's bundle lands). Music joined on
+2026-11-07: Spotify Connect on the owner's speaker (ADR 0013). More apps automatically get pages; Home remembers
 the current page when returning from an app. Up to 64 catalog entries are allowed.
 An empty or entirely disabled catalog shows “No apps enabled”.
 

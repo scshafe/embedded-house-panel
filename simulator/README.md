@@ -240,3 +240,33 @@ fixtures. Scenario files set only the starting screen (`voice_lab_state`:
 `signed_out`, `signing_in`, `approve`, `ready`, `recording`, `review`,
 `complete`, `unavailable`).
 
+## Music
+
+Added 2026-11-07 (#69,
+[ADR 0013](../docs/decisions/0013-keep-a-spotify-refresh-token-on-the-panel.md)).
+The `music` surface is a remote for Spotify Connect on the owner's speaker.
+The speaker plays the stream itself, so nothing plays on the panel, and the
+UI holds no token. Its intents are touch only. They reach
+`bhp-music-control` through the music-control protocol
+(`music_control/music_protocol.h`):
+- **Play here** (`music.use_speaker`) moves Spotify playback to the
+  configured speaker.
+- **Play, Pause and Skip** (`music.play`, `music.pause`, `music.next`).
+- **Volume - and +** step by 10 (`music.volume_down`, `music.volume_up`),
+  shown only when Spotify reports the speaker's volume.
+
+**With the service attached** (`--music-control-socket` and
+`--music-control-uid`, or `attach_music_control_peer` in tests), its state
+drives the surface:
+- **The screen:** signed out, checking, missing (asleep, off or not
+  listed), restricted, ready, playing or paused.
+- **Refusals:** shown in words.
+- **Track text:** cut to 40 characters (artists to 60). Text with glyphs
+  outside the panel's Latin fonts is not drawn ("Title not shown").
+- **A lost service** shows "Music unavailable".
+
+Without the service the track, the speaker's name and the volume stay
+fixtures. Scenario files set only the starting screen (`music_state`:
+`signed_out`, `unavailable`, `checking`, `missing`, `restricted`, `ready`,
+`playing`, `paused`).
+

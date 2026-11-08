@@ -2,6 +2,7 @@
 #include "vocabulary_panel/study_wire_codec.h"
 #include "bhp/media_window_protocol/media_window_protocol.h"
 #include "voice_lab_recorder/uploader_protocol.h"
+#include "music_control/music_protocol.h"
 #include <sys/socket.h>
 #include <unistd.h>
 #include <algorithm>
@@ -143,6 +144,86 @@ void test_voice_lab_follows_the_uploader(const std::filesystem::path &root){
  require(app.scene.voice_lab.prompt_id=="reference-warm-01"&&app.scene.voice_lab.queued_takes==1&&app.scene.voice_lab.missing==1,"the next missing prompt, one take queued");
  ::close(pair[1]);
  until([&]{return app.scene.voice_lab.notice=="The uploader is not running";},"a lost uploader is shown");
+}
+// The music surface on the music-control protocol, with this test as the
+// service on the other end of a socket pair (the real service is tested in
+// music_control against scripted Spotify answers).
+void test_music_follows_the_service(const std::filesystem::path &root){
+ namespace wire=music_control::protocol;
+ PanelSimulation app(false);
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
+ app.semantic_intent("shell.open_music","touch");
+ require(app.scene.surface_id=="music","the music surface opens from home");
+ app.semantic_intent("music.use_speaker","touch");
+ require(app.scene.acknowledgement=="Music is not running","without the service nothing is sent");
+ int pair[2];
+ require(::socketpair(AF_UNIX,SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC,0,pair)==0,"socket pair");
+ app.attach_music_control_peer(pair[0],::getuid());
+ require(app.scene.music.state=="checking","attached, the surface waits for the service");
+ bhp::media_window_protocol::FrameChannel service(pair[1],wire::kMaximumFrameBytes);
+ const auto until=[&app](const std::function<bool()> &done,const char *message){
+  for(int i=0;i<400&&!done();++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+  require(done(),message);
+ };
+ const auto next_request=[&]()->wire::UiRequest{
+  for(int i=0;i<400;++i){
+   app.service();
+   auto frame=service.receive();
+   require(frame.has_value(),"the UI keeps the music-control connection");
+   if(frame.value()){auto request=wire::decode_ui_request(*frame.value());require(request.has_value(),"a valid request");return request.value();}
+   std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  throw std::runtime_error("no request reached the music service");
+ };
+ const auto has_target=[&app](const std::string &intent){
+  for(const auto &target:app.display.hit_targets())if(target.intent_id==intent)return true;
+  return false;
+ };
+ std::uint64_t sequence=0;
+ const auto send=[&](wire::MusicEvent event){
+  if(auto *state=std::get_if<wire::State>(&event))state->sequence=++sequence;
+  require(service.send(wire::encode(event).value()).has_value(),"event sent");
+ };
+ require(std::holds_alternative<wire::StatusRequest>(next_request()),"the UI asks for the state when it attaches");
+ wire::State state;
+ state.output.name="Living Room Bose";
+ send(state);
+ until([&]{return app.scene.music.state=="signed_out";},"no token shows the PC sign-in");
+ require(!has_target("music.use_speaker"),"signed out, there is nothing to press");
+ state.sign_in="signed_in";state.output={"available","Living Room Bose",true,35u};
+ send(state);
+ until([&]{return app.scene.music.state=="ready"&&app.scene.music.volume_percent==35;},"the speaker is ready");
+ require(has_target("music.use_speaker"),"Play here is on the screen");
+ app.semantic_intent("music.use_speaker","touch");
+ require(std::holds_alternative<wire::SelectOutputRequest>(next_request()),"Play here moves playback to the speaker");
+ state.output.state="active";state.playback=wire::Playback{true,"Slow Sunrise","The Fixture Band"};
+ send(state);
+ until([&]{return app.scene.music.state=="playing"&&app.scene.music.title=="Slow Sunrise";},"playing shows the track");
+ require(has_target("music.pause")&&has_target("music.next")&&has_target("music.volume_up"),"pause, skip and volume are on the screen");
+ app.semantic_intent("music.pause","touch");
+ require(std::holds_alternative<wire::PauseRequest>(next_request()),"Pause");
+ app.semantic_intent("music.next","touch");
+ require(std::holds_alternative<wire::NextRequest>(next_request()),"Skip");
+ app.semantic_intent("music.volume_up","touch");
+ const auto louder=next_request();
+ require(std::holds_alternative<wire::VolumeRequest>(louder)&&std::get<wire::VolumeRequest>(louder).percent==45,"Volume + asks for ten more");
+ require(app.scene.music.volume_percent==45,"the new volume shows at once");
+ send(wire::Refused{"volume","MUSIC.RATE_LIMITED"});
+ until([&]{return app.scene.music.notice=="Spotify is busy. Try again in a minute.";},"a refusal is shown in words");
+ // Spotify text the panel's fonts cannot draw is not drawn, and long text is cut.
+ state.playback=wire::Playback{false,"\xE5\xA4\x9C\xE6\x98\x8E\xE3\x81\x91",std::string(80,'x')};
+ send(state);
+ until([&]{return app.scene.music.state=="paused";},"paused");
+ require(app.scene.music.title=="Title not shown","a title outside the panel's fonts is replaced");
+ require(app.scene.music.artists==std::string(60,'x')+"\xE2\x80\xA6","long text is cut with an ellipsis");
+ app.render();
+ require(has_target("music.play"),"paused shows Play");
+ state.output.state="missing";state.playback.reset();
+ send(state);
+ until([&]{return app.scene.music.state=="missing";},"a sleeping speaker is shown as not available");
+ require(has_target("music.use_speaker"),"Try again is on the screen");
+ ::close(pair[1]);
+ until([&]{return app.scene.music.state=="unavailable";},"a lost service is shown");
 }
 void test_home_navigation_preserves_durable_requests(const std::filesystem::path &root){
  using namespace vocabulary_panel;
@@ -303,6 +384,7 @@ int main(){try{
  test_home_weather_scenario_validation(root);
  test_voice_lab_records_through_the_broker(root);
  test_voice_lab_follows_the_uploader(root);
+ test_music_follows_the_service(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

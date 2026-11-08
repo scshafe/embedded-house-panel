@@ -169,6 +169,12 @@ std::vector<std::string> scene_text(const PanelScene &s) {
   const auto &app=s.applications.applications.at(tile.application_index);
   result.push_back(app.title);result.push_back(app.subtitle);result.push_back(app.monogram);
  }
+ // Live Spotify text is validated like the card's: unsupported glyphs fail before drawing.
+ if(s.surface_id == "music") {
+  result.push_back(s.music.speaker);
+  result.push_back(s.music.notice);
+  if(s.music.state == "playing" || s.music.state == "paused") { result.push_back(s.music.title); result.push_back(s.music.artists); }
+ }
  if(s.surface_id == "study" && (s.study_state == "front" || s.study_state == "back")) {
   result.push_back(s.card_word);
   if(s.study_state == "back") { result.push_back(s.card_definition); result.push_back(s.card_example); }
@@ -293,6 +299,7 @@ const std::vector<LvglPanelDisplay::SurfaceRenderer> &LvglPanelDisplay::surface_
   {"study", &LvglPanelDisplay::draw_study},
   {"agenda", &LvglPanelDisplay::draw_agenda},
   {"voice_lab", &LvglPanelDisplay::draw_voice_lab},
+  {"music", &LvglPanelDisplay::draw_music},
  };
  return renderers;
 }
@@ -500,5 +507,71 @@ void LvglPanelDisplay::draw_voice_lab(lv_obj_t *, lv_obj_t *content, const Panel
  label(content, "Recorder unavailable", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
  label(content, "The microphone is off or the recorder is not running.", 24, 128, 896, 74, &bhp_font_28, 0xaab8b7);
  label(content, "Nothing is being recorded.", 24, 376, 896, 31, &bhp_font_24, 0xe9c480);
+}
+void LvglPanelDisplay::draw_music(lv_obj_t *, lv_obj_t *content, const PanelScene &s) {
+ const auto &m = s.music;
+ const auto &state = m.state;
+ label(content, "Music", 24, 16, 240, 31, &bhp_font_24, 0x8db5a7);
+ const auto action = [this, content](int index, int target_width, const std::string &title, const std::string &intent,
+                                     std::uint32_t color) {
+  auto *control = box(content, layout::action_x(index), layout::actions_y, target_width, layout::action_height, 0x293f43, 12);
+  label(control, title, 0, 13, target_width, 37, &bhp_font_28, color, LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({layout::content_x + layout::action_x(index), layout::content_y + layout::actions_y,
+                          target_width, layout::action_height, intent});
+ };
+ const auto notice = [&] {
+  if(!m.notice.empty()) label(content, m.notice, 24, 312, 896, 31, &bhp_font_24, 0xe9c480);
+ };
+ const auto message = [&](const std::string &title, const std::string &detail) {
+  label(content, title, 24, 56, 896, 104, &bhp_font_40, 0xf4f0e8);
+  label(content, detail, 24, 168, 896, 74, &bhp_font_28, 0xaab8b7);
+ };
+ if(state == "playing" || state == "paused") {
+  label(content, m.title, 24, 64, 896, 88, &bhp_font_36, 0xf4f0e8);
+  label(content, m.artists, 24, 160, 896, 74, &bhp_font_28, 0xaab8b7);
+  const auto volume = m.supports_volume && m.volume_percent >= 0 ? " · Volume " + std::to_string(m.volume_percent) + "%"
+                                                                  : std::string();
+  label(content, (state == "playing" ? "Playing on " : "Paused on ") + m.speaker + volume, 24, 248, 896, 62,
+        &bhp_font_24, 0x8db5a7);
+  notice();
+  if(state == "playing") action(0, layout::action_width, "Pause", "music.pause", 0xf4f0e8);
+  else action(0, layout::action_width, "Play", "music.play", 0xf4f0e8);
+  action(1, layout::action_width, "Skip", "music.next", 0xdbe5df);
+  if(m.supports_volume && m.volume_percent >= 0) {
+   action(2, layout::action_width, "Volume -", "music.volume_down", 0xdbe5df);
+   action(3, layout::action_width, "Volume +", "music.volume_up", 0xdbe5df);
+  }
+  return;
+ }
+ if(state == "ready") {
+  message(m.speaker, "Music plays on the speaker through Spotify. Nothing plays on the panel.");
+  if(m.supports_volume && m.volume_percent >= 0)
+   label(content, "Volume " + std::to_string(m.volume_percent) + "%", 24, 260, 896, 31, &bhp_font_24, 0x8db5a7);
+  notice();
+  action(0, layout::primary_width, "Play here", "music.use_speaker", 0xf4f0e8);
+  return;
+ }
+ if(state == "missing") {
+  message(m.speaker + " is not available", "It may be asleep, off or on battery. Press a button on the speaker, then try again.");
+  notice();
+  action(0, layout::primary_width, "Try again", "music.use_speaker", 0xf4f0e8);
+  return;
+ }
+ if(state == "restricted") {
+  message(m.speaker + " cannot be controlled", "Spotify does not accept commands for this speaker right now.");
+  notice();
+  return;
+ }
+ if(state == "checking") {
+  message("Looking for " + m.speaker, "Asking Spotify which speakers are available.");
+  return;
+ }
+ if(state == "signed_out") {
+  message("Sign in to Spotify", "The panel needs a one-time Spotify sign-in, done from your PC.");
+  notice();
+  return;
+ }
+ message("Music unavailable", "The music service is not running.");
+ label(content, "Nothing plays on the panel.", 24, 376, 896, 31, &bhp_font_24, 0xe9c480);
 }
 }

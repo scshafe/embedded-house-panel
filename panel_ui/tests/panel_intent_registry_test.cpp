@@ -48,6 +48,13 @@ int test_registry_contains_exact_version_one_union()
 		{"voice_lab.skip", {IntentEffectClass::Navigation, true, true, false, true}},
 		{"voice_lab.sign_in", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
 		{"voice_lab.approve", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"shell.open_music", {IntentEffectClass::Navigation, true, true, false, true, "music"}},
+		{"music.use_speaker", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"music.play", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"music.pause", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"music.next", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"music.volume_down", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
+		{"music.volume_up", {IntentEffectClass::ExternalSubmission, true, true, false, true}},
 	};
 	const PanelIntentRegistry registry;
 	if (registry.definitions().size() != expected.size()) {
