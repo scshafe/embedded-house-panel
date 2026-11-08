@@ -21,7 +21,17 @@ first day of real use, and for an agent to find the cause and open a fix.
     validation, the store, the redactor, the receiver and the agent's
     commands, with the infra hand-off in
     [bug-report-inbox-setup.md](../operations/bug-report-inbox-setup.md) and
-    the AGENTS.md session step.
+    the AGENTS.md session step;
+  - step 3, voice:
+    - "Lexi report a bug" opens the report screen.
+    - Record and Stop take a description of at most 60 s under the broker's
+      new `bug_report` purpose. Its takes go to the reporter's own hand-off
+      directory, never the voice corpus's.
+    - The reporter keeps one channel as a mono WAV and deletes the take.
+- **One deviation found while building step 3:** the array records 6
+  channels, so a 60 s take is about 11.5 MB. The reporter keeps one channel,
+  about 1.9 MB as section 2 assumed. Which channel carries the processed
+  voice is unmeasured, so it is channel 0 by default (`--description-channel`).
 
 **In short:**
 - One pipeline with three entry points:

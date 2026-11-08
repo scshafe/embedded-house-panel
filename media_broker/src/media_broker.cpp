@@ -27,11 +27,16 @@ std::string hex_sha256(const std::string &data)
 }
 } // namespace
 
-std::string voice_take_operation_digest(const std::string &request_id, const std::string &operation_ref)
+std::string operation_digest(std::string_view purpose, const std::string &request_id, const std::string &operation_ref)
 {
 	const nlohmann::json operation = {
-		{"operation_ref", operation_ref}, {"purpose", "voice_take"}, {"request_id", request_id}};
+		{"operation_ref", operation_ref}, {"purpose", std::string(purpose)}, {"request_id", request_id}};
 	return "sha256:" + hex_sha256(operation.dump() + "\n");
+}
+
+std::string voice_take_operation_digest(const std::string &request_id, const std::string &operation_ref)
+{
+	return operation_digest("voice_take", request_id, operation_ref);
 }
 
 MediaBroker::MediaBroker(BrokerSettings settings, TakeStore store, BrokerPorts ports)
@@ -189,20 +194,26 @@ void MediaBroker::handle(const lease::UiRequest &request)
 
 void MediaBroker::arm(const lease::ArmRequest &request)
 {
-	if (request.purpose != lease::Purpose::VoiceTake)
+	const bool report = request.purpose == lease::Purpose::BugReport;
+	if (request.purpose != lease::Purpose::VoiceTake && !report)
 		return refuse(request.request_id, "MEDIA_BROKER.PURPOSE_DISABLED");
 	if (state_ != State::Idle)
 		return refuse(request.request_id, "MEDIA_BROKER.BUSY");
 	if (!window_ || !window_->window_open())
 		return refuse(request.request_id, "MEDIA_BROKER.WINDOW_CLOSED");
-	const auto planned = 44 + settings_.maximum_frames * settings_.request.channels *
+	const auto maximum_frames = report && settings_.report_maximum_frames > 0
+					    ? std::min(settings_.maximum_frames, settings_.report_maximum_frames)
+					    : settings_.maximum_frames;
+	const auto planned = 44 + maximum_frames * settings_.request.channels *
 					  sample_width(settings_.request.format);
 	if (auto admitted = store_.admit(planned); !admitted)
 		return refuse(request.request_id, admitted.error().code);
 	request_id_ = request.request_id;
 	claim_id_ = ports_.new_id();
 	touch_observation_id_ = request.touch_observation_id;
-	digest_ = voice_take_operation_digest(request.request_id, request.operation_ref);
+	purpose_ = std::string(lease::to_string(request.purpose));
+	maximum_frames_ = maximum_frames;
+	digest_ = operation_digest(purpose_, request.request_id, request.operation_ref);
 	if (!window_->claim({claim_id_, touch_observation_id_, digest_, request.presentation_binding})) {
 		refuse(request.request_id, "MEDIA_BROKER.WINDOW_CLOSED");
 		reset_lease();
@@ -229,8 +240,8 @@ void MediaBroker::start(const std::string &lease_id)
 		return reset_lease();
 	}
 	auto writer = TakeWriter::begin(store_, format.value(),
-					{ports_.utc_now(), settings_.tolerance_ns, settings_.maximum_frames,
-					 ports_.read_device()});
+					{ports_.utc_now(), settings_.tolerance_ns, maximum_frames_, ports_.read_device(),
+					 purpose_});
 	if (!writer) {
 		source->close();
 		send(lease::Ended{lease_id_, lease::Outcome::Failed, {}, {}, 0, writer.error().code});
@@ -266,9 +277,14 @@ void MediaBroker::hand_off(const std::string &take_id)
 {
 	if (state_ != State::Idle)
 		return refuse(take_id, "MEDIA_BROKER.BUSY");
-	if (settings_.handoff_directory.empty())
+	auto purpose = store_.purpose(take_id);
+	if (!purpose)
+		return refuse(take_id, purpose.error().code);
+	// Each purpose has its own receiver: a bug description never reaches the voice corpus.
+	const auto &directory = purpose.value() == "bug_report" ? settings_.report_handoff_directory : settings_.handoff_directory;
+	if (directory.empty())
 		return refuse(take_id, "MEDIA_BROKER.HANDOFF_DISABLED");
-	if (auto moved = store_.hand_off(take_id, settings_.handoff_directory); !moved)
+	if (auto moved = store_.hand_off(take_id, directory); !moved)
 		return refuse(take_id, moved.error().code);
 	send(lease::HandedOff{take_id});
 }
@@ -322,7 +338,7 @@ void MediaBroker::capture_loop(std::unique_ptr<CaptureSource> source, std::uniqu
 		events_.push_back(std::move(event));
 	};
 	while (stop_ == kStopNone) {
-		if (writer->frames() + format.period_frames > settings_.maximum_frames) {
+		if (writer->frames() + format.period_frames > maximum_frames_) {
 			reason = StopReason::MaximumDuration;
 			break;
 		}

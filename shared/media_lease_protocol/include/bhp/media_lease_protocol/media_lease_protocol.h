@@ -32,8 +32,11 @@ using media_window_protocol::Result;
 inline constexpr std::uint32_t kProtocolVersion = 1;
 inline constexpr std::size_t kMaximumChannels = 8;
 
-/** Purposes the wire can name. Only voice_take is served by the real broker. */
-enum class Purpose { VoiceTake, CommandRecognition, WishRecording };
+/**
+ * Purposes the wire can name. The real broker serves voice_take and, since the
+ * bug-report design's step 3, bug_report: a spoken description of at most 60 s.
+ */
+enum class Purpose { VoiceTake, CommandRecognition, WishRecording, BugReport };
 std::string_view to_string(Purpose purpose);
 
 struct ArmRequest {

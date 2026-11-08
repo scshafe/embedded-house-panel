@@ -41,6 +41,15 @@ struct ReporterSettings {
 	/** A snapshot not submitted within this is forgotten. */
 	std::chrono::minutes snapshot_lifetime{10};
 	std::size_t maximum_snapshots{4};
+	/**
+	 * Where the broker hands off bug_report takes (spoken descriptions); empty
+	 * refuses voice reports with audio (REPORT.AUDIO_UNAVAILABLE). Takes are
+	 * deleted once used and, unused, after `snapshot_lifetime`.
+	 */
+	std::string handoff_directory;
+	/** The array channel the description keeps (unmeasured: channel 0 until the channel map is). */
+	unsigned description_channel{0};
+	std::uint64_t maximum_description_frames{60 * 16000};
 	bhp::durable_store::BackoffPolicy backoff{std::chrono::seconds(5), std::chrono::hours(1), 0.2};
 };
 
@@ -90,6 +99,7 @@ private:
 		       const std::string &location);
 	Result<bool> upload_next();
 	void poll_statuses();
+	void purge_handoff();
 	std::string created_at(std::int64_t unix_seconds) const;
 
 	ReporterSettings settings_;

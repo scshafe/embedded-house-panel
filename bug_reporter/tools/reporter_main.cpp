@@ -38,7 +38,8 @@ constexpr std::size_t kMaximumIngestLine = 32 * 1024;
 
 const char *kUsage =
 	"usage: bhp-reporter --ui-socket PATH --ui-uid UID --ingest-socket PATH --ingest-uids UID[,UID...]\n"
-	"  --outbox-dir DIR --fault-dir DIR --inbox-url URL [--build-info FILE]\n";
+	"  --outbox-dir DIR --fault-dir DIR --inbox-url URL [--build-info FILE]\n"
+	"  [--handoff-dir DIR --description-channel N]\n";
 
 bool random_bytes(unsigned char *bytes, std::size_t size)
 {
@@ -104,7 +105,8 @@ int main(int argc, char **argv)
 {
 	bhp::StructuredLogger logger("bug_reporter.bhp_reporter", std::cerr);
 	const std::string trace = "bug-reporter";
-	std::string ui_socket, ingest_socket, outbox_dir, fault_dir, inbox_url, build_info;
+	std::string ui_socket, ingest_socket, outbox_dir, fault_dir, inbox_url, build_info, handoff_dir;
+	unsigned description_channel = 0;
 	std::optional<std::uint32_t> ui_uid;
 	std::set<std::uint32_t> ingest_uids;
 	bool usage = false;
@@ -138,6 +140,10 @@ int main(int argc, char **argv)
 			inbox_url = value;
 		else if (option == "--build-info")
 			build_info = value;
+		else if (option == "--handoff-dir")
+			handoff_dir = value;
+		else if (option == "--description-channel" && value.size() == 1 && value[0] >= '0' && value[0] <= '7')
+			description_channel = static_cast<unsigned>(value[0] - '0');
 		else
 			usage = true;
 	}
@@ -168,6 +174,8 @@ int main(int argc, char **argv)
 	settings.inbox.base_url = inbox_url;
 	if (!build_info.empty())
 		settings.build_info_path = build_info;
+	settings.handoff_directory = handoff_dir;
+	settings.description_channel = description_channel;
 	ReporterPorts ports;
 	ports.transport = [runtime](const bhp::http_runtime::HttpRequest &request) {
 		return bhp::http_runtime::perform(*runtime, request, runtime->cancellation());

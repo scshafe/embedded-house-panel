@@ -45,6 +45,7 @@
     "presentation-failure",
     "report-compose",
     "report-list",
+    "report-recording",
     "report-sending",
     "report-sent",
     "report-unavailable",

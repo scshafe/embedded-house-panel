@@ -1,5 +1,7 @@
 #include "bug_reporter/reporter_service.h"
+#include "bug_reporter/description_audio.h"
 #include <algorithm>
+#include <filesystem>
 #include <ctime>
 #include <fstream>
 #include <iterator>
@@ -204,6 +206,25 @@ std::vector<wire::ReporterEvent> ReporterService::handle(const wire::UiRequest &
 		draft.screen = found->second.screen;
 		draft.description_text = submit->text;
 		draft.log_lines = found->second.lines;
+		if (submit->take_id) {
+			// A spoken description: one channel of the broker's bug_report take.
+			draft.kind = "voice";
+			const auto take = settings_.handoff_directory + "/" + *submit->take_id;
+			if (settings_.handoff_directory.empty() || !valid_take_id(*submit->take_id))
+				return {wire::Refused{"submit", "REPORT.AUDIO_UNAVAILABLE"}, reports()};
+			std::ifstream record(take + "/capture.json");
+			const auto capture = nlohmann::json::parse(record, nullptr, false);
+			auto audio = capture.is_object() && capture.value("purpose", std::string()) == "bug_report"
+					     ? mono_description(take + "/original.wav", settings_.description_channel,
+								settings_.maximum_description_frames)
+					     : Result<std::string>::failure({"REPORT.AUDIO_INVALID", "Not a bug_report take", {}, false});
+			// The take is used once, whatever happens next: no audio lingers here.
+			std::error_code ignored;
+			std::filesystem::remove_all(take, ignored);
+			if (!audio.has_value())
+				return {wire::Refused{"submit", audio.error().code}, reports()};
+			draft.audio_wav = std::move(audio.value());
+		}
 		snapshots_.erase(found);
 		auto filed = file_report(std::move(draft));
 		if (!filed.has_value())
@@ -262,9 +283,27 @@ void ReporterService::poll_statuses()
 	}
 }
 
+void ReporterService::purge_handoff()
+{
+	if (settings_.handoff_directory.empty())
+		return;
+	std::error_code error;
+	const auto cutoff = std::filesystem::file_time_type::clock::now() - settings_.snapshot_lifetime;
+	for (const auto &entry : std::filesystem::directory_iterator(settings_.handoff_directory, error)) {
+		const auto name = entry.path().filename().string();
+		if (name.rfind("take-", 0) != 0 && name.rfind(".incoming-", 0) != 0)
+			continue;
+		std::error_code stamp;
+		const auto written = std::filesystem::last_write_time(entry.path(), stamp);
+		if (!stamp && written < cutoff)
+			std::filesystem::remove_all(entry.path(), stamp);
+	}
+}
+
 std::chrono::milliseconds ReporterService::tick()
 {
 	const auto now = ports_.steady_now();
+	purge_handoff();
 	if (now >= upload_due_) {
 		auto uploaded = upload_next();
 		bool failed = !uploaded.has_value();

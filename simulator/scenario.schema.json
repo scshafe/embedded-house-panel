@@ -179,6 +179,7 @@
     "report_state": {
       "enum": [
         "compose",
+        "recording",
         "sending",
         "sent",
         "list",

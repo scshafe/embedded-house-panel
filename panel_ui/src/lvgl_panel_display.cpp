@@ -603,6 +603,7 @@ void LvglPanelDisplay::draw_report(lv_obj_t *, lv_obj_t *content, const PanelSce
  };
  if(r.state == "compose") {
   if(!r.notice.empty()) label(content, r.notice, 424, 16, 496, 31, &bhp_font_24, 0xe9c480, LV_TEXT_ALIGN_RIGHT);
+  else if(r.has_recording) label(content, "Spoken description recorded", 424, 16, 496, 31, &bhp_font_24, 0x8db5a7, LV_TEXT_ALIGN_RIGHT);
   auto *field = box(content, 24, 52, 896, 86, 0x293f43, 8);
   if(r.text.empty())
    label(field, "Type what went wrong, or just Send: the screen and logs go with it.", 12, 6, 872, 74, &bhp_font_28, 0xaab8b7);
@@ -623,11 +624,19 @@ void LvglPanelDisplay::draw_report(lv_obj_t *, lv_obj_t *content, const PanelSce
   static const char *last_ids[10] = {"z", "x", "c", "v", "b", "n", "m", "comma", "period", "question"};
   for(int column = 0; column < 10; ++column)
    key(24 + column * 90, 314, 82, last[column], std::string("report.key.") + last_ids[column], 0xf4f0e8);
-  key(24, 370, 160, "Reports", "report.show_list", 0xdbe5df, 56);
-  key(192, 370, 280, "Space", "report.key.space", 0xdbe5df, 56);
-  key(480, 370, 120, "Delete", "report.key.backspace", 0xdbe5df, 56);
-  key(608, 370, 140, "Cancel", "report.cancel", 0xe9c480, 56);
-  key(756, 370, 164, "Send", "report.send", 0xf4f0e8, 56);
+  key(24, 370, 124, "Reports", "report.show_list", 0xdbe5df, 56);
+  key(156, 370, 136, "Record", "report.record", 0xf4f0e8, 56);
+  key(300, 370, 220, "Space", "report.key.space", 0xdbe5df, 56);
+  key(528, 370, 112, "Delete", "report.key.backspace", 0xdbe5df, 56);
+  key(648, 370, 128, "Cancel", "report.cancel", 0xe9c480, 56);
+  key(784, 370, 136, "Send", "report.send", 0xf4f0e8, 56);
+  return;
+ }
+ if(r.state == "recording") {
+  label(content, "Describe what went wrong", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, minutes_seconds(r.elapsed_ms) + " / 01:00", 24, 128, 896, 62, &bhp_font_48, 0xf4f0e8);
+  label(content, "Only while the microphone is on. Stop when you are done.", 24, 210, 896, 74, &bhp_font_28, 0xaab8b7);
+  action(0, layout::primary_width, "Stop", "report.stop");
   return;
  }
  if(r.state == "sending") {

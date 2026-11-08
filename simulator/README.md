@@ -297,11 +297,20 @@ Added 2026-11-08, step 2 of the accepted
   merged", "Update ready", "Installed" or "Won't fix".
 - **Refusals** (the rate limits, a full queue, an expired snapshot) are shown
   in words.
+- **A spoken description (step 3).**
+  - **Record** starts a `bug_report` lease through the same broker runtime
+    as the voice-lab recorder: a touch, and only while the mic window is
+    open. **Stop** ends it.
+  - The take is handed to the reporter's directory, and Send names it.
+  - If the window closes mid-recording, nothing is kept, and the report can
+    still go in words.
+- **Voice:** "Lexi report a bug" (`shell.open_report`, `reversible_local`) opens
+  the report screen with a snapshot. It never records.
 
 **With the reporter attached** (`--bug-reporter-socket` and
 `--bug-reporter-uid`, or `attach_bug_reporter_peer` in tests), the list and the
 dot are live, and report bodies never come back to the UI. Without it the
 screen says reporting is unavailable and that nothing was saved. Scenario
-files set only the starting screen (`report_state`: `compose`, `sending`,
-`sent`, `list`, `unavailable`).
+files set only the starting screen (`report_state`: `compose`, `recording`,
+`sending`, `sent`, `list`, `unavailable`).
 

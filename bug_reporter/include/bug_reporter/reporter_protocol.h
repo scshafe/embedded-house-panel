@@ -35,6 +35,8 @@ struct SubmitRequest {
 	std::string snapshot_id;
 	/** Typed description, 500 characters at most; empty is allowed. */
 	std::string text;
+	/** A spoken description the broker handed off to the reporter (a bug_report take), or none. */
+	std::optional<std::string> take_id;
 };
 struct CancelRequest {
 	std::string snapshot_id;

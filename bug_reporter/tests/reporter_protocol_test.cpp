@@ -22,7 +22,8 @@ void requests()
 {
 	const UiRequest snapshot = SnapshotRequest{{"music", "playing", "day_active", "present", "day", "active"}};
 	for (const UiRequest &request :
-	     {snapshot, UiRequest(SubmitRequest{kSnapshot, "Skip did nothing.\nTwice."}), UiRequest(CancelRequest{kSnapshot}),
+	     {snapshot, UiRequest(SubmitRequest{kSnapshot, "Skip did nothing.\nTwice.", std::nullopt}),
+	      UiRequest(SubmitRequest{kSnapshot, "", "take-" + std::string(64, 'a')}), UiRequest(CancelRequest{kSnapshot}),
 	      UiRequest(StatusRequest{})}) {
 		auto frame = encode(request);
 		expect(frame.has_value() && decode_ui_request(frame.value()).has_value() &&
@@ -30,11 +31,15 @@ void requests()
 		       "a request round trips");
 	}
 	expect(!encode(UiRequest(SnapshotRequest{{"Music", "", "", "", "", ""}})).has_value(), "screen fields are tokens");
-	expect(!encode(UiRequest(SubmitRequest{"snap-1", ""})).has_value(), "a snapshot ID has its form");
-	expect(!encode(UiRequest(SubmitRequest{kSnapshot, std::string(2001, 'x')})).has_value(), "text is bounded");
-	expect(!encode(UiRequest(SubmitRequest{kSnapshot, "a\tb"})).has_value(), "no control characters but newlines");
+	expect(!encode(UiRequest(SubmitRequest{"snap-1", "", std::nullopt})).has_value(), "a snapshot ID has its form");
+	expect(!encode(UiRequest(SubmitRequest{kSnapshot, std::string(2001, 'x'), std::nullopt})).has_value(), "text is bounded");
+	expect(!encode(UiRequest(SubmitRequest{kSnapshot, "a\tb", std::nullopt})).has_value(), "no control characters but newlines");
+	expect(!encode(UiRequest(SubmitRequest{kSnapshot, "", "take-../x"})).has_value(), "a take ID has its form");
+	auto spoken = decode_ui_request(encode(UiRequest(SubmitRequest{kSnapshot, "", "take-" + std::string(64, 'b')})).value());
+	expect(spoken.has_value() && std::get<SubmitRequest>(spoken.value()).take_id == "take-" + std::string(64, 'b'),
+	       "the take ID round trips");
 	for (const char *bad : {"{\"type\":\"status\",\"version\":1,\"extra\":1}\n", "{\"type\":\"status\",\"version\":2}\n",
-				"{\"type\":\"submit\",\"version\":1,\"snapshot_id\":\"snap-0123456789abcdef\"}\n",
+				"{\"type\":\"submit\",\"version\":1,\"snapshot_id\":\"snap-0123456789abcdef\",\"text\":\"\"}\n",
 				"{\"type\":\"delete\",\"version\":1}\n", "{\"type\":\"status\",\"version\":1}"})
 		expect(!decode_ui_request(bad).has_value(), std::string("refused: ") + bad);
 }

@@ -1,5 +1,14 @@
 # Fake Media Broker
 
+**Amended 2026-11-08 (bug reports, step 3):** the broker serves a second
+purpose, `bug_report`: a spoken bug description.
+- **Limit:** at most 60 s (`report_maximum_frames`).
+- **Its own hand-off:** its takes are handed to `--report-handoff-dir`, the
+  bug reporter's, never to the voice-lab uploader's, so a description never
+  reaches the voice corpus.
+- **The record:** `capture.json` names the purpose.
+- **Unchanged:** the same touch claim and window rules as `voice_take`.
+
 **Amended 2026-11-06 (owner):** all playback is high-passed for the mirror
 unit's speaker before it reaches the array.
 - `PlaybackHighPass` (`playback_filter.h`) is a per-channel biquad on

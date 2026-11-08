@@ -56,6 +56,8 @@ public:
 	 * (the partial copy is removed and the take stays).
 	 */
 	MediaResult<Done> hand_off(const std::string &take_id, const std::string &handoff_directory) const;
+	/** The purpose a committed take's capture.json records; MEDIA_TAKE.UNKNOWN without one. */
+	MediaResult<std::string> purpose(const std::string &take_id) const;
 	const std::string &root() const { return root_; }
 
 private:
@@ -71,6 +73,8 @@ struct TakeSettings {
 	std::uint64_t maximum_frames{0};
 	/** Device, firmware, routing and settings read at the start; null when unread. */
 	nlohmann::json device;
+	/** The lease's purpose, recorded in capture.json: `voice_take` or `bug_report`. */
+	std::string purpose{"voice_take"};
 };
 
 struct TakeSummary {

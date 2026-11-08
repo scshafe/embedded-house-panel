@@ -42,7 +42,8 @@ std::unique_ptr<VoiceLabRuntime> VoiceLabRuntime::in_process(const std::uint64_t
 	runtime->temporary_root_ = pattern;
 	runtime->take_root_ = pattern + "/takes";
 	runtime->handoff_root_ = pattern + "/handoff";
-	if (::mkdir(runtime->handoff_root_.c_str(), 0700) != 0)
+	runtime->report_handoff_root_ = pattern + "/report-handoff";
+	if (::mkdir(runtime->handoff_root_.c_str(), 0700) != 0 || ::mkdir(runtime->report_handoff_root_.c_str(), 0700) != 0)
 		throw std::runtime_error("SIMULATOR.VOICE_LAB_UNAVAILABLE");
 	auto store = media_broker::TakeStore::open(runtime->take_root_, {32, 1ULL << 31, 0});
 	if (!store)
@@ -52,6 +53,9 @@ std::unique_ptr<VoiceLabRuntime> VoiceLabRuntime::in_process(const std::uint64_t
 	settings.maximum_frames = maximum_seconds * settings.request.rate;
 	settings.tolerance_ns = 1'000'000;
 	settings.handoff_directory = runtime->handoff_root_;
+	// Spoken bug descriptions (bug_report leases) go to the reporter's directory, 60 s at most.
+	settings.report_handoff_directory = runtime->report_handoff_root_;
+	settings.report_maximum_frames = 60ULL * settings.request.rate;
 	auto *self = runtime.get();
 	media_broker::BrokerPorts ports{
 		[self] {
@@ -116,7 +120,8 @@ void VoiceLabRuntime::set_window(const bool open)
 		(void)supervisor_->send(frame.value());
 }
 
-bool VoiceLabRuntime::start_take(const std::string &operation_ref, const std::optional<TouchEvidence> &evidence)
+bool VoiceLabRuntime::start_take(const std::string &operation_ref, const std::optional<TouchEvidence> &evidence,
+				 lease::Purpose purpose)
 {
 	if (busy() || !client_->connected())
 		return false;
@@ -133,7 +138,7 @@ bool VoiceLabRuntime::start_take(const std::string &operation_ref, const std::op
 		binding = evidence->presentation_binding;
 	}
 	request_id_ = padded("ui-request-", ++counter_) + std::to_string(::getpid());
-	if (!client_->send(lease::ArmRequest{request_id_, lease::Purpose::VoiceTake, touch, binding, operation_ref}))
+	if (!client_->send(lease::ArmRequest{request_id_, purpose, touch, binding, operation_ref}))
 		return false;
 	pending_ = Pending::Arming;
 	return true;

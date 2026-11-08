@@ -140,7 +140,7 @@ def validate_catalog(catalog: dict) -> list[dict]:
         if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", intent["intent_id"]) or intent["intent_id"] in ids or intent["effect_class"] not in EFFECTS:
             fail("INTENT_INVALID", "catalog")
         ids.add(intent["intent_id"])
-        if intent["status"] not in {"fixture_enabled", "reserved_disabled"} or type(intent["touch_only"]) is not bool or intent["owner"] not in {"study", "agenda"}:
+        if intent["status"] not in {"fixture_enabled", "reserved_disabled"} or type(intent["touch_only"]) is not bool or intent["owner"] not in {"study", "agenda", "shell"}:
             fail("INTENT_INVALID", "catalog")
         if intent["touch_only"] and intent["spoken_forms"]:
             fail("TOUCH_ONLY_PROJECTED", "catalog")

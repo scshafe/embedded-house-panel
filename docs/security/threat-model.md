@@ -409,3 +409,15 @@ household data: they go only to the private inbox on the owner's PC, never to
 this public repository. Routine logs stay in RAM, and only faults reach the
 eMMC. A report body never crosses back to the UI. Anything public is built
 later from allowlisted closed fields by the inbox's redactor (step 4).
+
+**Amended 2026-11-08 (bug reports, step 3):** a spoken bug description is a
+broker capture under the new `bug_report` purpose.
+- **Starting it:** the same single-use touch claim and mic window as
+  `voice_take`. "Lexi report a bug" only opens the report screen, because
+  voice never starts a capture.
+- **Its limit:** at most 60 s.
+- **Where it goes:** to the reporter's own hand-off directory, never the
+  voice corpus's. The reporter keeps one channel, deletes the take at once,
+  and purges unused takes after 10 minutes.
+- **Afterwards:** the audio goes only to the private PC inbox, where it is
+  transcribed locally and deleted when the report closes (decisions 4 and 9).

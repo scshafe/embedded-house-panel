@@ -41,8 +41,8 @@ struct ReportDraft {
 	std::string location;
 	ScreenState screen;
 	std::string description_text;
-	/** A spoken description the broker handed off (voice reports, step 3). */
-	std::optional<std::string> audio_path;
+	/** A spoken description as a mono WAV (voice reports, step 3; description_audio.h). */
+	std::optional<std::string> audio_wav;
 	/** Structured log lines, oldest first; the newest are kept when the bound cuts. */
 	std::vector<std::string> log_lines;
 };
