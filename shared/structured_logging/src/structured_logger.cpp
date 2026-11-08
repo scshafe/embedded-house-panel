@@ -124,4 +124,17 @@ void StructuredLogger::log_error(
 	log(StructuredLogLevel::error, message, trace_id, error_fields);
 }
 
+void StructuredLogger::fault(const std::string &message,
+			     const std::string &trace_id,
+			     const std::string &error_code,
+			     const std::string &error_message,
+			     const std::string &location,
+			     const std::map<std::string, std::string> &context_fields)
+{
+	auto fault_fields = context_fields;
+	fault_fields["reportable"] = "true";
+	fault_fields["location"] = location;
+	log_error(message, trace_id, error_code, error_message, "", fault_fields);
+}
+
 } // namespace bhp
