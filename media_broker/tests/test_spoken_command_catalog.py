@@ -25,7 +25,8 @@ class CatalogTest(unittest.TestCase):
                     "study.rate.easy", "study.rating.undo", "shell.open_agenda", "agenda.start_wish_recording",
                     "agenda.submit_wish", "shell.open_voice_lab", "voice_lab.record", "voice_lab.stop",
                     "voice_lab.keep", "voice_lab.retake", "voice_lab.reject", "voice_lab.skip",
-                    "voice_lab.sign_in", "voice_lab.approve"}
+                    "voice_lab.sign_in", "voice_lab.approve", "shell.open_music", "music.use_speaker",
+                    "music.play", "music.pause", "music.next", "music.volume_down", "music.volume_up"}
         self.assertEqual(len(parsed), len(set(parsed)))
         self.assertEqual(set(parsed), expected)
         self.assertLessEqual(set(parsed), set(self.graph["intents"]))

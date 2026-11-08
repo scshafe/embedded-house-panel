@@ -58,6 +58,20 @@ const std::vector<PanelAppDescriptor> &panel_app_descriptors()
 		 {"shell.home"},
 		 "voice_lab_state",
 		 {"signed_out", "signing_in", "approve", "ready", "recording", "review", "complete", "unavailable"}},
+		// Spotify Connect on the owner's speaker (ADR 0013): touch only, the one configured speaker.
+		{"music",
+		 {
+			 {"shell.open_music", IntentEffectClass::Navigation, true, true, false, true, "music"},
+			 {"music.use_speaker", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 {"music.play", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 {"music.pause", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 {"music.next", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 {"music.volume_down", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 {"music.volume_up", IntentEffectClass::ExternalSubmission, true, true, false, true},
+		 },
+		 {"shell.home"},
+		 "music_state",
+		 {"signed_out", "unavailable", "checking", "missing", "restricted", "ready", "playing", "paused"}},
 	};
 	return descriptors;
 }

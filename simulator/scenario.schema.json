@@ -20,7 +20,8 @@
         "home",
         "study",
         "agenda",
-        "voice_lab"
+        "voice_lab",
+        "music"
       ]
     },
     "lifecycle": {
@@ -160,6 +161,18 @@
         "review",
         "complete",
         "unavailable"
+      ]
+    },
+    "music_state": {
+      "enum": [
+        "signed_out",
+        "unavailable",
+        "checking",
+        "missing",
+        "restricted",
+        "ready",
+        "playing",
+        "paused"
       ]
     }
   }

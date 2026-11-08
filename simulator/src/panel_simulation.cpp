@@ -3,6 +3,7 @@
 #include "panel_ui/panel_app_descriptor.hpp"
 #include "bhp/application_identity.h"
 #include "bhp/panel_mode_protocol/codec.h"
+#include <panel_fonts/glyph_coverage.hpp>
 #include "vocabulary_panel/fixture_lexinet_client.h"
 #include <algorithm>
 #include <ctime>
@@ -165,7 +166,7 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
   scene.weather_temperature_unit=weather.value("unit","F");scene.weather_fixture=true;
  }
  scene.fixture_clock_untrusted=fixture_override_&&j.value("lifecycle","day")=="clock_untrusted";
- scene.agenda_state=j.value("agenda_state","today");scene.voice_lab.state=j.value("voice_lab_state","ready");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
+ scene.agenda_state=j.value("agenda_state","today");scene.voice_lab.state=j.value("voice_lab_state","ready");scene.music.state=j.value("music_state","ready");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
  context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
  if(update_lifecycle)accept_lifecycle(supervisor.publish(j.value("lifecycle","day")));
  if(!store_->durable())store_=std::make_shared<vocabulary_panel::MemoryStudyStore>();
@@ -190,6 +191,8 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
  project_study();
  if(state=="loading"||state=="empty"||state=="error"||state=="refill"||state=="complete"||state=="resume"||state=="tracking_paused")scene.study_state=state;
  if(scene.surface_id=="agenda"&&scene.agenda_state=="stale")scene.stale=true;
+ // A live music service's state outlives a scenario load.
+ if(music_){if(music_state_)project_music(*music_state_);else scene.music.state="checking";}
  if(j.contains("clock_transition")){
   PreviewClock sample;sample.reset(j.at("clock_transition").at("previous"),0,false);sample.change_to(scene.clock_text,0);
   const auto frame=sample.sample(j.at("clock_transition").at("elapsed_ms").get<std::uint64_t>());
@@ -293,6 +296,7 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
    context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();render();return;
   }
   if(id.rfind("voice_lab.",0)==0){voice_lab_intent(id);render();return;}
+  if(id.rfind("music.",0)==0){music_intent(id);render();return;}
   const std::map<std::string,vocabulary_panel::StudyIntent> mapping{{"study.flip",vocabulary_panel::StudyIntent::flip},{"study.next",vocabulary_panel::StudyIntent::next},{"study.back",vocabulary_panel::StudyIntent::back},{"study.rate.again",vocabulary_panel::StudyIntent::rate_again},{"study.rate.hard",vocabulary_panel::StudyIntent::rate_hard},{"study.rate.good",vocabulary_panel::StudyIntent::rate_good},{"study.rate.easy",vocabulary_panel::StudyIntent::rate_easy},{"study.rating.undo",vocabulary_panel::StudyIntent::rating_undo}};
   auto it=mapping.find(id);if(it!=mapping.end()){
    auto semantic=scene.study_state=="resume"?vocabulary_panel::StudyIntent::resume:it->second;
@@ -437,7 +441,7 @@ void PanelSimulation::attach_media_broker(const std::string &socket_path,std::ui
 }
 void PanelSimulation::tap(int x,int y){if(scene.presentation_failure)return;for(auto it=display.hit_targets().rbegin();it!=display.hit_targets().rend();++it)if(x>=it->x&&x<it->x+it->width&&y>=it->y&&y<it->y+it->height){auto id=it->intent_id;semantic_intent(id,"touch");return;}}
 void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="clock_preview")enable_preview_clock(e.at("enabled").get<bool>());else if(type=="clock_step")advance_preview_clock();else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}
-void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_voice_lab();pump_clock();}
+void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_voice_lab();pump_music();pump_clock();}
 namespace {
 std::uint64_t clock_monotonic_ms(){return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());}
 }
@@ -505,4 +509,90 @@ void PanelSimulation::pump_voice(){
  }}catch(const std::exception &){voice_.reset();voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;scene.acknowledgement="Voice unavailable - touch remains ready";render();}
 }
 Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"home_page",scene.home_page},{"home_page_count",application_grid_page(scene.applications,scene.home_page).page_count},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"clock_text",scene.clock_text},{"clock_source",scene.clock_source},{"clock_previous_text",scene.clock_previous_text},{"clock_transition_milli",scene.clock_transition_milli},{"clock_preview_running",preview_clock_enabled_},{"weather_available",scene.weather_available},{"weather_stale",scene.weather_stale},{"weather_fixture",scene.weather_fixture},{"weather_temperature_unit",scene.weather_temperature_unit},{"simulation_not_hardware_evidence",true}};}
+namespace {
+// Spotify text in the panel's own fonts and layout: cut to a number of
+// characters, and not drawn at all when the Latin fonts lack a glyph.
+std::string music_text(const std::string &text,std::size_t characters,const std::string &fallback){
+ std::string out;std::size_t count=0;
+ for(std::size_t at=0;at<text.size();++count){
+  if(count==characters){out+="\xE2\x80\xA6";break;}
+  const unsigned char lead=text[at];const std::size_t length=lead<0x80?1:(lead>>5)==6?2:(lead>>4)==14?3:(lead>>3)==30?4:1;
+  out.append(text,at,length);at+=length;
+ }
+ if(out.empty()||!bhp::panel_fonts::validate_glyph_coverage(out).supported)return fallback;
+ return out;
+}
+// Why a music request failed, in the words the surface shows.
+std::string music_notice(const std::string &code){
+ if(code.empty())return {};
+ if(code=="MUSIC.SIGN_IN_REQUIRED")return "Sign in to Spotify again from your PC.";
+ if(code=="MUSIC.OUTPUT_UNAVAILABLE")return "The speaker did not answer. Press a button on it and try again.";
+ if(code=="MUSIC.OUTPUT_RESTRICTED")return "Spotify does not accept commands for this speaker.";
+ if(code=="MUSIC.PREMIUM_REQUIRED")return "This needs Spotify Premium.";
+ if(code=="MUSIC.RATE_LIMITED")return "Spotify is busy. Try again in a minute.";
+ if(code=="MUSIC.SPOTIFY_UNREACHABLE"||code=="MUSIC.SPOTIFY_UNAVAILABLE"||code=="MUSIC.REFRESH_FAILED")return "Spotify is not reachable right now.";
+ if(code=="MUSIC.VOLUME_UNSUPPORTED")return "This speaker's volume cannot be set from here.";
+ if(code=="MUSIC.CLIENT_INVALID")return "The Spotify app's client ID is not valid.";
+ if(code.rfind("MUSIC.STORAGE",0)==0)return "The Spotify sign-in could not be read.";
+ return "Spotify refused that.";
+}
+}
+// The music-control service's state drives the music surface.
+void PanelSimulation::project_music(const music_control::protocol::State &state){
+ music_state_=state;auto &m=scene.music;
+ m.speaker=music_text(state.output.name,32,"Speaker");
+ m.supports_volume=state.output.supports_volume;
+ m.volume_percent=state.output.volume_percent?static_cast<int>(*state.output.volume_percent):-1;
+ const auto &output=state.output.state;
+ if(state.sign_in!="signed_in")m.state="signed_out";
+ else if(output=="unknown")m.state="checking";
+ else if(output=="missing"||output=="restricted")m.state=output;
+ else if(output=="available")m.state="ready";
+ else m.state=state.playback&&state.playback->is_playing?"playing":"paused";
+ m.title=state.playback?music_text(state.playback->title,40,"Title not shown"):"Nothing playing";
+ m.artists=state.playback?music_text(state.playback->artists,60,""):"";
+ m.notice=music_notice(state.error);
+}
+void PanelSimulation::music_intent(const std::string &id){
+ namespace wire=music_control::protocol;
+ auto &m=scene.music;
+ if(!music_){scene.acknowledgement="Music is not running";return;}
+ const bool controls=m.state=="playing"||m.state=="paused";
+ std::optional<wire::UiRequest> request;
+ if(id=="music.use_speaker"&&(m.state=="ready"||m.state=="missing"))request=wire::SelectOutputRequest{};
+ else if(id=="music.play"&&m.state=="paused")request=wire::PlayRequest{};
+ else if(id=="music.pause"&&m.state=="playing")request=wire::PauseRequest{};
+ else if(id=="music.next"&&controls)request=wire::NextRequest{};
+ else if((id=="music.volume_down"||id=="music.volume_up")&&controls&&m.supports_volume&&m.volume_percent>=0)
+  request=wire::VolumeRequest{static_cast<std::uint32_t>(std::clamp(m.volume_percent+(id=="music.volume_up"?10:-10),0,100))};
+ if(!request)return;
+ if(!music_->send(*request).has_value()){music_.reset();music_state_.reset();m.state="unavailable";m.notice.clear();return;}
+ m.notice.clear();
+ // The new volume shows at once; the service's next state confirms it.
+ if(const auto *volume=std::get_if<wire::VolumeRequest>(&*request))m.volume_percent=static_cast<int>(volume->percent);
+}
+void PanelSimulation::pump_music(){
+ if(!music_)return;
+ auto events=music_->poll();
+ if(!events.has_value()){music_.reset();music_state_.reset();scene.music.state="unavailable";scene.music.notice.clear();render();return;}
+ for(const auto &event:events.value()){
+  if(const auto *state=std::get_if<music_control::protocol::State>(&event))project_music(*state);
+  else scene.music.notice=music_notice(std::get<music_control::protocol::Refused>(event).error_code);
+ }
+ if(!events.value().empty())render();
+}
+void PanelSimulation::attach_music_client(std::unique_ptr<music_control::protocol::MusicClient> client){
+ if(!client->send(music_control::protocol::StatusRequest{}).has_value())throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:MUSIC.CONTROL_UNAVAILABLE");
+ music_=std::move(client);music_state_.reset();scene.music.state="checking";scene.music.notice.clear();
+}
+void PanelSimulation::attach_music_control(const std::string &socket_path,std::uint32_t service_uid){
+ auto client=music_control::protocol::MusicClient::connect(socket_path,service_uid);
+ if(!client)throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:"+client.error().code);
+ attach_music_client(std::move(client.value()));
+}
+void PanelSimulation::attach_music_control_peer(int descriptor,std::uint32_t service_uid){
+ auto client=music_control::protocol::MusicClient::for_connected_peer(descriptor,service_uid);
+ if(!client)throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:"+client.error().code);
+ attach_music_client(std::move(client.value()));
+}
 }

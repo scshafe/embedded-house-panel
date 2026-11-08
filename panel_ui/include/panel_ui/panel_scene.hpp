@@ -61,6 +61,19 @@ struct PanelScene {
   /** Why uploads wait, in plain words, or empty. */
   std::string notice;
  } voice_lab;
+ /** The music remote's fixture or live presentation (Spotify Connect, ADR 0013). */
+ struct Music {
+  std::string state{"ready"};
+  /** The configured speaker's Spotify device name. */
+  std::string speaker{"Living Room Bose"};
+  std::string title{"Slow Sunrise"};
+  std::string artists{"The Fixture Band"};
+  /** 0 to 100, or -1 when Spotify reports none. */
+  int volume_percent{35};
+  bool supports_volume{true};
+  /** Why the last request failed, in plain words, or empty. */
+  std::string notice;
+ } music;
  std::string acknowledgement;
  bool stale{false};
  bool offline{false};

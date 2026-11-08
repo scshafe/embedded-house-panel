@@ -90,9 +90,10 @@ invented names and IDs.
 
 Run them with `ctest --test-dir .build/host-dev -R music_control`.
 
-## Not done yet
+## The UI, and what is not done yet
 
-- **The panel UI's music surface** comes in its own change.
+- **The panel UI's music surface:** `panel_ui`'s `music` app and the
+  simulator's client ([simulator/README.md](../simulator/README.md#music)).
 - **Board:** nothing is on the board. The service runs there only after the
   owner's sign-in, and with the owner's go-ahead.
 - **Voice:** pausing or lowering the music during a voice take, as the design
