@@ -26,7 +26,7 @@ endif()
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 find_package(ZLIB REQUIRED)
 add_library(bug_reporter STATIC
-  src/log_rings.cpp src/report_bundle.cpp src/report_outbox.cpp src/inbox_client.cpp src/ingest.cpp
+  src/log_rings.cpp src/report_bundle.cpp src/description_audio.cpp src/report_outbox.cpp src/inbox_client.cpp src/ingest.cpp
   src/reporter_service.cpp)
 target_include_directories(bug_reporter PUBLIC include)
 target_compile_features(bug_reporter PUBLIC cxx_std_17)

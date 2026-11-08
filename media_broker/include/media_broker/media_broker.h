@@ -25,6 +25,9 @@ struct BrokerSettings {
 	std::chrono::milliseconds level_interval{100};
 	/** The voice-lab uploader's hand-off directory; empty refuses `hand_off` (MEDIA_BROKER.HANDOFF_DISABLED). */
 	std::string handoff_directory;
+	/** bug_report takes: the bug reporter's hand-off directory (empty refuses their hand-off) and their cap, 60 s. */
+	std::string report_handoff_directory;
+	std::uint64_t report_maximum_frames{0};
 };
 
 struct BrokerPorts {
@@ -38,14 +41,16 @@ struct BrokerPorts {
 	std::function<std::chrono::steady_clock::time_point()> now;
 };
 
-/** "sha256:" + hex SHA-256 of the canonical operation a voice_take lease claims. */
+/** "sha256:" + hex SHA-256 of the canonical operation a lease claims, naming its purpose. */
+std::string operation_digest(std::string_view purpose, const std::string &request_id, const std::string &operation_ref);
+/** The voice_take form of operation_digest. */
 std::string voice_take_operation_digest(const std::string &request_id, const std::string &operation_ref);
 
 /**
  * @canonical media_broker -- the one audio owner and its voice_take leases.
  *
  * One UI channel and one supervisor window at a time; one lease at a time.
- * `arm` (voice_take only, window open, room in the store) claims the named
+ * `arm` (voice_take or bug_report, window open, room in the store) claims the named
  * touch observation from the supervisor for a digest of the request; a
  * matching envelope arms a lease with an unpredictable ID. `start` must name
  * that lease before `start_deadline`; it reads the device identity, opens the
@@ -53,8 +58,10 @@ std::string voice_take_operation_digest(const std::string &request_id, const std
  * (requested), at `maximum_frames` (maximum-duration), or as a failure on a
  * closed window, a UI that leaves, an xrun or a device error. A failed take
  * leaves no files. `discard` deletes a committed take while no lease is
- * active, and `hand_off` moves one to the voice-lab uploader's hand-off
- * directory. `step()` never blocks on audio.
+ * active, and `hand_off` moves one to the hand-off directory of its purpose:
+ * the voice-lab uploader's for voice_take, the bug reporter's for bug_report,
+ * so a spoken bug description never reaches the voice corpus. A bug_report
+ * take stops at `report_maximum_frames`. `step()` never blocks on audio.
  */
 class MediaBroker final
 {
@@ -110,6 +117,8 @@ private:
 	std::string claim_id_;
 	std::string touch_observation_id_;
 	std::string digest_;
+	std::string purpose_{"voice_take"};
+	std::uint64_t maximum_frames_{0};
 	std::string lease_id_;
 	std::chrono::steady_clock::time_point deadline_{};
 

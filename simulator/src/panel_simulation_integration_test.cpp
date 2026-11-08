@@ -301,6 +301,67 @@ void test_report_files_through_the_reporter(const std::filesystem::path &root){
  app.semantic_intent("shell.open_report","touch");
  until([&]{return app.scene.report.state=="unavailable";},"a lost reporter is shown");
 }
+// Step 3: "Lexi report a bug" opens the report screen (voice never records), a touch
+// records a description through the broker under bug_report, and Send names the take.
+void test_report_by_voice_with_a_spoken_description(const std::filesystem::path &root){
+ namespace wire=bug_reporter::protocol;
+ PanelSimulation app(false);
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string()));
+ int pair[2];
+ require(::socketpair(AF_UNIX,SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC,0,pair)==0,"socket pair");
+ app.attach_bug_reporter_peer(pair[0],::getuid());
+ bhp::media_window_protocol::FrameChannel reporter(pair[1],wire::kMaximumFrameBytes);
+ const auto until=[&app](const std::function<bool()> &done,const char *message){
+  for(int i=0;i<600&&!done();++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(10));}
+  require(done(),message);
+ };
+ const auto next_request=[&]()->wire::UiRequest{
+  for(int i=0;i<400;++i){
+   app.service();
+   auto frame=reporter.receive();
+   require(frame.has_value(),"the UI keeps the reporter connection");
+   if(frame.value()){auto request=wire::decode_ui_request(*frame.value());require(request.has_value(),"a valid request");return request.value();}
+   std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  throw std::runtime_error("no request reached the reporter");
+ };
+ require(std::holds_alternative<wire::StatusRequest>(next_request()),"the UI asks for the list");
+ app.event({{"type","utterance"},{"phrase","Lexi report a bug"}});
+ until([&]{return app.scene.surface_id=="report";},"the spoken command opens the report screen");
+ const auto snapshot=next_request();
+ require(std::holds_alternative<wire::SnapshotRequest>(snapshot)&&std::get<wire::SnapshotRequest>(snapshot).screen.surface=="study",
+         "with the study screen it was said on");
+ require(app.scene.report.state=="compose","voice opens the form; it never starts a recording");
+ require(reporter.send(wire::encode(wire::ReporterEvent(wire::SnapshotTaken{"snap-2123456789abcdef"})).value()).has_value(),"snapshot");
+ app.semantic_intent("report.record","touch");
+ require(app.scene.report.state=="recording","a touch records a description");
+ until([&]{return app.scene.report.elapsed_ms>0;},"levels arrive");
+ app.semantic_intent("report.stop","touch");
+ until([&]{return app.scene.report.has_recording;},"the description is kept");
+ require(app.scene.report.state=="compose","back to the form, the recording attached");
+ std::string handed;
+ for(const auto &entry:std::filesystem::directory_iterator(app.voice_lab_report_handoff_root()))handed=entry.path().filename().string();
+ require(handed.rfind("take-",0)==0,"the broker handed the take to the reporter's directory");
+ require(std::filesystem::is_empty(app.voice_lab_handoff_root()),"never to the voice corpus's");
+ app.semantic_intent("report.send","touch");
+ const auto submit=next_request();
+ require(std::holds_alternative<wire::SubmitRequest>(submit)&&std::get<wire::SubmitRequest>(submit).take_id==handed,
+         "Send names the spoken description's take");
+
+ // The gate closes while recording: nothing is kept, and the report can still go in words.
+ require(reporter.send(wire::encode(wire::ReporterEvent(wire::Submitted{"rpt-1123456789abcdef0123456789abcdef"})).value()).has_value(),"submitted");
+ until([&]{return app.scene.report.state=="sent";},"sent");
+ app.semantic_intent("report.done","touch");
+ app.semantic_intent("shell.open_report","touch");
+ (void)next_request();
+ require(reporter.send(wire::encode(wire::ReporterEvent(wire::SnapshotTaken{"snap-3123456789abcdef"})).value()).has_value(),"snapshot");
+ app.semantic_intent("report.record","touch");
+ until([&]{return app.scene.report.elapsed_ms>0;},"recording again");
+ app.event({{"type","lifecycle"},{"state","grace"}});
+ until([&]{return app.scene.report.notice=="Recording stopped. Nothing was kept.";},"a closed gate ends the recording");
+ require(app.scene.report.state=="compose"&&!app.scene.report.has_recording,"with nothing attached");
+ ::close(pair[1]);
+}
 void test_home_navigation_preserves_durable_requests(const std::filesystem::path &root){
  using namespace vocabulary_panel;
  const auto directory=std::filesystem::temp_directory_path()/("bhp-home-retention-"+new_study_uuid());
@@ -462,6 +523,7 @@ int main(){try{
  test_voice_lab_follows_the_uploader(root);
  test_music_follows_the_service(root);
  test_report_files_through_the_reporter(root);
+ test_report_by_voice_with_a_spoken_description(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

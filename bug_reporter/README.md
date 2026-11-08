@@ -95,6 +95,12 @@ anywhere public, opens no audio device, and holds no credential.
   and the data-partition paths. They come with the image work.
 - **Crash frames.** The fatal-signal handler that writes a frame list.
   Today a crash report carries the signal and the logs.
-- **The PC receiver's code** (step 4) and **voice reports** (step 3).
+- **Voice reports (step 3):** a submit can name a `bug_report` take
+  (`take_id`). With `--handoff-dir` and `--description-channel`, the reporter
+  checks its `capture.json` purpose, keeps one channel as a mono 16-bit WAV
+  (`description_audio.h`; 60 s is about 1.9 MB), files a `voice` report, and
+  deletes the take. It purges takes nobody submitted after 10 minutes. The
+  array's 6 channels would not fit the bundle, and the processed channel is
+  unmeasured, so the default is channel 0.
 - **The report screen** is step 2, in `panel_ui` and the simulator
   ([simulator/README.md](../simulator/README.md#reports)).

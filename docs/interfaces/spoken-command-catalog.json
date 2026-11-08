@@ -1,6 +1,6 @@
 {
   "acoustic_evidence": [],
-  "catalog_revision": "sha256:0897a6798851588ebb865a9be1f31e26e837ef8861967cc455f466debd9471f8",
+  "catalog_revision": "sha256:d061f1ed8726737b68b71697ba8c377a425c072c1c2e66c8288a9b035417c3f1",
   "catalog_schema_version": 1,
   "intents": [
     {
@@ -414,6 +414,51 @@
       "spoken_forms": [],
       "status": "reserved_disabled",
       "touch_only": true
+    },
+    {
+      "effect_class": "reversible_local",
+      "intent_id": "shell.open_report",
+      "owner": "shell",
+      "spoken_forms": [
+        {
+          "contexts": [
+            "study_front",
+            "study_back",
+            "study_history"
+          ],
+          "invocation_form_id": "invocation.lexi",
+          "phrase": "Lexi report a bug",
+          "pronunciations": [
+            {
+              "dialect": "en-US",
+              "notation": "ARPABET",
+              "phones": [
+                "L",
+                "EH1",
+                "K",
+                "S",
+                "IY0",
+                "R",
+                "IH0",
+                "P",
+                "AO1",
+                "R",
+                "T",
+                "AH0",
+                "B",
+                "AH1",
+                "G"
+              ],
+              "review_status": "reviewed_semantic_fixture_not_acoustic",
+              "source_version": "project-semantic-fixture-v1",
+              "variant_id": "shell.open_report.form1.fixture"
+            }
+          ],
+          "spoken_form_id": "shell.open_report.form1"
+        }
+      ],
+      "status": "fixture_enabled",
+      "touch_only": false
     }
   ],
   "invocation": {

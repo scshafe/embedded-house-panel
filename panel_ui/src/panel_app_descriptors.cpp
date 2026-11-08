@@ -75,9 +75,13 @@ const std::vector<PanelAppDescriptor> &panel_app_descriptors()
 		// The report screen: a typed description, then Send; the report goes only to the owner's PC.
 		{"report",
 		 {
-			 // The day bar's Report button on every surface (bug-reports-and-self-repair.md); voice comes in step 3.
-			 {"shell.open_report", IntentEffectClass::Navigation, true, true, false, true, "report"},
+			 // The day bar's Report button on every surface, and "Lexi report a bug" (bug-reports-and-self-repair.md):
+			 // voice only opens the screen; recording a description needs a touch.
+			 {"shell.open_report", IntentEffectClass::Navigation, true, true, true, true, "report"},
 			 {"report.send", IntentEffectClass::ExternalSubmission, true, true, false, true},
+			 // A spoken description: a touch starts it, inside the mic gate (step 3).
+			 {"report.record", IntentEffectClass::CaptureStart, true, true, false, true},
+			 {"report.stop", IntentEffectClass::Navigation, true, true, false, true},
 			 {"report.cancel", IntentEffectClass::Navigation, true, true, false, true},
 			 {"report.done", IntentEffectClass::Navigation, true, true, false, true},
 			 {"report.show_list", IntentEffectClass::Navigation, true, true, false, true},
@@ -126,7 +130,7 @@ const std::vector<PanelAppDescriptor> &panel_app_descriptors()
 		 },
 		 {"shell.home"},
 		 "report_state",
-		 {"compose", "sending", "sent", "list", "unavailable"}},
+		 {"compose", "recording", "sending", "sent", "list", "unavailable"}},
 	};
 	return descriptors;
 }

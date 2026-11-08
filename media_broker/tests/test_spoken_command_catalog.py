@@ -9,7 +9,8 @@ from shared.spoken_command_catalog.catalog import CatalogError, advise, build_bu
 from fixtures import ROOT
 
 # The report screen (bug-reports-and-self-repair.md, step 2): its actions and one intent per key.
-REPORT_INTENTS = {"shell.open_report", "report.send", "report.cancel", "report.done", "report.show_list"} | {
+REPORT_INTENTS = {"shell.open_report", "report.send", "report.cancel", "report.done", "report.show_list",
+                  "report.record", "report.stop"} | {
     f"report.key.{key}" for key in [*(f"digit_{digit}" for digit in "1234567890"), *"qwertyuiopasdfghjklzxcvbnm",
                                     "period", "comma", "question", "apostrophe", "space", "backspace"]}
 
@@ -43,7 +44,8 @@ class CatalogTest(unittest.TestCase):
     def test_projection_and_policy_chain_reproduce_exactly(self):
         self.assertEqual(canonical(self.bundle), canonical(build_bundle(ROOT, ["study_back", "study_history"])))
         verify_policy(self.bundle["policy"], self.bundle["backend"])
-        self.assertEqual(len(self.bundle["active"]["forms"]), 7)
+        # Study back and history: the seven study forms, and "Lexi report a bug".
+        self.assertEqual(len(self.bundle["active"]["forms"]), 8)
         for field in ("recognition_policy_digest", "backend_artifact_digest", "recognizer_build_model_identity"):
             tampered = copy.deepcopy(self.bundle["policy"]); tampered[field] += "bad"
             with self.assertRaises(CatalogError): verify_policy(tampered, self.bundle["backend"])

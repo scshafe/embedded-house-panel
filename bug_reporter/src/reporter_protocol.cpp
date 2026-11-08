@@ -50,6 +50,12 @@ bool text_ok(const std::string &text)
 	return std::all_of(text.begin(), text.end(), [](unsigned char c) { return (c >= 0x20 && c != 0x7f) || c == '\n'; });
 }
 
+bool take(const std::string &value)
+{
+	static const std::regex pattern("take-[0-9a-f]{64}");
+	return std::regex_match(value, pattern);
+}
+
 bool date(const std::string &value)
 {
 	static const std::regex pattern(R"(\d{4}-\d{2}-\d{2})");
@@ -118,9 +124,13 @@ Result<std::string> encode(const UiRequest &request)
 			      "snapshot");
 	}
 	if (const auto *submit = std::get_if<SubmitRequest>(&request)) {
-		if (!valid_snapshot_id(submit->snapshot_id) || !text_ok(submit->text))
+		if (!valid_snapshot_id(submit->snapshot_id) || !text_ok(submit->text) ||
+		    (submit->take_id && !take(*submit->take_id)))
 			return fail<std::string>("encode_submit");
-		return finish({{"snapshot_id", submit->snapshot_id}, {"text", submit->text}}, "submit");
+		return finish({{"snapshot_id", submit->snapshot_id},
+			       {"text", submit->text},
+			       {"take_id", submit->take_id ? Json(*submit->take_id) : Json(nullptr)}},
+			      "submit");
 	}
 	if (const auto *cancel = std::get_if<CancelRequest>(&request)) {
 		if (!valid_snapshot_id(cancel->snapshot_id))
@@ -182,8 +192,13 @@ Result<UiRequest> decode_ui_request(std::string_view frame)
 		request = snapshot;
 	} else if (type == "submit") {
 		SubmitRequest submit;
-		ok = exact_keys(value, {"type", "version", "snapshot_id", "text"}) && read(value, "snapshot_id", submit.snapshot_id) &&
-		     read(value, "text", submit.text);
+		ok = exact_keys(value, {"type", "version", "snapshot_id", "text", "take_id"}) &&
+		     read(value, "snapshot_id", submit.snapshot_id) && read(value, "text", submit.text);
+		if (ok && !value["take_id"].is_null()) {
+			std::string take_id;
+			ok = read(value, "take_id", take_id);
+			submit.take_id = take_id;
+		}
 		request = submit;
 	} else if (type == "cancel") {
 		CancelRequest cancel;

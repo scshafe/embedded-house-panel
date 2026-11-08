@@ -86,6 +86,10 @@ struct PanelScene {
   bool update_ready{false};
   /** The saved report's ID, as the sent screen shows it. */
   std::string sent_id{"rpt-0123456789abcdef0123456789abcdef"};
+  /** A spoken description is recorded and will go with Send. */
+  bool has_recording{false};
+  /** While recording: how long so far. */
+  std::uint64_t elapsed_ms{12000};
  } report;
  std::string acknowledgement;
  bool stale{false};

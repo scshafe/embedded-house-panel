@@ -57,10 +57,11 @@ bool valid_binding(const PresentationBinding &binding)
 	       printable(binding.ui_connection_challenge, 128);
 }
 
-const std::array<std::pair<Purpose, std::string_view>, 3> kPurposes{{
+const std::array<std::pair<Purpose, std::string_view>, 4> kPurposes{{
 	{Purpose::VoiceTake, "voice_take"},
 	{Purpose::CommandRecognition, "command_recognition"},
 	{Purpose::WishRecording, "wish_recording"},
+	{Purpose::BugReport, "bug_report"},
 }};
 
 bool exact_keys(const Json &object, std::initializer_list<const char *> keys)

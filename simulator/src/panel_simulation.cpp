@@ -400,6 +400,7 @@ void PanelSimulation::pump_voice_lab(){
  for(const auto &event:voice_lab_runtime_->pump()){
   using Kind=VoiceLabRuntime::Event::Kind;
   changed=changed||event.kind!=Kind::Level||!defer_level_renders_;
+  if(report_capture_event(event))continue;
   if(event.kind==Kind::Started){v.state="recording";v.elapsed_ms=0;scene.acknowledgement="";}
   else if(event.kind==Kind::Level){
    v.level_tenths=event.level_tenths;v.elapsed_ms=event.elapsed_ms;
@@ -628,7 +629,7 @@ std::string report_kind_words(const std::string &kind){
 void PanelSimulation::open_report(){
  auto &r=scene.report;
  report_return_surface_=scene.surface_id=="report"?report_return_surface_:scene.surface_id;
- r.text.clear();r.notice.clear();report_snapshot_.clear();
+ r.text.clear();r.notice.clear();report_snapshot_.clear();report_take_.clear();r.has_recording=false;
  if(!reporter_){r.state="unavailable";return;}
  const auto &surface=scene.surface_id;
  const std::string state=surface=="study"?scene.study_state:surface=="agenda"?scene.agenda_state:surface=="voice_lab"?scene.voice_lab.state:surface=="music"?scene.music.state:"";
@@ -646,12 +647,21 @@ void PanelSimulation::report_intent(const std::string &id){
   switch_surface(report_return_surface_.empty()?"home":report_return_surface_);return;
  }
  if(id=="report.show_list"){r.state="list";if(reporter_)(void)reporter_->send(wire::StatusRequest{});return;}
+ if(id=="report.stop"){if(r.state=="recording"&&voice_lab_runtime_)voice_lab_runtime_->stop();return;}
  if(r.state!="compose")return;
  if(id=="report.send"){
   if(!reporter_){r.state="unavailable";return;}
   if(report_snapshot_.empty()){r.notice="Still getting ready. Try Send again.";return;}
-  if(!reporter_->send(wire::SubmitRequest{report_snapshot_,r.text}).has_value()){reporter_.reset();r.state="unavailable";return;}
-  r.state="sending";r.notice.clear();return;
+  const auto take=report_take_.empty()?std::optional<std::string>():std::optional<std::string>(report_take_);
+  if(!reporter_->send(wire::SubmitRequest{report_snapshot_,r.text,take}).has_value()){reporter_.reset();r.state="unavailable";return;}
+  r.state="sending";r.notice.clear();report_take_.clear();r.has_recording=false;return;
+ }
+ if(id=="report.record"){
+  // Through the broker, like a voice-lab take: a touch starts it, and only while the mic gate is open.
+  if(!voice_lab_runtime_||voice_lab_runtime_->busy()){r.notice="The microphone is busy.";return;}
+  if(!voice_lab_runtime_->start_take("report:"+report_snapshot_,pending_touch_evidence_,bhp::media_lease_protocol::Purpose::BugReport)){
+   r.notice=voice_lab_runtime_->external_broker()&&!pending_touch_evidence_?"Tap Record on the panel.":"The microphone is not available.";return;}
+  report_capture_=true;report_take_.clear();r.has_recording=false;r.elapsed_ms=0;r.state="recording";r.notice.clear();return;
  }
  static const std::map<std::string,char> named{{"space",' '},{"period",'.'},{"comma",','},{"question",'?'},{"apostrophe",'\''}};
  const auto key=id.substr(std::string("report.key.").size());
@@ -693,5 +703,22 @@ void PanelSimulation::attach_bug_reporter_peer(int descriptor,std::uint32_t repo
  auto client=bug_reporter::protocol::ReporterClient::for_connected_peer(descriptor,reporter_uid);
  if(!client)throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:"+client.error().code);
  attach_reporter_client(std::move(client.value()));
+}
+bool PanelSimulation::report_capture_event(const VoiceLabRuntime::Event &event){
+ using Kind=VoiceLabRuntime::Event::Kind;
+ if(!report_capture_||event.kind==Kind::UploaderState||event.kind==Kind::UploaderRefused||event.kind==Kind::UploaderLost)return false;
+ auto &r=scene.report;
+ if(event.kind==Kind::Level)r.elapsed_ms=event.elapsed_ms;
+ else if(event.kind==Kind::Committed){
+  // The broker hands the take to the reporter; Send then names it.
+  voice_lab_runtime_->hand_off(event.take_id);r.elapsed_ms=event.elapsed_ms;
+ }else if(event.kind==Kind::HandedOff){
+  report_capture_=false;report_take_=event.take_id;r.has_recording=true;if(r.state=="recording")r.state="compose";
+ }else if(event.kind==Kind::Failed){
+  // The gate closed, or the take failed: no audio, and the report can still be sent in words.
+  report_capture_=false;report_take_.clear();r.has_recording=false;if(r.state=="recording")r.state="compose";
+  r.notice="Recording stopped. Nothing was kept.";
+ }
+ return true;
 }
 }

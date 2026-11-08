@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
+#include <fstream>
 #include <fcntl.h>
 #include <openssl/evp.h>
 #include <sys/stat.h>
@@ -219,6 +220,17 @@ MediaResult<Done> TakeStore::discard(const std::string &take_id) const
 	return MediaResult<Done>::success({});
 }
 
+MediaResult<std::string> TakeStore::purpose(const std::string &take_id) const
+{
+	if (!is_take_id(take_id))
+		return fail<std::string>("MEDIA_TAKE.UNKNOWN", "No committed take has that ID", "take_store.purpose");
+	std::ifstream input(root_ + "/" + take_id + "/" + kRecordName);
+	const auto record = nlohmann::json::parse(input, nullptr, false);
+	if (!record.is_object() || !record.contains("purpose") || !record["purpose"].is_string())
+		return fail<std::string>("MEDIA_TAKE.UNKNOWN", "No committed take has that ID", "take_store.purpose");
+	return MediaResult<std::string>::success(record["purpose"].get<std::string>());
+}
+
 MediaResult<Done> TakeStore::hand_off(const std::string &take_id, const std::string &handoff_directory) const
 {
 	const std::string directory = root_ + "/" + take_id;
@@ -380,7 +392,7 @@ MediaResult<TakeSummary> TakeWriter::finish(const StopReason reason)
 	const nlohmann::json record = {
 		{"schema_version", kTakeRecordSchema},
 		{"take_id", take_id},
-		{"purpose", "voice_take"},
+		{"purpose", settings_.purpose},
 		{"simulated", format_.simulated},
 		{"pcm", format_.pcm},
 		{"access", "rw_interleaved"},

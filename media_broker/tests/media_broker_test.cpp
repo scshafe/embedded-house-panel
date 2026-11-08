@@ -79,6 +79,9 @@ struct Harness {
 			settings.handoff_directory = root + "/handoff";
 			std::filesystem::create_directory(settings.handoff_directory);
 		}
+		settings.report_handoff_directory = root + "/report-handoff";
+		std::filesystem::create_directory(settings.report_handoff_directory);
+		settings.report_maximum_frames = 16000; // 1 s here; 60 s in the daemon
 		BrokerPorts ports{[this] { return std::make_unique<FakeCaptureSource>(faults, true, 1'000'000'000, ++counter); },
 				  [] { return nlohmann::json{{"model", "fixture"}}; },
 				  [] { return std::string("2026-10-19T12:00:00Z"); },
@@ -166,7 +169,7 @@ void test_window_and_purpose_gates()
 	h.endpoint->set_window(true, wire::WindowReason::DayPresent);
 	h.arm(kObservation, lease::Purpose::WishRecording);
 	refused = h.await<lease::Refused>();
-	expect(refused && refused->error_code == "MEDIA_BROKER.PURPOSE_DISABLED", "only voice_take is served");
+	expect(refused && refused->error_code == "MEDIA_BROKER.PURPOSE_DISABLED", "wish_recording is not served");
 	h.arm("observation-unknown-0000001");
 	refused = h.await<lease::Refused>();
 	expect(refused && refused->error_code == "MEDIA_BROKER.CLAIM_REFUSED.observation_unknown",
@@ -416,6 +419,34 @@ void test_kept_take_is_handed_off()
 	}
 }
 
+// A spoken bug description: capped, recorded as bug_report, and handed to the reporter only.
+void test_bug_report_take()
+{
+	Harness h;
+	h.authority.observations[kObservation] = false;
+	h.endpoint->set_window(true, wire::WindowReason::DayPresent);
+	h.arm(kObservation, lease::Purpose::BugReport);
+	auto armed = h.await<lease::Armed>();
+	expect(armed.has_value(), "bug_report is served");
+	if (!armed)
+		return;
+	h.send(lease::StartRequest{armed->lease_id});
+	auto ended = h.await<lease::Ended>(std::chrono::milliseconds(5000));
+	expect(ended && ended->outcome == lease::Outcome::Committed && ended->frames <= 16000,
+	       "a bug_report take stops at its own cap");
+	if (!ended || ended->outcome != lease::Outcome::Committed)
+		return;
+	std::ifstream record(h.root + "/takes/" + ended->take_id + "/capture.json");
+	const auto capture = nlohmann::json::parse(record, nullptr, false);
+	expect(capture.is_object() && capture.value("purpose", std::string()) == "bug_report", "capture.json names bug_report");
+	h.send(lease::HandOffRequest{ended->take_id});
+	auto handed = h.await<lease::HandedOff>();
+	expect(handed && std::filesystem::exists(std::filesystem::path(h.root) / "report-handoff" / ended->take_id / "original.wav"),
+	       "it goes to the reporter's hand-off directory");
+	expect(!std::filesystem::exists(std::filesystem::path(h.root) / "handoff" / ended->take_id),
+	       "and never to the voice corpus's");
+}
+
 int main()
 {
 	test_window_and_purpose_gates();
@@ -424,6 +455,7 @@ int main()
 	test_start_deadline();
 	test_failures_leave_nothing();
 	test_kept_take_is_handed_off();
+	test_bug_report_take();
 	test_lease_client();
 	std::cout << "media_broker: " << failures << " failures\n";
 	return failures ? 1 : 0;

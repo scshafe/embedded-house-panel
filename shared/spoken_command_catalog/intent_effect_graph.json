@@ -218,11 +218,17 @@
     "report.key.z.handler": [
       "bug_report.edit_draft"
     ],
+    "report.record.handler": [
+      "media.capture_start"
+    ],
     "report.send.handler": [
       "bug_report.file"
     ],
     "report.show_list.handler": [
       "bug_report.edit_draft"
+    ],
+    "report.stop.handler": [
+      "media.capture_stop"
     ],
     "shell.apps_next.handler": [
       "shell.page_apps"
@@ -472,11 +478,17 @@
     "report.key.z": [
       "report.key.z.handler"
     ],
+    "report.record": [
+      "report.record.handler"
+    ],
     "report.send": [
       "report.send.handler"
     ],
     "report.show_list": [
       "report.show_list.handler"
+    ],
+    "report.stop": [
+      "report.stop.handler"
     ],
     "shell.apps_next": [
       "shell.apps_next.handler"

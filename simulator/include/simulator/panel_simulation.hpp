@@ -85,6 +85,7 @@ public:
  /** Where the in-process broker keeps takes (a temporary directory). */
  std::string voice_lab_take_root() const {return voice_lab_runtime_?voice_lab_runtime_->take_root():std::string();}
  std::string voice_lab_handoff_root() const {return voice_lab_runtime_?voice_lab_runtime_->handoff_root():std::string();}
+ std::string voice_lab_report_handoff_root() const {return voice_lab_runtime_?voice_lab_runtime_->report_handoff_root():std::string();}
  /** Explicit simulation clock; advances fixture minutes, never household civil time. */
  void enable_preview_clock(bool enabled);
  void advance_preview_clock();
@@ -124,6 +125,12 @@ private:
  std::unique_ptr<bug_reporter::protocol::ReporterClient> reporter_;
  std::string report_snapshot_;
  std::string report_return_surface_{"home"};
+ /** Who started the broker's current take: the voice-lab recorder or the report screen (step 3). */
+ bool report_capture_{false};
+ /** The spoken description the broker handed to the reporter, for Send. */
+ std::string report_take_;
+ /** Handles a broker event for a report's spoken description; false when the take is the recorder's. */
+ bool report_capture_event(const VoiceLabRuntime::Event &event);
  std::optional<music_control::protocol::State> music_state_;
  /** The last state the uploader sent, while one is attached. */
  std::optional<voice_lab_recorder::uploader_protocol::State> uploader_state_;

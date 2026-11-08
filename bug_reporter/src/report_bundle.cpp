@@ -163,8 +163,9 @@ Result<Bundle> write_bundle(const std::string &directory, const std::string &rep
 	const auto characters = text_characters(draft.description_text);
 	if (!characters || *characters > limits.maximum_text_characters || (!manual && !draft.description_text.empty()))
 		return Output::failure(invalid("description_text"));
-	if (draft.audio_path && draft.kind != "voice")
-		return Output::failure(invalid("audio_path"));
+	if (draft.audio_wav && (draft.kind != "voice" || draft.audio_wav->empty() ||
+				draft.audio_wav->size() > limits.maximum_audio_bytes))
+		return Output::failure(invalid("audio_wav"));
 
 	if (::mkdir(directory.c_str(), 0700) != 0)
 		return Output::failure({"REPORT.STORAGE_UNAVAILABLE", "The report directory could not be made", {}, true});
@@ -193,14 +194,8 @@ Result<Bundle> write_bundle(const std::string &directory, const std::string &rep
 		return Output::failure(logs.error());
 	bundle.files.push_back(logs.value());
 
-	if (draft.audio_path) {
-		std::ifstream input(*draft.audio_path, std::ios::binary);
-		const std::string audio{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-		if (!input.good() && !input.eof())
-			return Output::failure({"REPORT.STORAGE_UNAVAILABLE", "The spoken description could not be read", {}, false});
-		if (audio.empty() || audio.size() > limits.maximum_audio_bytes)
-			return Output::failure(invalid("audio_path"));
-		auto wav = write_file(directory, "description.wav", audio);
+	if (draft.audio_wav) {
+		auto wav = write_file(directory, "description.wav", *draft.audio_wav);
 		if (!wav.has_value())
 			return Output::failure(wav.error());
 		bundle.files.push_back(wav.value());

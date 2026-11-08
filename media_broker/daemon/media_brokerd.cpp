@@ -32,7 +32,8 @@ void request_stop(int) { stopping = 1; }
 const char *kUsage =
 	"usage: bhp-media-broker --ui-socket PATH --ui-uid UID --window-socket PATH --supervisor-uid UID\n"
 	"  --take-root DIR (--pcm NAME | --fake-source) [--maximum-seconds 1..600] [--tolerance-ns N]\n"
-	"  [--maximum-takes N] [--maximum-store-bytes N] [--start-deadline-ms N] [--handoff-dir DIR]\n";
+	"  [--maximum-takes N] [--maximum-store-bytes N] [--start-deadline-ms N] [--handoff-dir DIR]\n"
+	"  [--report-handoff-dir DIR]\n";
 
 bool parse(const std::string &text, unsigned long long minimum, unsigned long long maximum, unsigned long long &out)
 {
@@ -95,7 +96,7 @@ int main(int argc, char **argv)
 {
 	bhp::StructuredLogger logger("media_broker.bhp_media_broker", std::cerr);
 	const std::string trace = "media-broker";
-	std::string ui_socket, window_socket, take_root, pcm, handoff_dir;
+	std::string ui_socket, window_socket, take_root, pcm, handoff_dir, report_handoff_dir;
 	unsigned long long ui_uid = 0, supervisor_uid = 0, maximum_seconds = 600, tolerance_ns = 4'000'000,
 			   maximum_takes = 16, maximum_store_bytes = 4ULL << 30, start_deadline_ms = 1000;
 	bool fake = false, have_supervisor_uid = false;
@@ -113,6 +114,8 @@ int main(int argc, char **argv)
 			take_root = argv[++at];
 		else if (option == "--handoff-dir" && value)
 			handoff_dir = argv[++at];
+		else if (option == "--report-handoff-dir" && value)
+			report_handoff_dir = argv[++at];
 		else if (option == "--pcm" && value)
 			pcm = argv[++at];
 		else if (option == "--ui-uid" && value)
@@ -162,6 +165,9 @@ int main(int argc, char **argv)
 	settings.tolerance_ns = tolerance_ns;
 	settings.start_deadline = std::chrono::milliseconds(start_deadline_ms);
 	settings.handoff_directory = handoff_dir;
+	// bug_report takes (a spoken bug description) go to the bug reporter, at most 60 s.
+	settings.report_handoff_directory = report_handoff_dir;
+	settings.report_maximum_frames = 60ULL * settings.request.rate;
 	std::uint32_t seed = 1;
 	BrokerPorts ports{
 		[fake, &seed]() -> std::unique_ptr<CaptureSource> {

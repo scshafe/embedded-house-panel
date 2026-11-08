@@ -60,7 +60,8 @@ public:
 	 * is gone. In-process mode grants a fresh synthetic touch; external mode needs
 	 * `evidence` and forwards it unchanged.
 	 */
-	bool start_take(const std::string &operation_ref, const std::optional<TouchEvidence> &evidence = std::nullopt);
+	bool start_take(const std::string &operation_ref, const std::optional<TouchEvidence> &evidence = std::nullopt,
+			media_lease_protocol::Purpose purpose = media_lease_protocol::Purpose::VoiceTake);
 	bool external_broker() const { return !broker_; }
 	void stop();
 	void discard(const std::string &take_id);
@@ -81,6 +82,8 @@ public:
 	const std::string &take_root() const { return take_root_; }
 	/** In-process mode only: where kept takes go. */
 	const std::string &handoff_root() const { return handoff_root_; }
+	/** In-process mode only: where spoken bug descriptions (bug_report takes) go. */
+	const std::string &report_handoff_root() const { return report_handoff_root_; }
 
 private:
 	enum class Pending { None, Arming, Starting, Recording };
@@ -90,6 +93,7 @@ private:
 	std::string temporary_root_;
 	std::string take_root_;
 	std::string handoff_root_;
+	std::string report_handoff_root_;
 	std::unique_ptr<media_broker::MediaBroker> broker_;
 	std::unique_ptr<media_window_protocol::FrameChannel> supervisor_;
 	std::unique_ptr<media_lease_protocol::MediaLeaseClient> client_;
