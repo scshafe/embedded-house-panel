@@ -44,6 +44,7 @@ docs/operations/board-bringup-provisioning.md
 docs/operations/debian-tailnet-bringup.md
 docs/operations/frdm-bringup.md
 docs/operations/spotify-owner-setup.md
+docs/architecture/bug-reports-and-self-repair.md
 music_control/README.md
 .claude/plans/2026-09-25-frdm-hardware-baseline.md
 docs/research/gui-strategies.md

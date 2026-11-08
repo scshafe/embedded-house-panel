@@ -2,11 +2,16 @@
 
 <!-- @canonical bug-reports-and-self-repair -->
 
-**Status (2026-11-08):** proposed, for the owner to accept. Nothing here is
-built. The owner asked for a way to report bugs, in place from the first day of
-real use, and for an agent to find the cause and open a fix. Every choice that
-is the owner's is listed under [Owner decisions](#owner-decisions), with a
-recommendation.
+**Status (2026-11-08):** accepted. The owner accepted this design on #74
+with all twelve recommendations under [Owner decisions](#owner-decisions)
+(2026-11-08). The owner asked for a way to report bugs, in place from the
+first day of real use, and for an agent to find the cause and open a fix.
+- **Build order:** step 1, then 2, 4 and 3, each its own PR. Step 5 follows
+  the read-only root and the data partition.
+- **Infra:** the owner's oversight session does the infra pieces of decision
+  11 once step 4 is ready. The owner installs whisper.cpp on the PC
+  (decision 4) when the receiver lands.
+- **Until step 5:** board flashing and installs stay owner-gated.
 
 **In short:**
 - One pipeline with three entry points:
@@ -342,7 +347,7 @@ acknowledged it), `investigating`, `fix in PR #n`, `merged`, `update ready`,
 | 8 | Merging automatically triggered fixes | PR-only; the owner or an interactive session merges | Phase 2's rule, and a human sees each fix first |
 | 9 | Retention on the PC | Bundles kept 90 days after a report closes; audio deleted once transcribed and the report closes | Enough for regressions; no lasting household audio |
 | 10 | Rate limits | Section 8's numbers | Bounded load on the eMMC, the PC and the agent; manual reports are never silent |
-| 11 | Infra work (the owner's) | The receiver, the ACL, the tailnet grant to the inbox port, the broker sender, and later phase 2 | The agent cannot change infra |
+| 11 | Infra work (the owner's) | The receiver, the ACL, the tailnet grant to the inbox port, the broker sender, and later phase 2; done from the owner's oversight session | The agent cannot change infra |
 | 12 | What counts as a fault | Components opt codes in through `fault()`; expected network and device failures never auto-report | Reports stay bugs, not noise |
 
 ## Order of work, once accepted
