@@ -270,3 +270,38 @@ fixtures. Scenario files set only the starting screen (`music_state`:
 `signed_out`, `unavailable`, `checking`, `missing`, `restricted`, `ready`,
 `playing`, `paused`).
 
+## Reports
+
+Added 2026-11-08, step 2 of the accepted
+[bug-report design](../docs/architecture/bug-reports-and-self-repair.md).
+
+**The day bar** of every daytime surface has a **Report** button
+(`shell.open_report`).
+- **A tap snapshots the context.** The surface it was pressed on, that
+  surface's state and the lifecycle tokens go to `bhp-reporter`, which copies
+  the log window at that moment. Then the report screen opens.
+- **The dot.** An amber dot on the button means a report's fix is ready to
+  install.
+- **On the report screen** the button is drawn, so the bar looks the same,
+  but does nothing.
+
+**The report screen:**
+- **The form.** A lowercase keyboard with digits and `, . ? '`, one closed
+  intent per key (`report.key.*`), because the shell routes intents rather
+  than raw input. Plus Space, Delete, Cancel, Send and Reports.
+- **Send** submits the text, 500 characters at most, with the snapshot. It
+  waits if the snapshot has not come back yet.
+- **Cancel and Done** return to the surface Report was tapped on.
+- **The Reports list** shows the newest reports as kind, status and date:
+  "Waiting to send", "Received", "Being looked at", "Fix in PR #n", "Fix
+  merged", "Update ready", "Installed" or "Won't fix".
+- **Refusals** (the rate limits, a full queue, an expired snapshot) are shown
+  in words.
+
+**With the reporter attached** (`--bug-reporter-socket` and
+`--bug-reporter-uid`, or `attach_bug_reporter_peer` in tests), the list and the
+dot are live, and report bodies never come back to the UI. Without it the
+screen says reporting is unavailable and that nothing was saved. Scenario
+files set only the starting screen (`report_state`: `compose`, `sending`,
+`sent`, `list`, `unavailable`).
+

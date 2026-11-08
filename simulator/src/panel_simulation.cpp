@@ -166,7 +166,7 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
   scene.weather_temperature_unit=weather.value("unit","F");scene.weather_fixture=true;
  }
  scene.fixture_clock_untrusted=fixture_override_&&j.value("lifecycle","day")=="clock_untrusted";
- scene.agenda_state=j.value("agenda_state","today");scene.voice_lab.state=j.value("voice_lab_state","ready");scene.music.state=j.value("music_state","ready");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
+ scene.agenda_state=j.value("agenda_state","today");scene.voice_lab.state=j.value("voice_lab_state","ready");scene.music.state=j.value("music_state","ready");scene.report.state=j.value("report_state","compose");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
  context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
  if(update_lifecycle)accept_lifecycle(supervisor.publish(j.value("lifecycle","day")));
  if(!store_->durable())store_=std::make_shared<vocabulary_panel::MemoryStudyStore>();
@@ -287,6 +287,7 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
  if(result.disposition==IntentDisposition::Accepted){
   const PanelIntentRegistry registry;
   const auto *definition=registry.find(id);
+  if(id=="shell.open_report")open_report();
   if(definition&&!definition->navigation_surface_id.empty()){switch_surface(definition->navigation_surface_id);render();return;}
   if(id=="shell.apps_previous"||id=="shell.apps_next"){
    const auto page=application_grid_page(scene.applications,scene.home_page);
@@ -297,6 +298,7 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
   }
   if(id.rfind("voice_lab.",0)==0){voice_lab_intent(id);render();return;}
   if(id.rfind("music.",0)==0){music_intent(id);render();return;}
+  if(id.rfind("report.",0)==0){report_intent(id);render();return;}
   const std::map<std::string,vocabulary_panel::StudyIntent> mapping{{"study.flip",vocabulary_panel::StudyIntent::flip},{"study.next",vocabulary_panel::StudyIntent::next},{"study.back",vocabulary_panel::StudyIntent::back},{"study.rate.again",vocabulary_panel::StudyIntent::rate_again},{"study.rate.hard",vocabulary_panel::StudyIntent::rate_hard},{"study.rate.good",vocabulary_panel::StudyIntent::rate_good},{"study.rate.easy",vocabulary_panel::StudyIntent::rate_easy},{"study.rating.undo",vocabulary_panel::StudyIntent::rating_undo}};
   auto it=mapping.find(id);if(it!=mapping.end()){
    auto semantic=scene.study_state=="resume"?vocabulary_panel::StudyIntent::resume:it->second;
@@ -441,7 +443,7 @@ void PanelSimulation::attach_media_broker(const std::string &socket_path,std::ui
 }
 void PanelSimulation::tap(int x,int y){if(scene.presentation_failure)return;for(auto it=display.hit_targets().rbegin();it!=display.hit_targets().rend();++it)if(x>=it->x&&x<it->x+it->width&&y>=it->y&&y<it->y+it->height){auto id=it->intent_id;semantic_intent(id,"touch");return;}}
 void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="clock_preview")enable_preview_clock(e.at("enabled").get<bool>());else if(type=="clock_step")advance_preview_clock();else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}
-void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_voice_lab();pump_music();pump_clock();}
+void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_voice_lab();pump_music();pump_reporter();pump_clock();}
 namespace {
 std::uint64_t clock_monotonic_ms(){return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());}
 }
@@ -594,5 +596,102 @@ void PanelSimulation::attach_music_control_peer(int descriptor,std::uint32_t ser
  auto client=music_control::protocol::MusicClient::for_connected_peer(descriptor,service_uid);
  if(!client)throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:"+client.error().code);
  attach_music_client(std::move(client.value()));
+}
+namespace {
+// Why the reporter refused, in the words the report screen shows.
+std::string report_notice(const std::string &code){
+ if(code=="REPORT.RATE_LIMITED")return "One report a minute. Try again shortly.";
+ if(code=="REPORT.DAILY_LIMIT")return "That is today's limit of reports.";
+ if(code=="REPORT.OUTBOX_FULL")return "The report queue is full.";
+ if(code=="REPORT.SNAPSHOT_EXPIRED")return "This report timed out. Start it again.";
+ return "The report could not be saved.";
+}
+std::string report_status_words(const bug_reporter::protocol::ListedReport &item){
+ if(item.status=="queued")return "Waiting to send";
+ if(item.status=="received")return "Received";
+ if(item.status=="investigating")return "Being looked at";
+ if(item.status=="fix_in_pr")return item.pr?"Fix in PR #"+std::to_string(*item.pr):"Fix in a PR";
+ if(item.status=="merged")return "Fix merged";
+ if(item.status=="update_ready")return "Update ready";
+ if(item.status=="installed")return "Installed";
+ return "Won't fix";
+}
+std::string report_kind_words(const std::string &kind){
+ if(kind=="text")return "Typed report";
+ if(kind=="voice")return "Spoken report";
+ if(kind=="crash")return "Crash";
+ if(kind=="restart")return "Restart";
+ return "Fault";
+}
+}
+// The tap on Report: the context is the screen it was pressed on, at that moment.
+void PanelSimulation::open_report(){
+ auto &r=scene.report;
+ report_return_surface_=scene.surface_id=="report"?report_return_surface_:scene.surface_id;
+ r.text.clear();r.notice.clear();report_snapshot_.clear();
+ if(!reporter_){r.state="unavailable";return;}
+ const auto &surface=scene.surface_id;
+ const std::string state=surface=="study"?scene.study_state:surface=="agenda"?scene.agenda_state:surface=="voice_lab"?scene.voice_lab.state:surface=="music"?scene.music.state:"";
+ const auto token=[](std::string_view value){return std::string(value);};
+ bug_reporter::protocol::SnapshotRequest snapshot{{surface,state,token(to_string(scene.lifecycle.display_mode)),token(to_string(scene.lifecycle.presence_state)),token(to_string(scene.lifecycle.solar_state)),token(to_string(scene.lifecycle.system_state))}};
+ if(!reporter_->send(snapshot).has_value()){reporter_.reset();r.state="unavailable";return;}
+ r.state="compose";
+}
+void PanelSimulation::report_intent(const std::string &id){
+ namespace wire=bug_reporter::protocol;
+ auto &r=scene.report;
+ if(id=="report.done"||id=="report.cancel"){
+  if(id=="report.cancel"&&reporter_&&!report_snapshot_.empty())(void)reporter_->send(wire::CancelRequest{report_snapshot_});
+  report_snapshot_.clear();r.notice.clear();
+  switch_surface(report_return_surface_.empty()?"home":report_return_surface_);return;
+ }
+ if(id=="report.show_list"){r.state="list";if(reporter_)(void)reporter_->send(wire::StatusRequest{});return;}
+ if(r.state!="compose")return;
+ if(id=="report.send"){
+  if(!reporter_){r.state="unavailable";return;}
+  if(report_snapshot_.empty()){r.notice="Still getting ready. Try Send again.";return;}
+  if(!reporter_->send(wire::SubmitRequest{report_snapshot_,r.text}).has_value()){reporter_.reset();r.state="unavailable";return;}
+  r.state="sending";r.notice.clear();return;
+ }
+ static const std::map<std::string,char> named{{"space",' '},{"period",'.'},{"comma",','},{"question",'?'},{"apostrophe",'\''}};
+ const auto key=id.substr(std::string("report.key.").size());
+ if(key=="backspace"){if(!r.text.empty())r.text.pop_back();return;}
+ char typed=0;
+ if(key.size()==1)typed=key[0];
+ else if(key.rfind("digit_",0)==0)typed=key.back();
+ else if(named.count(key))typed=named.at(key);
+ if(typed&&r.text.size()<500)r.text+=typed;
+}
+void PanelSimulation::pump_reporter(){
+ namespace wire=bug_reporter::protocol;
+ if(!reporter_)return;
+ auto events=reporter_->poll();
+ auto &r=scene.report;
+ if(!events.has_value()){reporter_.reset();report_snapshot_.clear();if(scene.surface_id=="report")r.state="unavailable";render();return;}
+ for(const auto &event:events.value()){
+  if(const auto *taken=std::get_if<wire::SnapshotTaken>(&event))report_snapshot_=taken->snapshot_id;
+  else if(const auto *submitted=std::get_if<wire::Submitted>(&event)){r.state="sent";r.sent_id=submitted->report_id;report_snapshot_.clear();}
+  else if(const auto *refused=std::get_if<wire::Refused>(&event)){r.notice=report_notice(refused->error_code);if(r.state=="sending")r.state="compose";}
+  else{
+   const auto &reports=std::get<wire::Reports>(event);
+   r.update_ready=reports.update_ready;r.lines.clear();
+   for(const auto &item:reports.items)r.lines.push_back(report_kind_words(item.kind)+" · "+report_status_words(item)+" · "+item.created_on);
+  }
+ }
+ if(!events.value().empty())render();
+}
+void PanelSimulation::attach_reporter_client(std::unique_ptr<bug_reporter::protocol::ReporterClient> client){
+ if(!client->send(bug_reporter::protocol::StatusRequest{}).has_value())throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:REPORT.REPORTER_UNAVAILABLE");
+ reporter_=std::move(client);scene.report.lines.clear();scene.report.update_ready=false;
+}
+void PanelSimulation::attach_bug_reporter(const std::string &socket_path,std::uint32_t reporter_uid){
+ auto client=bug_reporter::protocol::ReporterClient::connect(socket_path,reporter_uid);
+ if(!client)throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:"+client.error().code);
+ attach_reporter_client(std::move(client.value()));
+}
+void PanelSimulation::attach_bug_reporter_peer(int descriptor,std::uint32_t reporter_uid){
+ auto client=bug_reporter::protocol::ReporterClient::for_connected_peer(descriptor,reporter_uid);
+ if(!client)throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:"+client.error().code);
+ attach_reporter_client(std::move(client.value()));
 }
 }

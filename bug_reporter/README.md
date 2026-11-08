@@ -95,5 +95,6 @@ anywhere public, opens no audio device, and holds no credential.
   and the data-partition paths. They come with the image work.
 - **Crash frames.** The fatal-signal handler that writes a frame list.
   Today a crash report carries the signal and the logs.
-- **The report screen** (step 2), **the PC receiver's code** (step 4) and
-  **voice reports** (step 3).
+- **The PC receiver's code** (step 4) and **voice reports** (step 3).
+- **The report screen** is step 2, in `panel_ui` and the simulator
+  ([simulator/README.md](../simulator/README.md#reports)).

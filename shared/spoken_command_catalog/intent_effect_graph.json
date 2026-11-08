@@ -3,6 +3,12 @@
     "agenda.prepare_local": [
       "reversible_local"
     ],
+    "bug_report.edit_draft": [
+      "reversible_local"
+    ],
+    "bug_report.file": [
+      "external_submission"
+    ],
     "media.capture_start": [
       "capture_start"
     ],
@@ -80,6 +86,144 @@
     "music.volume_up.handler": [
       "music.command_speaker"
     ],
+    "report.cancel.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.done.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.a.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.apostrophe.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.b.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.backspace.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.c.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.comma.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.d.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_0.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_1.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_2.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_3.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_4.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_5.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_6.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_7.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_8.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.digit_9.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.e.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.f.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.g.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.h.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.i.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.j.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.k.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.l.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.m.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.n.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.o.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.p.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.period.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.q.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.question.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.r.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.s.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.space.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.t.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.u.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.v.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.w.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.x.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.y.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.key.z.handler": [
+      "bug_report.edit_draft"
+    ],
+    "report.send.handler": [
+      "bug_report.file"
+    ],
+    "report.show_list.handler": [
+      "bug_report.edit_draft"
+    ],
     "shell.apps_next.handler": [
       "shell.page_apps"
     ],
@@ -93,6 +237,9 @@
       "shell.switch_surface"
     ],
     "shell.open_music.handler": [
+      "shell.switch_surface"
+    ],
+    "shell.open_report.handler": [
       "shell.switch_surface"
     ],
     "shell.open_study.handler": [
@@ -193,6 +340,144 @@
     "music.volume_up": [
       "music.volume_up.handler"
     ],
+    "report.cancel": [
+      "report.cancel.handler"
+    ],
+    "report.done": [
+      "report.done.handler"
+    ],
+    "report.key.a": [
+      "report.key.a.handler"
+    ],
+    "report.key.apostrophe": [
+      "report.key.apostrophe.handler"
+    ],
+    "report.key.b": [
+      "report.key.b.handler"
+    ],
+    "report.key.backspace": [
+      "report.key.backspace.handler"
+    ],
+    "report.key.c": [
+      "report.key.c.handler"
+    ],
+    "report.key.comma": [
+      "report.key.comma.handler"
+    ],
+    "report.key.d": [
+      "report.key.d.handler"
+    ],
+    "report.key.digit_0": [
+      "report.key.digit_0.handler"
+    ],
+    "report.key.digit_1": [
+      "report.key.digit_1.handler"
+    ],
+    "report.key.digit_2": [
+      "report.key.digit_2.handler"
+    ],
+    "report.key.digit_3": [
+      "report.key.digit_3.handler"
+    ],
+    "report.key.digit_4": [
+      "report.key.digit_4.handler"
+    ],
+    "report.key.digit_5": [
+      "report.key.digit_5.handler"
+    ],
+    "report.key.digit_6": [
+      "report.key.digit_6.handler"
+    ],
+    "report.key.digit_7": [
+      "report.key.digit_7.handler"
+    ],
+    "report.key.digit_8": [
+      "report.key.digit_8.handler"
+    ],
+    "report.key.digit_9": [
+      "report.key.digit_9.handler"
+    ],
+    "report.key.e": [
+      "report.key.e.handler"
+    ],
+    "report.key.f": [
+      "report.key.f.handler"
+    ],
+    "report.key.g": [
+      "report.key.g.handler"
+    ],
+    "report.key.h": [
+      "report.key.h.handler"
+    ],
+    "report.key.i": [
+      "report.key.i.handler"
+    ],
+    "report.key.j": [
+      "report.key.j.handler"
+    ],
+    "report.key.k": [
+      "report.key.k.handler"
+    ],
+    "report.key.l": [
+      "report.key.l.handler"
+    ],
+    "report.key.m": [
+      "report.key.m.handler"
+    ],
+    "report.key.n": [
+      "report.key.n.handler"
+    ],
+    "report.key.o": [
+      "report.key.o.handler"
+    ],
+    "report.key.p": [
+      "report.key.p.handler"
+    ],
+    "report.key.period": [
+      "report.key.period.handler"
+    ],
+    "report.key.q": [
+      "report.key.q.handler"
+    ],
+    "report.key.question": [
+      "report.key.question.handler"
+    ],
+    "report.key.r": [
+      "report.key.r.handler"
+    ],
+    "report.key.s": [
+      "report.key.s.handler"
+    ],
+    "report.key.space": [
+      "report.key.space.handler"
+    ],
+    "report.key.t": [
+      "report.key.t.handler"
+    ],
+    "report.key.u": [
+      "report.key.u.handler"
+    ],
+    "report.key.v": [
+      "report.key.v.handler"
+    ],
+    "report.key.w": [
+      "report.key.w.handler"
+    ],
+    "report.key.x": [
+      "report.key.x.handler"
+    ],
+    "report.key.y": [
+      "report.key.y.handler"
+    ],
+    "report.key.z": [
+      "report.key.z.handler"
+    ],
+    "report.send": [
+      "report.send.handler"
+    ],
+    "report.show_list": [
+      "report.show_list.handler"
+    ],
     "shell.apps_next": [
       "shell.apps_next.handler"
     ],
@@ -207,6 +492,9 @@
     ],
     "shell.open_music": [
       "shell.open_music.handler"
+    ],
+    "shell.open_report": [
+      "shell.open_report.handler"
     ],
     "shell.open_study": [
       "shell.open_study.handler"

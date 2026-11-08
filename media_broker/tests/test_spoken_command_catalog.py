@@ -8,6 +8,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from shared.spoken_command_catalog.catalog import CatalogError, advise, build_bundle, build_policy, canonical, digest, load_json, metrics, normalize_text, phase_a, phase_b, validate_catalog, verify_policy
 from fixtures import ROOT
 
+# The report screen (bug-reports-and-self-repair.md, step 2): its actions and one intent per key.
+REPORT_INTENTS = {"shell.open_report", "report.send", "report.cancel", "report.done", "report.show_list"} | {
+    f"report.key.{key}" for key in [*(f"digit_{digit}" for digit in "1234567890"), *"qwertyuiopasdfghjklzxcvbnm",
+                                    "period", "comma", "question", "apostrophe", "space", "backspace"]}
+
+
 class CatalogTest(unittest.TestCase):
     def setUp(self):
         self.catalog = load_json(ROOT / "docs/interfaces/spoken-command-catalog.json")
@@ -26,7 +32,7 @@ class CatalogTest(unittest.TestCase):
                     "agenda.submit_wish", "shell.open_voice_lab", "voice_lab.record", "voice_lab.stop",
                     "voice_lab.keep", "voice_lab.retake", "voice_lab.reject", "voice_lab.skip",
                     "voice_lab.sign_in", "voice_lab.approve", "shell.open_music", "music.use_speaker",
-                    "music.play", "music.pause", "music.next", "music.volume_down", "music.volume_up"}
+                    "music.play", "music.pause", "music.next", "music.volume_down", "music.volume_up"} | REPORT_INTENTS
         self.assertEqual(len(parsed), len(set(parsed)))
         self.assertEqual(set(parsed), expected)
         self.assertLessEqual(set(parsed), set(self.graph["intents"]))

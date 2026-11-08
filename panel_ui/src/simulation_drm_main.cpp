@@ -70,6 +70,9 @@ int run_simulation_drm(int argc,char **argv){try{
  if(options.count("--voice-lab-uploader-socket"))app.attach_voice_lab_uploader(options.at("--voice-lab-uploader-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--voice-lab-uploader-uid"))));
  // Music on the owner's speaker goes through the bhp-music-control process (ADR 0013); the UI holds no token.
  if(options.count("--music-control-socket")!=options.count("--music-control-uid"))throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_OPTIONS_INCOMPLETE");
+ // Bug reports go through the bhp-reporter process (bug-reports-and-self-repair.md); the UI never sees a report body.
+ if(options.count("--bug-reporter-socket")!=options.count("--bug-reporter-uid"))throw std::runtime_error("SIMULATOR.BUG_REPORTER_OPTIONS_INCOMPLETE");
+ if(options.count("--bug-reporter-socket"))app.attach_bug_reporter(options.at("--bug-reporter-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--bug-reporter-uid"))));
  if(options.count("--music-control-socket"))app.attach_music_control(options.at("--music-control-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--music-control-uid"))));
  DrmPageFlipDisplay drm(options.at("--drm-device"),static_cast<std::uint32_t>(std::stoul(options.at("--drm-connector-id"))));
  FixtureControl control(options.at("--simulation-control-socket"));
