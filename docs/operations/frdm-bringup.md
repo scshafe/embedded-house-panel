@@ -180,7 +180,7 @@ only after this, with the owner's go-ahead.
 | Gate | Evidence script | Closes profile keys | Also needs |
 |---|---|---|---|
 | `FRDM-GATE-IDENTITY` | `frdm_board_identity.sh --board-marking '<BOARD_MARKING>'` | none (EXPECTED_* checks) | photo of the board label |
-| `FRDM-GATE-PIR` | `frdm_j18_gpio_inventory.sh`, `frdm_pir_edge_capture.sh --mode gpio`, then `--mode evdev` | `PIR_HEADER_PIN`, `HEADER_IO_VOLTAGE_MV`, `PIR_GPIO_CONTROLLER`, `PIR_GPIO_LINE`, `PIR_PAD_MUX`, `PIR_PAD_OWNER_TO_DISABLE`, `PIR_ACTIVE_LEVEL` | schematic J18 table; meter |
+| `FRDM-GATE-PIR` | `frdm_j18_gpio_inventory.sh`, `frdm_pir_edge_capture.sh --mode gpio`, then `--mode evdev` | `PIR_HEADER_PIN`, `HEADER_IO_VOLTAGE_MV`, `PIR_GPIO_CONTROLLER`, `PIR_GPIO_LINE`, `PIR_PAD_MUX`, `PIR_PAD_OWNER_TO_DISABLE`, `PIR_ACTIVE_LEVEL` | SCH-95022 rev B1 J18 nets (pin 12 = GPIO1_IO01, 3.3 V bank); meter confirmation on the B3 board |
 | `FRDM-GATE-DISPLAY` | `frdm_display_touch_backlight.sh [--execute-test-pattern 30]` | `DRM_DEVICE`, `DRM_CONNECTOR_ID`, `FBDEV_DEVICE` | operator sees the pattern |
 | `FRDM-GATE-TOUCH` | same run | `TOUCH_INPUT_NAME`, `TOUCH_INPUT_PHYS`, `TOUCH_INTERRUPT` | ADR 0005 provenance path later |
 | `FRDM-GATE-BACKLIGHT` | same run, `--execute-backlight-off-trial 5` | `BACKLIGHT_SYSFS_DIR`, `BACKLIGHT_OFF_VALUE` | operator sees a dark panel |
@@ -208,9 +208,9 @@ Steps marked `HUMAN` need a person at the board.
 | ARRIVAL-05 | host | `ssh root@<BOARD_ADDRESS> 'dd if=/dev/mmcblk2 bs=4M' \| zstd -o frdm-factory-emmc.img.zst` (confirm `mmcblk2` is the eMMC with `lsblk` first) | file size ≈ eMMC size compressed; keep outside the repo | backup SHA-256 |
 | ARRIVAL-06 | host | `export BHP_BOARD_SSH_TARGET=root@<BOARD_ADDRESS>; scripts/deploy/frdm_evidence_bundle.sh push --execute` | JSON/log `frdm_evidence_bundle_pushed` | bundle SHA-256 |
 | ARRIVAL-07 | board | `cd /root/bhp-evidence && sh hardware_tests/frdm/frdm_board_identity.sh --board-marking '<BOARD_MARKING>'` | `result` is `complete`, or `incomplete` only on `wifi_chip_name`; never `mismatch` (a `mismatch` on RAM/eMMC is the 2 GB/16 GB variant: stop, contact the seller) | IDENTITY record |
-| ARRIVAL-08 | HUMAN | Power off. With a meter, measure the J18 I/O voltage on the candidate pin `<J18_PIN>` to GND. Take candidates in the order of [`frdm-j18-pir-candidates.json`](../hardware/frdm-j18-pir-candidates.json) and find each one's J18 pin in the FRDM-IMX8MPLUS schematic header table, board powered, nothing connected | reading taken | `<HEADER_MV>` |
-| ARRIVAL-09 | board | `sh hardware_tests/frdm/frdm_j18_gpio_inventory.sh --candidate <J18_PIN>:<PAD_MUX> --measured-header-voltage-mv <HEADER_MV> --voltage-method '<METER_MODEL> J18-to-GND'` | `candidate_format`, `pad_mux_owner`, `gpio_line_consumer`, `header_io_voltage` all `pass` | PIR record (pin candidates) |
-| ARRIVAL-10 | HUMAN | Power off. Wire the PIR: VCC per its datasheet, GND, OUT to `<J18_PIN>` (only if ARRIVAL-09 passed at 3.3 V) | wiring photo | wiring photo |
+| ARRIVAL-08 | HUMAN | Confirm the rank-1 candidate: J18 pin 12 = GPIO1_IO01, bank NVCC_GPIO = VDD_3V3 in NXP's SCH-95022 rev B1 ([candidates](../hardware/frdm-j18-pir-candidates.json); the board is rev B3, so this reading confirms B1 on it). Nothing connected to J18, board powered. The idle pad is pwm1's output and may read 0 V, so drive it high for the reading: as root, `c=$(for p in /sys/class/pwm/pwmchip*; do case $(readlink -f $p) in *30660000.pwm*) echo $p;; esac; done); echo 0 > $c/export; echo 1000000 > $c/pwm0/period; echo 1000000 > $c/pwm0/duty_cycle; echo 1 > $c/pwm0/enable`. Measure J18-12 to J18-6, then undo: `echo 0 > $c/pwm0/enable; echo 0 > $c/unexport` (runtime sysfs only, nothing written to storage) | 2970–3630 mV confirms the 3.3 V bank; near 1800 mV contradicts B1: stop, do not wire | `<HEADER_MV>` |
+| ARRIVAL-09 | board | `sh hardware_tests/frdm/frdm_j18_gpio_inventory.sh --candidate J18-12:MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01 --measured-header-voltage-mv <HEADER_MV> --voltage-method '<METER_MODEL> J18-12-to-GND, pad driven high by pwm1'` | `candidate_format`, `pad_mux_owner` (pwm1 or free), `gpio_line_consumer`, `header_io_voltage` all `pass` | PIR record (pin candidates) |
+| ARRIVAL-10 | HUMAN | Power off. Wire the PIR to J18's even row: +5V to pin 2, GND to pin 6, OUT to pin 12 (only if ARRIVAL-09 passed at 3.3 V; the gate board later sits between OUT and pin 12) | wiring photo | wiring photo |
 | ARRIVAL-11 | board | `sh hardware_tests/frdm/frdm_pir_edge_capture.sh --mode gpio --controller <gpioN> --line <L> --duration-seconds 60` (values from ARRIVAL-09 candidates); stay still, then walk past | `edges_observed` `pass`; `BHP_BOARD_PIR_ACTIVE_LEVEL` candidate present | PIR record |
 | ARRIVAL-12 | board | `sh hardware_tests/frdm/frdm_mic_capture.sh --duration-seconds 5` with the CTIA headset plugged in; speak | `alsa_card`, `codec_i2c`, `capture_non_silent` `pass` | AUDIO record |
 | ARRIVAL-13 | board | `sh hardware_tests/frdm/frdm_display_touch_backlight.sh` (vendor DTB with the Waveshare panel only if the vendor release provides one, `<VENDOR_PANEL_DTB>`) | records written; any `mismatch` is expected on a DTB without the panel | DISPLAY/TOUCH/BACKLIGHT records |
@@ -320,6 +320,10 @@ from the vendor image, not closed gates: no profile key changed and
   backlight dims and goes dark. The gate script itself has not rerun since.
 - ARRIVAL-08 onward otherwise: not started. ARRIVAL-08 and -10 need the owner at the
   board with a meter and the PIR; ARRIVAL-15 is the NXP firmware decision.
+  Since 2026-11-08 the PIR's pins come from NXP's SCH-95022 rev B1 schematic:
+  +5V on J18-2, GND on J18-6, OUT (the wake) on J18-12 = GPIO1_IO01 in a 3.3 V
+  bank. ARRIVAL-08 is now a meter confirmation of that on the B3 board, not a
+  search.
 
 **Health check (2026-10-05, read-only).** `make verify-board`
 (`scripts/deploy/frdm_board_health.sh`, the hardware gate; captures
@@ -627,7 +631,7 @@ the firmware license) waits for the owner.
 | `<SERIAL_DEVICE>` | host `ls /dev/cu.usbserial-*` | ARRIVAL-03 |
 | `<BOARD_ADDRESS>` | console `ip -4 addr` or router lease | ARRIVAL-04 onward |
 | `<BOARD_MARKING>` | board label/silkscreen | ARRIVAL-07 |
-| `<J18_PIN>`, `<PAD_MUX>` | `<PAD_MUX>` from the ranked [J18 candidates](../hardware/frdm-j18-pir-candidates.json); `<J18_PIN>` from the FRDM-IMX8MPLUS schematic J18 table (native `GPIO1`–`GPIO5` pads only, never the PCAL6416A expanders) | ARRIVAL-08/09 |
+| `<J18_PIN>`, `<PAD_MUX>` | Both from the ranked [J18 candidates](../hardware/frdm-j18-pir-candidates.json), which carry SCH-95022 rev B1's J18 pins: rank 1 is `J18-12` and `MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01` (native `GPIO1`–`GPIO5` pads only, never the PCAL6416A expanders) | ARRIVAL-08/09 |
 | `<HEADER_MV>`, `<METER_MODEL>` | meter reading | ARRIVAL-09 |
 | `<gpioN>`, `<L>` | ARRIVAL-09 candidates | ARRIVAL-11 |
 | NXP firmware EULA decision | human; ADR | ARRIVAL-15 |
@@ -685,3 +689,13 @@ close no profile key:
 **Amended 2026-09-26:** ARRIVAL-01 uses `pre-board`. ARRIVAL-08/09 take pad
 candidates from the documentation-derived [J18 list](../hardware/frdm-j18-pir-candidates.json).
 The Tailscale step follows ADR 0010. Added the pre-board software changes above.
+
+**Amended 2026-11-08:** the owner supplied NXP's FRDM-IMX8MPLUS design files
+(SCH-95022 rev B1, sign-in licensed, kept out of the repository; cited by name
+and sha256 in the [J18 list](../hardware/frdm-j18-pir-candidates.json)). Its
+netlist puts GPIO1_IO01 on J18 pin 12 with no part between header and pad, in
+the 3.3 V NVCC_GPIO bank. GPIO1_IO10 and GPIO1_IO13, the old ranks 1 and 2,
+are not on J18. ARRIVAL-08 now confirms pin 12's bank with a meter on the B3
+board, and ARRIVAL-10 wires the PIR to J18 pins 2, 6 and 12. A community
+reply that the header is 1.8 V is contradicted by B1. The board profile stays
+unmeasured until ARRIVAL-09/11.

@@ -3,12 +3,16 @@
 <!-- @canonical mirror-unit-speaker-and-gate -->
 
 **Status (2026-11-06):** designed, not bought or built. Amended 2026-11-06:
-the speaker is now the Dayton DMA45-8 (owner); the PUI is the fallback. This document chooses the
+the speaker is now the Dayton DMA45-8 (owner); the PUI is the fallback.
+Amended 2026-11-08: the PIR's J18 pins come from NXP's SCH-95022 rev B1
+schematic ([J18 pins for the PIR](#j18-pins-for-the-pir)): the wake input is
+J18 pin 12 in a 3.3 V bank, so the diode and R4 stay and the divider is
+dropped. This document chooses the
 speaker (requirement R5) and designs the privacy/presence gate board (step 3) of
 the [mirror-unit packaging plan](../../.claude/plans/2026-10-11-mirror-unit-packaging.md).
 Every value comes from a vendor datasheet or is marked as a design value, an
 inference, or **provisional**. Provisional values wait for:
-- the PIR meter reading (ARRIVAL-08 in the [bring-up](../operations/frdm-bringup.md));
+- the PIR meter confirmation (ARRIVAL-08 in the [bring-up](../operations/frdm-bringup.md));
 - the step 3 bench measurements below.
 
 The owner places the orders. Nothing here installs software, flashes the board
@@ -337,9 +341,10 @@ P1 USB-A plug                    U1 AP22653W6-7 (SOT-26)
  shell ── GND
 
 FRDM J18                                 PIR (Adafruit 189), its 3-pin lead
- 5 V ────────────────────────────────── +5V
- GND ────────────────────────────────── GND
- wake GPIO ─┬─ R4 4.7 kΩ ── D1 BAT85 ── OUT = PIR_OUT
+ pin 2 (5 V) ────────────────────────── +5V
+ pin 6 (GND) ────────────────────────── GND
+ pin 12 (GPIO1_IO01, wake)
+       ─────┬─ R4 4.7 kΩ ── D1 BAT85 ── OUT = PIR_OUT
             │           (cathode)   (anode)
           R3 100 kΩ
             │
@@ -354,12 +359,12 @@ Netlist:
 | `VIN` | SW1 throw, U1-1 IN, C1 |
 | `5V_MIC` | U1-6 OUT, C2, R5, J10 5 V |
 | `PIR_OUT` | the PIR's OUT, U1-3 EN, R2, D1 anode |
-| `WAKE` | D1 cathode through R4; R3; J18 wake GPIO |
+| `WAKE` | D1 cathode through R4; R3; J18 pin 12 (GPIO1_IO01) |
 | `ILIM` | U1-5, R1 |
 | `FAULT` | U1-4, test pad only (open drain, not connected) |
 | `D-`, `D+` | P1-2 to J10 D-; P1-3 to J10 D+ (short, twisted) |
-| `GND` | P1-4, P1 shell, U1-2, C1, C2, R1, R2, R3, D2 cathode, J10 GND, the PIR's GND, J18 GND |
-| `PIR_5V` | J18 5 V, the PIR's +5V |
+| `GND` | P1-4, P1 shell, U1-2, C1, C2, R1, R2, R3, D2 cathode, J10 GND, the PIR's GND, J18 pin 6 |
+| `PIR_5V` | J18 pin 2 (VDD_5V), the PIR's +5V |
 
 - **J10's pin order.** It is 5V, D-, D+, GND from left to right, read from the
   silkscreen in Seeed's
@@ -385,12 +390,45 @@ Netlist:
 | D2 | Kingbright WP710A10LSURDK, 3 mm red, diffused | 30 mcd minimum, 80 mcd typical at 2 mA; VF 1.75 V typical. It sits in the bezel's `led_window` on a 2-wire lead. | [datasheet](https://www.kingbrightusa.com/images/catalog/SPEC/WP710A10LSURDK.pdf), sha256 `1040163a…c09b` |
 | P1 | Adam Tech USB-AP-S-RA (PCB build only) | Through-hole USB-A plug lying flat on the board: 18.80 × 12.00 × 4.50 mm, 1.5 A, pins on a 2.0 mm pitch. | [datasheet](https://app.adam-tech.com/products/download/data_sheet/195860/usb-ap-s-ra-data-sheet.pdf), sha256 `57e4f7d9…1d714` |
 
-- **The wake GPIO is provisional (ARRIVAL-08).** R4's 2.9 V high suits a pad
-  bank at 3.3 V. If ARRIVAL-08 measures the wake pad's bank
-  at 1.8 V, 2.9 V would overdrive it. In that case replace R4 with a divider:
-  4.7 kΩ from D1, then 10 kΩ to ground at the pad, giving about 2.0 V. Or use a
-  one-gate buffer powered from the bank's own supply. The gate side does not
-  change.
+- **The wake input is a 3.3 V pad, so R4 stays (schematic, not measured).**
+  R4's 2.9 V high suits J18 pin 12's 3.3 V bank (below). The divider
+  alternative is dropped. ARRIVAL-08 confirms the bank with a meter on the
+  real board, which is marked rev B3 while the schematic is B1. If it reads
+  near 1.8 V instead, stop: the wake interface is redesigned then, not before.
+
+### J18 pins for the PIR
+
+From NXP's FRDM-IMX8MPLUS design files, SCH-95022 revision B1
+(`FRDM-IMX8MPLUS-SCH-95022_B1.zip`, sha256 `189529ca…0f59`; netlist
+`pstxnet.dat`, sha256 `9d62156b…4f0c`; schematic `SPF-95022_B1.pdf`, sha256
+`818fa80e…eef5`). NXP licenses these behind a sign-in, so they are not in the
+repository. Only these pin and net facts are recorded, and
+[frdm-j18-pir-candidates.json](frdm-j18-pir-candidates.json) holds the rest.
+
+| J18 pin | Net (B1) | Wire |
+|---|---|---|
+| 2 | VDD_5V | the PIR's +5V |
+| 6 | GND | the PIR's GND and the gate board's GND |
+| 12 | GPIO1_IO01, to SoC pad E8 with no other part on the net; bank NVCC_GPIO = VDD_3V3 | the gate board's `WAKE` (or, for ARRIVAL-10 without the gate board, the PIR's OUT directly) |
+
+- **All three are on the even-numbered row,** the row with pins 2, 4 and 6.
+  Counting from the pin 1 end, they are that row's 1st, 3rd and 6th pins.
+  Find pin 1 by the board's marking or square pad before wiring; the
+  orientation is not taken from a photo here.
+- **Why pin 12.** It is the top candidate. Its net is wired straight to the
+  pad, its only default owner is pwm1, which has no consumer, and it is a
+  3.3 V bank.
+  - The old ranks 1 and 2, GPIO1_IO10 and GPIO1_IO13, are not on J18 at all.
+    They are the LVDS backlight PWM nets.
+  - J18 pins 19, 21, 23 and 24 pass through U102, a TMUX1574 switch, and
+    pins 3 and 5 through U58, an NTS0104 level shifter, so they rank lower or
+    are excluded.
+- **Contradicted:** a community-forum reply, relayed by the owner, said the
+  J18 GPIO is 1.8 V. In B1, NVCC_GPIO, NVCC_SAI1_SAI5 and NVCC_ECSPI_HDMI, the
+  banks of every J18 GPIO pad, are VDD_3V3. Only NVCC_I2C_UART, the SAI2/SAI3
+  bank and JTAG are 1.8 V, and none of those pads reaches J18 directly.
+- **Pins 1 and 17** are VCC_EXT_3V3, the output of U106, a buck regulator.
+  The PIR does not use them: it takes 5 V and has its own 3.3 V regulator.
 
 ### Why Linux cannot defeat it
 
@@ -489,7 +527,7 @@ checkout and were not checked.
   - The packaging plan already calls for perfboard first.
   - Every part used then moves to the PCB except the adapter.
   - The measurements set the PCB's values: the array's peak current fixes R1,
-    the hold, and the wake interface (diode or divider, from ARRIVAL-08).
+    the hold, and the diode wake interface, which ARRIVAL-08 confirms.
 - **The PCB is what fits the enclosure.**
   - The layout places the gate board on J4 itself (USB-A plug on the board),
     18.8 × 22 mm.
@@ -528,8 +566,10 @@ array on the gate.
 
 ## Follow-ups
 
-- **ARRIVAL-08 and ARRIVAL-10 (owner).** Take the meter reading on the PIR pad
-  bank, then wire the PIR. These fix the wake interface (R4 or a divider).
+- **ARRIVAL-08 and ARRIVAL-10 (owner).** Confirm J18 pin 12's 3.3 V bank
+  with a meter, then wire the PIR to pins 2, 6 and 12. The schematic (B1)
+  already fixes the wake interface as D1 and R4; the meter confirms it on the
+  B3 board.
 - **`enclosure/params.toml`.** Done for the speaker (2026-11-06): the
   DMA45-8's outline is in the bottom-right corner, with the PIR 5 mm higher
   and its cable behind the chamber. The CAD's `speaker_chamber` holds about

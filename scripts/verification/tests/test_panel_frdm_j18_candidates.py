@@ -44,18 +44,33 @@ class FrdmJ18CandidatesTest(unittest.TestCase):
     def test_repository_candidates_pass(self) -> None:
         self.assertEqual(self.run_checker(self.document), 0)
 
+    def schematic(self, document: dict) -> dict:
+        return next(source for source in document["sources"] if source["id"] == "frdm_schematic")
+
+    def test_the_repository_cites_schematic_b1(self) -> None:
+        self.assertEqual(self.schematic(self.document)["status"], "consulted")
+        self.assertEqual(self.schematic(self.document)["revision"], "B1")
+
     def test_a_claimed_pin_or_voltage_is_rejected(self) -> None:
+        # Without a consulted schematic, a pin or a rail is a claim nothing supports.
         document = copy.deepcopy(self.document)
+        self.schematic(document)["status"] = "not_consulted"
+        self.assert_fails(document, "MEASUREMENT_CLAIMED")
+        for candidate in document["candidates"]:
+            candidate["j18_pin"] = "UNKNOWN_SCHEMATIC"
+            candidate["bank_supply"] = "UNKNOWN_SCHEMATIC"
+        self.assertEqual(self.run_checker(document), 0)
         document["candidates"][0]["j18_pin"] = "J18-7"
         self.assert_fails(document, "MEASUREMENT_CLAIMED")
 
     def test_a_cited_schematic_revision_allows_pin_numbers(self) -> None:
         document = copy.deepcopy(self.document)
-        schematic = next(source for source in document["sources"]
-                         if source["id"] == "frdm_schematic")
-        schematic["status"] = "consulted"
+        schematic = self.schematic(document)
+        del schematic["revision"]
         self.assert_fails(document, "SCHEMATIC_REVISION_MISSING")
         schematic["revision"] = "SPF-XXXXX rev A"
+        # A consulted schematic leaves no pin or rail unknown.
+        document["candidates"][0]["j18_pin"] = "UNKNOWN_SCHEMATIC"
         self.assert_fails(document, "SCHEMATIC_FIELDS_INVALID")
         for candidate in document["candidates"]:
             candidate["j18_pin"] = "NOT_ON_J18"

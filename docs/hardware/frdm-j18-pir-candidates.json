@@ -5,7 +5,7 @@
   "prepared_on": "2026-09-26",
   "board_profile": "config/boards/frdm-imx8mp.env",
   "board_profile_state": "UNMEASURED:FRDM-GATE-PIR",
-  "use": "Ordered PAD_MUX candidates for ARRIVAL-08/09. Nothing here closes a profile key: J18 pin numbers, the header I/O voltage and the pad owner are measured on the board, and only a reviewed commit with the ARRIVAL-09/11 records changes the profile.",
+  "use": "Ordered PAD_MUX candidates for ARRIVAL-08/09. J18 pins and bank rails come from NXP's SCH-95022 revision B1 design files; the board is marked REV B3, so ARRIVAL-08's meter reading confirms the chosen pin on the real board. Nothing here closes a profile key: only a reviewed commit with the ARRIVAL-09/11 records changes the profile.",
   "sources": [
     {
       "id": "um12340",
@@ -29,9 +29,39 @@
     },
     {
       "id": "frdm_schematic",
-      "title": "FRDM-IMX8MPLUS schematic (NXP account required)",
-      "status": "not_consulted",
-      "needed_for": ["J18 pin number of each pad", "pad bank supply rail and header voltage", "level shifters or series parts on each J18 line"]
+      "title": "FRDM-IMX8MPLUS design files, SCH-95022 revision B1 (NXP, sign-in licensed; not in this repository)",
+      "status": "consulted",
+      "revision": "B1",
+      "consulted_on": "2026-11-08",
+      "files": [
+        {
+          "name": "FRDM-IMX8MPLUS-SCH-95022_B1.zip",
+          "sha256": "189529cad7d4a26098bdce003ee34372e36fc16a335eb88f6ff254ec243f0e59"
+        },
+        {
+          "name": "SCH-95022_B1/SPF-95022_B1.pdf",
+          "sha256": "818fa80e2f0c929d26ae51e57c368cbe3ce34f5953449bb1b3bfb3f8074aeef5"
+        },
+        {
+          "name": "SCH-95022_B1/allegro/pstxnet.dat",
+          "sha256": "9d62156b6fd559e2ea26cfeb270573b9ac3295cf3af5019ef5b5557f36b24f0c"
+        },
+        {
+          "name": "FRDM-IMX8MPLUS-DESIGNFILES.zip",
+          "sha256": "8b5d836e5a91b2d7614022d26263ed542f60eb77ed1fad4db76cc1b9380c0ec4"
+        }
+      ],
+      "revision_note": "The board is marked SCH-95022 REV B3 (ARRIVAL-02 photos). NXP published B1; B1-to-B3 changes are unknown, so each fact below is B1's.",
+      "finding": [
+        "J18 pins 7, 8, 10, 11, 12, 13, 15, 16, 18, 22, 26, 27, 28, 29, 31, 32, 33, 35, 36, 37, 38 and 40 are nets with no part but J18 and one SoC (U1) pad: no level shifter, series resistor or pull.",
+        "J18 pins 19, 21, 23 and 24 reach ECSPI2 MOSI, MISO, SCLK and SS0 through U102, a TMUX1574 switch (J18 on its S2B, S3B, S4B, S1B side; SEL = SPI_EXP_SEL from expander U60 P0_6). Optional links R566-R569 to SAI1 and expander nets are DNP in the B1 BOM.",
+        "J18 pins 3 and 5 are I2C3_SDA_3V3 and I2C3_SCL_3V3, shifted to 3.3 V by U58 (NTS0104) and shared with J27 pins 9 and 7.",
+        "Power: pins 1 and 17 VCC_EXT_3V3 (U106, an MP8759 buck from VBUS_IN enabled from VDD_3V3; Q17 passes it on to the M.2 Key E slot); pins 2 and 4 VDD_5V; pins 6, 9, 14, 20, 25, 30, 34 and 39 GND.",
+        "Bank rails at U1: NVCC_GPIO, NVCC_SAI1_SAI5 and NVCC_ECSPI_HDMI are VDD_3V3; NVCC_I2C_UART, NVCC_SAI2_SAI3_SPDIF and NVCC_JTAG are VDD_1V8.",
+        "GPIO1_IO10 (U1 B7) is net LVDS0_BLT_PWM and GPIO1_IO13 (U1 A6) is LVDS1_BLT_PWM; neither reaches J18.",
+        "Other native GPIO1 pads on J18, not ranked here because their device-tree owners were not checked: pin 13 IO08, 15 IO11, 16 IO07, 18 IO12, 22 IO15, 27 IO00, 28 IO09, 31 IO06, 33 IO05."
+      ],
+      "contradicts": "A community-forum reply relayed by the owner said the J18 GPIO is 1.8 V. B1 puts every J18 GPIO pad in a 3.3 V bank (VDD_3V3); the reply is contradicted for B1, and ARRIVAL-08 confirms it on B3."
     }
   ],
   "exclusions": [
@@ -41,17 +71,18 @@
     {"what": "SPDIF pads", "why": "Used by FlexCAN1."}
   ],
   "candidates": [
-    {"rank": 1, "pad": "GPIO1_IO10", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10", "gpio_controller": "gpio1", "gpio_line": 10, "default_owner": "pwm3 (MX8MP_IOMUXC_GPIO1_IO10__PWM3_OUT), no consumer", "pad_owner_to_disable": "pwm3", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio1 pad whose only default owner is an unused PWM."},
-    {"rank": 2, "pad": "GPIO1_IO13", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13", "gpio_controller": "gpio1", "gpio_line": 13, "default_owner": "pwm2 (MX8MP_IOMUXC_GPIO1_IO13__PWM2_OUT), no consumer", "pad_owner_to_disable": "pwm2", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio1 pad whose only default owner is an unused PWM."},
-    {"rank": 3, "pad": "GPIO1_IO01", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01", "gpio_controller": "gpio1", "gpio_line": 1, "default_owner": "pwm1 (MX8MP_IOMUXC_GPIO1_IO01__PWM1_OUT), no consumer", "pad_owner_to_disable": "pwm1", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio1 pad whose only default owner is an unused PWM. The Waveshare backlight is an I2C device, not pwm1."},
-    {"rank": 4, "pad": "SAI5_RXFS", "pad_mux": "MX8MP_IOMUXC_SAI5_RXFS__GPIO3_IO19", "gpio_controller": "gpio3", "gpio_line": 19, "default_owner": "pwm4 (MX8MP_IOMUXC_SAI5_RXFS__PWM4_OUT), no consumer", "pad_owner_to_disable": "pwm4", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Native gpio3 pad whose only default owner is an unused PWM."},
-    {"rank": 5, "pad": "ECSPI2_SS0", "pad_mux": "MX8MP_IOMUXC_ECSPI2_SS0__GPIO5_IO13", "gpio_controller": "gpio5", "gpio_line": 13, "default_owner": "ecspi2 chip select (already GPIO5_IO13, held by the spidev cs-gpios)", "pad_owner_to_disable": "ecspi2", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Only if the header SPI is unused; also frees GPIO5_IO10-IO12 (SCLK, MOSI, MISO)."},
-    {"rank": 6, "pad": "ECSPI1_SS0", "pad_mux": "MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09", "gpio_controller": "gpio5", "gpio_line": 9, "default_owner": "uart3 RTS (MX8MP_IOMUXC_ECSPI1_SS0__UART3_DCE_RTS)", "pad_owner_to_disable": "uart3", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Only if the header UART is unused; also frees GPIO5_IO06-IO08."},
-    {"rank": 7, "pad": "SAI5_RXD3", "pad_mux": "MX8MP_IOMUXC_SAI5_RXD3__GPIO3_IO24", "gpio_controller": "gpio3", "gpio_line": 24, "default_owner": "micfil PDM bit stream 3 (MX8MP_IOMUXC_SAI5_RXD3__AUDIOMIX_PDM_BIT_STREAM03)", "pad_owner_to_disable": "micfil", "j18_pin": "UNKNOWN_SCHEMATIC", "bank_supply": "UNKNOWN_SCHEMATIC", "reason": "Last resort: disabling micfil removes the 8MIC-RPI-MX8 PDM path. The project microphone uses the headset codec instead."}
+    {"rank": 1, "pad": "GPIO1_IO01", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01", "gpio_controller": "gpio1", "gpio_line": 1, "default_owner": "pwm1 (MX8MP_IOMUXC_GPIO1_IO01__PWM1_OUT), no consumer", "pad_owner_to_disable": "pwm1", "j18_pin": "J18-12", "bank_supply": "NVCC_GPIO = VDD_3V3", "reason": "J18 pin 12, a net with no part but the SoC pad (U1 E8); 3.3 V bank; its only default owner is an unused PWM. The Waveshare backlight is an I2C device, not pwm1."},
+    {"rank": 2, "pad": "SAI5_RXFS", "pad_mux": "MX8MP_IOMUXC_SAI5_RXFS__GPIO3_IO19", "gpio_controller": "gpio3", "gpio_line": 19, "default_owner": "pwm4 (MX8MP_IOMUXC_SAI5_RXFS__PWM4_OUT), no consumer", "pad_owner_to_disable": "pwm4", "j18_pin": "J18-32", "bank_supply": "NVCC_SAI1_SAI5 = VDD_3V3", "reason": "J18 pin 32, direct to U1 AC14; 3.3 V bank; its only default owner is an unused PWM."},
+    {"rank": 3, "pad": "ECSPI1_SS0", "pad_mux": "MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09", "gpio_controller": "gpio5", "gpio_line": 9, "default_owner": "uart3 RTS (MX8MP_IOMUXC_ECSPI1_SS0__UART3_DCE_RTS)", "pad_owner_to_disable": "uart3", "j18_pin": "J18-11", "bank_supply": "NVCC_ECSPI_HDMI = VDD_3V3", "reason": "J18 pin 11, direct to U1 AE20; 3.3 V bank. Only if the header UART is unused; also frees GPIO5_IO06-IO08."},
+    {"rank": 4, "pad": "ECSPI2_SS0", "pad_mux": "MX8MP_IOMUXC_ECSPI2_SS0__GPIO5_IO13", "gpio_controller": "gpio5", "gpio_line": 13, "default_owner": "ecspi2 chip select (already GPIO5_IO13, held by the spidev cs-gpios)", "pad_owner_to_disable": "ecspi2", "j18_pin": "J18-24", "bank_supply": "NVCC_ECSPI_HDMI = VDD_3V3", "reason": "J18 pin 24 through U102 (TMUX1574), so it reaches the pad only while SPI_EXP_SEL selects the J18 side. Only if the header SPI is unused."},
+    {"rank": 5, "pad": "SAI5_RXD3", "pad_mux": "MX8MP_IOMUXC_SAI5_RXD3__GPIO3_IO24", "gpio_controller": "gpio3", "gpio_line": 24, "default_owner": "micfil PDM bit stream 3 (MX8MP_IOMUXC_SAI5_RXD3__AUDIOMIX_PDM_BIT_STREAM03)", "pad_owner_to_disable": "micfil", "j18_pin": "J18-35", "bank_supply": "NVCC_SAI1_SAI5 = VDD_3V3", "reason": "Last resort on J18 (pin 35, direct to U1 AE14): disabling micfil removes the 8MIC-RPI-MX8 PDM path. The project microphone is the XVF3800 array."},
+    {"rank": 6, "pad": "GPIO1_IO10", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10", "gpio_controller": "gpio1", "gpio_line": 10, "default_owner": "pwm3 (MX8MP_IOMUXC_GPIO1_IO10__PWM3_OUT), no consumer", "pad_owner_to_disable": "pwm3", "j18_pin": "NOT_ON_J18", "bank_supply": "NVCC_GPIO = VDD_3V3", "reason": "Not on J18: the pad is net LVDS0_BLT_PWM (U1 B7). Kept only to record why the old rank 1 is out."},
+    {"rank": 7, "pad": "GPIO1_IO13", "pad_mux": "MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13", "gpio_controller": "gpio1", "gpio_line": 13, "default_owner": "pwm2 (MX8MP_IOMUXC_GPIO1_IO13__PWM2_OUT), no consumer", "pad_owner_to_disable": "pwm2", "j18_pin": "NOT_ON_J18", "bank_supply": "NVCC_GPIO = VDD_3V3", "reason": "Not on J18: the pad is net LVDS1_BLT_PWM (U1 A6). Kept only to record why the old rank 2 is out."}
   ],
   "arrival_procedure": [
-    "ARRIVAL-08: find the candidate's J18 pin in the schematic and measure its voltage to GND.",
-    "ARRIVAL-09: frdm_j18_gpio_inventory.sh --candidate J18-<pin>:<pad_mux> with that reading; pad_mux_owner must match default_owner or report it free.",
-    "Use the highest-ranked candidate that is on J18, reads 3.3 V and passes ARRIVAL-09; set PIR_PAD_OWNER_TO_DISABLE from its pad_owner_to_disable."
-  ]
+    "ARRIVAL-08 (owner): confirm rank 1 on the real board. Drive J18-12 high through pwm1 at 100 % duty and read J18-12 to GND with a meter: 2970-3630 mV confirms the 3.3 V bank. A reading near 1.8 V contradicts the B1 schematic: stop.",
+    "ARRIVAL-09: frdm_j18_gpio_inventory.sh --candidate J18-12:MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01 with that reading; pad_mux_owner must report pwm1 or free.",
+    "If rank 1 fails ARRIVAL-08 or -09, take the next candidate on J18 in rank order; set PIR_PAD_OWNER_TO_DISABLE from its pad_owner_to_disable."
+  ],
+  "updated_on": "2026-11-08"
 }
