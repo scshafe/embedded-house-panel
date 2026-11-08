@@ -63,6 +63,8 @@ if(BHP_BUILD_HTTP_LEXINET_CLIENT OR BHP_BUILD_PANEL_RENDERER)
   add_subdirectory(voice_lab_recorder)
   # The same split: the music-control protocol always builds; the Spotify client needs the runtime.
   add_subdirectory(music_control)
+  # The same split: the reporter protocol always builds; the reporter itself needs the runtime.
+  add_subdirectory(bug_reporter)
 endif()
 if(BHP_BUILD_PANEL_RENDERER)
   add_subdirectory(simulator)

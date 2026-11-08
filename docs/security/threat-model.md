@@ -227,6 +227,7 @@ evidence and have no default here.
 | Personal-context client (proposed) | Exact Mac companion identity, root-provisioned device signer, and separate agenda-read, wish-prepare, transcribe, and submit operations | Provider credentials, arbitrary contacts, calendar writes, recipient handles, stale send queue, arbitrary URLs |
 | Time/network service | Configured DNS and time endpoints | Lexinet mutation and media access |
 | Music control (ADR 0013) | `accounts.spotify.com` and `api.spotify.com` on 443 | LAN peers including the speaker, any audio device, raw media destinations, Lexinet and the tailnet |
+| Bug reporter (bug-reports-and-self-repair.md) | The owner's PC report inbox on the tailnet, one port | The internet, public issue trackers, any audio device, Lexinet and other tailnet peers |
 | Update agent (future) | Pinned update metadata/artifact origin | General web browsing or Lexinet credentials |
 | Model provisioning (future) | Offline signed bundle or separately approved pinned origin | Runtime arbitrary model download |
 | Remote STT (disabled) | None | Raw-audio network access; enabling requires a separate decision, capture indication, allowlist, size bound, and retention contract |
@@ -401,3 +402,10 @@ account on the PC, binds `127.0.0.1` only, checks the redirect's `state`,
 keeps the PKCE verifier in memory, and prints only the token file's path;
 its end-to-end test checks that nothing printed holds the token, the code or
 the verifier. The owner's steps are in `docs/operations/spotify-owner-setup.md`.
+
+**Amended 2026-11-08 (bug reports, step 1):** `bhp-reporter` exists. Bug
+reports (logs, the screen, typed text and, later, spoken descriptions) are
+household data: they go only to the private inbox on the owner's PC, never to
+this public repository. Routine logs stay in RAM, and only faults reach the
+eMMC. A report body never crosses back to the UI. Anything public is built
+later from allowlisted closed fields by the inbox's redactor (step 4).

@@ -84,10 +84,25 @@ using TestFunction = bool (*)();
 
 } // namespace
 
+bool fault_is_a_reportable_error()
+{
+	std::ostringstream output;
+	bhp::StructuredLogger logger("structured_logger_test", output);
+	logger.fault("invariant broken", "trace-3", "TEST.INTERNAL", "queue order lost",
+		     "outbox.cpp:step", {{"reportable", "false"}});
+	const std::string record = output.str();
+	TEST_REQUIRE(record.find("\"level\":\"error\"") != std::string::npos);
+	TEST_REQUIRE(record.find("\"error_code\":\"TEST.INTERNAL\"") != std::string::npos);
+	TEST_REQUIRE(record.find("\"reportable\":\"true\"") != std::string::npos);
+	TEST_REQUIRE(record.find("\"location\":\"outbox.cpp:step\"") != std::string::npos);
+	return true;
+}
+
 int main()
 {
-	const std::array<std::pair<std::string_view, TestFunction>, 3> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 4> tests{{
 		{"successful record", successful_record_is_complete_json_line},
+		{"fault record", fault_is_a_reportable_error},
 		{"insertion failure", rejected_insertion_throws_explicit_failure},
 		{"flush failure", rejected_flush_throws_explicit_failure},
 	}};

@@ -90,6 +90,16 @@
       "reserved_gid": 1105,
       "owns": [],
       "cutover": "The only holder of the Spotify refresh token (ADR 0013), in /var/lib/bhp-music/token outside the image. Sends Spotify Web API commands only: no audio device, no bhp-mic, no video or input group."
+    },
+    {
+      "role": "bug_reporter",
+      "installed": false,
+      "reserved_user": "bhp-reporter",
+      "reserved_gid": 1106,
+      "reserved_uid": 1106,
+      "reserved_group": "bhp-reporter",
+      "owns": [],
+      "cutover": "bhp-reporter (bug-reports-and-self-repair.md): the report outbox and fault ring on the data partition, the UI and ingest sockets, and HTTPS to the PC inbox on the tailnet. No audio device, no bhp-mic, no credential; spoken descriptions arrive through the broker's hand-off (step 3)."
     }
   ],
   "retired": [
