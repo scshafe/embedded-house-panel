@@ -64,4 +64,8 @@ if(BHP_BUILD_TESTS)
   add_test(NAME bug_reporter_daemon_test
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/reporter_daemon_test.py"
       "$<TARGET_FILE:bhp-reporter>" "$<TARGET_FILE:bhp-log-tee>")
+  # The same two against the PC's real receiver (report_inbox/), pinning the v1 API on both sides.
+  add_test(NAME bug_reporter_inbox_contract_test
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/reporter_inbox_contract_test.py"
+      "$<TARGET_FILE:bhp-reporter>" "$<TARGET_FILE:bhp-log-tee>" "${CMAKE_SOURCE_DIR}/report_inbox")
 endif()

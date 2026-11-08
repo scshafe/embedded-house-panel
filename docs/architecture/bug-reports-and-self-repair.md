@@ -16,7 +16,12 @@ first day of real use, and for an agent to find the cause and open a fix.
   - step 1, the panel side, in [`bug_reporter/`](../../bug_reporter/README.md),
     host-tested; its packaging comes with the image work;
   - step 2, the Report button, the typed form and the Reports list
-    ([simulator/README.md](../../simulator/README.md#reports)).
+    ([simulator/README.md](../../simulator/README.md#reports));
+  - step 4, the PC side, in [`report_inbox/`](../../report_inbox/README.md):
+    validation, the store, the redactor, the receiver and the agent's
+    commands, with the infra hand-off in
+    [bug-report-inbox-setup.md](../operations/bug-report-inbox-setup.md) and
+    the AGENTS.md session step.
 
 **In short:**
 - One pipeline with three entry points:

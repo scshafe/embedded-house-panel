@@ -13,6 +13,32 @@ This repository is organized by product domain. Before editing a domain, read it
 - Expected hardware and network failures return structured, machine-readable errors. Do not silently substitute plausible data.
 - Alternative sleep/wake experiments stay isolated under `presence_sensor/experiments/`; only an evidence-backed decision may promote one to the production path.
 
+## Bug reports from the panel
+
+The panel's bug reports reach a private inbox on this PC
+([design](docs/architecture/bug-reports-and-self-repair.md), installed by
+[bug-report-inbox-setup.md](docs/operations/bug-report-inbox-setup.md)).
+
+- **At session start**, after the `agent-request` check, if
+  `/srv/house-panel-reports` exists, run
+  `PYTHONPATH=report_inbox python3 -m bhp_report_inbox --root /srv/house-panel-reports list --new`
+  and tell the owner about new reports before other work.
+- **Taking a report:**
+  - Run `show <id>` for its paths. Read the bundle and its transcript in
+    place, and reproduce the bug on the host with synthetic data.
+  - Fix it on a branch with a regression test.
+  - Record each step with
+    `set-status <id> investigating`, then `fix_in_pr --pr <n>`, then
+    `merged`. Use `wont_fix --reason "..."` when there is no fix.
+- **The repository is public.** A PR, commit, issue or test may cite the
+  report ID and the closed fields `public-summary <id>` prints, and nothing
+  else.
+  - Never paste or paraphrase a description, transcript, log line, location,
+    screenshot or trace ID.
+  - Never copy a bundle's data into a fixture.
+- **Automatically triggered fixes are PR-only** (decision 8). An interactive
+  session merges under the rules below.
+
 ## Verification
 
 Run `make verify` before handing off. Hardware claims additionally require the on-target procedures under `hardware_tests/` and captured results under the ignored `hardware_tests/results/` directory.

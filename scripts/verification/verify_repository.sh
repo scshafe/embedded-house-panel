@@ -79,6 +79,7 @@ python3 "$SCRIPT_DIRECTORY/verify_panel_goldens.py" \
 (cd "$PROJECT_ROOT" && python3 -m unittest discover -s scripts/deploy/tests -p 'test_*.py')
 (cd "$PROJECT_ROOT" && python3 -m unittest discover -s scripts/environment/tests -p 'test_*.py')
 (cd "$PROJECT_ROOT" && python3 -m unittest discover -s scripts/contracts/tests -p 'test_*.py')
+(cd "$PROJECT_ROOT" && python3 -m unittest discover -s report_inbox/tests -p 'test_*.py')
 (cd "$PROJECT_ROOT" && PYTHONDONTWRITEBYTECODE=1 \
   python3 -m unittest discover -s scripts/lexinet/tests -p 'test_*.py')
 (cd "$PROJECT_ROOT" && PYTHONDONTWRITEBYTECODE=1 \

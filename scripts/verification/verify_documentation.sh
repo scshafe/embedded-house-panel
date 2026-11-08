@@ -47,6 +47,8 @@ docs/operations/spotify-owner-setup.md
 docs/architecture/bug-reports-and-self-repair.md
 music_control/README.md
 bug_reporter/README.md
+report_inbox/README.md
+docs/operations/bug-report-inbox-setup.md
 .claude/plans/2026-09-25-frdm-hardware-baseline.md
 docs/research/gui-strategies.md
 docs/research/sleep-wake-strategies.md
