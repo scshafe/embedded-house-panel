@@ -12,9 +12,11 @@ first day of real use, and for an agent to find the cause and open a fix.
   11 once step 4 is ready. The owner installs whisper.cpp on the PC
   (decision 4) when the receiver lands.
 - **Until step 5:** board flashing and installs stay owner-gated.
-- **Built so far:** step 1, the panel side, in
-  [`bug_reporter/`](../../bug_reporter/README.md), host-tested; its
-  packaging comes with the image work.
+- **Built so far:**
+  - step 1, the panel side, in [`bug_reporter/`](../../bug_reporter/README.md),
+    host-tested; its packaging comes with the image work;
+  - step 2, the Report button, the typed form and the Reports list
+    ([simulator/README.md](../../simulator/README.md#reports)).
 
 **In short:**
 - One pipeline with three entry points:

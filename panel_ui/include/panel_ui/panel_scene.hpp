@@ -74,6 +74,19 @@ struct PanelScene {
   /** Why the last request failed, in plain words, or empty. */
   std::string notice;
  } music;
+ /** The report screen (bug-reports-and-self-repair.md, step 2): fixture or live from bhp-reporter. */
+ struct Report {
+  std::string state{"compose"};
+  /** What has been typed: the keys give lowercase ASCII only. */
+  std::string text{"skip did nothing on the music screen"};
+  /** Why the last request failed, in plain words, or empty. */
+  std::string notice;
+  /** The reports list, one line each, newest first. */
+  std::vector<std::string> lines{"Typed report · Fix in PR #81 · 2026-11-08", "Crash · Received · 2026-11-07"};
+  bool update_ready{false};
+  /** The saved report's ID, as the sent screen shows it. */
+  std::string sent_id{"rpt-0123456789abcdef0123456789abcdef"};
+ } report;
  std::string acknowledgement;
  bool stale{false};
  bool offline{false};

@@ -34,6 +34,7 @@ private:
  void draw_agenda(lv_obj_t *screen, lv_obj_t *content, const PanelScene &scene);
  void draw_voice_lab(lv_obj_t *screen, lv_obj_t *content, const PanelScene &scene);
  void draw_music(lv_obj_t *screen, lv_obj_t *content, const PanelScene &scene);
+ void draw_report(lv_obj_t *screen, lv_obj_t *content, const PanelScene &scene);
  static void flush(lv_display_t *display,const lv_area_t *area,std::uint8_t *pixels);
  void draw_scene(const PanelScene &scene);
  std::unique_ptr<HeadlessRenderer> text_renderer_;

@@ -136,7 +136,7 @@ int main() {
   require(visible_text_contains(screen, "Lexinet") && visible_text_contains(screen, "Agenda") &&
           visible_text_contains(screen, "Voice lab") && visible_text_contains(screen, "Music"),
           "Home exposes the four real app surfaces");
-  require(app.display.hit_targets().size() == 5, "Home must not advertise inactive placeholder apps");
+  require(app.display.hit_targets().size() == 6, "Home must not advertise inactive placeholder apps");
   app.load(bhp::simulator::read_scenario((root / "simulator/scenarios/day-back.json").string()));
   tap_target(app, "shell.home");
   require(app.scene.surface_id == "home", "Home icon reaches the shell launcher");

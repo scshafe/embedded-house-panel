@@ -169,6 +169,11 @@ std::vector<std::string> scene_text(const PanelScene &s) {
   const auto &app=s.applications.applications.at(tile.application_index);
   result.push_back(app.title);result.push_back(app.subtitle);result.push_back(app.monogram);
  }
+ if(s.surface_id == "report") {
+  result.push_back(s.report.text);
+  result.push_back(s.report.notice);
+  for(const auto &line : s.report.lines) result.push_back(line);
+ }
  // Live Spotify text is validated like the card's: unsupported glyphs fail before drawing.
  if(s.surface_id == "music") {
   result.push_back(s.music.speaker);
@@ -258,6 +263,12 @@ void LvglPanelDisplay::draw_scene(const PanelScene &s) {
   home_icon(home);
   label(home, "Home", 60, 13, 96, 37, &bhp_font_28, 0xdbe5df);
   hit_targets_.push_back({40, 8, 160, 64, "shell.home"});
+  // Report, on every daytime surface (bug-reports-and-self-repair.md). The day bar
+  // looks the same everywhere; on the report screen itself it does nothing.
+  auto *report = box(screen, 592, 12, 112, 52, 0x293f43, 12);
+  label(report, "Report", 0, 11, 112, 31, &bhp_font_24, 0xdbe5df, LV_TEXT_ALIGN_CENTER);
+  if(s.report.update_ready) box(report, 96, 6, 10, 10, 0xe9c480, 5);
+  if(s.surface_id != "report") hit_targets_.push_back({592, 12, 112, 52, "shell.open_report"});
   const bool preview = s.fixture_data || s.clock_source == "fixture" || s.weather_fixture;
   if(preview) label(screen, "Preview", 208, s.weather_stale ? 4 : 22, 192, 31, &bhp_font_24, 0x8db5a7);
   if(s.weather_stale) label(screen, "Weather stale", 208, preview ? 37 : 22, 192, 31, &bhp_font_24, 0xe9c480);
@@ -300,6 +311,7 @@ const std::vector<LvglPanelDisplay::SurfaceRenderer> &LvglPanelDisplay::surface_
   {"agenda", &LvglPanelDisplay::draw_agenda},
   {"voice_lab", &LvglPanelDisplay::draw_voice_lab},
   {"music", &LvglPanelDisplay::draw_music},
+  {"report", &LvglPanelDisplay::draw_report},
  };
  return renderers;
 }
@@ -573,5 +585,75 @@ void LvglPanelDisplay::draw_music(lv_obj_t *, lv_obj_t *content, const PanelScen
  }
  message("Music unavailable", "The music service is not running.");
  label(content, "Nothing plays on the panel.", 24, 376, 896, 31, &bhp_font_24, 0xe9c480);
+}
+void LvglPanelDisplay::draw_report(lv_obj_t *, lv_obj_t *content, const PanelScene &s) {
+ const auto &r = s.report;
+ label(content, "Report a problem", 24, 16, 400, 31, &bhp_font_24, 0x8db5a7);
+ const auto key = [this, content](int x, int y, int w, const std::string &title, const std::string &intent,
+                                  std::uint32_t color, int h = 50) {
+  auto *control = box(content, x, y, w, h, 0x293f43, 10);
+  label(control, title, 0, (h - 31) / 2, w, 31, &bhp_font_24, color, LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({layout::content_x + x, layout::content_y + y, w, h, intent});
+ };
+ const auto action = [this, content](int index, int target_width, const std::string &title, const std::string &intent) {
+  auto *control = box(content, layout::action_x(index), layout::actions_y, target_width, layout::action_height, 0x293f43, 12);
+  label(control, title, 0, 13, target_width, 37, &bhp_font_28, 0xf4f0e8, LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({layout::content_x + layout::action_x(index), layout::content_y + layout::actions_y,
+                          target_width, layout::action_height, intent});
+ };
+ if(r.state == "compose") {
+  if(!r.notice.empty()) label(content, r.notice, 424, 16, 496, 31, &bhp_font_24, 0xe9c480, LV_TEXT_ALIGN_RIGHT);
+  auto *field = box(content, 24, 52, 896, 86, 0x293f43, 8);
+  if(r.text.empty())
+   label(field, "Type what went wrong, or just Send: the screen and logs go with it.", 12, 6, 872, 74, &bhp_font_28, 0xaab8b7);
+  else
+   label(field, (r.text.size() > 70 ? "..." + r.text.substr(r.text.size() - 70) : r.text) + "|", 12, 6, 872, 74,
+         &bhp_font_28, 0xf4f0e8);
+  // Lowercase keys, one closed intent each: the shell routes intents, not raw input.
+  static const char *rows[3][10] = {{"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"},
+                                    {"q", "w", "e", "r", "t", "y", "u", "i", "o", "p"},
+                                    {"a", "s", "d", "f", "g", "h", "j", "k", "l", "'"}};
+  static const char *row_ids[3][10] = {{"digit_1", "digit_2", "digit_3", "digit_4", "digit_5", "digit_6", "digit_7", "digit_8", "digit_9", "digit_0"},
+                                       {"q", "w", "e", "r", "t", "y", "u", "i", "o", "p"},
+                                       {"a", "s", "d", "f", "g", "h", "j", "k", "l", "apostrophe"}};
+  for(int row = 0; row < 3; ++row)
+   for(int column = 0; column < 10; ++column)
+    key(24 + column * 90, 146 + row * 56, 82, rows[row][column], std::string("report.key.") + row_ids[row][column], 0xf4f0e8);
+  static const char *last[10] = {"z", "x", "c", "v", "b", "n", "m", ",", ".", "?"};
+  static const char *last_ids[10] = {"z", "x", "c", "v", "b", "n", "m", "comma", "period", "question"};
+  for(int column = 0; column < 10; ++column)
+   key(24 + column * 90, 314, 82, last[column], std::string("report.key.") + last_ids[column], 0xf4f0e8);
+  key(24, 370, 160, "Reports", "report.show_list", 0xdbe5df, 56);
+  key(192, 370, 280, "Space", "report.key.space", 0xdbe5df, 56);
+  key(480, 370, 120, "Delete", "report.key.backspace", 0xdbe5df, 56);
+  key(608, 370, 140, "Cancel", "report.cancel", 0xe9c480, 56);
+  key(756, 370, 164, "Send", "report.send", 0xf4f0e8, 56);
+  return;
+ }
+ if(r.state == "sending") {
+  label(content, "Saving your report", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, "With the screen you were on and the last minutes of logs.", 24, 128, 896, 74, &bhp_font_28, 0xaab8b7);
+  return;
+ }
+ if(r.state == "sent") {
+  label(content, "Report saved", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, "It goes to your PC whenever the PC is reachable. Follow it under Reports.", 24, 128, 896, 74,
+        &bhp_font_28, 0xaab8b7);
+  label(content, r.sent_id, 24, 220, 896, 31, &bhp_font_24, 0x8db5a7);
+  action(0, layout::primary_width, "Done", "report.done");
+  action(3, layout::action_width, "Reports", "report.show_list");
+  return;
+ }
+ if(r.state == "list") {
+  if(r.update_ready) label(content, "An update is ready", 424, 16, 496, 31, &bhp_font_24, 0xe9c480, LV_TEXT_ALIGN_RIGHT);
+  if(r.lines.empty()) label(content, "No reports yet.", 24, 64, 896, 37, &bhp_font_28, 0xaab8b7);
+  for(std::size_t at = 0; at < r.lines.size() && at < 6; ++at)
+   label(content, r.lines[at], 24, 56 + static_cast<int>(at) * 44, 896, 37, &bhp_font_28, 0xf4f0e8);
+  action(0, layout::primary_width, "Done", "report.done");
+  return;
+ }
+ label(content, "Reporting unavailable", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
+ label(content, "The reporter is not running. Nothing was saved or sent.", 24, 128, 896, 74, &bhp_font_28, 0xaab8b7);
+ action(0, layout::primary_width, "Done", "report.done");
 }
 }

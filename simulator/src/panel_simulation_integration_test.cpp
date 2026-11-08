@@ -3,6 +3,7 @@
 #include "bhp/media_window_protocol/media_window_protocol.h"
 #include "voice_lab_recorder/uploader_protocol.h"
 #include "music_control/music_protocol.h"
+#include "bug_reporter/reporter_protocol.h"
 #include <sys/socket.h>
 #include <unistd.h>
 #include <algorithm>
@@ -225,6 +226,81 @@ void test_music_follows_the_service(const std::filesystem::path &root){
  ::close(pair[1]);
  until([&]{return app.scene.music.state=="unavailable";},"a lost service is shown");
 }
+// The report screen on the reporter protocol, with this test as bhp-reporter on
+// the other end of a socket pair (the reporter itself is tested in bug_reporter).
+void test_report_files_through_the_reporter(const std::filesystem::path &root){
+ namespace wire=bug_reporter::protocol;
+ PanelSimulation app(false);
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/music-playing.json").string()));
+ const auto has_target=[&app](const std::string &intent){
+  for(const auto &target:app.display.hit_targets())if(target.intent_id==intent)return true;
+  return false;
+ };
+ require(has_target("shell.open_report"),"every day surface has the Report button");
+ app.semantic_intent("shell.open_report","touch");
+ require(app.scene.surface_id=="report"&&app.scene.report.state=="unavailable","without the reporter nothing is saved");
+ app.semantic_intent("report.done","touch");
+ require(app.scene.surface_id=="music","Done goes back where Report was tapped");
+ int pair[2];
+ require(::socketpair(AF_UNIX,SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC,0,pair)==0,"socket pair");
+ app.attach_bug_reporter_peer(pair[0],::getuid());
+ bhp::media_window_protocol::FrameChannel reporter(pair[1],wire::kMaximumFrameBytes);
+ const auto until=[&app](const std::function<bool()> &done,const char *message){
+  for(int i=0;i<400&&!done();++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+  require(done(),message);
+ };
+ const auto next_request=[&]()->wire::UiRequest{
+  for(int i=0;i<400;++i){
+   app.service();
+   auto frame=reporter.receive();
+   require(frame.has_value(),"the UI keeps the reporter connection");
+   if(frame.value()){auto request=wire::decode_ui_request(*frame.value());require(request.has_value(),"a valid request");return request.value();}
+   std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  throw std::runtime_error("no request reached the reporter");
+ };
+ const auto send=[&](const wire::ReporterEvent &event){require(reporter.send(wire::encode(event).value()).has_value(),"event sent");};
+ require(std::holds_alternative<wire::StatusRequest>(next_request()),"the UI asks for the list when it attaches");
+ app.semantic_intent("shell.open_report","touch");
+ const auto snapshot=next_request();
+ require(std::holds_alternative<wire::SnapshotRequest>(snapshot),"Report snapshots the moment of the tap");
+ const auto &screen=std::get<wire::SnapshotRequest>(snapshot).screen;
+ require(screen.surface=="music"&&screen.state=="playing"&&screen.display_mode=="day_active"&&screen.presence=="present","with the screen and lifecycle it was pressed on");
+ require(app.scene.surface_id=="report"&&app.scene.report.state=="compose"&&app.scene.report.text.empty(),"the form opens empty");
+ require(!has_target("shell.open_report"),"the report screen has no Report button of its own");
+ app.semantic_intent("report.send","touch");
+ require(app.scene.report.notice=="Still getting ready. Try Send again.","Send waits for the snapshot");
+ send(wire::SnapshotTaken{"snap-0123456789abcdef"});
+ const auto settle=[&app]{for(int i=0;i<20;++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}};
+ settle();
+ for(const auto *key:{"report.key.h","report.key.i","report.key.space","report.key.digit_2","report.key.question","report.key.x","report.key.backspace"})app.semantic_intent(key,"touch");
+ require(app.scene.report.text=="hi 2?","keys type and Delete removes");
+ app.semantic_intent("report.send","touch");
+ const auto submit=next_request();
+ require(std::holds_alternative<wire::SubmitRequest>(submit)&&std::get<wire::SubmitRequest>(submit).snapshot_id=="snap-0123456789abcdef"&&std::get<wire::SubmitRequest>(submit).text=="hi 2?","Send submits the text with the snapshot");
+ require(app.scene.report.state=="sending","sending");
+ wire::Reports reports;reports.items={{"rpt-0123456789abcdef0123456789abcdef","text","fix_in_pr",81u,"2026-11-08"}};reports.update_ready=true;
+ send(wire::Submitted{"rpt-0123456789abcdef0123456789abcdef"});
+ send(reports);
+ until([&]{return app.scene.report.state=="sent";},"saved");
+ require(app.scene.report.lines==std::vector<std::string>{"Typed report · Fix in PR #81 · 2026-11-08"},"the list in words");
+ app.semantic_intent("report.done","touch");
+ require(app.scene.surface_id=="music"&&app.scene.report.update_ready,"back on the music screen, with the update dot");
+ app.semantic_intent("shell.open_report","touch");
+ (void)next_request();
+ send(wire::SnapshotTaken{"snap-1123456789abcdef"});
+ settle();
+ app.semantic_intent("report.send","touch");
+ (void)next_request();
+ send(wire::Refused{"submit","REPORT.RATE_LIMITED"});
+ until([&]{return app.scene.report.notice=="One report a minute. Try again shortly.";},"a refusal in words");
+ require(app.scene.report.state=="compose","and the form stays");
+ app.semantic_intent("report.cancel","touch");
+ require(std::holds_alternative<wire::CancelRequest>(next_request())&&app.scene.surface_id=="music","Cancel forgets the snapshot");
+ ::close(pair[1]);
+ app.semantic_intent("shell.open_report","touch");
+ until([&]{return app.scene.report.state=="unavailable";},"a lost reporter is shown");
+}
 void test_home_navigation_preserves_durable_requests(const std::filesystem::path &root){
  using namespace vocabulary_panel;
  const auto directory=std::filesystem::temp_directory_path()/("bhp-home-retention-"+new_study_uuid());
@@ -385,6 +461,7 @@ int main(){try{
  test_voice_lab_records_through_the_broker(root);
  test_voice_lab_follows_the_uploader(root);
  test_music_follows_the_service(root);
+ test_report_files_through_the_reporter(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

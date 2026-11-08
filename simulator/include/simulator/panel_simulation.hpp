@@ -17,6 +17,7 @@
 #include "simulator/preview_clock.hpp"
 #include "simulator/voice_lab_runtime.hpp"
 #include "music_control/music_protocol.h"
+#include "bug_reporter/reporter_protocol.h"
 
 namespace bhp::simulator {
 using Json=nlohmann::json;
@@ -69,6 +70,10 @@ public:
  void attach_music_control(const std::string &socket_path,std::uint32_t service_uid);
  /** Test seam: an already-connected music-control peer (its UID is still checked). */
  void attach_music_control_peer(int descriptor,std::uint32_t service_uid);
+ /** The bug reporter's socket (exact UID): the report screen's snapshots, submits and list. */
+ void attach_bug_reporter(const std::string &socket_path,std::uint32_t reporter_uid);
+ /** Test seam: an already-connected reporter peer (its UID is still checked). */
+ void attach_bug_reporter_peer(int descriptor,std::uint32_t reporter_uid);
  /**
   * Level-only recorder updates wait for the next lifecycle render instead of drawing
   * at once, so a live meter cannot keep touches from matching the committed frame.
@@ -111,6 +116,14 @@ private:
  void attach_music_client(std::unique_ptr<music_control::protocol::MusicClient> client);
  /** The music-control connection and the last state it sent, while one is attached. */
  std::unique_ptr<music_control::protocol::MusicClient> music_;
+ void open_report();
+ void report_intent(const std::string &id);
+ void pump_reporter();
+ void attach_reporter_client(std::unique_ptr<bug_reporter::protocol::ReporterClient> client);
+ /** The reporter connection, the snapshot of the tap that opened the report screen, and where Done returns. */
+ std::unique_ptr<bug_reporter::protocol::ReporterClient> reporter_;
+ std::string report_snapshot_;
+ std::string report_return_surface_{"home"};
  std::optional<music_control::protocol::State> music_state_;
  /** The last state the uploader sent, while one is attached. */
  std::optional<voice_lab_recorder::uploader_protocol::State> uploader_state_;

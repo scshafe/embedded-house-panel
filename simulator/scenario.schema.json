@@ -21,7 +21,8 @@
         "study",
         "agenda",
         "voice_lab",
-        "music"
+        "music",
+        "report"
       ]
     },
     "lifecycle": {
@@ -173,6 +174,15 @@
         "ready",
         "playing",
         "paused"
+      ]
+    },
+    "report_state": {
+      "enum": [
+        "compose",
+        "sending",
+        "sent",
+        "list",
+        "unavailable"
       ]
     }
   }
