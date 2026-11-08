@@ -242,7 +242,7 @@ microSD. Ethernet is for the bench only.
 | USB-A host | XVF3800 core board USB-C | short USB cable with its 5 V line broken out through the gate board | gate board: privacy switch, load switch, hold timer, LED |
 | XVF3800 core board | mic strip | 24-pin 0.5 mm FPC (20 cm included) | fold-free route to the top strip |
 | XVF3800 speaker connector | micro speaker | 2 wires (JST) | |
-| J18 5 V, GND, native GPIO | PIR (Adafruit 189: VCC, GND, OUT at 3.3 V); OUT also to the gate board's enable input | keyed JST | PIR pin per FRDM-GATE-PIR; nothing on J18 pins 3/5 until the B3 schematic |
+| J18 pin 2 (5 V), pin 6 (GND), pin 12 (GPIO1_IO01, 3.3 V bank) | PIR (Adafruit 189: VCC, GND, OUT at 3.3 V); OUT also to the gate board's enable input | keyed JST | Pins from SCH-95022 rev B1 (amended 2026-11-08); ARRIVAL-08 confirms on B3. Nothing on J18 pins 3/5 (I2C3 at 3.3 V through U58 in B1, shared with J27) |
 | J2 | wall PD supply | USB-C cable down the mirror edge, drip loop | GFCI outlet |
 
 ## Steps
@@ -293,8 +293,11 @@ microSD. Ethernet is for the bench only.
 
 - The PIR's J18 pin and that pad bank's voltage (FRDM-GATE-PIR); its output
   must drive both a GPIO and the gate board's enable input, and its current
-  draw is not published.
-- J18 pins 3/5 on B3 (schematic). J27 works as wired (2026-10-18).
+  draw is not published. Amended 2026-11-08: SCH-95022 rev B1 gives J18 pin
+  12 = GPIO1_IO01 in a 3.3 V bank; ARRIVAL-08 confirms it on the B3 board.
+- J18 pins 3/5 on B3 (schematic). J27 works as wired (2026-10-18). Amended
+  2026-11-08: in B1 they are I2C3 at 3.3 V through U58 (NTS0104), the same
+  bus as J27 pins 9/7; B3 is unconfirmed.
 - XVF3800 power-up-to-ready time and current draw (neither published).
 - FRDM-IMX8MPLUS hole positions, tallest part and heatsink (NXP design files,
   or calipers); thermal behaviour when closed in a bathroom.
