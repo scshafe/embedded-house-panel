@@ -19,10 +19,16 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 
 from . import validate
+
+#: The most bytes a status record may have; the agent's records are well under 1 KiB.
+STATUS_LIMIT = 4096
+#: Days an abandoned upload stays in incoming/ (the panel starts again from the first byte).
+UPLOAD_DAYS = 7
 
 
 class StoreError(Exception):
@@ -200,14 +206,30 @@ class Store:
         self._check_ids(report_id)
         if not self.completed(report_id):
             return None
-        path = self.root / "status" / f"{report_id}.json"
-        try:
-            record = json.loads(path.read_text())
-        except (OSError, ValueError):
+        record = self._read_status(self.root / "status" / f"{report_id}.json")
+        if not isinstance(record, dict):
             return {"report_id": report_id, "status": "received", "pr": None}
         status = record.get("status") if record.get("status") in validate.STATUSES else "received"
         pr = record.get("pr") if isinstance(record.get("pr"), int) and record.get("pr") > 0 else None
         return {"report_id": report_id, "status": status, "pr": pr, "updated_at": record.get("updated_at")}
+
+    @staticmethod
+    def _read_status(path: Path) -> object:
+        """Reads a status record the agent wrote: a regular file of at most STATUS_LIMIT bytes, never a link or FIFO."""
+        try:
+            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+        except OSError:
+            return None
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or info.st_size > STATUS_LIMIT:
+                return None
+            data = os.read(descriptor, STATUS_LIMIT + 1)
+            return json.loads(data) if len(data) <= STATUS_LIMIT else None
+        except (OSError, ValueError):
+            return None
+        finally:
+            os.close(descriptor)
 
     def report_ids(self) -> list[str]:
         return sorted(p.name for p in (self.root / "reports").iterdir()
@@ -233,3 +255,33 @@ class Store:
                 (self.root / "status" / f"{report_id}.json").unlink(missing_ok=True)
                 removed.append(report_id)
         return removed
+
+    def prune_leftovers(self, now: datetime.datetime, keep_days: int = 90, upload_days: int = UPLOAD_DAYS
+                        ) -> dict[str, int]:
+        """Deletes uploads abandoned for `upload_days`, and fingerprints whose reports are gone and unseen for `keep_days`."""
+        uploads = 0
+        stale = now.timestamp() - upload_days * 86400
+        leftovers = [p for p in (self.root / "incoming").iterdir() if validate.REPORT_ID.fullmatch(p.name)]
+        leftovers += [p for p in (self.root / "reports").iterdir() if p.name.startswith(".staging-rpt-")]
+        for directory in leftovers:
+            if not directory.is_dir() or directory.is_symlink():
+                continue
+            newest = max([directory.stat().st_mtime] + [f.stat().st_mtime for f in directory.iterdir()])
+            if newest < stale:
+                shutil.rmtree(directory)
+                uploads += 1
+        fingerprints = 0
+        for path in (self.root / "fingerprints").glob("*.json"):
+            try:
+                record = json.loads(path.read_text())
+                last_seen = datetime.datetime.strptime(record["last_seen"], "%Y-%m-%dT%H:%M:%SZ").replace(
+                    tzinfo=datetime.timezone.utc)
+                reports = list(record["reports"])
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+            if now - last_seen > datetime.timedelta(days=keep_days) and not any(
+                    isinstance(r, str) and validate.REPORT_ID.fullmatch(r) and (self.root / "reports" / r).exists()
+                    for r in reports):
+                path.unlink()
+                fingerprints += 1
+        return {"uploads_removed": uploads, "fingerprints_removed": fingerprints}

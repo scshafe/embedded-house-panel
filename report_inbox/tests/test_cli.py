@@ -50,7 +50,14 @@ class CliTest(unittest.TestCase):
         self.assertEqual((code, json.loads(err)["error_code"]), (1, "REPORT_INBOX.PR_INVALID"))
         code, _, err = self.run_cli("show", "rpt-" + "e" * 32)
         self.assertEqual((code, json.loads(err)["error_code"]), (1, "REPORT_INBOX.UNKNOWN_REPORT"))
-        self.assertEqual(json.loads(self.run_cli("retention")[1]), {"removed": []})
+        self.assertEqual(json.loads(self.run_cli("retention")[1]),
+                         {"removed": [], "uploads_removed": 0, "fingerprints_removed": 0})
+
+    def test_serve_refuses_a_wildcard_or_empty_address(self) -> None:
+        for address in ("", "0.0.0.0", "::", "*", "cole-arch-pc"):
+            with self.assertRaises(SystemExit) as raised:
+                self.run_cli("serve", "--address", address, "--cert", "c", "--key", "k")
+            self.assertEqual(raised.exception.code, 2, address)
 
 
 if __name__ == "__main__":
