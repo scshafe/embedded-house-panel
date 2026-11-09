@@ -4,13 +4,26 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import io
 import sys
+import wave
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 REPORT_ID = "rpt-0123456789abcdef0123456789abcdef"
 FINGERPRINT = hashlib.sha256(b"bhp-music-control\nMUSIC.INTERNAL\nmusic_service.cpp:tick").hexdigest()
+
+
+def wav(rate: int = 16000, channels: int = 1, seconds: float = 0.1) -> bytes:
+    """A silent 16-bit PCM WAV; the panel's descriptions are 16 kHz mono."""
+    out = io.BytesIO()
+    with wave.open(out, "wb") as audio:
+        audio.setnchannels(channels)
+        audio.setsampwidth(2)
+        audio.setframerate(rate)
+        audio.writeframes(b"\0\0" * channels * int(rate * seconds))
+    return out.getvalue()
 
 
 def bundle(kind: str = "fault", report_id: str = REPORT_ID, description: str | None = None,

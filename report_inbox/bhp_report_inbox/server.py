@@ -1,15 +1,19 @@
 """The report inbox's HTTP receiver: the v1 API of bug_reporter/inbox_client.h.
 
 It listens on the PC's tailnet address with TLS from `tailscale cert`, and
-admits a request only from a tailnet node carrying the panel's tag, asked of
-`tailscale whois` per peer address. It writes reports into the store and runs
-the optional transcription command for spoken descriptions. It never logs a
-report's content: its log lines carry codes, report IDs and sizes.
+admits a connection only from a tailnet node carrying the panel's tag, asked of
+`tailscale whois` per peer address before the TLS handshake. The accept loop
+never blocks on a peer: the peer check and the handshake run in the
+connection's own thread under a timeout, and at most `maximum_connections` run at
+once. It writes reports into the store and runs the optional transcription
+command for spoken descriptions. It never logs a report's content: its log
+lines carry codes, report IDs and sizes.
 """
 
 from __future__ import annotations
 
 import http.server
+import ipaddress
 import json
 import queue
 import re
@@ -20,6 +24,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import wave
 from pathlib import Path
 from typing import Callable
 
@@ -31,6 +36,18 @@ COMPLETE_PATH = re.compile(r"/v1/reports/(rpt-[0-9a-f]{32})/complete")
 COUNT_PATH = re.compile(r"/v1/fingerprints/([0-9a-f]{64})/count")
 MAXIMUM_BODY = 2 * 1024 * 1024
 MAXIMUM_STATUS_IDS = 20
+#: Seconds a connection may take for its TLS handshake, and then for each read or write.
+CONNECTION_SECONDS = 30.0
+#: Connections served at once; more are closed as soon as they are accepted.
+MAXIMUM_CONNECTIONS = 8
+
+
+def listen_address_ok(address: str) -> bool:
+    """A literal IP that is not a wildcard: the receiver binds the tailnet address only."""
+    try:
+        return not ipaddress.ip_address(address).is_unspecified
+    except ValueError:
+        return False
 
 
 def tailscale_whois_authenticator(tailscale: str, allowed_tag: str, cache_seconds: float = 60.0
@@ -47,8 +64,10 @@ def tailscale_whois_authenticator(tailscale: str, allowed_tag: str, cache_second
         try:
             result = subprocess.run([tailscale, "whois", "--json", address], capture_output=True, text=True,
                                     timeout=5, check=False)
-            node = json.loads(result.stdout).get("Node", {}) if result.returncode == 0 else {}
-            allowed = allowed_tag in (node.get("Tags") or [])
+            answer = json.loads(result.stdout) if result.returncode == 0 else None
+            node = answer.get("Node") if isinstance(answer, dict) else None
+            tags = node.get("Tags") if isinstance(node, dict) else None
+            allowed = isinstance(tags, list) and allowed_tag in [tag for tag in tags if isinstance(tag, str)]
         except (OSError, ValueError, subprocess.TimeoutExpired):
             allowed = False
         with lock:
@@ -58,11 +77,23 @@ def tailscale_whois_authenticator(tailscale: str, allowed_tag: str, cache_second
     return check
 
 
+def description_audio_ok(path: Path) -> bool:
+    """The panel's description format (bug_reporter/description_audio.h): PCM, 16-bit, mono, 16 kHz, 60 s at most."""
+    try:
+        with wave.open(str(path), "rb") as audio:
+            return (audio.getcomptype() == "NONE" and audio.getsampwidth() == 2 and audio.getnchannels() == 1
+                    and audio.getframerate() == validate.DESCRIPTION_RATE
+                    and 0 < audio.getnframes() <= validate.DESCRIPTION_MAXIMUM_FRAMES)
+    except (OSError, EOFError, wave.Error):
+        return False
+
+
 class Transcriber:
     """Runs the owner's speech-to-text command (decision 4) for each spoken description, one at a time.
 
     `command` is a template with `{input}` and `{output_base}`; for whisper.cpp:
-    `whisper-cli -m MODEL -f {input} -otxt -of {output_base}`, which writes `{output_base}.txt`.
+    `whisper-cli -m MODEL -l en -t 4 -np -f {input} -otxt -of {output_base}`, which writes `{output_base}.txt`.
+    The queue lives in memory, so on start it takes again every open report whose audio has no transcript.
     """
 
     def __init__(self, store: Store, command: str | None, log: Callable[[str, dict], None]) -> None:
@@ -75,11 +106,28 @@ class Transcriber:
         if self.command and (self.store.root / "reports" / report_id / "description.wav").exists():
             self.jobs.put(report_id)
 
+    def _requeue(self) -> None:
+        waiting = [report_id for report_id in self.store.report_ids()
+                   if (self.store.root / "reports" / report_id / "description.wav").exists()
+                   and not (self.store.root / "transcripts" / f"{report_id}.txt").exists()
+                   and (self.store.status(report_id) or {}).get("status") not in validate.TERMINAL_STATUSES]
+        for report_id in waiting:
+            self.jobs.put(report_id)
+        if waiting:
+            self.log("transcription_requeued", {"reports": len(waiting)})
+
     def _run(self) -> None:
+        self._requeue()
         while True:
             report_id = self.jobs.get()
             audio = self.store.root / "reports" / report_id / "description.wav"
             base = self.store.root / "transcripts" / report_id
+            if Path(f"{base}.txt").exists():
+                continue
+            if not description_audio_ok(audio):
+                self.log("transcription_refused", {"report_id": report_id,
+                                                   "error_code": "REPORT_INBOX.AUDIO_FORMAT_INVALID"})
+                continue
             argv = [part.format(input=str(audio), output_base=str(base)) for part in shlex.split(self.command or "")]
             try:
                 result = subprocess.run(argv, capture_output=True, timeout=600, check=False)
@@ -96,6 +144,7 @@ def make_handler(store: Store, authenticate: Callable[[str], bool], transcriber:
     class Handler(http.server.BaseHTTPRequestHandler):
         server_version = "bhp-report-inbox/1"
         sys_version = ""
+        timeout = CONNECTION_SECONDS
 
         def _reply(self, status: int, body: dict) -> None:
             payload = json.dumps(body).encode()
@@ -194,6 +243,59 @@ def make_handler(store: Store, authenticate: Callable[[str], bool], transcriber:
     return Handler
 
 
+class InboxServer(http.server.ThreadingHTTPServer):
+    """Accepts without blocking; each connection's thread checks the peer, then does the TLS handshake."""
+
+    daemon_threads = True
+
+    def __init__(self, address: tuple[str, int], handler: type[http.server.BaseHTTPRequestHandler],
+                 authenticate: Callable[[str], bool], log: Callable[[str, dict], None],
+                 context: ssl.SSLContext | None = None, maximum_connections: int = MAXIMUM_CONNECTIONS,
+                 connection_seconds: float = CONNECTION_SECONDS) -> None:
+        super().__init__(address, handler)
+        self.authenticate, self.log, self.connection_seconds = authenticate, log, connection_seconds
+        self.slots = threading.BoundedSemaphore(maximum_connections)
+        if context:
+            self.socket = context.wrap_socket(self.socket, server_side=True, do_handshake_on_connect=False)
+
+    def verify_request(self, request, client_address) -> bool:  # noqa: ANN001 (socketserver's signature)
+        if self.slots.acquire(blocking=False):
+            return True
+        self.log("connection_refused", {"error_code": "REPORT_INBOX.TOO_MANY_CONNECTIONS"})
+        return False
+
+    def process_request(self, request, client_address) -> None:  # noqa: ANN001
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address) -> None:  # noqa: ANN001
+        try:
+            if not self.authenticate(client_address[0]):
+                self.log("peer_refused", {})
+                return
+            request.settimeout(self.connection_seconds)
+            if isinstance(request, ssl.SSLSocket):
+                request.do_handshake()
+            self.finish_request(request, client_address)
+        except Exception as error:  # noqa: BLE001 (a failed connection never stops the receiver)
+            self.log("connection_failed", {"error": type(error).__name__})
+        finally:
+            self.shutdown_request(request)
+            self.slots.release()
+
+
+def make_server(store: Store, address: str, port: int, authenticate: Callable[[str], bool],
+                transcriber: Transcriber, log: Callable[[str, dict], None], context: ssl.SSLContext | None = None,
+                maximum_connections: int = MAXIMUM_CONNECTIONS,
+                connection_seconds: float = CONNECTION_SECONDS) -> InboxServer:
+    handler = make_handler(store, authenticate, transcriber, log)
+    handler.timeout = connection_seconds
+    return InboxServer((address, port), handler, authenticate, log, context, maximum_connections, connection_seconds)
+
+
 def json_logger(stream=sys.stderr) -> Callable[[str, dict], None]:
     lock = threading.Lock()
 
@@ -209,15 +311,17 @@ def json_logger(stream=sys.stderr) -> Callable[[str, dict], None]:
 def serve(root: Path, address: str, port: int, authenticate: Callable[[str], bool], cert: Path | None,
           key: Path | None, transcribe_command: str | None,
           ready: Callable[[http.server.ThreadingHTTPServer], None] | None = None) -> None:
+    if not listen_address_ok(address):
+        raise ValueError("the receiver binds one literal, non-wildcard address")
     store = Store(root)
     log = json_logger()
     transcriber = Transcriber(store, transcribe_command, log)
-    server = http.server.ThreadingHTTPServer((address, port), make_handler(store, authenticate, transcriber, log))
+    context = None
     if cert and key:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(cert, key)
-        server.socket = context.wrap_socket(server.socket, server_side=True)
+    server = make_server(store, address, port, authenticate, transcriber, log, context)
     log("inbox_started", {"port": server.server_address[1], "tls": bool(cert and key)})
     if ready:
         ready(server)

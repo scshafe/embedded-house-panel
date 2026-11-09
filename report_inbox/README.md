@@ -21,26 +21,35 @@ installs it ([bug-report-inbox-setup.md](../docs/operations/bug-report-inbox-set
     sends it again.
   - The panel's repeat counts add to the fingerprint's record.
   - The agent writes `status/` (decision 8's statuses, a PR number, and a
-    private one-line reason the panel never sees).
+    private one-line reason the panel never sees). The receiver reads a
+    status file only if it is a regular file of at most 4 KiB, never through
+    a link and never blocking on a FIFO.
   - Retention (decision 9) deletes a report 90 days after it closes, and its
-    audio as soon as it is transcribed and closed.
+    audio as soon as it is transcribed and closed. It also clears uploads
+    abandoned for 7 days and fingerprints with no report left.
 - **`redact.py`** builds the public summary of section 6 from an allowlist
   of closed fields. Each field is checked again, and a field that fails stops
   the summary instead of passing through. Descriptions, transcripts, log
   lines, locations, presence, trace IDs and addresses are never read into it.
 - **`server.py`** is the receiver, implementing the v1 API of
   `bug_reporter/inbox_client.h`.
-  - It serves TLS from `tailscale cert` on the PC's tailnet address.
-  - It admits a peer only if `tailscale whois` shows the panel's tag.
+  - It serves TLS from `tailscale cert` on the PC's tailnet address, never a
+    wildcard.
+  - It admits a peer only if `tailscale whois` shows the panel's tag, before
+    the TLS handshake. A malformed whois answer refuses.
+  - The accept loop never waits on a peer: the peer check and the handshake
+    run in the connection's thread with a 30 s timeout, and at most 8
+    connections run at once.
   - It logs codes and report IDs, never content.
   - It runs the owner's speech-to-text command (whisper.cpp, decision 4) on
-    each spoken description.
+    each spoken description, after checking it is 16 kHz mono 16-bit PCM.
+    On start it queues again any open report's audio without a transcript.
 - **`python3 -m bhp_report_inbox`** gives `serve` and the agent's commands:
   - `list [--new]`;
   - `show ID`: paths and closed fields, never the description or logs;
   - `set-status ID STATUS [--pr N] [--reason TEXT]`;
   - `public-summary ID [--markdown]`;
-  - `retention [--days 90]`.
+  - `retention [--days 90] [--upload-days 7]`.
 
 ## Tests
 
@@ -49,9 +58,14 @@ installs it ([bug-report-inbox-setup.md](../docs/operations/bug-report-inbox-set
   - uploads, resume, a corrupt file, idempotent completion, counts, statuses
     and retention;
   - the redactor against planted private text and injected fields;
+  - planted status files: a link, a FIFO, a directory, an oversized file;
   - the receiver over loopback (the panel's calls, a refused peer,
-    transcription with a fake whisper);
-  - the `tailscale whois` check;
+    transcription with a fake whisper, audio in the wrong format, audio
+    queued again on start);
+  - the receiver over TLS: an idle connection that neither stalls other
+    peers nor stays past its timeout, and the connection cap;
+  - the `tailscale whois` check, including malformed answers, and the listen
+    address;
   - the CLI.
 - The CTest `bug_reporter_inbox_contract_test` runs the panel's real
   `bhp-reporter` and `bhp-log-tee` against this receiver, pinning the API

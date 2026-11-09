@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 import shutil
 import stat
 import subprocess
@@ -120,6 +121,57 @@ class StoreTest(unittest.TestCase):
         self.store.apply_retention(datetime.datetime.now(datetime.timezone.utc), 90)
         self.assertFalse((Path(self.temporary.name) / "reports" / REPORT_ID / "description.wav").exists())
         self.assertTrue((Path(self.temporary.name) / "reports" / REPORT_ID / "report.json").exists())
+
+
+    def test_a_status_file_must_be_a_small_regular_file(self) -> None:
+        manifest, files = bundle()
+        self.upload(files)
+        self.store.complete(REPORT_ID, json.dumps(manifest).encode())
+        path = Path(self.temporary.name) / "status" / f"{REPORT_ID}.json"
+        target = Path(self.temporary.name) / "elsewhere.json"
+        target.write_text(json.dumps({"status": "merged", "pr": 9}))
+        planted = {
+            "a link": lambda: path.symlink_to(target),
+            "a FIFO": lambda: os.mkfifo(path),
+            "a directory": path.mkdir,
+            "an oversized file": lambda: path.write_text(json.dumps({"status": "merged", "pad": "x" * 5000})),
+        }
+        for kind, plant in planted.items():
+            if path.is_dir() and not path.is_symlink():
+                path.rmdir()
+            elif path.is_symlink() or path.exists():
+                path.unlink()
+            plant()
+            self.assertEqual(self.store.status(REPORT_ID)["status"], "received", kind)
+
+    def test_retention_clears_abandoned_uploads_and_old_fingerprints(self) -> None:
+        root = Path(self.temporary.name)
+        manifest, files = bundle()
+        self.upload(files)
+        self.store.complete(REPORT_ID, json.dumps(manifest).encode())
+        self.store.set_status(REPORT_ID, "installed", 81, None)
+        abandoned, fresh = "rpt-" + "a" * 32, "rpt-" + "b" * 32
+        for report_id in (abandoned, fresh):
+            self.store.put_range(report_id, "logs.jsonl.gz", "bytes 0-0/2", b"x")
+        staging = root / "reports" / f".staging-{abandoned}"
+        staging.mkdir()
+        old = (datetime.datetime.now() - datetime.timedelta(days=8)).timestamp()
+        for path in (root / "incoming" / abandoned, root / "incoming" / abandoned / "logs.jsonl.gz", staging):
+            os.utime(path, (old, old))
+        orphan = "f" * 64
+        self.store.add_count(orphan, 1)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        self.assertEqual(self.store.prune_leftovers(now), {"uploads_removed": 2, "fingerprints_removed": 0})
+        self.assertFalse((root / "incoming" / abandoned).exists())
+        self.assertFalse(staging.exists())
+        self.assertTrue((root / "incoming" / fresh).exists(), "an upload still in progress stays")
+        later = now + datetime.timedelta(days=91)
+        self.assertEqual(self.store.prune_leftovers(later)["fingerprints_removed"], 1,
+                         "an old fingerprint with no report goes; one whose report remains stays")
+        self.assertIsNotNone(self.store.fingerprint(FINGERPRINT))
+        self.store.apply_retention(later, 90)
+        self.assertEqual(self.store.prune_leftovers(later)["fingerprints_removed"], 1)
+        self.assertIsNone(self.store.fingerprint(FINGERPRINT))
 
 
 if __name__ == "__main__":

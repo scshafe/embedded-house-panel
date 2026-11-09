@@ -5,7 +5,8 @@
     show ID        a report's paths and closed fields, never its description or logs
     set-status ID STATUS [--pr N] [--reason TEXT]
     public-summary ID [--markdown]
-    retention      deletes reports closed more than --days ago (90)
+    retention      deletes reports closed more than --days ago (90), uploads abandoned for
+                   --upload-days (7), and fingerprints with no report left and unseen for --days
 
 Exit codes: 0 done, 1 refused (with a REPORT_INBOX.* code on stderr), 2 usage.
 """
@@ -56,10 +57,13 @@ def main(argv: list[str] | None = None) -> int:
     summary.add_argument("--markdown", action="store_true")
     retention = commands.add_parser("retention")
     retention.add_argument("--days", type=int, default=90)
+    retention.add_argument("--upload-days", type=int, default=7)
     args = parser.parse_args(argv)
     root = Path(args.root)
 
     if args.command == "serve":
+        if not server.listen_address_ok(args.address):
+            parser.error("--address must be the PC's tailnet IP, not empty or a wildcard")
         if args.insecure_loopback_for_tests:
             if args.address != "127.0.0.1":
                 parser.error("--insecure-loopback-for-tests binds 127.0.0.1 only")
@@ -111,8 +115,9 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(json.dumps(summary, indent=2))
         elif args.command == "retention":
-            print(json.dumps({"removed": store.apply_retention(datetime.datetime.now(datetime.timezone.utc),
-                                                               args.days)}))
+            now = datetime.datetime.now(datetime.timezone.utc)
+            removed = store.apply_retention(now, args.days)
+            print(json.dumps({"removed": removed, **store.prune_leftovers(now, args.days, args.upload_days)}))
     except StoreError as error:
         return _fail(error.code)
     except redact.RedactionError as error:

@@ -27,6 +27,9 @@ TERMINAL_STATUSES = {"installed", "wont_fix"}
 #: The most bytes the inbox takes for each bundle file.
 FILE_LIMITS = {"logs.jsonl.gz": 1024 * 1024, "description.wav": 2_000_000}
 MANIFEST_LIMIT = 64 * 1024
+#: A spoken description: the broker's 16 kHz capture, one channel, 60 s at most (bug_reporter/description_audio.h).
+DESCRIPTION_RATE = 16000
+DESCRIPTION_MAXIMUM_FRAMES = 60 * DESCRIPTION_RATE
 SCREEN_FIELDS = ("surface", "state", "display_mode", "presence", "solar", "system")
 MANIFEST_KEYS = {"schema", "report_id", "kind", "created_at", "fingerprint", "component", "error_code", "location",
                  "build", "screen", "trace_ids", "log_lines", "description_text", "files"}
