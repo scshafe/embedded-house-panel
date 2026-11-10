@@ -47,6 +47,10 @@ VIDEO_GROUP = 'video'
 UPLOADER_UID = 912
 HANDOFF_GID = 913
 UNITS = ('bhp-demo-ui', 'bhp-demo-uploader', 'bhp-demo-broker', 'bhp-demo-supervisor', 'bhp-demo-pir')
+# The UI restarts when it exits with an error (review Q7), 2 s apart and at most
+# 5 starts in 300 s; then the unit stays failed until restart-ui. systemd logs
+# each restart, and status reports the count. A clean stop or quit is not restarted.
+UI_RESTART = ('Restart=on-failure', 'RestartSec=2', 'StartLimitIntervalSec=300', 'StartLimitBurst=5')
 WESTON_UNITS = ('weston.socket', 'weston.service')
 TOUCH_NAME = 'Goodix Capacitive TouchScreen'
 BACKLIGHT = Path('/sys/class/backlight/2-0045')
@@ -358,7 +362,7 @@ def start_ui(record: dict) -> None:
     video = grp.getgrnam(VIDEO_GROUP).gr_gid
     transient('bhp-demo-ui', ['setpriv', f'--reuid={UI_UID}', f'--regid={UI_UID}', f'--groups={video}',
                               '--inh-caps=-all', '--bounding-set=-all', '--no-new-privs', *ui_command(record)],
-              'WorkingDirectory=' + str(ROOT))
+              'WorkingDirectory=' + str(ROOT), *UI_RESTART)
     wait_for(lambda: (RUN/'ui/control.sock').exists(), 'FRDM_DEMO.UI_CONTROL_SOCKET_MISSING', 15)
 
 
@@ -388,12 +392,19 @@ def latest_ui_status() -> dict | None:
     return latest
 
 
+def ui_restarts() -> int | None:
+    """How often systemd restarted the UI since start (NRestarts); None if it cannot say."""
+    value = invoke('systemctl', 'show', '-p', 'NRestarts', '--value', 'bhp-demo-ui', check=False)
+    return int(value) if value.isdigit() else None
+
+
 def status() -> dict:
     return {'units': {unit: invoke('systemctl', 'is-active', unit, check=False) for unit in UNITS},
             'brightness': int((BACKLIGHT/'brightness').read_text()),
             'solar': json.loads((STATE/'runtime.json').read_text()).get('solar'),
             'study_config': json.loads((STATE/'runtime.json').read_text()).get('study_config', False),
             'voice_lab': json.loads((STATE/'runtime.json').read_text()).get('voice_lab', False),
+            'ui_restarts': ui_restarts(),
             'takes': takes(), 'handed_off': handed_off(), 'ui': latest_ui_status(), 'evidence': EVIDENCE}
 
 

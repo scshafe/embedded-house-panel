@@ -199,6 +199,7 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
  if(scene.surface_id=="agenda"&&scene.agenda_state=="stale")scene.stale=true;
  // A live music service's state outlives a scenario load.
  if(music_){if(music_state_)project_music(*music_state_);else scene.music.state="checking";}
+ else if(music_endpoint_)scene.music.state="unavailable";
  if(j.contains("clock_transition")){
   PreviewClock sample;sample.reset(j.at("clock_transition").at("previous"),0,false);sample.change_to(scene.clock_text,0);
   const auto frame=sample.sample(j.at("clock_transition").at("elapsed_ms").get<std::uint64_t>());
@@ -587,34 +588,52 @@ void PanelSimulation::music_intent(const std::string &id){
  else if((id=="music.volume_down"||id=="music.volume_up")&&controls&&m.supports_volume&&m.volume_percent>=0)
   request=wire::VolumeRequest{static_cast<std::uint32_t>(std::clamp(m.volume_percent+(id=="music.volume_up"?10:-10),0,100))};
  if(!request)return;
- if(!music_->send(*request).has_value()){music_.reset();music_state_.reset();m.state="unavailable";m.notice.clear();return;}
+ if(!music_->send(*request).has_value()){music_lost();return;}
  m.notice.clear();
  // The new volume shows at once; the service's next state confirms it.
  if(const auto *volume=std::get_if<wire::VolumeRequest>(&*request))m.volume_percent=static_cast<int>(volume->percent);
 }
 void PanelSimulation::pump_music(){
- if(!music_)return;
+ if(!music_){
+  // A configured service that is down is tried again on the reconnect schedule (review Q7).
+  if(music_endpoint_&&music_retry_.due()){
+   if(connect_music())log_service("music_control_connected",music_endpoint_->path);
+   else music_retry_.failed();
+   render();
+  }
+  return;
+ }
  auto events=music_->poll();
- if(!events.has_value()){music_.reset();music_state_.reset();scene.music.state="unavailable";scene.music.notice.clear();render();return;}
+ if(!events.has_value()){music_lost();render();return;}
+ if(!events.value().empty())music_retry_.succeeded();
  for(const auto &event:events.value()){
   if(const auto *state=std::get_if<music_control::protocol::State>(&event))project_music(*state);
   else scene.music.notice=music_notice(std::get<music_control::protocol::Refused>(event).error_code);
  }
  if(!events.value().empty())render();
 }
-void PanelSimulation::attach_music_client(std::unique_ptr<music_control::protocol::MusicClient> client){
- if(!client->send(music_control::protocol::StatusRequest{}).has_value())throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:MUSIC.CONTROL_UNAVAILABLE");
+bool PanelSimulation::attach_music_client(std::unique_ptr<music_control::protocol::MusicClient> client){
+ if(!client->send(music_control::protocol::StatusRequest{}).has_value())return false;
  music_=std::move(client);music_state_.reset();scene.music.state="checking";scene.music.notice.clear();
+ return true;
+}
+bool PanelSimulation::connect_music(){
+ auto client=music_control::protocol::MusicClient::connect(music_endpoint_->path,music_endpoint_->uid);
+ return client&&attach_music_client(std::move(client.value()));
+}
+void PanelSimulation::music_lost(){
+ music_.reset();music_state_.reset();scene.music.state="unavailable";scene.music.notice.clear();
+ if(music_endpoint_){music_retry_.failed();log_service("music_control_lost",music_endpoint_->path);}
 }
 void PanelSimulation::attach_music_control(const std::string &socket_path,std::uint32_t service_uid){
- auto client=music_control::protocol::MusicClient::connect(socket_path,service_uid);
- if(!client)throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:"+client.error().code);
- attach_music_client(std::move(client.value()));
+ // Never fatal: a service that is not up yet is shown unavailable and tried again.
+ music_endpoint_=ServiceEndpoint{socket_path,service_uid};music_retry_.succeeded();
+ if(!connect_music()){music_lost();}
 }
 void PanelSimulation::attach_music_control_peer(int descriptor,std::uint32_t service_uid){
  auto client=music_control::protocol::MusicClient::for_connected_peer(descriptor,service_uid);
  if(!client)throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:"+client.error().code);
- attach_music_client(std::move(client.value()));
+ if(!attach_music_client(std::move(client.value())))throw std::runtime_error("SIMULATOR.MUSIC_CONTROL_UNAVAILABLE:MUSIC.CONTROL_UNAVAILABLE");
 }
 namespace {
 // Why the reporter refused, in the words the report screen shows.
@@ -654,7 +673,7 @@ void PanelSimulation::open_report(){
  const std::string state=surface=="study"?scene.study_state:surface=="agenda"?scene.agenda_state:surface=="voice_lab"?scene.voice_lab.state:surface=="music"?scene.music.state:"";
  const auto token=[](std::string_view value){return std::string(value);};
  bug_reporter::protocol::SnapshotRequest snapshot{{surface,state,token(to_string(scene.lifecycle.display_mode)),token(to_string(scene.lifecycle.presence_state)),token(to_string(scene.lifecycle.solar_state)),token(to_string(scene.lifecycle.system_state))}};
- if(!reporter_->send(snapshot).has_value()){reporter_.reset();r.state="unavailable";return;}
+ if(!reporter_->send(snapshot).has_value()){reporter_lost();r.state="unavailable";return;}
  r.state="compose";
 }
 void PanelSimulation::report_intent(const std::string &id){
@@ -672,7 +691,7 @@ void PanelSimulation::report_intent(const std::string &id){
   if(!reporter_){r.state="unavailable";return;}
   if(report_snapshot_.empty()){r.notice="Still getting ready. Try Send again.";return;}
   const auto take=report_take_.empty()?std::optional<std::string>():std::optional<std::string>(report_take_);
-  if(!reporter_->send(wire::SubmitRequest{report_snapshot_,r.text,take}).has_value()){reporter_.reset();r.state="unavailable";return;}
+  if(!reporter_->send(wire::SubmitRequest{report_snapshot_,r.text,take}).has_value()){reporter_lost();r.state="unavailable";return;}
   r.state="sending";r.notice.clear();report_take_.clear();r.has_recording=false;return;
  }
  if(id=="report.record"){
@@ -693,10 +712,17 @@ void PanelSimulation::report_intent(const std::string &id){
 }
 void PanelSimulation::pump_reporter(){
  namespace wire=bug_reporter::protocol;
- if(!reporter_)return;
+ if(!reporter_){
+  if(reporter_endpoint_&&reporter_retry_.due()){
+   if(connect_reporter()){log_service("bug_reporter_connected",reporter_endpoint_->path);if(scene.surface_id=="report"&&scene.report.state=="unavailable")scene.report.state="compose";render();}
+   else reporter_retry_.failed();
+  }
+  return;
+ }
  auto events=reporter_->poll();
  auto &r=scene.report;
- if(!events.has_value()){reporter_.reset();report_snapshot_.clear();if(scene.surface_id=="report")r.state="unavailable";render();return;}
+ if(!events.has_value()){reporter_lost();if(scene.surface_id=="report")r.state="unavailable";render();return;}
+ if(!events.value().empty())reporter_retry_.succeeded();
  for(const auto &event:events.value()){
   if(const auto *taken=std::get_if<wire::SnapshotTaken>(&event))report_snapshot_=taken->snapshot_id;
   else if(const auto *submitted=std::get_if<wire::Submitted>(&event)){r.state="sent";r.sent_id=submitted->report_id;report_snapshot_.clear();}
@@ -709,19 +735,37 @@ void PanelSimulation::pump_reporter(){
  }
  if(!events.value().empty())render();
 }
-void PanelSimulation::attach_reporter_client(std::unique_ptr<bug_reporter::protocol::ReporterClient> client){
- if(!client->send(bug_reporter::protocol::StatusRequest{}).has_value())throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:REPORT.REPORTER_UNAVAILABLE");
+bool PanelSimulation::attach_reporter_client(std::unique_ptr<bug_reporter::protocol::ReporterClient> client){
+ if(!client->send(bug_reporter::protocol::StatusRequest{}).has_value())return false;
  reporter_=std::move(client);scene.report.lines.clear();scene.report.update_ready=false;
+ return true;
+}
+bool PanelSimulation::connect_reporter(){
+ auto client=bug_reporter::protocol::ReporterClient::connect(reporter_endpoint_->path,reporter_endpoint_->uid);
+ return client&&attach_reporter_client(std::move(client.value()));
+}
+void PanelSimulation::reporter_lost(){
+ reporter_.reset();report_snapshot_.clear();
+ if(reporter_endpoint_){reporter_retry_.failed();log_service("bug_reporter_lost",reporter_endpoint_->path);}
 }
 void PanelSimulation::attach_bug_reporter(const std::string &socket_path,std::uint32_t reporter_uid){
- auto client=bug_reporter::protocol::ReporterClient::connect(socket_path,reporter_uid);
- if(!client)throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:"+client.error().code);
- attach_reporter_client(std::move(client.value()));
+ // Never fatal: the Report screen says unavailable until the reporter is up.
+ reporter_endpoint_=ServiceEndpoint{socket_path,reporter_uid};reporter_retry_.succeeded();
+ if(!connect_reporter())reporter_lost();
 }
 void PanelSimulation::attach_bug_reporter_peer(int descriptor,std::uint32_t reporter_uid){
  auto client=bug_reporter::protocol::ReporterClient::for_connected_peer(descriptor,reporter_uid);
  if(!client)throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:"+client.error().code);
- attach_reporter_client(std::move(client.value()));
+ if(!attach_reporter_client(std::move(client.value())))throw std::runtime_error("SIMULATOR.BUG_REPORTER_UNAVAILABLE:REPORT.REPORTER_UNAVAILABLE");
+}
+void PanelSimulation::set_reconnect_clock(ReconnectSchedule::Clock now){music_retry_.set_clock(now);reporter_retry_.set_clock(std::move(now));}
+void PanelSimulation::log_service(const std::string &message,const std::string &socket_path){
+ try{
+  if(message.size()>5&&message.compare(message.size()-5,5,"_lost")==0)
+   text_log_.log_error(message,"",message.rfind("music",0)==0?"MUSIC.CONTROL_UNAVAILABLE":"REPORT.REPORTER_UNAVAILABLE",
+    "The service socket is not answering; the UI tries again with backoff","",{{"socket",socket_path}});
+  else text_log_.log(bhp::StructuredLogLevel::info,message,"",{{"socket",socket_path}});
+ }catch(const std::exception &){}
 }
 bool PanelSimulation::report_capture_event(const VoiceLabRuntime::Event &event){
  using Kind=VoiceLabRuntime::Event::Kind;

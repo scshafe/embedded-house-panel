@@ -15,6 +15,7 @@
 #include <utility>
 #include "simulator/fake_voice_connection.hpp"
 #include "simulator/preview_clock.hpp"
+#include "simulator/reconnect_schedule.hpp"
 #include "simulator/voice_lab_runtime.hpp"
 #include "music_control/music_protocol.h"
 #include "bug_reporter/reporter_protocol.h"
@@ -68,12 +69,18 @@ public:
  void attach_voice_lab_uploader(const std::string &socket_path,std::uint32_t uploader_uid);
  /** Test seam: an already-connected uploader peer (its UID is still checked). */
  void attach_voice_lab_uploader_peer(int descriptor,std::uint32_t uploader_uid);
- /** The music-control service's socket (exact UID): the music remote's state and commands (ADR 0013). */
+ /**
+  * The music-control service's socket (exact UID): the music remote's state and commands (ADR 0013).
+  * Never fatal: when the service is down, or lost later, the screen shows unavailable and the
+  * UI connects again on a ReconnectSchedule (1 s doubling to 60 s; review Q7).
+  */
  void attach_music_control(const std::string &socket_path,std::uint32_t service_uid);
  /** Test seam: an already-connected music-control peer (its UID is still checked). */
  void attach_music_control_peer(int descriptor,std::uint32_t service_uid);
- /** The bug reporter's socket (exact UID): the report screen's snapshots, submits and list. */
+ /** The bug reporter's socket (exact UID): the report screen's snapshots, submits and list. Never fatal, as for music. */
  void attach_bug_reporter(const std::string &socket_path,std::uint32_t reporter_uid);
+ /** Test seam: the clock both reconnect schedules read. */
+ void set_reconnect_clock(ReconnectSchedule::Clock now);
  /** Test seam: an already-connected reporter peer (its UID is still checked). */
  void attach_bug_reporter_peer(int descriptor,std::uint32_t reporter_uid);
  /**
@@ -116,13 +123,25 @@ private:
  void pump_music();
  void music_intent(const std::string &id);
  void project_music(const music_control::protocol::State &state);
- void attach_music_client(std::unique_ptr<music_control::protocol::MusicClient> client);
+ bool attach_music_client(std::unique_ptr<music_control::protocol::MusicClient> client);
+ struct ServiceEndpoint {std::string path;std::uint32_t uid;};
+ /** Where the music service listens, once configured; its reconnect schedule. */
+ std::optional<ServiceEndpoint> music_endpoint_;
+ ReconnectSchedule music_retry_;
+ bool connect_music();
+ /** Drops the connection, shows unavailable and schedules the next try. */
+ void music_lost();
  /** The music-control connection and the last state it sent, while one is attached. */
  std::unique_ptr<music_control::protocol::MusicClient> music_;
  void open_report();
  void report_intent(const std::string &id);
  void pump_reporter();
- void attach_reporter_client(std::unique_ptr<bug_reporter::protocol::ReporterClient> client);
+ bool attach_reporter_client(std::unique_ptr<bug_reporter::protocol::ReporterClient> client);
+ std::optional<ServiceEndpoint> reporter_endpoint_;
+ ReconnectSchedule reporter_retry_;
+ bool connect_reporter();
+ void reporter_lost();
+ void log_service(const std::string &message,const std::string &socket_path);
  /** The reporter connection, the snapshot of the tap that opened the report screen, and where Done returns. */
  std::unique_ptr<bug_reporter::protocol::ReporterClient> reporter_;
  std::string report_snapshot_;

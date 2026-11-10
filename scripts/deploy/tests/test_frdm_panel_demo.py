@@ -67,6 +67,27 @@ class BoardWritesStayInTmpfs(unittest.TestCase):
         self.assertIn("'setpriv', f'--reuid={UI_UID}', f'--regid={UI_UID}'", source)
         self.assertIn("'--no-new-privs'", source)
 
+    def test_the_ui_restarts_after_a_failure_with_a_bound(self):
+        board = load_board()
+        started = []
+        board.transient = lambda unit, command, *properties: started.append((unit, properties))
+        board.wait_for = lambda *arguments, **keywords: None
+        board.grp.getgrnam = lambda name: type('Group', (), {'gr_gid': 44})()
+        board.ui_command = lambda record: ['bhp-panel-ui']
+        board.start_ui({})
+        unit, properties = started[0]
+        self.assertEqual(unit, 'bhp-demo-ui')
+        for expected in ('Restart=on-failure', 'RestartSec=2', 'StartLimitIntervalSec=300', 'StartLimitBurst=5'):
+            self.assertIn(expected, properties)
+        self.assertNotIn('Restart=always', properties, 'a clean stop or quit is not restarted')
+
+    def test_status_reports_the_ui_restart_count(self):
+        board = load_board()
+        board.invoke = lambda *arguments, check=True: '3' if 'NRestarts' in arguments else 'active'
+        self.assertEqual(board.ui_restarts(), 3)
+        board.invoke = lambda *arguments, check=True: ''
+        self.assertIsNone(board.ui_restarts())
+
     def test_the_broker_runs_as_its_own_unprivileged_uid(self):
         board = load_board()
         self.assertNotIn(board.BROKER_UID, (0, board.UI_UID))
