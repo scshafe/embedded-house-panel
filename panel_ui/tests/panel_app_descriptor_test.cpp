@@ -51,17 +51,21 @@ int main()
 	expect(registered == concatenated, "the registry is the descriptors' intents in order");
 	expect(std::set<std::string>(registered.begin(), registered.end()).size() == registered.size(),
 	       "intent IDs are unique");
-	expect(launchable_surface_ids() == std::vector<std::string>{"study", "agenda", "voice_lab", "music", "report"},
+	expect(launchable_surface_ids() == std::vector<std::string>{"study", "agenda", "voice_lab", "music", "report", "weather"},
 	       "the launchable surfaces are every app but home");
 	const auto study = surface_routes(*find_app_descriptor("study"));
 	expect(contains(study, "study.flip") && contains(study, "study.rating.undo") && contains(study, "shell.home") &&
 		       !contains(study, "shell.open_study"),
 	       "study routes its own actions and home, not its launcher");
 	const auto agenda = surface_routes(*find_app_descriptor("agenda"));
-	expect(agenda.size() == 4 && contains(agenda, "agenda.submit_wish") && contains(agenda, "shell.home") &&
-		       contains(agenda, "shell.open_report"),
-	       "agenda routes its two actions, home and the Report button");
-	expect(find_app_descriptor("weather") == nullptr, "an unknown surface has no descriptor");
+	expect(agenda.size() == 5 && contains(agenda, "agenda.submit_wish") && contains(agenda, "shell.home") &&
+		       contains(agenda, "shell.open_report") && contains(agenda, "shell.open_weather"),
+	       "agenda routes its two actions, home, the Report button and the forecast");
+	const auto weather = surface_routes(*find_app_descriptor("weather"));
+	expect(contains(weather, "weather.unit.kelvin") && contains(weather, "weather.key.backspace") &&
+		       contains(weather, "shell.open_report") && !contains(weather, "shell.open_weather"),
+	       "the weather menu routes its own keys and rows, home and Report, not its launcher");
+	expect(find_app_descriptor("garden") == nullptr, "an unknown surface has no descriptor");
 	std::cout << "panel_app_descriptor: " << failures << " failures\n";
 	return failures ? 1 : 0;
 }

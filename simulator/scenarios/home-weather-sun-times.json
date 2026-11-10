@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "scenario_id": "home-weather-sun-times",
+  "surface": "home",
+  "lifecycle": "day",
+  "fixture_clock": "07:42",
+  "weather": {
+    "state": "available",
+    "high_celsius": 20,
+    "low_celsius": 4,
+    "bar": "sun_times",
+    "sunrise": "06:40",
+    "sunset": "16:48"
+  }
+}

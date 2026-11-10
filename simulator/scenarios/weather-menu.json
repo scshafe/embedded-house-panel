@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "scenario_id": "weather-menu",
+  "surface": "weather",
+  "lifecycle": "day",
+  "fixture_clock": "07:42",
+  "night_red_rgb888": 1572864,
+  "weather": {
+    "state": "available",
+    "high_celsius": 20,
+    "low_celsius": 4,
+    "unit": "F"
+  },
+  "weather_state": "menu"
+}

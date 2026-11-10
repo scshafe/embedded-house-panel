@@ -1,3 +1,5 @@
+#include "weather_panel/weather_codec.h"
+#include "weather_panel/weather_worker.h"
 #include "simulator/panel_simulation.hpp"
 #include "simulator/application_catalog_configuration.hpp"
 #include "panel_ui/panel_app_descriptor.hpp"
@@ -10,6 +12,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <tuple>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -92,10 +95,11 @@ Json read_scenario(const std::string &path) {
  if(j.contains("night_red_rgb888")&&(!j["night_red_rgb888"].is_number_unsigned()||j["night_red_rgb888"].get<unsigned>()>0xffffff))throw std::runtime_error("SIMULATOR.SCENARIO_COLOR_INVALID");
  if(j.contains("weather")){
   const auto &weather=j.at("weather");
-  const std::set<std::string> weather_fields{"state","high_celsius","low_celsius","unit"};
+  const std::set<std::string> weather_fields{"state","high_celsius","low_celsius","unit","bar","sunrise","sunset"};
   if(!weather.is_object()||!weather.contains("state"))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
   for(auto it=weather.begin();it!=weather.end();++it)if(!weather_fields.count(it.key()))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
-  member(weather,"state",{"available","unavailable","stale"});member(weather,"unit",{"F","C"});
+  member(weather,"state",{"available","unavailable","stale"});member(weather,"unit",{"F","C","K"});member(weather,"bar",{"temperatures","sun_times"});
+  for(const auto *field:{"sunrise","sunset"})if(weather.contains(field)&&(!weather.at(field).is_string()||!std::regex_match(weather.at(field).get<std::string>(),std::regex("^([01][0-9]|2[0-3]):[0-5][0-9]$"))))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
   for(const auto *field:{"high_celsius","low_celsius"})if(weather.contains(field)&&(!weather.at(field).is_number_integer()||weather.at(field)<-80||weather.at(field)>60))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
   if(weather.at("state")!="unavailable"&&(!weather.contains("high_celsius")||!weather.contains("low_celsius")||weather.at("high_celsius")<weather.at("low_celsius")))throw std::runtime_error("SIMULATOR.SCENARIO_WEATHER_INVALID");
  }
@@ -170,9 +174,10 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
   scene.weather_available=weather.at("state")!="unavailable";scene.weather_stale=weather.at("state")=="stale";
   scene.weather_high_celsius=weather.value("high_celsius",0);scene.weather_low_celsius=weather.value("low_celsius",0);
   scene.weather_temperature_unit=weather.value("unit","F");scene.weather_fixture=true;
+  scene.weather_bar=weather.value("bar","temperatures");scene.weather_sunrise=weather.value("sunrise","06:40");scene.weather_sunset=weather.value("sunset","16:48");
  }
  scene.fixture_clock_untrusted=fixture_override_&&j.value("lifecycle","day")=="clock_untrusted";
- scene.agenda_state=j.value("agenda_state","today");scene.voice_lab.state=j.value("voice_lab_state","ready");scene.music.state=j.value("music_state","ready");scene.report.state=j.value("report_state","compose");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
+ scene.agenda_state=j.value("agenda_state","today");scene.voice_lab.state=j.value("voice_lab_state","ready");scene.music.state=j.value("music_state","ready");scene.report.state=j.value("report_state","compose");scene.weather.state=j.value("weather_state","menu");scene.night_red_rgb888=j.value("night_red_rgb888",0x180000u);scene.presentation_failure=j.value("presentation_failure",false);
  context_nonce_="simulation-context-"+std::to_string(++context_sequence_);close_voice_context();
  if(update_lifecycle)accept_lifecycle(supervisor.publish(j.value("lifecycle","day")));
  if(!store_->durable())store_=std::make_shared<vocabulary_panel::MemoryStudyStore>();
@@ -311,6 +316,7 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
   const PanelIntentRegistry registry;
   const auto *definition=registry.find(id);
   if(id=="shell.open_report")open_report();
+  if(id=="shell.open_weather"){weather_return_surface_=scene.surface_id;if(scene.weather.state!="automatic_unavailable")scene.weather.state="menu";}
   if(definition&&!definition->navigation_surface_id.empty()){switch_surface(definition->navigation_surface_id);render();return;}
   if(id=="shell.apps_previous"||id=="shell.apps_next"){
    const auto page=application_grid_page(scene.applications,scene.home_page);
@@ -322,6 +328,7 @@ void PanelSimulation::route_intent(const InteractionIntentEnvelope &intent){
   if(id.rfind("voice_lab.",0)==0){voice_lab_intent(id);render();return;}
   if(id.rfind("music.",0)==0){music_intent(id);render();return;}
   if(id.rfind("report.",0)==0){report_intent(id);render();return;}
+  if(id.rfind("weather.",0)==0){weather_intent(id);render();return;}
   const std::map<std::string,vocabulary_panel::StudyIntent> mapping{{"study.flip",vocabulary_panel::StudyIntent::flip},{"study.next",vocabulary_panel::StudyIntent::next},{"study.back",vocabulary_panel::StudyIntent::back},{"study.rate.again",vocabulary_panel::StudyIntent::rate_again},{"study.rate.hard",vocabulary_panel::StudyIntent::rate_hard},{"study.rate.good",vocabulary_panel::StudyIntent::rate_good},{"study.rate.easy",vocabulary_panel::StudyIntent::rate_easy},{"study.rating.undo",vocabulary_panel::StudyIntent::rating_undo}};
   auto it=mapping.find(id);if(it!=mapping.end()){
    auto semantic=scene.study_state=="resume"?vocabulary_panel::StudyIntent::resume:it->second;
@@ -467,7 +474,7 @@ void PanelSimulation::attach_media_broker(const std::string &socket_path,std::ui
 }
 void PanelSimulation::tap(int x,int y){if(scene.presentation_failure)return;for(auto it=display.hit_targets().rbegin();it!=display.hit_targets().rend();++it)if(x>=it->x&&x<it->x+it->width&&y>=it->y&&y<it->y+it->height){auto id=it->intent_id;semantic_intent(id,"touch");return;}}
 void PanelSimulation::event(const Json &e){const auto type=e.at("type").get<std::string>();if(type=="scenario")load(read_scenario(e.at("path")),true,true);else if(type=="lifecycle"){accept_lifecycle(supervisor.publish(e.at("state")));render();}else if(type=="intent")semantic_intent(e.at("intent_id"),e.value("source","host_fixture"));else if(type=="tap"){supervisor.observe_pointer(true,e.at("x"),e.at("y"));supervisor.observe_pointer(false,e.at("x"),e.at("y"));auto c=supervisor.take_contact();if(c)tap(c->first,c->second);}else if(type=="screenshot")display.write_png(e.at("path"));else if(type=="utterance")utterance(e.at("phrase"));else if(type=="clock_preview")enable_preview_clock(e.at("enabled").get<bool>());else if(type=="clock_step")advance_preview_clock();else if(type=="quit")quit=true;else throw std::runtime_error("SIMULATOR.EVENT_UNKNOWN");}
-void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_voice_lab();pump_music();pump_reporter();pump_clock();}
+void PanelSimulation::service(){display.service();pump_study();pump_voice();pump_voice_lab();pump_music();pump_reporter();pump_weather();pump_clock();}
 namespace {
 std::uint64_t clock_monotonic_ms(){return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());}
 }
@@ -534,7 +541,7 @@ void PanelSimulation::pump_voice(){
   }
  }}catch(const std::exception &){voice_.reset();voice_pending_=false;auto ignored=controller_->update_voice_binding(std::nullopt);(void)ignored;scene.acknowledgement="Voice unavailable - touch remains ready";render();}
 }
-Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"home_page",scene.home_page},{"home_page_count",application_grid_page(scene.applications,scene.home_page).page_count},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"clock_text",scene.clock_text},{"clock_source",scene.clock_source},{"clock_previous_text",scene.clock_previous_text},{"clock_transition_milli",scene.clock_transition_milli},{"clock_preview_running",preview_clock_enabled_},{"weather_available",scene.weather_available},{"weather_stale",scene.weather_stale},{"weather_fixture",scene.weather_fixture},{"weather_temperature_unit",scene.weather_temperature_unit},{"simulation_not_hardware_evidence",true}};}
+Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"home_page",scene.home_page},{"home_page_count",application_grid_page(scene.applications,scene.home_page).page_count},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"clock_text",scene.clock_text},{"clock_source",scene.clock_source},{"clock_previous_text",scene.clock_previous_text},{"clock_transition_milli",scene.clock_transition_milli},{"clock_preview_running",preview_clock_enabled_},{"weather_available",scene.weather_available},{"weather_stale",scene.weather_stale},{"weather_fixture",scene.weather_fixture},{"weather_temperature_unit",scene.weather_temperature_unit},{"weather_bar",scene.weather_bar},{"weather_state",scene.weather.state},{"simulation_not_hardware_evidence",true}};}
 namespace {
 // Spotify text by the live-text rule (panel_live_text_fit), cut to a number of
 // characters. A name the Latin fonts cannot fully draw shows the fallback words
@@ -783,5 +790,100 @@ bool PanelSimulation::report_capture_event(const VoiceLabRuntime::Event &event){
   r.notice="Recording stopped. Nothing was kept.";
  }
  return true;
+}
+namespace {
+std::string place_line(const weather_panel::Place &place){
+ std::string line=place.name;
+ for(const auto *part:{&place.region,&place.country})if(!part->empty())line+=", "+*part;
+ return line;
+}
+}
+void PanelSimulation::attach_weather(std::shared_ptr<weather_panel::WeatherWorker> worker){
+ weather_=std::move(worker);weather_revision_=0;weather_search_=0;weather_places_.clear();
+ if(weather_)project_weather(true);
+}
+void PanelSimulation::weather_intent(const std::string &id){
+ auto &w=scene.weather;
+ // Fixture weather (no worker) keeps the settings in the scene; a worker saves them and refreshes.
+ const auto apply=[this](){if(weather_)weather_->update_settings(weather_settings_);};
+ if(id=="weather.done"){switch_surface(weather_return_surface_.empty()?"home":weather_return_surface_);return;}
+ if(id.rfind("weather.unit.",0)==0){
+  const auto unit=id.substr(std::string("weather.unit.").size());
+  weather_settings_.unit=unit=="celsius"?weather_panel::TemperatureUnit::celsius:unit=="kelvin"?weather_panel::TemperatureUnit::kelvin:weather_panel::TemperatureUnit::fahrenheit;
+  scene.weather_temperature_unit=unit=="celsius"?"C":unit=="kelvin"?"K":"F";apply();return;
+ }
+ if(id=="weather.bar.temperatures"||id=="weather.bar.sun_times"){
+  const bool sun=id=="weather.bar.sun_times";
+  weather_settings_.bar=sun?weather_panel::BarContent::sun_times:weather_panel::BarContent::temperatures;
+  scene.weather_bar=sun?"sun_times":"temperatures";apply();return;
+ }
+ if(id=="weather.location.automatic"){
+  weather_settings_.place.reset();w.automatic=true;
+  if(!weather_)w.location_label="Boulder, Colorado";
+  if(w.state!="automatic_unavailable")w.state="menu";
+  apply();return;
+ }
+ if(id=="weather.location.choose"){w.state="search";w.query.clear();return;}
+ if(id=="weather.search.back"){w.state="menu";if(weather_)project_weather(true);return;}
+ if(id=="weather.search.submit"){
+  if(w.state!="search"||!weather_panel::search_name_valid(w.query))return;
+  if(weather_){weather_search_=weather_->search(w.query);w.state="searching";return;}
+  // Fixture: the recorded answers, as FixtureWeatherClient serves them.
+  w.state=w.query.rfind("boul",0)==0?"results":"no_results";return;
+ }
+ if(id.rfind("weather.result.",0)==0){
+  if(w.state!="results")return;
+  const auto index=static_cast<std::size_t>(std::stoul(id.substr(std::string("weather.result.").size())))-1;
+  if(index>=w.results.size())return;
+  if(weather_&&index<weather_places_.size())weather_settings_.place=weather_places_[index];
+  else{weather_panel::Place fixture;fixture.name=w.results[index];weather_settings_.place=fixture;}
+  w.automatic=false;w.location_label=w.results[index];w.state="menu";
+  apply();if(weather_)project_weather(true);
+  return;
+ }
+ if(id.rfind("weather.key.",0)!=0||w.state!="search")return;
+ static const std::map<std::string,char> named{{"space",' '},{"hyphen",'-'},{"apostrophe",'\''}};
+ const auto key=id.substr(std::string("weather.key.").size());
+ if(key=="backspace"){if(!w.query.empty())w.query.pop_back();return;}
+ const char typed=key.size()==1?key[0]:named.count(key)?named.at(key):0;
+ if(typed&&w.query.size()<60)w.query+=typed;
+}
+void PanelSimulation::pump_weather(){
+ if(!weather_)return;
+ bool changed=false;
+ if(auto outcome=weather_->take_search();outcome&&outcome->request==weather_search_&&scene.weather.state=="searching"){
+  auto &w=scene.weather;
+  weather_places_=outcome->places;w.results.clear();
+  for(const auto &place:weather_places_)w.results.push_back(place_line(place));
+  w.state=outcome->error?"offline":w.results.empty()?"no_results":"results";changed=true;
+ }
+ const auto before=std::make_tuple(scene.weather_available,scene.weather_stale,scene.weather.state,scene.weather.location_label);
+ project_weather(false);
+ if(changed||before!=std::make_tuple(scene.weather_available,scene.weather_stale,scene.weather.state,scene.weather.location_label))render();
+}
+void PanelSimulation::project_weather(bool force){
+ const auto snapshot=weather_->snapshot();
+ const auto now=weather_utc_?weather_utc_():static_cast<std::int64_t>(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+ if(!force&&snapshot.revision==weather_revision_&&!snapshot.forecast)return;
+ weather_revision_=snapshot.revision;weather_settings_=snapshot.settings;
+ scene.weather_fixture=false;
+ scene.weather_temperature_unit=snapshot.settings.unit==weather_panel::TemperatureUnit::celsius?"C":snapshot.settings.unit==weather_panel::TemperatureUnit::kelvin?"K":"F";
+ scene.weather_bar=snapshot.settings.bar==weather_panel::BarContent::sun_times?"sun_times":"temperatures";
+ // Only a parsed answer for this place, judged in its own date; otherwise a dash, never a guess.
+ const auto freshness=snapshot.forecast?weather_panel::freshness(*snapshot.forecast,now):weather_panel::Freshness::unavailable;
+ scene.weather_available=freshness!=weather_panel::Freshness::unavailable;
+ scene.weather_stale=freshness==weather_panel::Freshness::stale;
+ if(scene.weather_available){
+  scene.weather_high_celsius=snapshot.forecast->high_celsius;scene.weather_low_celsius=snapshot.forecast->low_celsius;
+  scene.weather_sunrise=snapshot.forecast->sunrise;scene.weather_sunset=snapshot.forecast->sunset;
+ }
+ auto &w=scene.weather;
+ w.automatic=!snapshot.settings.place;
+ if(snapshot.settings.place)w.location_label=place_line(*snapshot.settings.place);
+ else if(snapshot.location)w.location_label=snapshot.location->city+(snapshot.location->region.empty()?"":", "+snapshot.location->region);
+ else w.location_label="looking up…";
+ const bool unavailable=w.automatic&&!snapshot.location&&snapshot.location_error;
+ if(w.state=="menu"&&unavailable)w.state="automatic_unavailable";
+ else if(w.state=="automatic_unavailable"&&!unavailable)w.state="menu";
 }
 }

@@ -22,7 +22,8 @@
         "agenda",
         "voice_lab",
         "music",
-        "report"
+        "report",
+        "weather"
       ]
     },
     "lifecycle": {
@@ -106,9 +107,27 @@
         "unit": {
           "enum": [
             "F",
-            "C"
+            "C",
+            "K"
           ],
           "default": "F"
+        },
+        "bar": {
+          "enum": [
+            "temperatures",
+            "sun_times"
+          ],
+          "default": "temperatures"
+        },
+        "sunrise": {
+          "type": "string",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "default": "06:40"
+        },
+        "sunset": {
+          "type": "string",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "default": "16:48"
         }
       },
       "allOf": [
@@ -190,6 +209,17 @@
         "sent",
         "list",
         "unavailable"
+      ]
+    },
+    "weather_state": {
+      "enum": [
+        "menu",
+        "automatic_unavailable",
+        "search",
+        "searching",
+        "results",
+        "no_results",
+        "offline"
       ]
     }
   }

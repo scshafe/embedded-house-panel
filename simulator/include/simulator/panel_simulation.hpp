@@ -6,6 +6,7 @@
 #include "vocabulary_panel/flash_card_session.h"
 #include <nlohmann/json.hpp>
 #include <deque>
+#include <functional>
 #include <chrono>
 #include <cstdint>
 #include <memory>
@@ -19,8 +20,13 @@
 #include "simulator/voice_lab_runtime.hpp"
 #include "music_control/music_protocol.h"
 #include "bug_reporter/reporter_protocol.h"
+#include "weather_panel/weather_models.h"
 #include "bhp/structured_logger.h"
 #include <iostream>
+
+namespace weather_panel {
+class WeatherWorker;
+}
 
 namespace bhp::simulator {
 using Json=nlohmann::json;
@@ -84,6 +90,14 @@ public:
  /** Test seam: an already-connected reporter peer (its UID is still checked). */
  void attach_bug_reporter_peer(int descriptor,std::uint32_t reporter_uid);
  /**
+  * The live (or fixture-served) daily forecast (ADR 0015): the bar and the weather menu follow
+  * this worker's snapshots, and the menu's intents change its settings. Without one, the
+  * weather is the scenario's fixture and the menu changes only the scene.
+  */
+ void attach_weather(std::shared_ptr<weather_panel::WeatherWorker> worker);
+ /** Test seam: the UTC clock (Unix seconds) the bar's freshness is judged with. */
+ void set_weather_clock(std::function<std::int64_t()> utc_seconds){weather_utc_=std::move(utc_seconds);}
+ /**
   * Level-only recorder updates wait for the next lifecycle render instead of drawing
   * at once, so a live meter cannot keep touches from matching the committed frame.
   */
@@ -133,6 +147,18 @@ private:
  void music_lost();
  /** The music-control connection and the last state it sent, while one is attached. */
  std::unique_ptr<music_control::protocol::MusicClient> music_;
+ void weather_intent(const std::string &id);
+ void pump_weather();
+ /** The bar and the menu from the worker's snapshot and the UTC clock (freshness). */
+ void project_weather(bool force);
+ std::shared_ptr<weather_panel::WeatherWorker> weather_;
+ weather_panel::WeatherSettings weather_settings_;
+ std::uint64_t weather_revision_{0};
+ std::uint64_t weather_search_{0};
+ /** The places the last search answered, in the order the menu lists them. */
+ std::vector<weather_panel::Place> weather_places_;
+ std::string weather_return_surface_{"home"};
+ std::function<std::int64_t()> weather_utc_;
  void open_report();
  void report_intent(const std::string &id);
  void pump_reporter();

@@ -68,7 +68,7 @@ bool clock_text_valid(const std::string &text) {
  return (text[0] - '0') * 10 + text[1] - '0' < 24 &&
         (text[3] - '0') * 10 + text[4] - '0' < 60;
 }
-std::uint32_t temperature_color(int celsius) {
+std::uint32_t temperature_color(double celsius) {
  // Both forecast roles use the same actual-temperature scale. A day's high can
  // be cold, and its low can be hot; the labels never determine their colors.
  if(celsius <= 0) return 0x7faee8;
@@ -77,9 +77,22 @@ std::uint32_t temperature_color(int celsius) {
  if(celsius <= 30) return 0xe9c480;
  return 0xec8b78;
 }
-std::string temperature_text(int celsius, const std::string &unit) {
- const auto value = unit == "C" ? celsius : static_cast<int>(std::lround(celsius * 1.8 + 32));
- return std::to_string(value) + "°" + unit;
+std::string temperature_text(double celsius, const std::string &unit) {
+ // The weather_panel codec's rules: round once in the chosen unit, never "-0"; Kelvin has no degree sign.
+ const double value = unit == "K" ? celsius + 273.15 : unit == "C" ? celsius : celsius * 1.8 + 32;
+ const long rounded = std::lround(value);
+ return std::to_string(rounded == 0 ? 0L : rounded) + (unit == "K" ? " K" : "°" + unit);
+}
+/** ↑ or ↓, drawn: the panel's font subset has no arrows. 14 px wide, 22 px tall, at (x, y). */
+void sun_arrow(lv_obj_t *parent, int x, int y, bool up, std::uint32_t color) {
+ static const lv_point_precise_t up_points[]{{0, 8}, {7, 0}, {14, 8}};
+ static const lv_point_precise_t down_points[]{{0, 14}, {7, 22}, {14, 14}};
+ auto *head = lv_line_create(parent);
+ lv_line_set_points(head, up ? up_points : down_points, 3);
+ lv_obj_set_pos(head, x, y);
+ lv_obj_set_style_line_color(head, lv_color_hex(color), 0);
+ lv_obj_set_style_line_width(head, 3, 0);
+ box(parent, x + 6, y + 1, 3, 21, color);
 }
 void draw_clock(lv_obj_t *screen, const PanelScene &s, const lv_font_t *font, int digit_width, int center_y, std::uint32_t color) {
  const int cell_height = lv_font_get_line_height(font);
@@ -300,14 +313,28 @@ void LvglPanelDisplay::draw_scene(const PanelScene &s) {
   if(s.weather_stale) label(screen, "Weather stale", 208, preview ? 37 : 22, 192, 31, &bhp_font_24, 0xe9c480);
   if(clock_available(s)) draw_clock(screen, s, &bhp_font_48, 32, 33, 0xf4f0e8);
   else label(screen, "—", 360, 6, 304, 62, &bhp_font_48, 0xf4f0e8, LV_TEXT_ALIGN_CENTER);
+  const bool sun_times = s.weather_bar == "sun_times";
   for(int index = 0; index < 2; ++index) {
    const int x = index == 0 ? 712 : 856;
-   const int temperature = index == 0 ? s.weather_high_celsius : s.weather_low_celsius;
+   if(sun_times) {
+    // Sun times in neutral text, the place's local time (ADR 0015): "↑ 6:40" and "↓ 16:48".
+    label(screen, index == 0 ? "Sunrise" : "Sunset", x, 2, 128, 31, &bhp_font_24, 0xaab8b7, LV_TEXT_ALIGN_RIGHT);
+    const std::string &time = index == 0 ? s.weather_sunrise : s.weather_sunset;
+    const std::string text = s.weather_available ? (time.size() == 5 && time[0] == '0' ? time.substr(1) : time) : "—";
+    lv_point_t size{};
+    lv_text_get_size(&size, text.c_str(), &bhp_font_28, 0, 0, 128, LV_TEXT_FLAG_NONE);
+    label(screen, text, x, 33, 128, 37, &bhp_font_28, s.weather_available ? 0xf4f0e8 : 0xaab8b7, LV_TEXT_ALIGN_RIGHT);
+    if(s.weather_available) sun_arrow(screen, x + 128 - size.x - 22, 40, index == 0, 0xf4f0e8);
+    continue;
+   }
+   const double temperature = index == 0 ? s.weather_high_celsius : s.weather_low_celsius;
    label(screen, index == 0 ? "High" : "Low", x, 2, 128, 31, &bhp_font_24, 0xaab8b7, LV_TEXT_ALIGN_RIGHT);
    label(screen, s.weather_available ? temperature_text(temperature, s.weather_temperature_unit) : "—",
          x, 33, 128, 37, &bhp_font_28, s.weather_available ? temperature_color(temperature) : 0xaab8b7,
          LV_TEXT_ALIGN_RIGHT);
   }
+  // A tap on the forecast opens the weather menu (ADR 0015); on the menu itself it does nothing.
+  if(s.surface_id != "weather") hit_targets_.push_back({712, 0, 272, 72, "shell.open_weather"});
  } else if(s.fixture_data || s.clock_source == "fixture")
   label(screen, "Preview", 40, 22, 650, 31, &bhp_font_24, 0x8db5a7);
  auto *content = box(screen, layout::content_x, layout::content_y, layout::content_width,
@@ -338,6 +365,7 @@ const std::vector<LvglPanelDisplay::SurfaceRenderer> &LvglPanelDisplay::surface_
   {"voice_lab", &LvglPanelDisplay::draw_voice_lab},
   {"music", &LvglPanelDisplay::draw_music},
   {"report", &LvglPanelDisplay::draw_report},
+  {"weather", &LvglPanelDisplay::draw_weather},
  };
  return renderers;
 }
@@ -690,5 +718,100 @@ void LvglPanelDisplay::draw_report(lv_obj_t *, lv_obj_t *content, const PanelSce
  label(content, "Reporting unavailable", 24, 56, 896, 52, &bhp_font_40, 0xf4f0e8);
  label(content, "The reporter is not running. Nothing was saved or sent.", 24, 128, 896, 74, &bhp_font_28, 0xaab8b7);
  action(0, layout::primary_width, "Done", "report.done");
+}
+void LvglPanelDisplay::draw_weather(lv_obj_t *, lv_obj_t *content, const PanelScene &s) {
+ // ADR 0015: the units, what the bar shows, and where the forecast is for. Display only: the
+ // panel's day and night stay on the supervisor's own location.
+ const auto &w = s.weather;
+ const auto button = [this, content](int x, int y, int bw, int bh, const std::string &title, const std::string &intent,
+                                     bool selected = false, std::uint32_t color = 0xf4f0e8) {
+  const std::uint32_t fill = selected ? 0x2f6b5a : 0x293f43;
+  auto *control = box(content, x, y, bw, bh, fill, 12);
+  // Every button has the border, so a selected one's title sits where an unselected one's does.
+  lv_obj_set_style_border_color(control, lv_color_hex(selected ? 0x8db5a7 : fill), 0);
+  lv_obj_set_style_border_width(control, 3, 0);
+  label(control, title, 0, (bh - 37) / 2, bw, 37, &bhp_font_28, color, LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({layout::content_x + x, layout::content_y + y, bw, bh, intent});
+ };
+ const auto heading = [content](const std::string &text) {
+  label(content, text, 24, 12, 600, 31, &bhp_font_24, 0x8db5a7);
+ };
+ const auto search_footer = [&](int y) {
+  button(24, y, 300, 64, "Search again", "weather.location.choose");
+  button(340, y, 200, 64, "Back", "weather.search.back");
+ };
+ if(w.state == "menu" || w.state == "automatic_unavailable") {
+  heading("Weather");
+  const int row_x = 220;
+  label(content, "Units", 24, 56 + 13, 180, 37, &bhp_font_28, 0xaab8b7);
+  button(row_x, 56, 150, 64, "°F", "weather.unit.fahrenheit", s.weather_temperature_unit == "F");
+  button(row_x + 166, 56, 150, 64, "°C", "weather.unit.celsius", s.weather_temperature_unit == "C");
+  button(row_x + 332, 56, 150, 64, "K", "weather.unit.kelvin", s.weather_temperature_unit == "K");
+  label(content, "Show", 24, 136 + 13, 180, 37, &bhp_font_28, 0xaab8b7);
+  button(row_x, 136, 280, 64, "High & low", "weather.bar.temperatures", s.weather_bar != "sun_times");
+  button(row_x + 296, 136, 330, 64, "Sunrise & sunset", "weather.bar.sun_times", s.weather_bar == "sun_times");
+  label(content, "Location", 24, 216 + 13, 180, 37, &bhp_font_28, 0xaab8b7);
+  button(row_x, 216, 280, 64, "Automatic", "weather.location.automatic", w.automatic);
+  button(row_x + 296, 216, 330, 64, "Choose a place…", "weather.location.choose", !w.automatic);
+  if(w.state == "automatic_unavailable")
+   label(content, "Automatic location unavailable. Choose a place.", 24, 292, 896, 37, &bhp_font_28, 0xe9c480);
+  else
+   label(content, (w.automatic ? "Approximate: " : "") + w.location_label, 24, 292, 896, 37, &bhp_font_28, 0xf4f0e8);
+  auto *done = box(content, layout::action_x(0), layout::actions_y, layout::primary_width, layout::action_height, 0x293f43, 12);
+  label(done, "Done", 0, 13, layout::primary_width, 37, &bhp_font_28, 0xf4f0e8, LV_TEXT_ALIGN_CENTER);
+  hit_targets_.push_back({layout::content_x + layout::action_x(0), layout::content_y + layout::actions_y,
+                          layout::primary_width, layout::action_height, "weather.done"});
+  // CC BY 4.0 (ADR 0015, decision 1).
+  label(content, "Weather data by Open-Meteo.com", 400, layout::actions_y + 17, 520, 31, &bhp_font_24, 0xaab8b7,
+        LV_TEXT_ALIGN_RIGHT);
+  return;
+ }
+ if(w.state == "search") {
+  heading("Choose a place");
+  auto *field = box(content, 24, 48, 896, 56, 0x293f43, 8);
+  if(w.query.empty()) label(field, "Type a town or city", 12, 9, 872, 37, &bhp_font_28, 0xaab8b7);
+  else label(field, w.query + "|", 12, 9, 872, 37, &bhp_font_28, 0xf4f0e8);
+  // Keys at least 64 px (ADR 0015, decision 4), one closed intent each: the shell routes intents, not raw input.
+  static const char *rows[3] = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
+  for(int row = 0; row < 3; ++row) {
+   const std::string keys = rows[row];
+   const int start = row == 0 ? 24 : 69;
+   for(std::size_t column = 0; column < keys.size(); ++column)
+    button(start + static_cast<int>(column) * 90, 112 + row * 70, 84, 64, std::string(1, keys[column]),
+           std::string("weather.key.") + keys[column]);
+  }
+  button(69 + 7 * 90, 252, 84, 64, "-", "weather.key.hyphen");
+  button(69 + 8 * 90, 252, 84, 64, "'", "weather.key.apostrophe");
+  button(24, 336, 150, 64, "Back", "weather.search.back", false, 0xdbe5df);
+  button(184, 336, 300, 64, "Space", "weather.key.space", false, 0xdbe5df);
+  button(494, 336, 170, 64, "Delete", "weather.key.backspace", false, 0xdbe5df);
+  button(674, 336, 246, 64, "Search", "weather.search.submit");
+  return;
+ }
+ if(w.state == "searching") {
+  heading("Choose a place");
+  label(content, "Searching for “" + w.query + "”…", 24, 64, 896, 52, &bhp_font_40, 0xf4f0e8);
+  button(24, 336, 200, 64, "Back", "weather.search.back");
+  return;
+ }
+ if(w.state == "results") {
+  heading("Choose a place");
+  for(std::size_t at = 0; at < w.results.size() && at < 5; ++at)
+   button(24, 48 + static_cast<int>(at) * 58, 896, 52, w.results[at], "weather.result." + std::to_string(at + 1));
+  search_footer(344);
+  return;
+ }
+ if(w.state == "no_results") {
+  heading("Choose a place");
+  label(content, "No place called “" + w.query + "”", 24, 64, 896, 52, &bhp_font_40, 0xf4f0e8);
+  label(content, "Check the spelling, or try a nearby town.", 24, 136, 896, 37, &bhp_font_28, 0xaab8b7);
+  search_footer(344);
+  return;
+ }
+ heading("Choose a place");
+ label(content, "Search unavailable", 24, 64, 896, 52, &bhp_font_40, 0xf4f0e8);
+ label(content, "The place search could not be reached. Try again later, or use Automatic.", 24, 136, 896, 74,
+       &bhp_font_28, 0xaab8b7);
+ search_footer(344);
 }
 }
