@@ -26,8 +26,16 @@ Two gates are deliberate build failures, not defaults:
   are NXP-licensed. They are merged only through
   `nxp-firmware-eula.fragment` when the profile's `BHP_BOARD_NXP_FIRMWARE_EULA`
   names an accepted ADR carrying `<!-- @canonical nxp-firmware-eula-acceptance -->`.
-  Until then post-image stops with `BHP_IMAGE.NXP_FIRMWARE_EULA_NOT_ACCEPTED`.
+  Without one, post-image stops with `BHP_IMAGE.NXP_FIRMWARE_EULA_NOT_ACCEPTED`.
   No script accepts this license.
+  - **Since 2026-11-10** the profile names ADR 0016. The owner accepted
+    `firmware-imx` 8.27 (v58). The fragment selects `firmware-imx` only: the
+    IW612 firmware at the pinned tag (licence v63) is not covered yet.
+  - **Notices:** `post-build.sh` copies each built NXP package's notices into
+    `/usr/share/licenses/nxp/`, and stops the build if a package has none.
+  - **Never published:** built images and the firmware stay out of Git, CI
+    artifacts and releases
+    (`scripts/verification/tests/test_panel_nxp_firmware_guards.py`).
 - `FRDM-GATE-PIR`: the project DTB refuses to render while any PIR pin value is
   `UNMEASURED`.
 

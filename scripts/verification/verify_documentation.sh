@@ -39,6 +39,7 @@ docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-pl
 docs/decisions/0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md
 docs/decisions/0013-keep-a-spotify-refresh-token-on-the-panel.md
 docs/decisions/0014-run-a-bench-tier-on-the-vendor-image.md
+docs/decisions/0016-accept-the-nxp-firmware-licence-for-the-frdm-image.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md

@@ -194,6 +194,25 @@ for service_environment in panel-supervisor presence-sensor panel-ui; do
 	chmod 0644 "$service_environment_output"
 done
 image_version_path=$target_directory/etc/beaglebone-house-panel/image-version
+# NXP's licence notices stay in every image that carries NXP firmware (ADR 0016,
+# condition 4): each built NXP package's notice files, or the build stops.
+nxp_notice_directory=$target_directory/usr/share/licenses/nxp
+for nxp_package in firmware-imx bhp-nxp-iw612-firmware; do
+	for nxp_build in "${BUILD_DIR:-/nonexistent}/$nxp_package"-*; do
+		[ -d "$nxp_build" ] || continue
+		nxp_notices=
+		for nxp_notice in "$nxp_build"/COPYING "$nxp_build"/LICENSE.txt "$nxp_build"/EULA* "$nxp_build"/SCR*; do
+			[ -f "$nxp_notice" ] && nxp_notices="$nxp_notices $nxp_notice"
+		done
+		if [ -z "$nxp_notices" ]; then
+			printf '%s\n' "BHP_IMAGE.NXP_NOTICE_MISSING: $nxp_package was built without a licence notice" >&2
+			exit 1
+		fi
+		install -d -m 0755 "$nxp_notice_directory/$nxp_package"
+		# shellcheck disable=SC2086 # the notice paths come from this loop and hold no spaces
+		install -m 0644 $nxp_notices "$nxp_notice_directory/$nxp_package/"
+	done
+done
 image_profile_path=$target_directory/etc/beaglebone-house-panel/image-profile
 test ! -L "$image_version_path"
 test ! -L "$image_profile_path"
