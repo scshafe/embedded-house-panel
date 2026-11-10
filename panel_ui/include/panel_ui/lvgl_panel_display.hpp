@@ -2,6 +2,7 @@
 #include "panel_ui/panel_scene.hpp"
 #include "panel_ui/headless_renderer.hpp"
 #include <lvgl.h>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -10,12 +11,27 @@ namespace house_panel::panel_ui {
 /** @canonical panel_lvgl_display -- sole LVGL lifetime and surface composition owner. */
 class LvglPanelDisplay final {
 public:
+ /** What render() had to change so live text could be drawn (panel_live_text_fit, panel_label_fit). */
+ struct TextFit {
+  /** Live fields (card, music, report, voice-lab text) with a character replaced by '?' or cut at the field limit. */
+  std::vector<std::string> fitted_fields;
+  /** Labels whose text was cut, with an ellipsis, to the height of their box. */
+  int cut_labels{0};
+  bool empty() const {return fitted_fields.empty() && cut_labels == 0;}
+  bool operator==(const TextFit &other) const {return fitted_fields == other.fitted_fields && cut_labels == other.cut_labels;}
+ };
+ /** The most code points a live field keeps before layout; the box's height then decides. */
+ static constexpr std::size_t live_field_code_points = 512;
  explicit LvglPanelDisplay(bool sdl_window);
  ~LvglPanelDisplay();
  LvglPanelDisplay(const LvglPanelDisplay&)=delete;
  LvglPanelDisplay& operator=(const LvglPanelDisplay&)=delete;
- /** Validates all visible text before drawing one deterministic full frame. */
+ /**
+  * Fits live text (never throws for it), validates all visible text and draws
+  * one deterministic full frame. text_fit() then says what was changed.
+  */
  std::uint64_t render(const PanelScene &scene);
+ const TextFit &text_fit() const {return text_fit_;}
  void service();
  void write_png(const std::string &path) const;
  const std::vector<std::uint32_t> &pixels() const {return pixels_;}
@@ -43,5 +59,6 @@ private:
  std::vector<std::uint32_t> pixels_;
  std::vector<std::uint32_t> draw_buffer_;
  std::vector<PanelHitTarget> hit_targets_;
+ TextFit text_fit_;
 };
 }

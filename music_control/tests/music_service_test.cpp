@@ -2,6 +2,8 @@
 // each request sends to the one configured speaker, refusals, and sign-out.
 #include "fake_spotify.hpp"
 #include "music_control/music_service.h"
+#include <fstream>
+#include <sys/stat.h>
 #include <unistd.h>
 using namespace music_control;
 using namespace music_control_test;
@@ -60,13 +62,47 @@ void signed_out()
 	expect(state.sign_in == "signed_out" && state.output.state == "unknown" && state.output.name == "Living Room Bose" &&
 		       !state.playback,
 	       "without a token the panel shows signed out");
-	expect(rig.service->tick() == std::chrono::seconds(60) && rig.spotify.requests.empty(),
+	expect(rig.service->tick() == MusicService::kSignedOutCheck && rig.spotify.requests.empty(),
 	       "signed out, nothing is sent");
 	auto events = rig.service->handle(wire::SelectOutputRequest{});
 	const auto *refused = rig.refused(events);
 	expect(refused && refused->request == "select_output" && refused->error_code == "MUSIC.SIGN_IN_REQUIRED" &&
 		       events.size() == 2,
 	       "a request while signed out is refused, then the state follows");
+}
+
+// The owner copies a token in while the service runs (spotify-owner-setup.md,
+// Part 3, with scp): the next tick reads it, with no restart. A copy caught half
+// written fails to load and is read again once it changes.
+void token_copied_in_while_running()
+{
+	Rig rig(false);
+	expect(rig.service->tick() == MusicService::kSignedOutCheck, "signed out at start");
+	const auto path = rig.token_directory + "/spotify-token.json";
+	{
+		std::ofstream partial(path, std::ios::trunc);
+		partial << "{\"schema_version\":1,\"client_id\":";
+	}
+	::chmod(path.c_str(), 0600);  // as Part 3 leaves it: scp -p, then chmod 600
+	(void)rig.service->tick();
+	expect(rig.service->state().sign_in == "signed_out" && rig.spotify.requests.empty(),
+	       "a half-copied file does not sign in and sends nothing");
+	{
+		std::ofstream complete(path, std::ios::trunc);
+		complete << "{\"schema_version\":1,\"client_id\":\"" << kClientId
+			 << "\",\"refresh_token\":\"fixture-refresh-1\",\"signed_out\":false}\n";
+	}
+	rig.spotify.token(200, fixture("token-refresh-rotated.json"));
+	rig.script_refresh();
+	(void)rig.service->tick();
+	const auto state = rig.service->state();
+	expect(state.sign_in == "signed_in" && state.output.state == "available" && state.error.empty(),
+	       "the copied token is used on the next tick, with no restart");
+	const auto requests = rig.spotify.requests.size();
+	rig.clock.now += std::chrono::seconds(1);
+	(void)rig.service->tick();
+	expect(rig.spotify.requests.size() == requests,
+	       "the service's own save of the rotated token is not mistaken for a new copy");
 }
 
 void flow()
@@ -202,6 +238,7 @@ void text()
 int main()
 {
 	signed_out();
+	token_copied_in_while_running();
 	flow();
 	refusals();
 	failures_and_sign_out();

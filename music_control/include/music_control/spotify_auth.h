@@ -98,9 +98,30 @@ public:
 	Result<bool> save(const std::string &client_id, const std::string &refresh_token);
 	/** Replaces the token with a signed-out record. */
 	Result<bool> clear();
+	/**
+	 * True when the token file is not the one this store last loaded or wrote:
+	 * the owner copied a new one in (spotify-owner-setup.md, Part 3) while the
+	 * service ran. Compares the file's device, inode, size and modification time.
+	 */
+	bool changed_on_disk() const;
 
 private:
+	struct FileIdentity {
+		unsigned long long device{0}, inode{0}, size{0};
+		long long modified_ns{0};
+		bool operator==(const FileIdentity &other) const
+		{
+			return device == other.device && inode == other.inode && size == other.size &&
+			       modified_ns == other.modified_ns;
+		}
+	};
+	std::optional<FileIdentity> identity() const;
+	void remember();
+
+	std::string path_;
 	bhp::durable_store::DurableFile file_;
+	mutable std::mutex seen_mutex_;
+	std::optional<FileIdentity> seen_;
 };
 
 /**

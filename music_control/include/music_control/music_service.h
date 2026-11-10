@@ -51,8 +51,14 @@ public:
 
 	/** Answers one UI request with the events to send back, in order. */
 	std::vector<protocol::MusicEvent> handle(const protocol::UiRequest &request);
-	/** One round of background work; how long until it wants another. */
+	/**
+	 * One round of background work; how long until it wants another. It first
+	 * reads the token file again if it changed on disk, so a token the owner
+	 * copies in takes effect within kSignedOutCheck, without a restart.
+	 */
 	std::chrono::milliseconds tick();
+	/** How often a signed-out service looks for a new token file. */
+	static constexpr std::chrono::seconds kSignedOutCheck{5};
 	/** The state the UI shows; its sequence rises whenever any of it changed. */
 	protocol::State state();
 

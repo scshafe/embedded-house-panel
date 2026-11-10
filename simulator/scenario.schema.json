@@ -152,6 +152,12 @@
         }
       }
     },
+    "fixture_card": {
+      "enum": [
+        "standard",
+        "unfit"
+      ]
+    },
     "voice_lab_state": {
       "enum": [
         "signed_out",

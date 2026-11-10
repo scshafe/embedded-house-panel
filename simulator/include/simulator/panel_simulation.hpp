@@ -18,6 +18,8 @@
 #include "simulator/voice_lab_runtime.hpp"
 #include "music_control/music_protocol.h"
 #include "bug_reporter/reporter_protocol.h"
+#include "bhp/structured_logger.h"
+#include <iostream>
 
 namespace bhp::simulator {
 using Json=nlohmann::json;
@@ -143,6 +145,9 @@ private:
  std::unique_ptr<VoiceLabRuntime> voice_lab_runtime_;
  std::optional<VoiceLabRuntime::TouchEvidence> pending_touch_evidence_;
  bool defer_level_renders_{false};
+ /** The last text fit logged, so a card that stays on the screen is logged once. */
+ house_panel::panel_ui::LvglPanelDisplay::TextFit last_text_fit_;
+ bhp::StructuredLogger text_log_{"panel_ui",std::cerr};
  int voice_lab_take_peak_{-1200};
  bool voice_pending_{false};
  std::uint64_t utterance_sequence_{0};
