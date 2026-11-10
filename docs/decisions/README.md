@@ -24,6 +24,7 @@ still occupy their filename and are never treated as a free number.
 | [0012](0012-keep-a-rotating-voice-lab-refresh-token-on-the-panel.md) | Accepted; waits for voice-lab's bundle and the uploader | Keep one rotating Pocket ID refresh token for voice-lab, held only by the uploader |
 | [0013](0013-keep-a-spotify-refresh-token-on-the-panel.md) | Accepted; waits for the owner's Spotify app and sign-in | Keep one Spotify refresh token for playback control, held only by `bhp-music-control` |
 | [0014](0014-run-a-bench-tier-on-the-vendor-image.md) | Accepted; not gate evidence | Run the project's services from `/opt/house-panel` on the vendor image, started at boot; install only the project's own files, a config directory and units |
+| [0015](0015-use-open-meteo-and-ip-geolocation-for-the-daily-forecast.md) | Accepted | Daily forecast and place search from Open-Meteo; automatic location by IP geolocation through `free.freeipapi.com`; the weather location never moves day/night |
 
 No later number is reserved by a plan.
 
@@ -91,3 +92,8 @@ to ADR 0012.
 bench tier on the vendor image (idea B1 of the November review). Its records
 are not gate evidence, and it may install only the project's own files in
 `/opt/house-panel`, a configuration directory and systemd units.
+
+**Amended 2026-11-10:** registered ADR 0015, the owner's acceptance of the
+weather plan's five decisions: Open-Meteo, automatic location by IP
+geolocation, day and night left on the supervisor's location, a drawn
+keyboard, and the defaults.

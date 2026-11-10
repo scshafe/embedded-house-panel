@@ -175,9 +175,11 @@ power policy remain authoritative.
 
 Clock and weather provenance are independent of study transport. The advancing
 preview clock starts from explicit fixture text; it is not household civil
-time. Weather values are explicit fixtures, not a live forecast. AGENDA-011,
-household timezone, weather provider/location and physical calibration remain
-unresolved. See the [virtual panel contract](../simulator/README.md) for preview
+time. Weather values are explicit fixtures, not a live forecast, until
+`weather_panel/` is built. ADR 0015 (2026-11-10) settles the weather provider
+and location: Open-Meteo, and automatic location by IP geolocation or a
+chosen place. AGENDA-011, the household timezone and physical calibration
+remain unresolved. See the [virtual panel contract](../simulator/README.md) for preview
 controls and deterministic capture fields. None of these changes produces FRDM
 hardware evidence.
 
