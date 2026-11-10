@@ -13,6 +13,13 @@ REPORT_INTENTS = {"shell.open_report", "report.send", "report.cancel", "report.d
                   "report.record", "report.stop"} | {
     f"report.key.{key}" for key in [*(f"digit_{digit}" for digit in "1234567890"), *"qwertyuiopasdfghjklzxcvbnm",
                                     "period", "comma", "question", "apostrophe", "space", "backspace"]}
+# The weather menu (ADR 0015): its launcher, rows, search, five results and keys.
+WEATHER_INTENTS = ({"shell.open_weather", "weather.unit.fahrenheit", "weather.unit.celsius", "weather.unit.kelvin",
+                    "weather.bar.temperatures", "weather.bar.sun_times", "weather.location.automatic",
+                    "weather.location.choose", "weather.search.submit", "weather.search.back", "weather.done"}
+                   | {f"weather.result.{n}" for n in range(1, 6)}
+                   | {f"weather.key.{key}" for key in "abcdefghijklmnopqrstuvwxyz"}
+                   | {"weather.key.hyphen", "weather.key.apostrophe", "weather.key.space", "weather.key.backspace"})
 
 
 class CatalogTest(unittest.TestCase):
@@ -33,7 +40,7 @@ class CatalogTest(unittest.TestCase):
                     "agenda.submit_wish", "shell.open_voice_lab", "voice_lab.record", "voice_lab.stop",
                     "voice_lab.keep", "voice_lab.retake", "voice_lab.reject", "voice_lab.skip",
                     "voice_lab.sign_in", "voice_lab.approve", "shell.open_music", "music.use_speaker",
-                    "music.play", "music.pause", "music.next", "music.volume_down", "music.volume_up"} | REPORT_INTENTS
+                    "music.play", "music.pause", "music.next", "music.volume_down", "music.volume_up"} | REPORT_INTENTS | WEATHER_INTENTS
         self.assertEqual(len(parsed), len(set(parsed)))
         self.assertEqual(set(parsed), expected)
         self.assertLessEqual(set(parsed), set(self.graph["intents"]))
