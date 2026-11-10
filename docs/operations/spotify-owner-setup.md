@@ -142,11 +142,14 @@ rm -r "/run/user/$(id -u)/bhp-music"
 - Deleting the PC copy matters. The panel saves every rotated token, but
   Spotify does not say whether an old token stops working.
 
-Then tell the agent: "Spotify sign-in done", with the client ID and the
-speaker's name. Neither is a secret. The agent writes them to
-`/etc/house-panel/music.json` (`{"client_id": "...", "output_name": "..."}`)
-and restarts the bench, which then starts `bhp-music-control`. It never reads
-the token file.
+Then tell the agent "Spotify sign-in done". It restarts the bench, and
+`bhp-music-control` picks up the token. The agent never reads the token
+file.
+
+The client ID and the speaker's name are not secrets. They are already in
+`/etc/house-panel/music.json` on the board
+(`{"client_id": "...", "output_name": "Bathroom"}`), written by the agent on
+2026-11-10 after Part 1.
 
 ## Revoking
 

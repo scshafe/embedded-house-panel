@@ -119,8 +119,12 @@ study and voice-lab can be turned on.
 
 ### 4. Optional services
 
-- **Music:** follow [spotify-owner-setup.md](spotify-owner-setup.md),
-  Parts 1–3 (after step 1). Then the agent writes `music.json`.
+- **Music:** follow [spotify-owner-setup.md](spotify-owner-setup.md).
+  - Part 1 is done (2026-11-10), and the agent wrote `music.json` on the
+    board with the app's client ID and the speaker's Connect name,
+    "Bathroom". Neither is secret.
+  - Until Parts 2–3 put the token on the panel, which must wait for owner
+    step 1, the music surface shows "signed out".
 - **Voice-lab:** `voice-lab.json`, as for the demo (no credential), and the
   sign-in of issue #23.
 - **Live vocabulary:** `vocabulary-panel.env` (no credential; ADR 0010).
