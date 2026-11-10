@@ -70,7 +70,9 @@ and the wiring into the UI come next (Steps 5–6).
   - The colors follow `temperature_color()` on the Celsius value in every
     unit.
   - Kelvin shows as `295 K`.
-  - Sun times show as `↑ 7:12` / `↓ 18:21`.
+  - Sun times show as `↑ 7:12` / `↓ 18:21`. The renderer draws the
+    arrows, because the panel's font subset has none; `sun_time_text` gives
+    `7:12`.
   - Night mode hides the bar.
 
 ## Freshness

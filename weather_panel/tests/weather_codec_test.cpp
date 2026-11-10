@@ -137,7 +137,8 @@ void display_rules()
 	expect(temperature_text(-40.0, TemperatureUnit::fahrenheit) == "-40°F", "-40 is -40 F");
 	expect(temperature_text(22.0, TemperatureUnit::fahrenheit) == "72°F", "22 C is 72 F");
 	expect(temperature_text(21.85, TemperatureUnit::kelvin) == "295 K", "Kelvin has no degree sign");
-	expect(sunrise_text("07:12") == "↑ 7:12" && sunset_text("18:21") == "↓ 18:21", "sun times");
+	expect(sun_time_text("07:12") == "7:12" && sun_time_text("18:21") == "18:21", "sun times");
+	expect(sun_time_text("7.12") == "\u2014", "a malformed time is a dash, never guessed");
 	expect(round_coordinate(40.0149) == 40.01 && round_coordinate(-105.2705) == -105.27, "0.01 degree rounding");
 }
 

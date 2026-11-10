@@ -242,8 +242,7 @@ std::string temperature_text(double celsius, TemperatureUnit unit)
 	return rounded_integer(celsius * 9.0 / 5.0 + 32.0) + "°F";
 }
 
-std::string sunrise_text(const std::string &local_time) { return "↑ " + without_leading_zero(local_time); }
-std::string sunset_text(const std::string &local_time) { return "↓ " + without_leading_zero(local_time); }
+std::string sun_time_text(const std::string &local_time) { return without_leading_zero(local_time); }
 
 std::string local_date(std::int64_t now, std::int64_t utc_offset_seconds)
 {

@@ -25,9 +25,8 @@ double round_coordinate(double degrees);
 
 /** "72°F", "22°C" or "295 K", from a Celsius value; Kelvin has no degree sign. */
 std::string temperature_text(double celsius, TemperatureUnit unit);
-/** "↑ 7:12" or "↓ 18:21" from a local HH:MM. */
-std::string sunrise_text(const std::string &local_time);
-std::string sunset_text(const std::string &local_time);
+/** "7:12" from a local "07:12". The renderer draws the ↑ and ↓ beside it: the panel's font has no arrows. */
+std::string sun_time_text(const std::string &local_time);
 
 /** The place's local date (YYYY-MM-DD) at `now`, judged with the forecast's UTC offset. */
 std::string local_date(std::int64_t now, std::int64_t utc_offset_seconds);
