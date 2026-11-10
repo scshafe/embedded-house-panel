@@ -230,7 +230,14 @@ Step 6.
   - Verify:
     - `ctest --test-dir .build/host-dev -R weather` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 5: The bar and the menu.**
+- [x] **Step 5: The bar and the menu.** Done 2026-11-10, with two deviations:
+  - **A surface, not a sheet.** The shell has no modal sheet, so the menu is
+    its own `weather` surface, opened by a tap on the forecast on the day bar
+    from every surface (`shell.open_weather`). Done returns to the surface
+    the tap came from.
+  - **Drawn arrows.** The sun times' ↑ and ↓ are drawn as lines: the panel's
+    font subset has no arrows, and regenerating it needs Node, which the
+    build PC lacks.
   - The bar renders temperatures or sun times from `WeatherSettings`. The tap
     target opens the sheet.
   - Add the unit, bar and location rows, the search screen with the drawn

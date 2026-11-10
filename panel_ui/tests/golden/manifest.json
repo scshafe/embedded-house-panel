@@ -25,7 +25,9 @@
     "day-reel-400",
     "grace",
     "home-weather-celsius",
+    "home-weather-kelvin",
     "home-weather-stale",
+    "home-weather-sun-times",
     "home-weather",
     "home",
     "music-checking",
@@ -70,6 +72,12 @@
     "voice-lab-review",
     "voice-lab-signed-out",
     "voice-lab-signing-in",
-    "voice-lab-unavailable"
+    "voice-lab-unavailable",
+    "weather-automatic-unavailable",
+    "weather-menu",
+    "weather-no-results",
+    "weather-offline",
+    "weather-results",
+    "weather-search"
   ]
 }

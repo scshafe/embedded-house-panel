@@ -53,6 +53,15 @@
     ],
     "voice_lab.start_sign_in": [
       "external_submission"
+    ],
+    "weather.edit_settings": [
+      "reversible_local"
+    ],
+    "weather.lookup_location": [
+      "external_submission"
+    ],
+    "weather.search_places": [
+      "external_submission"
     ]
   },
   "handlers": {
@@ -254,6 +263,9 @@
     "shell.open_voice_lab.handler": [
       "shell.switch_surface"
     ],
+    "shell.open_weather.handler": [
+      "shell.switch_surface"
+    ],
     "study.back.handler": [
       "study.navigate"
     ],
@@ -313,6 +325,142 @@
     ],
     "voice_lab.stop.handler": [
       "media.capture_stop"
+    ],
+    "weather.bar.sun_times.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.bar.temperatures.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.done.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.a.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.apostrophe.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.b.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.backspace.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.c.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.d.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.e.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.f.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.g.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.h.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.hyphen.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.i.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.j.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.k.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.l.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.m.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.n.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.o.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.p.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.q.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.r.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.s.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.space.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.t.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.u.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.v.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.w.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.x.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.y.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.key.z.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.location.automatic.handler": [
+      "weather.edit_settings",
+      "weather.lookup_location"
+    ],
+    "weather.location.choose.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.result.1.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.result.2.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.result.3.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.result.4.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.result.5.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.search.back.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.search.submit.handler": [
+      "weather.search_places"
+    ],
+    "weather.unit.celsius.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.unit.fahrenheit.handler": [
+      "weather.edit_settings"
+    ],
+    "weather.unit.kelvin.handler": [
+      "weather.edit_settings"
     ]
   },
   "intents": {
@@ -514,6 +662,9 @@
     "shell.open_voice_lab": [
       "shell.open_voice_lab.handler"
     ],
+    "shell.open_weather": [
+      "shell.open_weather.handler"
+    ],
     "study.back": [
       "study.back.handler"
     ],
@@ -561,6 +712,141 @@
     ],
     "voice_lab.stop": [
       "voice_lab.stop.handler"
+    ],
+    "weather.bar.sun_times": [
+      "weather.bar.sun_times.handler"
+    ],
+    "weather.bar.temperatures": [
+      "weather.bar.temperatures.handler"
+    ],
+    "weather.done": [
+      "weather.done.handler"
+    ],
+    "weather.key.a": [
+      "weather.key.a.handler"
+    ],
+    "weather.key.apostrophe": [
+      "weather.key.apostrophe.handler"
+    ],
+    "weather.key.b": [
+      "weather.key.b.handler"
+    ],
+    "weather.key.backspace": [
+      "weather.key.backspace.handler"
+    ],
+    "weather.key.c": [
+      "weather.key.c.handler"
+    ],
+    "weather.key.d": [
+      "weather.key.d.handler"
+    ],
+    "weather.key.e": [
+      "weather.key.e.handler"
+    ],
+    "weather.key.f": [
+      "weather.key.f.handler"
+    ],
+    "weather.key.g": [
+      "weather.key.g.handler"
+    ],
+    "weather.key.h": [
+      "weather.key.h.handler"
+    ],
+    "weather.key.hyphen": [
+      "weather.key.hyphen.handler"
+    ],
+    "weather.key.i": [
+      "weather.key.i.handler"
+    ],
+    "weather.key.j": [
+      "weather.key.j.handler"
+    ],
+    "weather.key.k": [
+      "weather.key.k.handler"
+    ],
+    "weather.key.l": [
+      "weather.key.l.handler"
+    ],
+    "weather.key.m": [
+      "weather.key.m.handler"
+    ],
+    "weather.key.n": [
+      "weather.key.n.handler"
+    ],
+    "weather.key.o": [
+      "weather.key.o.handler"
+    ],
+    "weather.key.p": [
+      "weather.key.p.handler"
+    ],
+    "weather.key.q": [
+      "weather.key.q.handler"
+    ],
+    "weather.key.r": [
+      "weather.key.r.handler"
+    ],
+    "weather.key.s": [
+      "weather.key.s.handler"
+    ],
+    "weather.key.space": [
+      "weather.key.space.handler"
+    ],
+    "weather.key.t": [
+      "weather.key.t.handler"
+    ],
+    "weather.key.u": [
+      "weather.key.u.handler"
+    ],
+    "weather.key.v": [
+      "weather.key.v.handler"
+    ],
+    "weather.key.w": [
+      "weather.key.w.handler"
+    ],
+    "weather.key.x": [
+      "weather.key.x.handler"
+    ],
+    "weather.key.y": [
+      "weather.key.y.handler"
+    ],
+    "weather.key.z": [
+      "weather.key.z.handler"
+    ],
+    "weather.location.automatic": [
+      "weather.location.automatic.handler"
+    ],
+    "weather.location.choose": [
+      "weather.location.choose.handler"
+    ],
+    "weather.result.1": [
+      "weather.result.1.handler"
+    ],
+    "weather.result.2": [
+      "weather.result.2.handler"
+    ],
+    "weather.result.3": [
+      "weather.result.3.handler"
+    ],
+    "weather.result.4": [
+      "weather.result.4.handler"
+    ],
+    "weather.result.5": [
+      "weather.result.5.handler"
+    ],
+    "weather.search.back": [
+      "weather.search.back.handler"
+    ],
+    "weather.search.submit": [
+      "weather.search.submit.handler"
+    ],
+    "weather.unit.celsius": [
+      "weather.unit.celsius.handler"
+    ],
+    "weather.unit.fahrenheit": [
+      "weather.unit.fahrenheit.handler"
+    ],
+    "weather.unit.kelvin": [
+      "weather.unit.kelvin.handler"
     ]
   }
 }

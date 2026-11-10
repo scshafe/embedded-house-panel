@@ -11,8 +11,32 @@ settings.
   `vocabulary_panel`. It runs inside the UI process, off the LVGL thread.
 
 **Status (2026-11-10):** the decisions and the fixtures are recorded (plan
-Steps 1–2), and the domain is built and tested (Steps 3–4). The bar, the menu
-and the wiring into the UI come next (Steps 5–6).
+Steps 1–2). The domain is built and tested (Steps 3–4). The bar and the menu
+are drawn and routed (Step 5). Wiring the live source into the panel's
+processes is Step 6.
+
+## On the panel (Step 5)
+
+- **The day bar.** It shows the high and low in °F, °C or K, or the sunrise
+  and sunset (`↑ 6:40` / `↓ 16:48`, with drawn arrows). A tap on it opens
+  the `weather` surface from any day surface.
+- **The menu rows:**
+  - Units: °F, °C, K;
+  - Show: High & low, Sunrise & sunset;
+  - Location: Automatic, or Choose a place….
+
+  Then Done, and the attribution "Weather data by Open-Meteo.com".
+- **The search.**
+  - A drawn QWERTY keyboard with 84 × 64 px keys, plus hyphen and
+    apostrophe.
+  - Up to five places, one row each.
+  - The other states: no results, offline (the search failed), and
+    Automatic unavailable.
+- **Intents:** all are `weather.*`, besides `shell.open_weather`.
+  - `weather.location.automatic` and `weather.search.submit` are
+    `ExternalSubmission`: the first sends the panel's address to the pinned
+    service, the second the typed name.
+  - The others are local navigation.
 
 ## Pieces
 

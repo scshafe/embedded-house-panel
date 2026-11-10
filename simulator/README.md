@@ -328,3 +328,38 @@ music (`bug_reporter_lost`, then `bug_reporter_connected`). Scenario
 files set only the starting screen (`report_state`: `compose`, `recording`,
 `sending`, `sent`, `list`, `unavailable`).
 
+## Weather
+
+Added 2026-11-10, Step 5 of the weather plan (ADR 0015).
+
+**The day bar** shows the forecast:
+- the high and low in °F, °C or K, colored by the Celsius value in every
+  unit;
+- or the sunrise and sunset, `↑ 6:40` / `↓ 16:48` in the place's local time.
+  The arrows are drawn as lines, because the font subset has none.
+
+A tap on the forecast opens the `weather` surface (`shell.open_weather`) from
+every day surface. On the weather surface itself, the forecast does nothing.
+
+**The weather surface:**
+- **The menu.**
+  - Rows for Units, Show and Location (Automatic, or Choose a place…).
+  - Done returns to the surface the tap came from.
+  - The attribution: "Weather data by Open-Meteo.com".
+- **The search.**
+  - A drawn QWERTY keyboard with 84 × 64 px keys, with hyphen, apostrophe,
+    Space and Delete (`weather.key.*`).
+  - Search, then up to five places, one tap each (`weather.result.1`–`5`).
+- **Fixtures.** Without a weather worker the menu changes only the scene, and
+  the search answers as `FixtureWeatherClient` does: names starting "boul"
+  find the recorded five places; anything else finds none.
+- **Live.** `attach_weather()` makes the bar and menu follow a
+  `weather_panel::WeatherWorker`. A forecast shows only if it is fresh for
+  the place's own date; "Weather stale" appears after 3 h.
+- **Scenario states** (`weather_state`): `menu`, `automatic_unavailable`,
+  `search`, `searching`, `results`, `no_results`, `offline`.
+- **Scenario weather fields:**
+  - `unit`: `F`, `C` or `K`;
+  - `bar`: `temperatures` or `sun_times`;
+  - `sunrise` and `sunset`: `HH:MM`.
+

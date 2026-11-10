@@ -66,10 +66,10 @@ void navigation_and_lifecycle(){
  PanelSimulation app(false,{}, {},(fixtures/"seven_apps.json").string());
  app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
  require(app.scene.home_page==0&&app.status().at("home_page_count")==2,"seven apps become two pages");
- require(app.display.hit_targets().size()==9,"first page has six apps, Home, Report and Next");
+ require(app.display.hit_targets().size()==10,"first page has six apps, Home, Report, the forecast and Next");
  const auto initial=app.render_generation;tap(app,"shell.apps_next");
  require(app.scene.home_page==1&&app.render_generation>initial,"Next renders the second page");
- require(app.display.hit_targets().size()==4,"last page has one app, Home, Report and Previous");
+ require(app.display.hit_targets().size()==5,"last page has one app, Home, Report, the forecast and Previous");
  tap(app,"shell.open_study");require(app.scene.surface_id=="study","last-page app launches through the shell");
  app.semantic_intent("study.flip","touch");tap(app,"shell.home");
  require(app.scene.home_page==1,"Home retains the last launcher page");
@@ -88,7 +88,7 @@ void visibility_and_empty_catalogs(){
   PanelSimulation app(false,{}, {},(fixtures/name).string());
   app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
   const bool empty=std::string(name)=="empty.json";
-  require(app.display.hit_targets().size()==(empty?2u:3u),"only enabled app routes have tiles (besides Home and Report)");
+  require(app.display.hit_targets().size()==(empty?3u:4u),"only enabled app routes have tiles (besides Home, Report and the forecast)");
   app.semantic_intent("shell.open_study","touch");require(app.scene.surface_id=="home","hidden/unconfigured routes cannot launch from Home");
   if(!empty){tap(app,"shell.open_agenda");require(app.scene.surface_id=="agenda","reordered visible app reaches canonical destination");}
  }

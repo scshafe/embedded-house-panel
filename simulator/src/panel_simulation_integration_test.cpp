@@ -1,3 +1,7 @@
+#include "weather_panel/weather_client.h"
+#include "weather_panel/weather_store.h"
+#include "weather_panel/weather_worker.h"
+#include <atomic>
 #include "simulator/panel_simulation.hpp"
 #include "vocabulary_panel/study_wire_codec.h"
 #include "bhp/media_window_protocol/media_window_protocol.h"
@@ -466,7 +470,9 @@ void test_home_weather_scenario_validation(const std::filesystem::path &root){
   {{"state","available"},{"high_celsius",61},{"low_celsius",12}},
   {{"state","available"},{"high_celsius",24},{"low_celsius",-81}},
   {{"state","available"},{"high_celsius",24.5},{"low_celsius",12}},
-  {{"state","available"},{"high_celsius",24},{"low_celsius",12},{"unit","K"}},
+  {{"state","available"},{"high_celsius",24},{"low_celsius",12},{"unit","R"}},
+  {{"state","available"},{"high_celsius",24},{"low_celsius",12},{"bar","sideways"}},
+  {{"state","available"},{"high_celsius",24},{"low_celsius",12},{"sunrise","7:12"}},
   {{"state","unavailable"},{"provider","invented"}}}){
   auto invalid=scenario;invalid["weather"]=weather;bool rejected=false;try{parse(invalid);}catch(const std::exception &){rejected=true;}require(rejected,"closed weather schema rejects invalid or fabricated observations");
  }
@@ -603,6 +609,73 @@ void test_services_come_and_go(const std::filesystem::path &root){
  ::close(reporter_socket.accept_one());
  std::filesystem::remove_all(directory);
 }
+void test_weather_menu_and_the_worker(const std::filesystem::path &root){
+ // Fixture weather: the forecast on the bar opens the menu from any day surface.
+ PanelSimulation app(false);
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/music-playing.json").string()));
+ const auto has_target=[&app](const std::string &intent){
+  for(const auto &target:app.display.hit_targets())if(target.intent_id==intent)return true;
+  return false;
+ };
+ require(has_target("shell.open_weather"),"the forecast on the day bar opens the weather menu");
+ app.tap(848,36);
+ require(app.scene.surface_id=="weather"&&app.scene.weather.state=="menu","a tap on the forecast opens the menu");
+ require(!has_target("shell.open_weather"),"on the menu itself the forecast does nothing");
+ app.semantic_intent("weather.unit.kelvin","touch");
+ require(app.scene.weather_temperature_unit=="K","K changes the bar's unit");
+ app.semantic_intent("weather.bar.sun_times","touch");
+ require(app.scene.weather_bar=="sun_times","Sunrise & sunset swaps the bar");
+ app.semantic_intent("weather.done","touch");
+ require(app.scene.surface_id=="music","Done returns where the forecast was tapped");
+
+ // Live: a worker on the recorded answers, its store, and fixed clocks.
+ const auto directory=std::filesystem::temp_directory_path()/("bhp-weather-ui-"+vocabulary_panel::new_study_uuid());
+ std::filesystem::create_directories(directory); // DurableFile makes only the last level, 0700
+ auto monotonic=std::make_shared<std::atomic<std::int64_t>>(1000);
+ const std::int64_t utc=1794337200; // 2026-11-10T19:00:00Z, the recorded forecast's day in Denver
+ auto worker=std::make_shared<weather_panel::WeatherWorker>(
+  std::make_shared<weather_panel::FixtureWeatherClient>((root/"weather_panel/tests/fixtures").string()),
+  std::make_shared<weather_panel::WeatherStore>((directory/"state").string()),
+  weather_panel::WeatherClocks{[monotonic]{return monotonic->load();},[utc]{return utc;}},nullptr,std::chrono::milliseconds(5));
+ app.set_weather_clock([utc]{return utc;});
+ app.attach_weather(worker);
+ const auto until=[&app](const std::function<bool()> &done,const char *message){
+  for(int i=0;i<400&&!done();++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+  require(done(),message);
+ };
+ until([&]{return app.scene.weather_available;},"the live forecast reaches the bar");
+ require(!app.scene.weather_fixture&&app.scene.weather_high_celsius==20.4&&app.scene.weather_low_celsius==3.5,
+  "the bar shows the parsed forecast, not a fixture");
+ require(app.scene.weather_temperature_unit=="F"&&app.scene.weather_bar=="temperatures","the defaults are F and high/low");
+ app.semantic_intent("shell.open_weather","touch");
+ require(app.scene.weather.automatic&&app.scene.weather.location_label=="Boulder, Colorado","Automatic names the area");
+ app.semantic_intent("weather.unit.celsius","touch");
+ until([&]{return worker->snapshot().settings.unit==weather_panel::TemperatureUnit::celsius;},"a unit tap changes the settings");
+ app.semantic_intent("weather.location.choose","touch");
+ require(app.scene.weather.state=="search"&&app.scene.weather.query.empty(),"Choose a place opens the search");
+ for(const auto *key:{"weather.key.z","weather.key.z","weather.key.z"})app.semantic_intent(key,"touch");
+ app.semantic_intent("weather.search.submit","touch");
+ until([&]{return app.scene.weather.state=="no_results";},"an unknown name finds nothing");
+ app.semantic_intent("weather.location.choose","touch");
+ for(const auto *key:{"weather.key.b","weather.key.o","weather.key.u","weather.key.l"})app.semantic_intent(key,"touch");
+ require(app.scene.weather.query=="boul","the drawn keyboard types");
+ app.semantic_intent("weather.search.submit","touch");
+ require(app.scene.weather.state=="searching","a search shows that it is searching");
+ until([&]{return app.scene.weather.state=="results";},"the search answers");
+ require(app.scene.weather.results.size()==5&&app.scene.weather.results[0]=="Boulder, Colorado, United States","up to five places");
+ app.semantic_intent("weather.result.2","touch");
+ require(app.scene.weather.state=="menu"&&!app.scene.weather.automatic&&app.scene.weather.location_label=="Boulder, Montana, United States",
+  "picking a place shows it in the menu");
+ until([&]{const auto s=worker->snapshot();return s.settings.place&&s.settings.place->region=="Montana";},"picking a place stores it");
+ until([&]{return app.scene.weather_available;},"and a refresh brings its forecast");
+ // The worker's store holds the files' locks until it is gone, as a restart would release them.
+ app.attach_weather(nullptr);
+ worker.reset();
+ const auto saved=weather_panel::WeatherStore((directory/"state").string()).settings();
+ require(saved.has_value()&&saved.value().place&&saved.value().place->region=="Montana"&&saved.value().unit==weather_panel::TemperatureUnit::celsius,
+  "the settings survive a restart");
+ std::filesystem::remove_all(directory);
+}
 int main(){try{
  const auto root=std::filesystem::path(BHP_SIMULATOR_SOURCE_ROOT);
  test_durable_delivery_fixture_isolation(root);
@@ -616,6 +689,7 @@ int main(){try{
  test_report_by_voice_with_a_spoken_description(root);
  test_reconnect_schedule();
  test_services_come_and_go(root);
+ test_weather_menu_and_the_worker(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

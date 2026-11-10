@@ -24,9 +24,15 @@ struct PanelScene {
  bool weather_available{false};
  bool weather_stale{false};
  bool weather_fixture{false};
- int weather_high_celsius{0};
- int weather_low_celsius{0};
+ /** One decimal, as the forecast gives it (ADR 0015); the bar rounds once, in the chosen unit. */
+ double weather_high_celsius{0};
+ double weather_low_celsius{0};
+ /** F, C or K. */
  std::string weather_temperature_unit{"F"};
+ /** "temperatures" (high and low) or "sun_times" (sunrise and sunset, the place's local HH:MM). */
+ std::string weather_bar{"temperatures"};
+ std::string weather_sunrise{"06:40"};
+ std::string weather_sunset{"16:48"};
  std::string study_state{"front"};
  std::string card_word{"serendipity"};
  std::string card_definition{"The discovery of something valuable when you were looking for something else."};
@@ -91,6 +97,20 @@ struct PanelScene {
   /** While recording: how long so far. */
   std::uint64_t elapsed_ms{12000};
  } report;
+ /** The weather menu (ADR 0015): its state and what it shows; fixture or live from weather_panel. */
+ struct Weather {
+  std::string state{"menu"};
+  /** "Automatic (approximate)" or the chosen place; the line under the Location row. */
+  bool automatic{true};
+  std::string location_label{"Boulder, Colorado"};
+  /** The search being typed: lowercase letters, space, hyphen and apostrophe. */
+  std::string query{"boulder"};
+  /** Up to five places, one line each, as the search answered. */
+  std::vector<std::string> results{"Boulder, Colorado, United States", "Boulder, Montana, United States",
+                                   "Boulder, Wyoming, United States", "Boulder, Western Cape, South Africa",
+                                   "Boulder, Illinois, United States"};
+  std::string notice;
+ } weather;
  std::string acknowledgement;
  bool stale{false};
  bool offline{false};
