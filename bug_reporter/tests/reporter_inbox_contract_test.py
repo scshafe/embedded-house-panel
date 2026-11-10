@@ -62,10 +62,17 @@ def main() -> int:
             subprocess.run([TEE, "--socket", ingest, "--service", "bhp-panel-ui", "--exit-status", "0",
                             "--signal", "11", "--restarting"], capture_output=True, timeout=10, check=True)
             reports = Path(inbox_root) / "reports"
+
+            def completed() -> list[Path]:
+                # Only finished reports: a `.staging-<id>` directory is a completion in progress.
+                return sorted(path for path in reports.iterdir()
+                              if path.name.startswith("rpt-") and (path / "report.json").is_file()) \
+                    if reports.exists() else []
+
             deadline = time.time() + 20
-            while time.time() < deadline and (not reports.exists() or len(list(reports.iterdir())) < 2):
+            while time.time() < deadline and len(completed()) < 2:
                 time.sleep(0.1)
-            landed = sorted(reports.iterdir()) if reports.exists() else []
+            landed = completed()
             expect(len(landed) == 2, f"two reports land in the inbox (got {len(landed)})")
             kinds = {}
             for report in landed:
