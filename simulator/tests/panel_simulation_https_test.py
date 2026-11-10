@@ -49,7 +49,11 @@ with tempfile.TemporaryDirectory(prefix="bhp-display-https-") as temporary:
         # Restart restores cached pixels without creating empty polling syncs.
         second = subprocess.run(command, capture_output=True, text=True, timeout=10, check=True)
         assert json.loads(second.stdout.splitlines()[0])["data"]["study_state"] == "front"
-        assert '"status":"200"' not in second.stderr
+        # On failure, name the request the restart made: the lines carry operations and codes only.
+        resumed_requests = [line for line in second.stderr.splitlines() if '"status":"200"' in line]
+        assert not resumed_requests, "a restart restored from cache must not sync; it sent:\n" + "\n".join(
+            resumed_requests[:5]) + "\nfirst run's 200s:\n" + "\n".join(
+            line for line in first.stderr.splitlines() if '"status":"200"' in line)
         assert all(not json.loads(line)["data"].get("delivery_status") for line in second.stdout.splitlines())
         prior_events = json.loads((directory / "server/fixture-state.json").read_text())["events"].values()
         assert not any(entry["event"]["kind"] == "rated" for entry in prior_events), \
