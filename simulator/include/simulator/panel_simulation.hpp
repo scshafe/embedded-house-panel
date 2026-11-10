@@ -95,6 +95,12 @@ public:
   * weather is the scenario's fixture and the menu changes only the scene.
   */
  void attach_weather(std::shared_ptr<weather_panel::WeatherWorker> worker);
+ /**
+  * --weather-source fixture|live and --weather-state-directory DIR (weather plan Step 6): the
+  * recorded answers (fixture_directory, by default the source tree's weather_panel/tests/fixtures)
+  * or the pinned HTTPS sources; live needs the directory for its settings and last forecast.
+  */
+ void attach_weather_source(const std::string &source,const std::string &state_directory,const std::string &fixture_directory={});
  /** Test seam: the UTC clock (Unix seconds) the bar's freshness is judged with. */
  void set_weather_clock(std::function<std::int64_t()> utc_seconds){weather_utc_=std::move(utc_seconds);}
  /**
@@ -151,6 +157,8 @@ private:
  void pump_weather();
  /** The bar and the menu from the worker's snapshot and the UTC clock (freshness). */
  void project_weather(bool force);
+ /** The live weather client's lease on the process HTTP runtime; declared first, so released after the worker. */
+ std::shared_ptr<void> weather_http_lease_;
  std::shared_ptr<weather_panel::WeatherWorker> weather_;
  weather_panel::WeatherSettings weather_settings_;
  std::uint64_t weather_revision_{0};

@@ -95,7 +95,9 @@ def ui_command():
         '--touch-socket-path',str(RUN/'touch/observations.sock'),
         '--simulation-control-socket',str(RUN/'ui/control.sock'),
         '--scenario',str(ROOT/'simulator/scenarios/home.json'),
-        '--launcher-config',str(ROOT/'panel_ui/config/applications.json'),'--clock-preview','on','--display-rotation','0','--state-directory',str(STATE/'study')]
+        '--launcher-config',str(ROOT/'panel_ui/config/applications.json'),'--clock-preview','on','--display-rotation','0','--state-directory',str(STATE/'study'),
+        # The recorded weather answers (ADR 0015): the guest never reaches the internet for weather.
+        '--weather-source','fixture']
     for name in ('min-x','max-x','min-y','max-y'):
         first,last=name.split('-');command+=['--touch-'+name,str(touch[last+'_'+first])]
     if (STATE/'lexinet.json').exists():command+=['--lexinet-config',str(STATE/'lexinet.json')]

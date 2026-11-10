@@ -270,6 +270,7 @@ class ConfigurationTest(BoardCase):
         self.assertEqual(environment['BHP_PANEL_SUPERVISOR_SUSPEND_MODE'], 'disabled')
         self.assertEqual((record['music'], record['reporter'], record['timezone']), (True, False, 'America/New_York'))
         self.assertEqual(record['evidence'], 'bench_not_gate_evidence')
+        self.assertTrue((self.prefix/'opt/house-panel/state/weather').is_dir(), "the live forecast's state directory")
 
 
 class ServiceTest(BoardCase):
@@ -292,6 +293,9 @@ class ServiceTest(BoardCase):
         self.assertIn('--bug-reporter-socket', ui)
         self.assertNotIn('--voice-lab-uploader-socket', ui)
         self.assertNotIn('--study-config', ui)
+        weather = ui.index('--weather-source')
+        self.assertEqual(ui[weather:weather + 4], ['--weather-source', 'live', '--weather-state-directory',
+                                                   '/opt/house-panel/state/weather'])
         broker = self.board.service_command('broker', self.RUNTIME)
         self.assertIn('--report-handoff-dir', broker)
         self.assertIn('--groups=29,1108,1109', broker)

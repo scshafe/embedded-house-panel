@@ -52,6 +52,14 @@ class BoardWritesStayInTmpfs(unittest.TestCase):
         self.assertEqual(command[command.index('--display-rotation') + 1], '180')
         self.assertEqual(command[command.index('--drm-connector-id') + 1], '40')
 
+    def test_the_ui_fetches_live_weather_into_its_own_tmp_state(self):
+        board = load_board()
+        record = {'touch': {'x_min': 0, 'x_max': 799, 'y_min': 0, 'y_max': 479}, 'drm': {'path': '/dev/dri/card1', 'connector_id': 37},
+                  'rotation': '180'}
+        command = board.ui_command(record)
+        at = command.index('--weather-source')
+        self.assertEqual(command[at:at + 4], ['--weather-source', 'live', '--weather-state-directory', '/tmp/bhp-demo/state/weather'])
+
     def test_ui_command_adds_the_study_config_only_when_asked(self):
         board = load_board()
         record = {'touch': {'x_min': 0, 'x_max': 799, 'y_min': 0, 'y_max': 479},

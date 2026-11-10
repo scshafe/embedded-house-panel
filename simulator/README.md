@@ -356,6 +356,12 @@ every day surface. On the weather surface itself, the forecast does nothing.
 - **Live.** `attach_weather()` makes the bar and menu follow a
   `weather_panel::WeatherWorker`. A forecast shows only if it is fresh for
   the place's own date; "Weather stale" appears after 3 h.
+- **The flags (Step 6).** `--weather-source fixture|live` and
+  `--weather-state-directory DIR` on `--simulation-drm` call
+  `attach_weather_source()`.
+  - With `BHP_BUILD_HTTP_LEXINET_CLIENT`, the live client shares the
+    process's one HTTP runtime with the study client.
+  - Without it, `live` is `SIMULATOR.HTTPS_NOT_BUILT`.
 - **Scenario states** (`weather_state`): `menu`, `automatic_unavailable`,
   `search`, `searching`, `results`, `no_results`, `offline`.
 - **Scenario weather fields:**

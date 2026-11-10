@@ -50,6 +50,12 @@ int run_simulation_drm(int argc,char **argv){try{
  if(options.count("--study-config")){auto configuration=vocabulary_panel::read_study_client_configuration(options.at("--study-config"));if(!configuration.has_value())throw std::runtime_error(configuration.error().error_code);app.attach_study_client(configuration.value());}
  app.load(bhp::simulator::read_scenario(options.at("--scenario")));app.accept_lifecycle(app.supervisor.publish("blank"));app.render();
  if(options.count("--clock-preview")&&options.at("--clock-preview")=="on")app.enable_preview_clock(true);
+ // The daily forecast (ADR 0015): fixture (the recorded answers) or live; a state directory only with a source.
+ if(!options.count("--weather-source")&&(options.count("--weather-state-directory")||options.count("--weather-fixture-directory")))
+  throw std::runtime_error("SIMULATOR.WEATHER_SOURCE_REQUIRED");
+ if(options.count("--weather-source"))
+  app.attach_weather_source(options.at("--weather-source"),options.count("--weather-state-directory")?options.at("--weather-state-directory"):"",
+                            options.count("--weather-fixture-directory")?options.at("--weather-fixture-directory"):"");
  // The voice-lab recorder records through the bhp-media-broker process (issue #22).
  if(options.count("--media-broker-socket")!=options.count("--media-broker-uid"))throw std::runtime_error("SIMULATOR.MEDIA_BROKER_OPTIONS_INCOMPLETE");
  if(options.count("--media-broker-socket")){app.attach_media_broker(options.at("--media-broker-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--media-broker-uid"))));app.defer_level_renders(true);}

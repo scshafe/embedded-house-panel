@@ -257,7 +257,16 @@ Step 6.
     - `make verify-panel-goldens` exit 0;
     - `ctest --test-dir .build/host-dev -R "panel_ui|simulat|weather"` exit 0;
     - `make verify` exit 0.
-- [ ] **Step 6: Wire it into the demo.**
+- [x] **Step 6: Wire it into the demo.** Done 2026-11-10.
+  - `bhp-panel-ui --simulation-drm` takes `--weather-source fixture|live`
+    and `--weather-state-directory`. The VM guest passes `fixture`.
+  - **Live runs:**
+    - the `/tmp` demo: `live` with `/tmp/bhp-demo/state/weather`;
+    - the bench (ADR 0014): `live` with `/opt/house-panel/state/weather`,
+      UID 1102, 0700.
+  - **libcurl** was already in the sysroot and the demo's allowed libraries.
+  - **One runtime:** the study and weather clients share one process HTTP
+    runtime, because libcurl's global state allows only one.
   - `bhp-panel-ui` and `--simulation-drm` gain `--weather-source` and
     `--weather-state-directory`.
   - The VM guest passes `fixture`.

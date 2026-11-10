@@ -42,6 +42,16 @@ With a reporter, an exit becomes a restart report to the inbox.
 **Day and night.** These come from the supervisor's solar calculation at the
 configured location, so the panel turns red after sunset.
 
+**Weather** (ADR 0015). The UI fetches the day's forecast itself, from
+Open-Meteo.
+- **Location:** by default the panel's approximate location from its public
+  address (`free.freeipapi.com`). It keeps its settings and last forecast in
+  `/opt/house-panel/state/weather`.
+- **The menu:** a tap on the forecast on the day bar opens it, to change the
+  units, show sunrise and sunset instead, or choose a place.
+- **Day and night** still follow `bench.json`'s location, not the weather
+  place.
+
 ## What it writes on the board
 
 Exactly what ADR 0014 allows:
