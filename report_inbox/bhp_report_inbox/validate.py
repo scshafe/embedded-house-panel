@@ -11,6 +11,7 @@ import re
 
 SCHEMA = "bhp.bug-report/v1"
 REPORT_ID = re.compile(r"rpt-[0-9a-f]{32}")
+BATCH_ID = re.compile(r"[0-9a-f]{32}")
 FINGERPRINT = re.compile(r"[0-9a-f]{64}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 TOKEN = re.compile(r"[a-z0-9_.-]{0,32}")

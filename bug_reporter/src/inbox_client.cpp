@@ -1,6 +1,7 @@
 #include "bug_reporter/inbox_client.h"
 #include "bhp/durable_store/durable_store.h"
 #include "bug_reporter/report_bundle.h"
+#include "bug_reporter/report_outbox.h"
 #include <fcntl.h>
 #include <nlohmann/json.hpp>
 #include <regex>
@@ -21,7 +22,11 @@ Error status_error(long status)
 		return {"REPORT.INBOX_INCOMPLETE", "The inbox is missing part of the bundle", {}, true};
 	if (status >= 500 || status == 429)
 		return {"REPORT.INBOX_BUSY", "The inbox cannot take it now", {{"http_status", std::to_string(status)}}, true};
-	return {"REPORT.INBOX_REFUSED", "The inbox refused the request", {{"http_status", std::to_string(status)}}, false};
+	// 401 and 403 are about the panel's identity, not this request, and 416 means the
+	// inbox holds a different offset, which the next attempt reads again: all retryable.
+	const bool retryable = status == 401 || status == 403 || status == 416;
+	return {"REPORT.INBOX_REFUSED", "The inbox refused the request", {{"http_status", std::to_string(status)}},
+		retryable};
 }
 
 std::optional<std::uint64_t> received_bytes(const std::string &body)
@@ -145,15 +150,17 @@ Result<bool> InboxClient::complete(const std::string &report_id, const std::stri
 	return Result<bool>::success(true);
 }
 
-Result<bool> InboxClient::send_count(const std::string &fingerprint, std::uint64_t count)
+Result<bool> InboxClient::send_count(const std::string &fingerprint, const std::string &batch, std::uint64_t count)
 {
-	if (!fingerprint_text(fingerprint) || count == 0)
+	static const std::regex batch_pattern("[0-9a-f]{32}");
+	if (!fingerprint_text(fingerprint) || !std::regex_match(batch, batch_pattern) || count == 0 ||
+	    count > kMaximumCountBatch)
 		return Result<bool>::failure({"REPORT.UPLOAD_INVALID", "Not a fingerprint count", {}, false});
 	HttpRequest request;
 	request.method = HttpMethod::Post;
 	request.url = settings_.base_url + "/v1/fingerprints/" + fingerprint + "/count";
 	request.headers = {{"Content-Type", "application/json"}};
-	request.body = Json({{"count", count}}).dump();
+	request.body = Json({{"count", count}, {"batch", batch}}).dump();
 	auto response = exchange(request);
 	if (!response.has_value())
 		return Result<bool>::failure(response.error());

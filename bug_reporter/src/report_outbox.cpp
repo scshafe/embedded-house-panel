@@ -16,6 +16,9 @@ struct FingerprintRecord {
 	std::int64_t last_full_at{0};
 	std::vector<std::int64_t> full_times;
 	std::uint64_t pending_count{0};
+	/** The update in flight: its batch ID (empty for none) and its repeats. */
+	std::string sending_batch;
+	std::uint64_t sending_count{0};
 };
 
 void keep_since(std::vector<std::int64_t> &times, std::int64_t since)
@@ -30,7 +33,7 @@ std::size_t count_since(const std::vector<std::int64_t> &times, std::int64_t sin
 
 bool valid_status(const std::string &status)
 {
-	static const std::regex pattern("queued|received|investigating|fix_in_pr|merged|update_ready|installed|wont_fix");
+	static const std::regex pattern("queued|received|investigating|fix_in_pr|merged|update_ready|installed|wont_fix|refused");
 	return std::regex_match(status, pattern);
 }
 } // namespace
@@ -90,16 +93,23 @@ Result<std::unique_ptr<ReportOutbox>> ReportOutbox::open(std::string directory, 
 			if (!item.at("pr").is_null())
 				entry.pr = item.at("pr").get<std::uint64_t>();
 			if (!valid_report_id(entry.report_id) || !valid_status(entry.status) ||
-			    (entry.state != "queued" && entry.state != "received"))
+			    (entry.state != "queued" && entry.state != "received" && entry.state != "refused"))
 				throw std::runtime_error("entry");
 			state.reports.push_back(entry);
 		}
 		state.manual_times = index.at("manual_times").get<std::vector<std::int64_t>>();
 		state.automatic_times = index.at("automatic_times").get<std::vector<std::int64_t>>();
-		for (const auto &[fingerprint, item] : index.at("fingerprints").items())
-			state.fingerprints[fingerprint] = {item.at("last_full_at").get<std::int64_t>(),
-							   item.at("full_times").get<std::vector<std::int64_t>>(),
-							   item.at("pending_count").get<std::uint64_t>()};
+		for (const auto &[fingerprint, item] : index.at("fingerprints").items()) {
+			FingerprintRecord record{item.at("last_full_at").get<std::int64_t>(),
+						 item.at("full_times").get<std::vector<std::int64_t>>(),
+						 item.at("pending_count").get<std::uint64_t>(), {}, 0};
+			// Written since count updates carry a batch ID; absent in older outboxes.
+			if (item.contains("sending_batch")) {
+				record.sending_batch = item.at("sending_batch").get<std::string>();
+				record.sending_count = item.at("sending_count").get<std::uint64_t>();
+			}
+			state.fingerprints[fingerprint] = record;
+		}
 	} catch (const std::exception &) {
 		return Output::failure({"REPORT.STORAGE_INVALID", "outbox.json does not hold valid entries", {}, false});
 	}
@@ -122,7 +132,9 @@ Result<bool> ReportOutbox::commit()
 	for (const auto &[fingerprint, record] : state_->fingerprints)
 		fingerprints[fingerprint] = {{"last_full_at", record.last_full_at},
 					     {"full_times", record.full_times},
-					     {"pending_count", record.pending_count}};
+					     {"pending_count", record.pending_count},
+					     {"sending_batch", record.sending_batch},
+					     {"sending_count", record.sending_count}};
 	const Json index = {{"schema_version", 1},
 			    {"reports", reports},
 			    {"manual_times", state_->manual_times},
@@ -141,7 +153,8 @@ Result<AdmissionResult> ReportOutbox::admit(const std::string &kind, const std::
 	keep_since(state.automatic_times, now - kDay);
 	for (auto it = state.fingerprints.begin(); it != state.fingerprints.end();) {
 		keep_since(it->second.full_times, now - kWeek);
-		if (it->second.full_times.empty() && it->second.pending_count == 0 && it->second.last_full_at < now - kWeek)
+		if (it->second.full_times.empty() && it->second.pending_count == 0 && it->second.sending_count == 0 &&
+		    it->second.last_full_at < now - kWeek)
 			it = state.fingerprints.erase(it);
 		else
 			++it;
@@ -211,10 +224,10 @@ Result<bool> ReportOutbox::add(const Bundle &bundle, const std::string &kind, st
 		reports.erase(victim);
 	}
 	reports.push_back({bundle.report_id, kind, bundle.fingerprint, created_at, bundle.bytes, "queued", "queued", {}});
-	// Keep only the newest received records beyond the status history.
+	// Keep only the newest received or refused records beyond the status history.
 	std::size_t received = 0;
 	for (auto it = reports.rbegin(); it != reports.rend(); ++it)
-		if (it->state == "received" && ++received > limits_.status_history)
+		if (it->state != "queued" && ++received > limits_.status_history)
 			it->state = "drop";
 	reports.erase(std::remove_if(reports.begin(), reports.end(), [](const OutboxEntry &e) { return e.state == "drop"; }),
 		      reports.end());
@@ -264,21 +277,63 @@ Result<bool> ReportOutbox::set_status(const std::string &report_id, const std::s
 	return Result<bool>::failure({"REPORT.UNKNOWN_REPORT", "No such report", {}, false});
 }
 
+Result<bool> ReportOutbox::mark_refused(const std::string &report_id)
+{
+	for (auto &entry : state_->reports)
+		if (entry.report_id == report_id && entry.state == "queued") {
+			entry.state = "refused";
+			entry.status = "refused";
+			auto committed = commit();
+			if (committed.has_value())
+				remove_bundle_directory(bundle_directory(report_id));
+			return committed;
+		}
+	return Result<bool>::failure({"REPORT.UNKNOWN_REPORT", "No such queued report", {}, false});
+}
+
 std::vector<std::pair<std::string, std::uint64_t>> ReportOutbox::pending_counts() const
 {
 	std::vector<std::pair<std::string, std::uint64_t>> counts;
 	for (const auto &[fingerprint, record] : state_->fingerprints)
-		if (record.pending_count > 0)
-			counts.emplace_back(fingerprint, record.pending_count);
+		if (record.pending_count + record.sending_count > 0)
+			counts.emplace_back(fingerprint, record.pending_count + record.sending_count);
 	return counts;
 }
 
-Result<bool> ReportOutbox::clear_count(const std::string &fingerprint, std::uint64_t sent)
+Result<std::vector<CountBatch>> ReportOutbox::count_batches(const std::function<std::optional<std::string>()> &new_batch)
+{
+	using Output = Result<std::vector<CountBatch>>;
+	bool started = false;
+	for (auto &[fingerprint, record] : state_->fingerprints) {
+		if (!record.sending_batch.empty() || record.pending_count == 0)
+			continue;
+		auto batch = new_batch();
+		if (!batch)
+			return Output::failure({"REPORT.RANDOM_UNAVAILABLE", "No batch ID for a count update", {}, true});
+		record.sending_batch = *batch;
+		record.sending_count = std::min(record.pending_count, kMaximumCountBatch);
+		record.pending_count -= record.sending_count;
+		started = true;
+	}
+	if (started) {
+		auto committed = commit();
+		if (!committed.has_value())
+			return Output::failure(committed.error());
+	}
+	std::vector<CountBatch> batches;
+	for (const auto &[fingerprint, record] : state_->fingerprints)
+		if (!record.sending_batch.empty())
+			batches.push_back({fingerprint, record.sending_batch, record.sending_count});
+	return Output::success(std::move(batches));
+}
+
+Result<bool> ReportOutbox::clear_count(const std::string &fingerprint, const std::string &batch)
 {
 	auto found = state_->fingerprints.find(fingerprint);
-	if (found == state_->fingerprints.end())
+	if (found == state_->fingerprints.end() || found->second.sending_batch != batch)
 		return Result<bool>::success(false);
-	found->second.pending_count -= std::min(found->second.pending_count, sent);
+	found->second.sending_batch.clear();
+	found->second.sending_count = 0;
 	return commit();
 }
 

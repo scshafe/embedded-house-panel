@@ -214,7 +214,7 @@ std::vector<wire::ReporterEvent> ReporterService::handle(const wire::UiRequest &
 				return {wire::Refused{"submit", "REPORT.AUDIO_UNAVAILABLE"}, reports()};
 			std::ifstream record(take + "/capture.json");
 			const auto capture = nlohmann::json::parse(record, nullptr, false);
-			auto audio = capture.is_object() && capture.value("purpose", std::string()) == "bug_report"
+			auto audio = capture.is_object() && capture.contains("purpose") && capture["purpose"] == "bug_report"
 					     ? mono_description(take + "/original.wav", settings_.description_channel,
 								settings_.maximum_description_frames)
 					     : Result<std::string>::failure({"REPORT.AUDIO_INVALID", "Not a bug_report take", {}, false});
@@ -234,31 +234,62 @@ std::vector<wire::ReporterEvent> ReporterService::handle(const wire::UiRequest &
 	return {reports()};
 }
 
-Result<bool> ReporterService::upload_next()
+Result<bool> ReporterService::send_bundle(const std::string &report_id)
 {
-	const auto queued = outbox_->queued();
-	if (queued.empty())
-		return Result<bool>::success(false);
-	const auto &entry = queued.front();
-	const auto directory = outbox_->bundle_directory(entry.report_id);
+	const auto directory = outbox_->bundle_directory(report_id);
 	std::ifstream input(directory + "/report.json");
 	const std::string manifest{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
 	const auto parsed = nlohmann::json::parse(manifest, nullptr, false);
 	if (!parsed.is_object() || !parsed.contains("files") || !parsed["files"].is_array())
 		return Result<bool>::failure({"REPORT.STORAGE_INVALID", "A queued bundle has no manifest", {}, false});
 	for (const auto &file : parsed["files"]) {
-		const auto name = file.value("name", std::string());
-		auto sent = inbox_.upload_file(entry.report_id, name, directory + "/" + name);
+		if (!file.is_object() || !file.contains("name") || !file["name"].is_string())
+			return Result<bool>::failure({"REPORT.STORAGE_INVALID", "A queued bundle's manifest is malformed", {}, false});
+		const auto name = file["name"].get<std::string>();
+		auto sent = inbox_.upload_file(report_id, name, directory + "/" + name);
 		if (!sent.has_value())
 			return sent;
 	}
-	auto completed = inbox_.complete(entry.report_id, manifest);
-	if (!completed.has_value())
-		return completed;
-	auto received = outbox_->mark_received(entry.report_id);
-	if (received.has_value())
-		++reports_sequence_;
-	return received;
+	return inbox_.complete(report_id, manifest);
+}
+
+Result<bool> ReporterService::upload_next()
+{
+	const auto queued = outbox_->queued();
+	if (queued.empty())
+		return Result<bool>::success(false);
+	const auto report_id = queued.front().report_id;
+	auto sent = send_bundle(report_id);
+	if (!sent.has_value() && sent.error().retryable)
+		return sent;
+	// Sent, or refused for good (a 4xx about this bundle, or a bundle that cannot be read):
+	// either way it leaves the queue, so one bad bundle never holds back the ones behind it.
+	auto settled = sent.has_value() ? outbox_->mark_received(report_id) : outbox_->mark_refused(report_id);
+	if (!settled.has_value())
+		return settled;
+	if (!sent.has_value())
+		last_error_ = sent.error().code;
+	++reports_sequence_;
+	return Result<bool>::success(true);
+}
+
+Result<bool> ReporterService::send_counts()
+{
+	auto batches = outbox_->count_batches([this] { return random_hex(16); });
+	if (!batches.has_value())
+		return Result<bool>::failure(batches.error());
+	for (const auto &batch : batches.value()) {
+		auto sent = inbox_.send_count(batch.fingerprint, batch.batch, batch.count);
+		if (!sent.has_value() && sent.error().retryable)
+			return sent;
+		// A refused update is dropped, so it never blocks the counts behind it.
+		if (!sent.has_value())
+			last_error_ = sent.error().code;
+		auto cleared = outbox_->clear_count(batch.fingerprint, batch.batch);
+		if (!cleared.has_value())
+			return cleared;
+	}
+	return Result<bool>::success(true);
 }
 
 void ReporterService::poll_statuses()
@@ -306,18 +337,12 @@ std::chrono::milliseconds ReporterService::tick()
 	purge_handoff();
 	if (now >= upload_due_) {
 		auto uploaded = upload_next();
-		bool failed = !uploaded.has_value();
-		for (const auto &[fingerprint, count] : outbox_->pending_counts()) {
-			if (failed)
-				break;
-			auto sent = inbox_.send_count(fingerprint, count);
-			if (!sent.has_value()) {
-				uploaded = sent;
-				failed = true;
-			} else
-				(void)outbox_->clear_count(fingerprint, count);
+		if (uploaded.has_value()) {
+			auto counted = send_counts();
+			if (!counted.has_value())
+				uploaded = Result<bool>::failure(counted.error());
 		}
-		if (failed) {
+		if (!uploaded.has_value()) {
 			last_error_ = uploaded.error().code;
 			upload_due_ = now + backoff_.next_delay();
 		} else {

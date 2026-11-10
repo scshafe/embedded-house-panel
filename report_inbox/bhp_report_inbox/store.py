@@ -21,6 +21,7 @@ import os
 import shutil
 import stat
 import tempfile
+import threading
 from pathlib import Path
 
 from . import validate
@@ -29,6 +30,10 @@ from . import validate
 STATUS_LIMIT = 4096
 #: Days an abandoned upload stays in incoming/ (the panel starts again from the first byte).
 UPLOAD_DAYS = 7
+#: Count-update batch IDs remembered per fingerprint, so a retried update adds once.
+REMEMBERED_BATCHES = 64
+#: The most repeats one count update may carry (bug_reporter kMaximumCountBatch).
+MAXIMUM_COUNT = 10_000
 
 
 class StoreError(Exception):
@@ -40,6 +45,16 @@ class StoreError(Exception):
 
 def _now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _timestamp(value: object) -> datetime.datetime | None:
+    """A `YYYY-MM-DDTHH:MM:SSZ` time, or None for anything else."""
+    if not isinstance(value, str) or not validate.TIMESTAMP.fullmatch(value):
+        return None
+    try:
+        return datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return None
 
 
 def write_atomic(path: Path, data: bytes, mode: int = 0o640) -> None:
@@ -66,6 +81,8 @@ def write_atomic(path: Path, data: bytes, mode: int = 0o640) -> None:
 class Store:
     def __init__(self, root: Path) -> None:
         self.root = root
+        # The receiver's threads read, change and write fingerprint records.
+        self._fingerprint_lock = threading.Lock()
         for name in ("incoming", "reports", "status", "fingerprints", "transcripts"):
             (root / name).mkdir(parents=True, exist_ok=True)
 
@@ -160,24 +177,34 @@ class Store:
 
     # -- repeats ------------------------------------------------------------------------
 
-    def _note_fingerprint(self, fingerprint: str, report_id: str | None, seen_at: str, count: int) -> dict:
-        path = self.root / "fingerprints" / f"{fingerprint}.json"
-        record = json.loads(path.read_text()) if path.exists() else {
-            "fingerprint": fingerprint, "reports": [], "repeats": 0, "first_seen": seen_at, "last_seen": seen_at}
-        if report_id and report_id not in record["reports"]:
-            record["reports"].append(report_id)
-        record["repeats"] += count
-        record["first_seen"] = min(record["first_seen"], seen_at)
-        record["last_seen"] = max(record["last_seen"], seen_at)
-        write_atomic(path, json.dumps(record, indent=2).encode() + b"\n")
-        return record
+    def _note_fingerprint(self, fingerprint: str, report_id: str | None, seen_at: str, count: int,
+                          batch: str | None = None) -> dict:
+        with self._fingerprint_lock:
+            path = self.root / "fingerprints" / f"{fingerprint}.json"
+            record = json.loads(path.read_text()) if path.exists() else {
+                "fingerprint": fingerprint, "reports": [], "repeats": 0, "first_seen": seen_at, "last_seen": seen_at}
+            batches = record.setdefault("batches", [])
+            if batch is not None and batch in batches:
+                return record  # a retried update after a lost answer: already counted
+            if report_id and report_id not in record["reports"]:
+                record["reports"].append(report_id)
+            if batch is not None:
+                record["batches"] = (batches + [batch])[-REMEMBERED_BATCHES:]
+            record["repeats"] += count
+            record["first_seen"] = min(record["first_seen"], seen_at)
+            record["last_seen"] = max(record["last_seen"], seen_at)
+            write_atomic(path, json.dumps(record, indent=2).encode() + b"\n")
+            return record
 
-    def add_count(self, fingerprint: str, count: object) -> dict:
+    def add_count(self, fingerprint: str, count: object, batch: object = None) -> dict:
+        """Adds a count update's repeats once per `batch`; an update without one (older panels) always adds."""
         if not validate.FINGERPRINT.fullmatch(fingerprint):
             raise StoreError("REPORT_INBOX.FINGERPRINT_INVALID", 400)
-        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 10_000:
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= MAXIMUM_COUNT:
             raise StoreError("REPORT_INBOX.COUNT_INVALID", 400)
-        return self._note_fingerprint(fingerprint, None, _now(), count)
+        if batch is not None and (not isinstance(batch, str) or not validate.BATCH_ID.fullmatch(batch)):
+            raise StoreError("REPORT_INBOX.BATCH_INVALID", 400)
+        return self._note_fingerprint(fingerprint, None, _now(), count, batch)
 
     def fingerprint(self, fingerprint: str) -> dict | None:
         if not validate.FINGERPRINT.fullmatch(fingerprint):
@@ -211,7 +238,9 @@ class Store:
             return {"report_id": report_id, "status": "received", "pr": None}
         status = record.get("status") if record.get("status") in validate.STATUSES else "received"
         pr = record.get("pr") if isinstance(record.get("pr"), int) and record.get("pr") > 0 else None
-        return {"report_id": report_id, "status": status, "pr": pr, "updated_at": record.get("updated_at")}
+        updated_at = record.get("updated_at")
+        return {"report_id": report_id, "status": status, "pr": pr,
+                "updated_at": updated_at if _timestamp(updated_at) else None}
 
     @staticmethod
     def _read_status(path: Path) -> object:
@@ -242,10 +271,10 @@ class Store:
         removed = []
         for report_id in self.report_ids():
             status = self.status(report_id) or {}
-            if status.get("status") not in validate.TERMINAL_STATUSES or not status.get("updated_at"):
+            closed = _timestamp(status.get("updated_at"))
+            # A status the agent wrote with a malformed time is not closed: it never stops the others.
+            if status.get("status") not in validate.TERMINAL_STATUSES or closed is None:
                 continue
-            closed = datetime.datetime.strptime(status["updated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
-                tzinfo=datetime.timezone.utc)
             audio = self.root / "reports" / report_id / "description.wav"
             if audio.exists() and (self.root / "transcripts" / f"{report_id}.txt").exists():
                 audio.unlink()

@@ -615,6 +615,7 @@ std::string report_status_words(const bug_reporter::protocol::ListedReport &item
  if(item.status=="merged")return "Fix merged";
  if(item.status=="update_ready")return "Update ready";
  if(item.status=="installed")return "Installed";
+ if(item.status=="refused")return "Not accepted";
  return "Won't fix";
 }
 std::string report_kind_words(const std::string &kind){

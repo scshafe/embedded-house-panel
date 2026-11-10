@@ -16,12 +16,16 @@
  *   answers `{"received_bytes": N}`.
  * - `POST /v1/reports/{id}/complete`: the manifest (`report.json`); 200 or 201 once the
  *   inbox holds every file it lists, 409 while one is short.
- * - `POST /v1/fingerprints/{fingerprint}/count`: `{"count": N}`, repeats not sent as bundles.
+ * - `POST /v1/fingerprints/{fingerprint}/count`: `{"count": N, "batch": ID}`, repeats not sent
+ *   as bundles; N is 1 to 10,000 and ID 32 lowercase hex characters. The inbox remembers a
+ *   fingerprint's recent batch IDs and adds a batch it already holds only once.
  * - `GET  /v1/reports/status?ids=a,b`: `{"reports": [{"report_id", "status", "pr"}]}`.
  * Everything is idempotent: a retried request after a lost answer changes nothing.
  * The inbox authenticates the panel by its tailnet node (ADR 0010); there is no
  * token. Failures: REPORT.INBOX_UNREACHABLE (no answer), REPORT.INBOX_BUSY (5xx,
- * 429; retryable), REPORT.INBOX_REFUSED (other 4xx), REPORT.INBOX_INCOMPLETE (409).
+ * 429; retryable), REPORT.INBOX_REFUSED (other 4xx; retryable only for 401, 403 and
+ * 416), REPORT.INBOX_INCOMPLETE (409, retryable). A failure that is not retryable is
+ * about that one request: the reporter parks the bundle or drops the count and goes on.
  */
 namespace bug_reporter
 {
@@ -48,7 +52,7 @@ public:
 	/** Sends one file of a bundle, resuming from what the inbox already holds. */
 	Result<bool> upload_file(const std::string &report_id, const std::string &name, const std::string &path);
 	Result<bool> complete(const std::string &report_id, const std::string &manifest);
-	Result<bool> send_count(const std::string &fingerprint, std::uint64_t count);
+	Result<bool> send_count(const std::string &fingerprint, const std::string &batch, std::uint64_t count);
 	Result<std::vector<RemoteStatus>> statuses(const std::vector<std::string> &report_ids);
 
 private:

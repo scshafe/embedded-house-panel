@@ -3,6 +3,7 @@
 #include "bug_reporter/report_bundle.h"
 #include "bug_reporter/result.h"
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -45,15 +46,31 @@ struct AdmissionResult {
 	std::string refusal_code;
 };
 
+/** The most repeats one count update carries: the inbox refuses more (report_inbox validate). */
+inline constexpr std::uint64_t kMaximumCountBatch = 10'000;
+
+/** One count update: `batch` names it, so the inbox adds a retried update only once. */
+struct CountBatch {
+	std::string fingerprint;
+	std::string batch;
+	std::uint64_t count{0};
+};
+
 struct OutboxEntry {
 	std::string report_id;
 	std::string kind;
 	std::string fingerprint;
 	std::int64_t created_at{0};
 	std::uint64_t bytes{0};
-	/** `queued` (on the panel) or `received` (the inbox acknowledged it; the bundle is gone). */
+	/**
+	 * `queued` (on the panel), `received` (the inbox acknowledged it; the bundle is gone)
+	 * or `refused` (the inbox refused it for good, or it is unreadable; the bundle is gone).
+	 */
 	std::string state{"queued"};
-	/** The inbox's status once received: `received`, `investigating`, `fix_in_pr`, `merged`, `update_ready`, `installed` or `wont_fix`. */
+	/**
+	 * The inbox's status once received: `received`, `investigating`, `fix_in_pr`, `merged`,
+	 * `update_ready`, `installed` or `wont_fix`; `refused` when it never got there.
+	 */
 	std::string status{"queued"};
 	std::optional<std::uint64_t> pr;
 };
@@ -88,11 +105,20 @@ public:
 	std::vector<OutboxEntry> queued() const;
 	/** The inbox holds it: the bundle is deleted and only its status is kept. */
 	Result<bool> mark_received(const std::string &report_id);
+	/** It can never be sent: the bundle is deleted and the list shows it as refused. */
+	Result<bool> mark_refused(const std::string &report_id);
 	Result<bool> set_status(const std::string &report_id, const std::string &status, std::optional<std::uint64_t> pr);
-	/** Fingerprints with repeats not yet sent, and how many. */
+	/** Fingerprints with repeats the inbox has not acknowledged yet, and how many. */
 	std::vector<std::pair<std::string, std::uint64_t>> pending_counts() const;
-	/** The inbox took `sent` repeats of the fingerprint. */
-	Result<bool> clear_count(const std::string &fingerprint, std::uint64_t sent);
+	/**
+	 * The count updates to send, one per fingerprint. A fingerprint with repeats and no
+	 * update in flight starts one of at most kMaximumCountBatch repeats, named by
+	 * `new_batch` and recorded before it is sent; the same update is sent again until
+	 * the inbox acknowledges it, and repeats meanwhile wait for the next one.
+	 */
+	Result<std::vector<CountBatch>> count_batches(const std::function<std::optional<std::string>()> &new_batch);
+	/** The inbox took the update, or refused it for good: either way it is done. */
+	Result<bool> clear_count(const std::string &fingerprint, const std::string &batch);
 	/** The newest `count` reports, queued or received, newest first. */
 	std::vector<OutboxEntry> recent(std::size_t count) const;
 	~ReportOutbox();
