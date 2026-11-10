@@ -114,15 +114,24 @@ dashboard's redirect URI is not exactly `http://127.0.0.1:8888/callback`.
 
 ## Part 3: put the token on the panel, then delete the PC copy
 
-The panel's music service runs as the reserved UID 1105 (`bhp-music`), with
-its state in `/var/lib/bhp-music` on the board's persistent storage, outside
-the image (ADR 0013). Writing there is a board-storage action, so it is
-yours. Run these from the PC with your own ssh key:
+The panel's music service runs as the reserved UID 1105 (`bhp-music`). On
+the bench tier ([ADR 0014](../decisions/0014-run-a-bench-tier-on-the-vendor-image.md),
+[frdm-bench.md](frdm-bench.md)) its state is in
+`/opt/house-panel/state/music`, on the board's persistent storage outside
+any image (ADR 0013).
+
+**First, the console must be closed.** ADR 0014 puts no token on the board
+while root has an empty password; [frdm-bench.md](frdm-bench.md), owner
+step 1, closes it.
+
+Writing the token is a board-storage action, so it is yours. Run these from
+the PC with your own ssh key. The second line names the speaker exactly as
+the Spotify app shows it:
 
 ```sh
-ssh root@192.168.50.19 'install -d -m 700 -o 1105 -g 1105 /var/lib/bhp-music /var/lib/bhp-music/token'
-scp -p "/run/user/$(id -u)/bhp-music/token/spotify-token.json" root@192.168.50.19:/var/lib/bhp-music/token/
-ssh root@192.168.50.19 'chown 1105:1105 /var/lib/bhp-music/token/spotify-token.json && chmod 600 /var/lib/bhp-music/token/spotify-token.json && ls -ln /var/lib/bhp-music/token'
+ssh root@192.168.50.19 'install -d -m 700 -o 1105 -g 1105 /opt/house-panel/state/music /opt/house-panel/state/music/token'
+scp -p "/run/user/$(id -u)/bhp-music/token/spotify-token.json" root@192.168.50.19:/opt/house-panel/state/music/token/
+ssh root@192.168.50.19 'chown 1105:1105 /opt/house-panel/state/music/token/spotify-token.json && chmod 600 /opt/house-panel/state/music/token/spotify-token.json && ls -ln /opt/house-panel/state/music/token'
 rm -r "/run/user/$(id -u)/bhp-music"
 ```
 
@@ -134,8 +143,10 @@ rm -r "/run/user/$(id -u)/bhp-music"
   Spotify does not say whether an old token stops working.
 
 Then tell the agent: "Spotify sign-in done", with the client ID and the
-speaker's name. The agent starts `bhp-music-control` on the board only with
-your go-ahead for that step, and it never reads the token file.
+speaker's name. Neither is a secret. The agent writes them to
+`/etc/house-panel/music.json` (`{"client_id": "...", "output_name": "..."}`)
+and restarts the bench, which then starts `bhp-music-control`. It never reads
+the token file.
 
 ## Revoking
 
@@ -146,7 +157,7 @@ Any one of these stops the panel:
 - **Delete the app** in the developer dashboard. That ends every token it
   issued.
 - **Delete the file on the panel:**
-  `ssh root@192.168.50.19 'rm /var/lib/bhp-music/token/spotify-token.json'`.
+  `ssh root@192.168.50.19 'rm /opt/house-panel/state/music/token/spotify-token.json'`.
 
 An access token already issued keeps working until it expires, about an hour.
 To sign in again later, repeat Parts 2 and 3. Part 1 stays done.
