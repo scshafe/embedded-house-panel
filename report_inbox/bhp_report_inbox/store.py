@@ -83,6 +83,8 @@ class Store:
         self.root = root
         # The receiver's threads read, change and write fingerprint records.
         self._fingerprint_lock = threading.Lock()
+        # A retried completion must never remove a concurrent one's staging directory.
+        self._completion_lock = threading.Lock()
         for name in ("incoming", "reports", "status", "fingerprints", "transcripts"):
             (root / name).mkdir(parents=True, exist_ok=True)
 
@@ -133,6 +135,10 @@ class Store:
 
     def complete(self, report_id: str, manifest_bytes: bytes) -> bool:
         """Moves a fully uploaded report into reports/. True when it is new, False when it was already there."""
+        with self._completion_lock:
+            return self._complete(report_id, manifest_bytes)
+
+    def _complete(self, report_id: str, manifest_bytes: bytes) -> bool:
         self._check_ids(report_id)
         if len(manifest_bytes) > validate.MANIFEST_LIMIT:
             raise StoreError("REPORT_INBOX.MANIFEST_TOO_LARGE", 413)
