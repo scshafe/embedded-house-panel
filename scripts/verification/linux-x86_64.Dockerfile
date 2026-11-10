@@ -20,9 +20,11 @@ RUN apt-get update \
        file \
        flex \
        git \
+       libasound2-dev \
        libcurl4-openssl-dev \
        libdrm-dev \
        libncurses-dev \
+       libpng-dev \
        libssl-dev \
        make \
        ninja-build \
@@ -38,6 +40,7 @@ RUN apt-get update \
        unzip \
        wget \
        xz-utils \
+       zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY system_image/buildroot_external/package/lvgl/lv_conf.h /tmp/bhp-lvgl/lv_conf.h
