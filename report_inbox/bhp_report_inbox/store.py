@@ -281,6 +281,7 @@ class Store:
             if now - closed > datetime.timedelta(days=keep_days):
                 shutil.rmtree(self.root / "reports" / report_id)
                 (self.root / "transcripts" / f"{report_id}.txt").unlink(missing_ok=True)
+                (self.root / "transcripts" / f"{report_id}.refused").unlink(missing_ok=True)
                 (self.root / "status" / f"{report_id}.json").unlink(missing_ok=True)
                 removed.append(report_id)
         return removed
@@ -293,12 +294,16 @@ class Store:
         leftovers = [p for p in (self.root / "incoming").iterdir() if validate.REPORT_ID.fullmatch(p.name)]
         leftovers += [p for p in (self.root / "reports").iterdir() if p.name.startswith(".staging-rpt-")]
         for directory in leftovers:
-            if not directory.is_dir() or directory.is_symlink():
+            # The receiver may complete or remove an upload while this runs; a vanished one is skipped.
+            try:
+                if not directory.is_dir() or directory.is_symlink():
+                    continue
+                newest = max([directory.stat().st_mtime] + [f.stat().st_mtime for f in directory.iterdir()])
+                if newest < stale:
+                    shutil.rmtree(directory)
+                    uploads += 1
+            except FileNotFoundError:
                 continue
-            newest = max([directory.stat().st_mtime] + [f.stat().st_mtime for f in directory.iterdir()])
-            if newest < stale:
-                shutil.rmtree(directory)
-                uploads += 1
         fingerprints = 0
         for path in (self.root / "fingerprints").glob("*.json"):
             try:

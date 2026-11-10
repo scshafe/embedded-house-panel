@@ -10,6 +10,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from support import FINGERPRINT, REPORT_ID, bundle
@@ -203,6 +204,28 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(self.store.prune_leftovers(later)["fingerprints_removed"], 1)
         self.assertIsNone(self.store.fingerprint(FINGERPRINT))
 
+
+    def test_an_upload_that_vanishes_during_retention_is_skipped(self) -> None:
+        root = Path(self.temporary.name)
+        for report_id in ("rpt-" + "a" * 32, "rpt-" + "b" * 32):
+            self.store.put_range(report_id, "logs.jsonl.gz", "bytes 0-0/2", b"x")
+            old = (datetime.datetime.now() - datetime.timedelta(days=8)).timestamp()
+            for path in (root / "incoming" / report_id, root / "incoming" / report_id / "logs.jsonl.gz"):
+                os.utime(path, (old, old))
+        real = shutil.rmtree
+        calls = []
+
+        def vanishing(path, *args, **kwargs):  # the first one is completed by the receiver meanwhile
+            calls.append(path)
+            if len(calls) == 1:
+                real(path)
+                raise FileNotFoundError(path)
+            return real(path, *args, **kwargs)
+
+        with mock.patch("bhp_report_inbox.store.shutil.rmtree", side_effect=vanishing):
+            result = self.store.prune_leftovers(datetime.datetime.now(datetime.timezone.utc))
+        self.assertEqual(result["uploads_removed"], 1)
+        self.assertFalse(any((root / "incoming").iterdir()))
 
 if __name__ == "__main__":
     unittest.main()
