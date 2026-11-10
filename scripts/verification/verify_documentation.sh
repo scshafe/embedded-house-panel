@@ -38,6 +38,7 @@ docs/decisions/0007-validate-complete-protocol-v2-commitments.md
 docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-platform.md
 docs/decisions/0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md
 docs/decisions/0013-keep-a-spotify-refresh-token-on-the-panel.md
+docs/decisions/0014-run-a-bench-tier-on-the-vendor-image.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
 docs/operations/board-bringup-provisioning.md

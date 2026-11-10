@@ -288,6 +288,31 @@ bool media_broker_uid_is_optional_exact_and_distinct()
 	return true;
 }
 
+bool touch_presence_is_optional_bounded_and_needs_the_touch_observer()
+{
+	auto fields = complete_configuration();
+	TEST_REQUIRE(!PanelSupervisordConfig::create(fields).value().touch_presence_hold().has_value());
+	fields["BHP_PANEL_SUPERVISOR_TOUCH_PRESENCE_SECONDS"] = "300";
+	const auto without_touch = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(!without_touch.has_value());
+	TEST_REQUIRE(without_touch.error().context().at("BHP_PANEL_SUPERVISOR_TOUCH_PRESENCE_SECONDS") ==
+		     "requires_the_touch_observer");
+	const std::array<const char *, 13> touch{"/dev/input/event5", "Goodix Capacitive TouchScreen", "type_b",
+		"0", "799", "0", "479", "0", "10", "/run/house-panel/touch/observations.sock", "1500", "4000", "128"};
+	for (std::size_t i = 0; i < touch.size(); ++i) fields[kTouchRuntimeEnvironmentFields[i]] = touch[i];
+	const auto with_touch = PanelSupervisordConfig::create(fields);
+	TEST_REQUIRE(with_touch.has_value());
+	TEST_REQUIRE(with_touch.value().touch_presence_hold() == std::optional<std::chrono::seconds>(300));
+	for (const char *invalid : {"0", "-5", "3601", "5m", "REPLACE_ME"}) {
+		fields["BHP_PANEL_SUPERVISOR_TOUCH_PRESENCE_SECONDS"] = invalid;
+		const auto rejected = PanelSupervisordConfig::create(fields);
+		TEST_REQUIRE(!rejected.has_value());
+		TEST_REQUIRE(rejected.error().context().at("BHP_PANEL_SUPERVISOR_TOUCH_PRESENCE_SECONDS") ==
+			     "when_present_must_be_decimal_seconds_between_1_and_3600");
+	}
+	return true;
+}
+
 using TestFunction = bool (*)();
 
 } // namespace
@@ -296,7 +321,7 @@ using TestFunction = bool (*)();
 int main()
 {
 	using namespace house_panel::supervisor;
-	const std::array<std::pair<std::string_view, TestFunction>, 9> tests{{
+	const std::array<std::pair<std::string_view, TestFunction>, 10> tests{{
 		{"complete configuration", complete_configuration_populates_every_runtime_value},
 		{"missing configuration",
 		 missing_configuration_reports_all_required_fields_before_action},
@@ -309,6 +334,7 @@ int main()
 		 malformed_values_are_aggregated_without_logging_location_values},
 		{"mem_sleep variant", mem_suspend_requires_an_explicit_mem_sleep_variant},
 		{"media broker uid", media_broker_uid_is_optional_exact_and_distinct},
+		{"touch presence", touch_presence_is_optional_bounded_and_needs_the_touch_observer},
 	}};
 	for (const auto &[name, test] : tests) {
 		if (!test()) {

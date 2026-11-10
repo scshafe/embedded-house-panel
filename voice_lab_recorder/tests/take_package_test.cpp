@@ -160,6 +160,25 @@ void refusals()
 	expect(!refused.has_value() && refused.error().code == "VOICE_LAB.TAKE_RECORD_INVALID",
 	       "continuity beyond the recorded deviation is refused");
 	expect(fs::is_empty(outbox), "still nothing in the outbox");
+
+	// Fields of the wrong type are a refusal, never an exception that ends the uploader.
+	Scratch fresh_scratch;
+	const fs::path fresh = broker_take(fresh_scratch, wav);
+	const Json clean = Json::parse(read_bytes(fresh / "capture.json"));
+	for (const auto &[field, value] : std::vector<std::pair<std::string, Json>>{
+		     {"rate", "16000"}, {"xruns", "0"}, {"channels", "6"}, {"wav", "original.wav"}, {"take_id", 1}}) {
+		capture = clean;
+		capture[field] = value;
+		write_bytes(fresh / "capture.json", capture.dump());
+		bool threw = false;
+		try {
+			refused = write_take_package(fresh.string(), outbox, golden_inputs());
+		} catch (const std::exception &) {
+			threw = true;
+		}
+		expect(!threw && !refused.has_value() && refused.error().code == "VOICE_LAB.TAKE_RECORD_INVALID",
+		       "a mistyped " + field + " is refused");
+	}
 }
 
 void quality_findings()
@@ -217,6 +236,17 @@ void capture_profile_from_the_device_record()
 	       "an unread setting is refused");
 	expect(!xvf3800_capture_profile(record, golden["channels"], golden["room"], 9).has_value(),
 	       "a primary channel outside the map is refused");
+	Json mistyped = record;
+	mistyped["identity"]["firmware"] = "v2";
+	mistyped["identity"]["settings"] = Json::array();
+	bool threw = false;
+	try {
+		expect(!xvf3800_capture_profile(mistyped, golden["channels"], golden["room"], 3).has_value(),
+		       "a device record of the wrong shape is refused");
+	} catch (const std::exception &) {
+		threw = true;
+	}
+	expect(!threw, "a device record of the wrong shape never throws");
 }
 } // namespace
 

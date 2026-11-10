@@ -7,6 +7,7 @@
 #include <map>
 #include <nlohmann/json.hpp>
 #include <regex>
+#include <set>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -40,11 +41,19 @@ struct FakeInbox {
 	std::map<std::string, std::map<std::string, std::string>> files;
 	std::map<std::string, Json> completed;
 	std::map<std::string, std::uint64_t> counts;
+	/** Count-update batch IDs already added, as the receiver remembers them. */
+	std::set<std::string> batches;
+	/** Applies the next count update but loses its answer, as a dropped connection would. */
+	bool lose_next_count_answer{false};
+	/** Reports and fingerprints this inbox refuses with a 400, as it would a malformed bundle. */
+	std::set<std::string> refuse;
 	std::map<std::string, std::pair<std::string, std::optional<std::uint64_t>>> statuses;
 	std::vector<std::string> calls;
 	bool unreachable{false};
 	/** Answers 503 to this many requests, then works. */
 	int busy{0};
+	/** Answers 403 to this many requests, as for a panel whose tailnet tag is missing. */
+	int forbidden{0};
 	/** Keeps only this many bytes of the next PUT, as a connection lost mid-chunk would. */
 	std::optional<std::size_t> truncate_next_put;
 
@@ -73,11 +82,17 @@ struct FakeInbox {
 			--busy;
 			return answer(503);
 		}
+		if (forbidden > 0) {
+			--forbidden;
+			return answer(403);
+		}
 		std::smatch match;
 		static const std::regex file_path("/v1/reports/(rpt-[0-9a-f]{32})/files/([a-z.]+)");
 		static const std::regex complete_path("/v1/reports/(rpt-[0-9a-f]{32})/complete");
 		static const std::regex count_path("/v1/fingerprints/([0-9a-f]{64})/count");
 		if (std::regex_match(path, match, file_path)) {
+			if (refuse.count(match[1]))
+				return answer(400);
 			auto &held = files[match[1]][match[2]];
 			if (method == "GET")
 				return held.empty() && !files[match[1]].count(match[2]) ? answer(404) : answer(200, {{"received_bytes", held.size()}});
@@ -115,7 +130,16 @@ struct FakeInbox {
 			return answer(201, {{"status", "received"}});
 		}
 		if (std::regex_match(path, match, count_path)) {
-			counts[match[1]] += Json::parse(request.body)["count"].get<std::uint64_t>();
+			const Json update = Json::parse(request.body);
+			const auto count = update["count"].get<std::uint64_t>();
+			if (refuse.count(match[1]) || count < 1 || count > 10'000 || !update.contains("batch"))
+				return answer(400);
+			if (batches.insert(update["batch"].get<std::string>()).second)
+				counts[match[1]] += count;
+			if (lose_next_count_answer) {
+				lose_next_count_answer = false;
+				return bhp::http_runtime::Result<HttpResponse>::failure({"HTTP.TRANSPORT_FAILED", "reset", true, 56});
+			}
 			return answer(200, {{"count", counts[match[1]]}});
 		}
 		if (path.rfind("/v1/reports/status?ids=", 0) == 0) {

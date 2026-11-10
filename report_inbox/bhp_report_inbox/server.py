@@ -228,10 +228,11 @@ def make_handler(store: Store, authenticate: Callable[[str], bool], transcriber:
                 match = COUNT_PATH.fullmatch(self.path)
                 if match:
                     try:
-                        count = json.loads(body).get("count")
+                        update = json.loads(body)
+                        count, batch = update.get("count"), update.get("batch")
                     except (ValueError, AttributeError):
-                        count = None
-                    record = store.add_count(match[1], count)
+                        count, batch = None, None
+                    record = store.add_count(match[1], count, batch)
                     return self._reply(200, {"count": record["repeats"]})
             except StoreError as error:
                 return self._fail(error)

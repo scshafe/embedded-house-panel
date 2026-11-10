@@ -1,5 +1,7 @@
 #include "voice_lab_recorder/take_package.h"
 #include "voice_lab_recorder/canonical_json.h"
+#include "voice_lab_recorder/json_fields.h"
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cmath>
@@ -245,7 +247,7 @@ bool periods_valid(const Json &periods)
 
 bool silent_prompt(const Json &prompt)
 {
-	const auto category = prompt.value("category", std::string());
+	const auto category = text_field(prompt, "category");
 	return category == "room-tone" || category == "procedure";
 }
 
@@ -260,18 +262,18 @@ Result<Json> xvf3800_capture_profile(const Json &broker_device, const Json &chan
 	if (!broker_device.is_object() || !broker_device.contains("identity") || !broker_device["identity"].is_object())
 		return unread();
 	const Json &identity = broker_device["identity"];
-	const Json firmware = identity.value("firmware", Json::object());
-	const Json read_settings = identity.value("settings", Json::object());
-	const Json version = firmware.value("VERSION", Json());
-	if (!broker_device.value("model", Json()).is_string() || !broker_device.value("serial", Json()).is_string() ||
-	    !broker_device.value("usb_vendor_id", Json()).is_number_unsigned() ||
-	    !broker_device.value("usb_product_id", Json()).is_number_unsigned() || !version.is_array() ||
-	    version.size() != 3 || !firmware.value("BLD_MSG", Json()).is_string() ||
-	    !firmware.value("BLD_REPO_HASH", Json()).is_string())
+	const Json firmware = object_field(identity, "firmware");
+	const Json read_settings = object_field(identity, "settings");
+	const Json version = json_field(firmware, "VERSION");
+	if (!json_field(broker_device, "model").is_string() || !json_field(broker_device, "serial").is_string() ||
+	    !json_field(broker_device, "usb_vendor_id").is_number_unsigned() ||
+	    !json_field(broker_device, "usb_product_id").is_number_unsigned() || !version.is_array() ||
+	    version.size() != 3 || !json_field(firmware, "BLD_MSG").is_string() ||
+	    !json_field(firmware, "BLD_REPO_HASH").is_string())
 		return unread();
 	Json settings = Json::object();
 	for (const char *name : kSettings) {
-		const Json value = read_settings.value(name, Json());
+		const Json value = json_field(read_settings, name);
 		if (!value.is_array() || value.empty())
 			return unread();
 		settings[name] = value;
@@ -412,29 +414,31 @@ Result<TakePackage> write_take_package(const std::string &broker_take_directory,
 	if (!record)
 		return fail<TakePackage>("VOICE_LAB.TAKE_RECORD_INVALID", "The broker's take record is unreadable");
 	const Json &capture = *record;
-	const std::string take_id = capture.value("take_id", std::string());
+	const std::string take_id = text_field(capture, "take_id");
 	const auto slash = broker_take_directory.find_last_of('/');
 	const std::string directory_name =
 		slash == std::string::npos ? broker_take_directory : broker_take_directory.substr(slash + 1);
-	const Json wav = capture.value("wav", Json::object());
-	const unsigned width = format_width(capture.value("format", std::string()));
-	if (capture.value("schema_version", std::string()) != kBrokerRecordSchema ||
-	    capture.value("purpose", std::string()) != "voice_take" || take_id != directory_name ||
-	    take_id.rfind("take-", 0) != 0 || capture.value("xruns", 1) != 0 || capture.value("rate", 0U) != kRate ||
-	    width == 0 || wav.value("name", std::string()) != kWavName || !capture.contains("periods") ||
+	const Json wav = object_field(capture, "wav");
+	const unsigned width = format_width(text_field(capture, "format"));
+	if (text_field(capture, "schema_version") != kBrokerRecordSchema ||
+	    text_field(capture, "purpose") != "voice_take" || take_id != directory_name ||
+	    take_id.rfind("take-", 0) != 0 || count_field(capture, "xruns", 1) != 0 || count_field(capture, "rate") != kRate ||
+	    width == 0 || text_field(wav, "name") != kWavName || !capture.contains("periods") ||
 	    !periods_valid(capture["periods"]) || !capture.contains("tolerance_ns") ||
 	    !capture["tolerance_ns"].is_number_unsigned() || !capture.contains("frames") ||
-	    !capture["frames"].is_number_unsigned() || !capture.contains("simulated") || !capture["simulated"].is_boolean())
+	    !capture["frames"].is_number_unsigned() || !capture.contains("simulated") || !capture["simulated"].is_boolean() ||
+	    !json_field(capture, "channels").is_number_unsigned())
 		return fail<TakePackage>("VOICE_LAB.TAKE_RECORD_INVALID", "The broker's take record is not a clean take");
 	const auto deviation = max_deviation_ns(capture["periods"]);
-	const Json recorded_deviation = capture.value("max_abs_deviation_ns", Json());
+	const Json recorded_deviation = json_field(capture, "max_abs_deviation_ns");
 	if ((deviation ? Json(*deviation) : Json(nullptr)) != recorded_deviation ||
 	    (deviation && *deviation > capture["tolerance_ns"].get<std::uint64_t>()))
 		return fail<TakePackage>("VOICE_LAB.TAKE_RECORD_INVALID", "The take record's continuity does not hold");
 
 	const Json &profile = inputs.capture_profile;
-	const unsigned channels = capture.value("channels", 0U);
-	if (!profile.is_object() || profile.value("profile", std::string(kCaptureProfileId)) != kCaptureProfileId ||
+	// Any count past the array's channels fails the profile check below.
+	const auto channels = static_cast<unsigned>(std::min<std::uint64_t>(count_field(capture, "channels"), 1024));
+	if (!profile.is_object() || text_field(profile, "profile", kCaptureProfileId) != kCaptureProfileId ||
 	    !profile.contains("channels") || !profile["channels"].is_array() || profile["channels"].size() != channels ||
 	    !profile.contains("primary_channel") || !profile["primary_channel"].is_number_unsigned() ||
 	    profile["primary_channel"].get<unsigned>() < 1 || profile["primary_channel"].get<unsigned>() > channels)
@@ -460,8 +464,8 @@ Result<TakePackage> write_take_package(const std::string &broker_take_directory,
 		return abandon(inspection.error().code.c_str(), "The take audio is not a plain PCM WAV");
 	const WavInspection &audio = inspection.value();
 	const std::uint64_t wav_bytes = 44 + audio.frames * audio.channels * audio.sample_width_bytes;
-	if ("take-" + audio_sha256 != take_id || wav.value("sha256", std::string()) != audio_sha256 ||
-	    wav.value("size_bytes", std::uint64_t{0}) != wav_bytes || audio.channels != channels ||
+	if ("take-" + audio_sha256 != take_id || text_field(wav, "sha256") != audio_sha256 ||
+	    count_field(wav, "size_bytes") != wav_bytes || audio.channels != channels ||
 	    audio.sample_rate_hz != kRate || audio.sample_width_bytes != width ||
 	    audio.frames != capture["frames"].get<std::uint64_t>())
 		return abandon("VOICE_LAB.TAKE_RECORD_INVALID", "The take record disagrees with its audio");
@@ -469,22 +473,22 @@ Result<TakePackage> write_take_package(const std::string &broker_take_directory,
 	const Json continuity = {
 		{"schema_version", "cole-voice-lab.alsa-continuity/v1"},
 		{"simulated", capture["simulated"]},
-		{"pcm", capture.value("pcm", std::string())},
-		{"access", capture.value("access", std::string())},
+		{"pcm", text_field(capture, "pcm")},
+		{"access", text_field(capture, "access")},
 		{"format", capture["format"]},
 		{"rate", kRate},
 		{"channels", channels},
-		{"period_frames", capture.value("period_frames", 0U)},
-		{"buffer_frames", capture.value("buffer_frames", 0U)},
-		{"tstamp_type", capture.value("tstamp_type", std::string())},
+		{"period_frames", count_field(capture, "period_frames")},
+		{"buffer_frames", count_field(capture, "buffer_frames")},
+		{"tstamp_type", text_field(capture, "tstamp_type")},
 		{"xruns", 0},
 		{"periods", capture["periods"]},
 		{"tolerance_ns", capture["tolerance_ns"]},
 		{"max_abs_deviation_ns", recorded_deviation},
 		{"frames", audio.frames},
 		{"wav", {{"name", kWavName}, {"sha256", audio_sha256}, {"size_bytes", wav_bytes}}},
-		{"started_at", capture.value("started_at", std::string())},
-		{"stop_reason", capture.value("stop_reason", std::string())},
+		{"started_at", text_field(capture, "started_at")},
+		{"stop_reason", text_field(capture, "stop_reason")},
 		{"success", true},
 		{"error", nullptr},
 	};

@@ -128,6 +128,7 @@ Result<void> TouchObservationRuntime::poll_touch() {
 	if (source_failed_) return Result<void>::success();
 	std::optional<SupervisorError> delivery_error;
 	auto drained = source_->drain([&](const RawTouchContact &contact) {
+		if (contact.state == touch::ContactState::Started) last_contact_started_ = std::chrono::steady_clock::now();
 		if (delivery_error) return;
 		auto result = observe(contact);
 		if (!result) delivery_error = result.error();

@@ -19,14 +19,17 @@ installs it ([bug-report-inbox-setup.md](../docs/operations/bug-report-inbox-set
   - `complete` checks every file's size and SHA-256, then moves the report
     into `reports/` in one rename. A corrupt file is discarded so the panel
     sends it again.
-  - The panel's repeat counts add to the fingerprint's record.
+  - The panel's repeat counts add to the fingerprint's record, once per
+    batch ID: the record keeps its 64 most recent IDs, so a retried update
+    after a lost answer adds nothing.
   - The agent writes `status/` (decision 8's statuses, a PR number, and a
     private one-line reason the panel never sees). The receiver reads a
     status file only if it is a regular file of at most 4 KiB, never through
     a link and never blocking on a FIFO.
   - Retention (decision 9) deletes a report 90 days after it closes, and its
     audio as soon as it is transcribed and closed. It also clears uploads
-    abandoned for 7 days and fingerprints with no report left.
+    abandoned for 7 days and fingerprints with no report left. A status whose time
+    is malformed counts as open, so it never stops retention for the others.
 - **`redact.py`** builds the public summary of section 6 from an allowlist
   of closed fields. Each field is checked again, and a field that fails stops
   the summary instead of passing through. Descriptions, transcripts, log

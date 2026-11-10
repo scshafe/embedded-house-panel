@@ -147,6 +147,16 @@ void test_discovery()
 	auto bad = settings();
 	bad.issuer = "http://id.example";
 	expect(!discover(bad, transport), "the issuer must be HTTPS");
+	const auto asked = server.requests.size();
+	auto pinned = settings();
+	pinned.trusted_ca_pem_for_tests = "-----BEGIN CERTIFICATE-----\n";
+	auto refused = discover(pinned, transport);
+	expect(!refused && refused.error().code == "VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK" && server.requests.size() == asked,
+	       "a test CA is refused for a real issuer, before any request");
+	pinned.issuer = "https://127.0.0.1:8443";
+	auto loopback = discover(pinned, transport);
+	expect(!loopback && loopback.error().code != "VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK",
+	       "a loopback issuer may use a test CA");
 }
 
 void test_device_sign_in()

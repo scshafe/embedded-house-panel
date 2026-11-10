@@ -197,8 +197,17 @@ An empty or entirely disabled catalog shows “No apps enabled”.
 Icons can be `book`, `calendar`, or `monogram`. A monogram supplies one or two
 uppercase ASCII letters/digits in `monogram`; `icon_color` is six hexadecimal RGB
 digits. Labels use the existing pinned font/Unicode rules and must fit at the
-configured grid size. Unsupported glyphs, invalid catalogs and overflowing labels
-fail explicitly rather than shrinking silently. The `preview` flag colors an
+configured grid size. An invalid catalog, or catalog text the fonts cannot draw,
+fails at load rather than shrinking silently.
+
+**Live text never ends the UI** (review Q2). Text from outside the panel (cards,
+Spotify, reports, voice-lab) goes through one rule in `LvglPanelDisplay::render`:
+characters the fonts lack become `?` and each field keeps at most 512 code points
+(`panel_live_text_fit`). Any label taller than its box is then cut at a code point
+and ends with `…` (`panel_label_fit`); the type scale never shrinks.
+`text_fit()` reports what changed, and the simulation logs it once per change as
+the structured error `PANEL_UI.LIVE_TEXT_FITTED` (surface, field names, labels
+cut; never the text). The `study-unfit-card` golden shows it. The `preview` flag colors an
 app's subtitle; it does not promote fixture content to live data.
 
 `@extension-point panel_application_catalog` and `@canonical panel_application_grid`

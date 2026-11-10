@@ -72,7 +72,7 @@ Json read_scenario(const std::string &path) {
  std::ifstream file(path);if(!file)throw std::runtime_error("SIMULATOR.SCENARIO_READ_FAILED");
  std::string bytes((std::istreambuf_iterator<char>(file)),{});if(bytes.size()>65536)throw std::runtime_error("SIMULATOR.SCENARIO_TOO_LARGE");
  auto j=Json::parse(bytes);
- std::set<std::string> fields{"schema_version","scenario_id","surface","lifecycle","presentation_failure","night_red_rgb888","fixture_clock","weather","clock_transition"};
+ std::set<std::string> fields{"schema_version","scenario_id","surface","lifecycle","presentation_failure","night_red_rgb888","fixture_clock","weather","clock_transition","fixture_card"};
  std::vector<std::string> surfaces;
  for(const auto &app:panel_app_descriptors()){surfaces.push_back(app.surface_id);if(!app.scenario_state_field.empty())fields.insert(app.scenario_state_field);}
  if(!j.is_object() || j.value("schema_version",0)!=1 || !j.contains("scenario_id") || !j.at("scenario_id").is_string())throw std::runtime_error("SIMULATOR.SCENARIO_SCHEMA_INVALID");
@@ -86,7 +86,7 @@ Json read_scenario(const std::string &path) {
    throw std::runtime_error("SIMULATOR.CLOCK_TRANSITION_INVALID");
  }
  for(auto it=j.begin();it!=j.end();++it)if(!fields.count(it.key()))throw std::runtime_error("SIMULATOR.SCENARIO_UNKNOWN_FIELD");
- member(j,"surface",std::set<std::string>(surfaces.begin(),surfaces.end()));member(j,"lifecycle",{"day","grace","night","blank","clock_untrusted"});
+ member(j,"surface",std::set<std::string>(surfaces.begin(),surfaces.end()));member(j,"lifecycle",{"day","grace","night","blank","clock_untrusted"});member(j,"fixture_card",{"standard","unfit"});
  for(const auto &app:panel_app_descriptors())if(!app.scenario_state_field.empty())member(j,app.scenario_state_field.c_str(),std::set<std::string>(app.scenario_states.begin(),app.scenario_states.end()));
  if(j.contains("presentation_failure")&&!j["presentation_failure"].is_boolean())throw std::runtime_error("SIMULATOR.SCENARIO_SCHEMA_INVALID");
  if(j.contains("night_red_rgb888")&&(!j["night_red_rgb888"].is_number_unsigned()||j["night_red_rgb888"].get<unsigned>()>0xffffff))throw std::runtime_error("SIMULATOR.SCENARIO_COLOR_INVALID");
@@ -137,7 +137,7 @@ PanelSimulation::PanelSimulation(bool window,std::string state_directory,std::st
 }
 void PanelSimulation::seed_study(){
  std::vector<vocabulary_panel::FlashCard> cards;
- for(int i=0;i<8;++i){vocabulary_panel::FlashCard c;c.vocabulary_card_id="fixture-card-"+std::to_string(i);c.word=i%2==0?"serendipity":"resilience";c.definition=i%2==0?scene.card_definition:"The capacity to recover and adapt after difficulty.";c.example_sentence=scene.card_example;c.review_cursor="fixture-cursor";c.session_item_id="fixture-item-"+std::to_string(i);c.content_revision="fixture-revision-1";c.content_sha256=std::string(64,'a');c.source_identity="simulation_fixture";c.position=i;c.selection_reason_json="{}";cards.push_back(c);}
+ for(int i=0;i<8;++i){vocabulary_panel::FlashCard c;c.vocabulary_card_id="fixture-card-"+std::to_string(i);c.word=i%2==0?scene.card_word:"resilience";c.definition=i%2==0?scene.card_definition:"The capacity to recover and adapt after difficulty.";c.example_sentence=scene.card_example;c.review_cursor="fixture-cursor";c.session_item_id="fixture-item-"+std::to_string(i);c.content_revision="fixture-revision-1";c.content_sha256=std::string(64,'a');c.source_identity="simulation_fixture";c.position=i;c.selection_reason_json="{}";cards.push_back(c);}
  auto result=study_->install_session(std::move(cards),"simulation-study-session");if(!result.has_value())throw std::runtime_error(result.error().error_code);
  study_->set_clock_trusted(true);
 }
@@ -156,6 +156,12 @@ void PanelSimulation::load(const Json &j,bool update_lifecycle,bool fixture_over
 
  if(voice_lab_runtime_&&voice_lab_runtime_->busy()){voice_lab_runtime_->abort();(void)voice_lab_runtime_->pump();}
  scene=PanelScene{scene.lifecycle};scene.applications=application_catalog_;scene.scenario_id=j.at("scenario_id").get<std::string>();scene.surface_id=j.value("surface","study");scene.clock_text=j.value("fixture_clock","07:42");
+ // A card the fonts and boxes cannot hold as sent: drawn cut and marked, never an exit (review Q2).
+ if(j.value("fixture_card","standard")=="unfit"){
+  scene.card_word="\xE5\xAD\xA6\xE7\xBF\x92 Weltanschauungsgeschichtsschreibung";
+  scene.card_definition="A definition from Lexinet may hold 16,384 code points of any Unicode, such as \xE5\xAD\xA6\xE7\xBF\x92 or \xF0\x9F\x98\x80, and this one runs well past the three lines the back of the card has room for, so the panel cuts it with an ellipsis instead of ending.";
+  scene.card_example="An example sentence that is also far too long for the two lines it is given on the back of the card, so the panel cuts it as well, with the same ellipsis at its end.";
+ }
  preview_clock_enabled_=false;clock_animation_live_=false;
  preview_clock_.reset(scene.clock_text,0,false);
  scene.fixture_data=scene.surface_id!="study"||!network_active||network_->fixture_data;
@@ -272,7 +278,23 @@ void PanelSimulation::invalidate_lifecycle(){
  if(network_&&!fixture_override_)project_study();
  scene.acknowledgement.clear();render();
 }
-std::uint64_t PanelSimulation::render(){auto visible=scene;if(!lifecycle_available_)visible.presentation_failure=true;render_generation=display.render(visible);return render_generation;}
+std::uint64_t PanelSimulation::render(){
+ auto visible=scene;if(!lifecycle_available_)visible.presentation_failure=true;
+ render_generation=display.render(visible);
+ // Live text the panel had to change is a structured error, logged once per change, never an exit.
+ const auto &fit=display.text_fit();
+ if(!(fit==last_text_fit_)){
+  last_text_fit_=fit;
+  if(!fit.empty()){
+   std::string fields;for(const auto &field:fit.fitted_fields)fields+=(fields.empty()?"":",")+field;
+   try{text_log_.log_error("live text fitted to the screen","","PANEL_UI.LIVE_TEXT_FITTED",
+    "Live text had characters the fonts cannot draw, or was too long for its box; it is drawn cut with an ellipsis",
+    "",{{"surface",scene.surface_id},{"fields",fields},{"cut_labels",std::to_string(fit.cut_labels)}});}
+   catch(const std::exception &){}
+  }
+ }
+ return render_generation;
+}
 void PanelSimulation::semantic_intent(const std::string &id,const std::string &source){
  if(source=="voice"){scene.acknowledgement="Use the fake recognition input";render();return;}
  clock_.advance();const auto kind=source=="touch"?IntentSourceKind::Touch:IntentSourceKind::HostFixture;
@@ -513,17 +535,13 @@ void PanelSimulation::pump_voice(){
 }
 Json PanelSimulation::status()const{return {{"scenario_id",scene.scenario_id},{"surface",scene.surface_id},{"home_page",scene.home_page},{"home_page_count",application_grid_page(scene.applications,scene.home_page).page_count},{"render_generation",render_generation},{"display_mode",to_string(scene.lifecycle.display_mode)},{"brightness_percent",scene.presentation_failure||!lifecycle_available_?0:scene.lifecycle.effective_brightness_percent},{"presentation_result",scene.presentation_failure||!lifecycle_available_?"failed":"simulated_commit"},{"lifecycle_available",lifecycle_available_},{"study_state",scene.study_state},{"delivery_status",scene.delivery_status},{"provisional",scene.provisional},{"fixture_data",scene.fixture_data},{"pending_review_events",std::count_if(study_->pending_events().begin(),study_->pending_events().end(),review_event)},{"acknowledgement",scene.acknowledgement},{"fixture_override",fixture_override_},{"fixture_clock_untrusted",scene.fixture_clock_untrusted},{"clock_text",scene.clock_text},{"clock_source",scene.clock_source},{"clock_previous_text",scene.clock_previous_text},{"clock_transition_milli",scene.clock_transition_milli},{"clock_preview_running",preview_clock_enabled_},{"weather_available",scene.weather_available},{"weather_stale",scene.weather_stale},{"weather_fixture",scene.weather_fixture},{"weather_temperature_unit",scene.weather_temperature_unit},{"simulation_not_hardware_evidence",true}};}
 namespace {
-// Spotify text in the panel's own fonts and layout: cut to a number of
-// characters, and not drawn at all when the Latin fonts lack a glyph.
+// Spotify text by the live-text rule (panel_live_text_fit), cut to a number of
+// characters. A name the Latin fonts cannot fully draw shows the fallback words
+// instead of question marks.
 std::string music_text(const std::string &text,std::size_t characters,const std::string &fallback){
- std::string out;std::size_t count=0;
- for(std::size_t at=0;at<text.size();++count){
-  if(count==characters){out+="\xE2\x80\xA6";break;}
-  const unsigned char lead=text[at];const std::size_t length=lead<0x80?1:(lead>>5)==6?2:(lead>>4)==14?3:(lead>>3)==30?4:1;
-  out.append(text,at,length);at+=length;
- }
- if(out.empty()||!bhp::panel_fonts::validate_glyph_coverage(out).supported)return fallback;
- return out;
+ auto fitted=bhp::panel_fonts::fit_to_subset(text,characters);
+ if(fitted.text.empty()||fitted.replaced)return fallback;
+ return std::move(fitted.text);
 }
 // Why a music request failed, in the words the surface shows.
 std::string music_notice(const std::string &code){
@@ -615,6 +633,7 @@ std::string report_status_words(const bug_reporter::protocol::ListedReport &item
  if(item.status=="merged")return "Fix merged";
  if(item.status=="update_ready")return "Update ready";
  if(item.status=="installed")return "Installed";
+ if(item.status=="refused")return "Not accepted";
  return "Won't fix";
 }
 std::string report_kind_words(const std::string &kind){

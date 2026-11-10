@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "scenario_id": "study-unfit-card",
+  "surface": "study",
+  "lifecycle": "day",
+  "study_state": "back",
+  "fixture_clock": "07:42",
+  "fixture_card": "unfit",
+  "night_red_rgb888": 1572864
+}

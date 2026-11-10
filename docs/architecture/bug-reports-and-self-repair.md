@@ -343,7 +343,9 @@ the private report ID.
 
 **Each report moves through:** `queued` (on the panel), `received` (the inbox
 acknowledged it), `investigating`, `fix in PR #n`, `merged`, `update ready`,
-`installed`, or `won't fix` (with a one-line reason).
+`installed`, or `won't fix` (with a one-line reason). A report the inbox
+refuses for good, or whose bundle cannot be read, is `refused` ("Not
+accepted") instead, so it never holds back the ones behind it.
 - **On the panel.** A Reports screen, reached from the report screen, lists
   the last 20 reports with their status and dates. The reporter polls the
   inbox's status endpoint, every 15 minutes while the panel is awake, and

@@ -93,6 +93,10 @@ private:
 	ReporterService(ReporterSettings settings, ReporterPorts ports, std::unique_ptr<ReportOutbox> outbox,
 			FaultRing faults, bhp::durable_store::Backoff backoff);
 	std::optional<std::string> random_hex(std::size_t bytes);
+	/** Sends one queued bundle's files and manifest. */
+	Result<bool> send_bundle(const std::string &report_id);
+	/** Sends the repeat counts; stops at the first retryable failure. */
+	Result<bool> send_counts();
 	std::vector<std::string> window_lines(bool with_faults) const;
 	Result<std::string> file_report(ReportDraft draft);
 	void automatic(const std::string &kind, const std::string &component, const std::string &code,

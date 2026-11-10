@@ -67,8 +67,15 @@ public:
 	 */
 	[[nodiscard]] const std::string &media_window_socket() const noexcept { return media_window_socket_; }
 
+	/**
+	 * BHP_PANEL_SUPERVISOR_TOUCH_PRESENCE_SECONDS, 1-3600, requiring the touch observer: a
+	 * contact keeps presence for this long (TouchHeldPresenceSource). Unset in production.
+	 */
+	[[nodiscard]] const std::optional<std::chrono::seconds> &touch_presence_hold() const noexcept { return touch_presence_hold_; }
+
 private:
 	std::optional<TouchRuntimeConfiguration> touch_configuration_;
+	std::optional<std::chrono::seconds> touch_presence_hold_;
 	std::optional<std::uint32_t> media_broker_uid_;
 	std::string media_window_socket_;
 	PanelSupervisordConfig(SupervisorConfig supervisor_config, double latitude_degrees,

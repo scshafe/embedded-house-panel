@@ -4,8 +4,11 @@ Owns the project font recipe, generated LVGL bitmap assets, and the
 `@canonical panel_font_glyph_coverage` manifest check shared by the neutral shell
 and subordinate surfaces. It has no dependency on either application domain.
 The renderer first uses the shell's canonical UTF-8 policy to enforce validity,
-controls and budgets, then calls `validate_glyph_coverage`. Missing glyphs fail
-explicitly; no platform font, replacement box or fallback is selected.
+controls and budgets, then calls `validate_glyph_coverage`. No platform font,
+replacement box or fallback font is selected. Live text first goes through
+`fit_to_subset` (`@canonical panel_live_text_fit`): malformed UTF-8 and every
+scalar the subset lacks become `?`, and text past a code-point limit ends with
+`…`, so the result always passes the coverage check.
 
 `panel_fonts/panel_fonts.h` exposes C symbols `bhp_font_24`, `bhp_font_28`,
 `bhp_font_36`, `bhp_font_40` and `bhp_font_48` through `bhp::panel_fonts`.

@@ -43,7 +43,8 @@ const char *kUsage =
 	"usage: bhp-voice-lab-uploader --ui-socket PATH --ui-uid UID --state-dir DIR --handoff-dir DIR\n"
 	"  --issuer https://HOST --api-url https://HOST --endpoint HOST --tailnet-suffix NAME\n"
 	"  [--board-profile FILE] [--client-version TEXT] [--tailscale PATH] [--ca-file PEM]\n"
-	"  Without --board-profile (the array's measured channel map) keep is refused.\n";
+	"  Without --board-profile (the array's measured channel map) keep is refused.\n"
+	"  --ca-file is for tests: the issuer and API must then be https://127.0.0.1:PORT.\n";
 
 std::string utc_now()
 {

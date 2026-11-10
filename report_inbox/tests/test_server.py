@@ -84,8 +84,10 @@ class ServerTest(InboxCase):
         self.assertEqual(self.send_bundle(base, manifest, files), 201)
         status, _ = request(base, "POST", f"/v1/reports/{REPORT_ID}/complete", json.dumps(manifest).encode())
         self.assertEqual(status, 200, "complete again is 200, not a second report")
-        self.assertEqual(request(base, "POST", f"/v1/fingerprints/{FINGERPRINT}/count", b'{"count": 2}'),
-                         (200, {"count": 2}))
+        update = json.dumps({"count": 2, "batch": "e" * 32}).encode()
+        self.assertEqual(request(base, "POST", f"/v1/fingerprints/{FINGERPRINT}/count", update), (200, {"count": 2}))
+        self.assertEqual(request(base, "POST", f"/v1/fingerprints/{FINGERPRINT}/count", update), (200, {"count": 2}),
+                         "a retried update after a lost answer adds once")
         Store(self.root).set_status(REPORT_ID, "fix_in_pr", 81, "private reason")
         status, body = request(base, "GET", f"/v1/reports/status?ids={REPORT_ID},rpt-{'f' * 32}")
         self.assertEqual((status, body), (200, {"reports": [{"report_id": REPORT_ID, "status": "fix_in_pr", "pr": 81}]}),

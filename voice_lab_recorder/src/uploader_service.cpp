@@ -1,4 +1,5 @@
 #include "voice_lab_recorder/uploader_service.h"
+#include "voice_lab_recorder/json_fields.h"
 #include <algorithm>
 #include <map>
 #include <ctime>
@@ -55,6 +56,11 @@ Result<std::unique_ptr<UploaderService>> UploaderService::open(UploaderSettings 
 	if (!ports.transport || !ports.resolve || !ports.utc_now || !ports.steady_now || !ports.random01 ||
 	    !ports.request_id)
 		return Output::failure({"VOICE_LAB.UPLOADER_CONFIG_INVALID", "The uploader lacks a port", {}, false});
+	// A test CA replaces the trust store: never for the real issuer or API.
+	if ((!settings.sign_in.trusted_ca_pem_for_tests.empty() && !test_ca_allowed(settings.sign_in.issuer)) ||
+	    (!settings.corpus.trusted_ca_pem_for_tests.empty() && !test_ca_allowed(settings.corpus.api_url)))
+		return Output::failure(
+			{"VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK", "A test CA is only for loopback URLs", {}, false});
 	std::unique_ptr<UploaderService> service(new UploaderService(std::move(settings), std::move(ports)));
 	auto *self = service.get();
 	auto saved = self->store_.load(self->settings_.sign_in.issuer, self->settings_.sign_in.client_id);
@@ -134,7 +140,7 @@ std::vector<wire::UploaderEvent> UploaderService::handle(const wire::UiRequest &
 		const auto prompt = find_prompt(keep->prompt_id);
 		if (!prompt)
 			return {wire::Refused{"keep", "VOICE_LAB.PROMPT_NOT_IN_CATALOG"}};
-		auto kept = outbox_->keep({keep->take_id, *prompt, catalog_["reference"], keep->requested_at});
+		auto kept = outbox_->keep({keep->take_id, *prompt, object_field(catalog_, "reference"), keep->requested_at});
 		if (!kept.has_value())
 			return {wire::Refused{"keep", kept.error().code}};
 		outbox_due_ = ports_.steady_now();
@@ -197,10 +203,8 @@ void UploaderService::refresh_views()
 
 std::optional<Json> UploaderService::find_prompt(const std::string &prompt_id) const
 {
-	if (!catalog_.is_object() || !catalog_.contains("suite") || !catalog_["suite"].contains("prompts"))
-		return std::nullopt;
-	for (const auto &prompt : catalog_["suite"]["prompts"])
-		if (prompt.value("prompt_id", std::string()) == prompt_id)
+	for (const auto &prompt : array_field(object_field(catalog_, "suite"), "prompts"))
+		if (text_field(prompt, "prompt_id") == prompt_id)
 			return prompt;
 	return std::nullopt;
 }
@@ -279,26 +283,26 @@ wire::State UploaderService::state()
 	}
 	const Json outbox = outbox_->status();
 	for (const auto &take : outbox["takes"]) {
-		const std::string stage = take.value("stage", std::string());
+		const std::string stage = text_field(take, "stage");
 		(stage == "kept" ? current.kept : stage == "refused" ? current.refused : current.queued) += 1;
 	}
 	current.blocked = outbox["blocked"].is_string() ? outbox["blocked"].get<std::string>() : std::string();
-	if (catalog_.is_object() && catalog_.contains("reference"))
-		current.catalog_version = catalog_["reference"].value("catalog_version", std::uint64_t{0});
+	current.catalog_version = count_field(object_field(catalog_, "reference"), "catalog_version");
 	std::map<std::string, std::string> status;
-	if (library_.is_object())
-		for (const auto &row : library_.value("rows", Json::array()))
-			status[row.value("prompt_id", std::string())] = row.value("status", std::string("missing"));
-	if (catalog_.is_object() && catalog_.contains("suite"))
-		for (const auto &prompt : catalog_["suite"].value("prompts", Json::array())) {
-			if (current.prompts.size() >= wire::kMaximumPrompts)
-				break;
-			const std::string id = prompt.value("prompt_id", std::string());
-			const auto found = status.find(id);
-			current.prompts.push_back({id, clip(prompt.value("text", std::string()), kMaximumPromptText),
-						   clip(prompt.value("category", std::string()), 64),
-						   found == status.end() ? "missing" : found->second});
-		}
+	for (const auto &row : array_field(library_, "rows"))
+		status[text_field(row, "prompt_id")] = text_field(row, "status", "missing");
+	for (const auto &prompt : array_field(object_field(catalog_, "suite"), "prompts")) {
+		if (current.prompts.size() >= wire::kMaximumPrompts)
+			break;
+		// A prompt without a text id cannot be kept, so it is not shown.
+		const std::string id = text_field(prompt, "prompt_id");
+		if (id.empty())
+			continue;
+		const auto found = status.find(id);
+		current.prompts.push_back({id, clip(text_field(prompt, "text"), kMaximumPromptText),
+					   clip(text_field(prompt, "category"), 64),
+					   found == status.end() ? "missing" : found->second});
+	}
 	current.error = error_;
 	// The sequence rises only when something the UI shows changed.
 	current.sequence = last_.sequence;

@@ -2,16 +2,42 @@
 #include "vocabulary_panel/gui/lvgl/vocabulary_surface_layout.h"
 #include <panel_fonts/panel_fonts.h>
 #include <cstdint>
-#include <stdexcept>
+#include <vector>
 
 namespace vocabulary_panel::gui::lvgl {
+bool set_label_text_within(lv_obj_t *label, const std::string &text, int maximum_height)
+{
+ lv_label_set_text(label, text.c_str());
+ lv_obj_update_layout(label);
+ if(lv_obj_get_height(label) <= maximum_height) return false;
+ // A fixed type scale is part of the display contract: never shrink or silently
+ // clip. Live text that is too long keeps the scale and is cut, with a visible
+ // ellipsis, at the longest code-point prefix that fits.
+ std::vector<std::size_t> boundaries{0};
+ for(std::size_t at = 1; at <= text.size(); ++at)
+  if(at == text.size() || (static_cast<unsigned char>(text[at]) & 0xc0) != 0x80) boundaries.push_back(at);
+ const auto fits = [&](std::size_t index) {
+  auto cut = text.substr(0, boundaries[index]);
+  while(!cut.empty() && (cut.back() == ' ' || cut.back() == '\n')) cut.pop_back();
+  lv_label_set_text(label, (cut + "\xE2\x80\xA6").c_str());
+  lv_obj_update_layout(label);
+  return lv_obj_get_height(label) <= maximum_height;
+ };
+ std::size_t low = 0, high = boundaries.size() - 1;  // fits(low) is assumed; high never fits whole
+ while(low + 1 < high) {
+  const auto middle = low + (high - low) / 2;
+  if(fits(middle)) low = middle; else high = middle;
+ }
+ fits(low);
+ return true;
+}
 namespace {
+int cut_labels = 0;
 void label(lv_obj_t *parent, const std::string &text, int x, int y, int width,
            int maximum_height, const lv_font_t *font, std::uint32_t color,
            lv_text_align_t alignment = LV_TEXT_ALIGN_LEFT)
 {
  auto *object = lv_label_create(parent);
- lv_label_set_text(object, text.c_str());
  lv_label_set_long_mode(object, LV_LABEL_LONG_MODE_WRAP);
  lv_obj_set_pos(object, x, y);
  lv_obj_set_width(object, width);
@@ -19,11 +45,7 @@ void label(lv_obj_t *parent, const std::string &text, int x, int y, int width,
  lv_obj_set_style_text_color(object, lv_color_hex(color), 0);
  lv_obj_set_style_text_align(object, alignment, 0);
  lv_obj_set_style_text_line_space(object, 0, 0);
- lv_obj_update_layout(object);
- // A fixed type scale is part of the display contract. Do not silently clip,
- // ellipsize or shrink study content when its measured layout exceeds the slot.
- if(lv_obj_get_height(object) > maximum_height)
-  throw std::runtime_error("PANEL_UI.TEXT_LAYOUT_OVERFLOW");
+ if(set_label_text_within(object, text, maximum_height)) ++cut_labels;
 }
 void button(lv_obj_t *parent, const std::string &text, int x, int width, std::uint32_t color)
 {
@@ -39,8 +61,9 @@ void button(lv_obj_t *parent, const std::string &text, int x, int width, std::ui
        width - 24, lv_font_get_line_height(&bhp_font_28), &bhp_font_28, 0xf7f3eb, LV_TEXT_ALIGN_CENTER);
 }
 }
-void render_vocabulary_surface(lv_obj_t *parent, const VocabularySurfaceModel &model)
+int render_vocabulary_surface(lv_obj_t *parent, const VocabularySurfaceModel &model)
 {
+ cut_labels = 0;
  if(model.state == "loading" || model.state == "empty" || model.state == "error" ||
     model.state == "refill" || model.state == "complete" || model.state == "resume" || model.state == "tracking_paused") {
   std::string title, detail;
@@ -58,7 +81,7 @@ void render_vocabulary_surface(lv_obj_t *parent, const VocabularySurfaceModel &m
   label(parent, detail, layout::inset, 168, layout::text_width, 111, &bhp_font_28, 0xaab8b7);
   if(model.state == "resume") button(parent, "Resume", layout::inset, layout::primary_width, 0x376662);
   if(model.state == "complete") button(parent, "Continue", layout::inset, layout::primary_width, 0x376662);
-  return;
+  return cut_labels;
  }
  if(model.state == "back") {
   label(parent, model.word, layout::inset, 16, layout::text_width, 62, &bhp_font_48, 0xf4f0e8);
@@ -76,5 +99,6 @@ void render_vocabulary_surface(lv_obj_t *parent, const VocabularySurfaceModel &m
  if(model.provisional)
   label(parent, "Preview only. Touch or rate to keep.", layout::inset, 308, layout::text_width,
         31, &bhp_font_24, 0xe9c480);
+ return cut_labels;
 }
 } // namespace vocabulary_panel::gui::lvgl

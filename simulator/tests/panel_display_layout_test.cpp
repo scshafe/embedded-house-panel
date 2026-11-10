@@ -63,18 +63,49 @@ int main() {
   scene.card_example = cases.at("supported_example");
   require(app.display.render(scene) > 0, "Latin text and punctuation render through the shell");
 
+  require(app.display.text_fit().empty(), "text that fits is drawn unchanged");
+
+  // Live card text never ends the UI (review Q2, defect 6): glyphs the fonts lack
+  // become '?', text too tall for its box is cut with a visible ellipsis, and the
+  // display reports both for the structured log.
+  const auto ellipsis_label = [&] {
+   std::vector<lv_obj_t *> stack{lv_display_get_screen_active(app.display.display())};
+   while (!stack.empty()) {
+    auto *object = stack.back(); stack.pop_back();
+    if (lv_obj_check_type(object, &lv_label_class)) {
+     const std::string text = lv_label_get_text(object);
+     if (text.size() > 3 && text.compare(text.size() - 3, 3, "\xE2\x80\xA6") == 0) return true;
+    }
+    for (std::uint32_t index = 0; index < lv_obj_get_child_count(object); ++index) stack.push_back(lv_obj_get_child(object, index));
+   }
+   return false;
+  };
   scene.card_word = cases.at("unsupported_word");
-  rejects_with([&] { app.display.render(scene); }, "GLYPH_UNSUPPORTED");
+  require(app.display.render(scene) > 0, "a word outside the fonts still renders");
+  require(visible_text_contains(lv_display_get_screen_active(app.display.display()), "??"), "unsupported glyphs are drawn as '?'");
+  require(app.display.text_fit().fitted_fields == std::vector<std::string>{"card_word"}, "the replaced field is reported");
   scene.card_word = cases.at("overflow_word");
-  rejects_with([&] { app.display.render(scene); }, "TEXT_LAYOUT_OVERFLOW");
+  require(app.display.render(scene) > 0, "an over-long word still renders");
+  require(app.display.text_fit().cut_labels == 1 && ellipsis_label(), "the word is cut to its box with an ellipsis");
   scene.card_word = cases.at("supported_word");
   const std::string definition = cases.at("supported_definition");
   for (int repeat = 0; repeat < 8; ++repeat) scene.card_definition += " " + definition;
-  rejects_with([&] { app.display.render(scene); }, "TEXT_LAYOUT_OVERFLOW");
+  require(app.display.render(scene) > 0 && app.display.text_fit().cut_labels == 1 && ellipsis_label(),
+          "an over-long definition is cut to its box");
   scene.card_definition = definition;
   const std::string example = cases.at("supported_example");
   for (int repeat = 0; repeat < 8; ++repeat) scene.card_example += " " + example;
-  rejects_with([&] { app.display.render(scene); }, "TEXT_LAYOUT_OVERFLOW");
+  require(app.display.render(scene) > 0 && app.display.text_fit().cut_labels == 1 && ellipsis_label(),
+          "an over-long example is cut to its box");
+  scene.card_example = example;
+  // The contract allows a definition of 16,384 code points of any Unicode.
+  std::string huge;
+  for (int repeat = 0; repeat < 4096; ++repeat) huge += "\xE5\xAD\xA6\x01ab";
+  scene.card_definition = huge;
+  require(app.display.render(scene) > 0, "16,384 code points of unsupported text and controls still render");
+  require(app.display.text_fit().fitted_fields == std::vector<std::string>{"card_definition"} && app.display.text_fit().cut_labels == 1,
+          "the field limit and the box both cut it");
+  scene.card_definition = definition;
 
   // Use the published hit geometry and its last pixel, rather than repeating
   // a visual coordinate in the input path. All four controls must be reachable.
