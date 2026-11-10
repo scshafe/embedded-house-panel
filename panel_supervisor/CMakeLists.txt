@@ -175,6 +175,13 @@ if(BHP_BUILD_TESTS)
   endif()
   add_test(NAME evdev_presence_source_test COMMAND evdev_presence_source_test)
 
+  add_executable(touch_held_presence_source_test tests/touch_held_presence_source_test.cpp)
+  target_link_libraries(touch_held_presence_source_test PRIVATE panel_supervisor)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(touch_held_presence_source_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME touch_held_presence_source_test COMMAND touch_held_presence_source_test)
+
   add_executable(system_clock_test tests/system_clock_test.cpp)
   target_include_directories(system_clock_test PRIVATE src)
   target_link_libraries(system_clock_test PRIVATE panel_supervisor_linux_adapters)
