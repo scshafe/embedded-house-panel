@@ -215,7 +215,7 @@ Steps marked `HUMAN` need a person at the board.
 | ARRIVAL-12 | board | `sh hardware_tests/frdm/frdm_mic_capture.sh --duration-seconds 5` with the CTIA headset plugged in; speak | `alsa_card`, `codec_i2c`, `capture_non_silent` `pass` | AUDIO record |
 | ARRIVAL-13 | board | `sh hardware_tests/frdm/frdm_display_touch_backlight.sh` (vendor DTB with the Waveshare panel only if the vendor release provides one, `<VENDOR_PANEL_DTB>`) | records written; any `mismatch` is expected on a DTB without the panel | DISPLAY/TOUCH/BACKLIGHT records |
 | ARRIVAL-14 | host | copy the ARRIVAL-09/11 candidates into `config/boards/frdm-imx8mp.env`; `make verify`; commit `docs(hardware): record FRDM PIR pin evidence` with the record paths | `verify_frdm_device_tree_overlay` logs `committed_pir_state":"measured"` | commit |
-| ARRIVAL-15 | HUMAN | Decide on the NXP Software License Agreement for `firmware-imx` (LPDDR4 training) and the IW612 firmware. If accepted, record it as the next free ADR with `<!-- @canonical nxp-firmware-eula-acceptance -->` and `**Status:** accepted`, then set `BHP_BOARD_NXP_FIRMWARE_EULA=accepted-adr-<NNNN>` | ADR merged; `make verify` exit 0 | ADR |
+| ARRIVAL-15 | HUMAN | Decide on the NXP Software License Agreement for `firmware-imx` (LPDDR4 training) and the IW612 firmware. If accepted, record it as the next free ADR with `<!-- @canonical nxp-firmware-eula-acceptance -->` and `**Status:** accepted`, then set `BHP_BOARD_NXP_FIRMWARE_EULA=accepted-adr-<NNNN>` | ADR merged; `make verify` exit 0 | ADR | **Done 2026-11-10:** [ADR 0016](../decisions/0016-accept-the-nxp-firmware-licence-for-the-frdm-image.md) accepts `firmware-imx` (v58), and the profile says `accepted-adr-0016`. The IW612 firmware at its pinned tag (v63) is not covered, so the image has no Wi-Fi yet. ARRIVAL-17 (flashing) still needs the owner's go-ahead. |
 | ARRIVAL-16 | host | `scripts/build/build_bringup_image.sh` (SSH bring-up profile env above) | `images/sdcard.img` and `images/imx8-boot-sd.bin` exist; post-image did not log `NXP_FIRMWARE_EULA_NOT_ACCEPTED` | build log |
 | ARRIVAL-17 | HUMAN+host | SW5 = `0001`, J3 to host, power on; `uuu -b sd_all "$BHP_BUILDROOT_OUTPUT_DIR/images/imx8-boot-sd.bin" "$BHP_BUILDROOT_OUTPUT_DIR/images/sdcard.img"` with a microSD in the slot; power off; SW5 = `0011`; power on | console shows `frdm-imx8mp-house-panel-bringup` and the NON-PRODUCTION banner | console log |
 | ARRIVAL-18 | host | `ssh -o IdentitiesOnly=yes -i <KEY> root@<BOARD_ADDRESS> cat /etc/beaglebone-house-panel/image-profile /etc/beaglebone-house-panel/image-version` | `bringup-root-public-key-only`; `board_id=frdm-imx8mp`; commit matches ARRIVAL-16 | image identity |
@@ -649,8 +649,10 @@ the firmware license) waits for the owner.
 
 ## Known blockers (not closable from the repository)
 
-- `NXP-FIRMWARE-EULA` (human decision): without it the project image stops in
-  post-image and has no IW612 firmware.
+- ~~`NXP-FIRMWARE-EULA` (human decision): without it the project image stops in
+  post-image and has no IW612 firmware.~~ Accepted for `firmware-imx` in ADR
+  0016 (2026-11-10). The IW612 firmware at its pinned tag (licence v63) still
+  needs the owner's acceptance or a re-pin, so the image has no Wi-Fi yet.
 - `FRDM-GATE-PIR`: the project DTB (`imx8mp-frdm-bhp-panel.dtb`) and the custom
   PIR overlay refuse to render until the seven PIR values are measured.
 - `FRDM-GATE-BACKLIGHT`: no device-tree backlight node is added; the NXP

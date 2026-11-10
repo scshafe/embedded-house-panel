@@ -227,5 +227,27 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(result["uploads_removed"], 1)
         self.assertFalse(any((root / "incoming").iterdir()))
 
+    def test_concurrent_completions_of_one_report_never_collide(self) -> None:
+        import threading
+        manifest, files = bundle()
+        self.upload(files)
+        body = json.dumps(manifest).encode()
+        results, errors = [], []
+
+        def complete() -> None:
+            try:
+                results.append(self.store.complete(REPORT_ID, body))
+            except Exception as error:  # noqa: BLE001
+                errors.append(error)
+
+        threads = [threading.Thread(target=complete) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(10)
+        self.assertEqual(errors, [])
+        self.assertEqual(sorted(results), [False] * 7 + [True], "one completion is new, the rest are retries")
+        self.assertEqual([p.name for p in (Path(self.temporary.name) / "reports").iterdir()], [REPORT_ID])
+
 if __name__ == "__main__":
     unittest.main()
