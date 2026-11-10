@@ -11,8 +11,46 @@ settings.
   `vocabulary_panel`. It runs inside the UI process, off the LVGL thread.
 
 **Status (2026-11-10):** the decisions and the fixtures are recorded (plan
-Steps 1–2). The models, parsers, store, client and screens are not built
-yet.
+Steps 1–2), and the domain is built and tested (Steps 3–4). The bar, the menu
+and the wiring into the UI come next (Steps 5–6).
+
+## Pieces
+
+- **`weather_codec.h`** (`@canonical weather_codec`):
+  - strict parsers for the three answers;
+  - the display rules: °F/°C/K, `↑ 7:12`;
+  - freshness, judged in the place's own date through the forecast's UTC
+    offset;
+  - the store's encodings.
+- **`weather_schedule.h`:** when to look up and when to fetch. It is pure,
+  with the time injected.
+- **`weather_store.h`:** `settings.json` and `forecast.json` through
+  `bhp::durable_store::DurableFile` (0600 in 0700, 16 KiB each).
+- **`weather_client.h`:**
+  - `HttpWeatherClient`, HTTPS only. A test CA is accepted only with
+    `https://127.0.0.1` endpoints. It logs the host and a code.
+  - `FixtureWeatherClient`, which serves the recorded answers.
+- **`weather_worker.h`:** the weather's own thread.
+  - The UI reads `snapshot()` and `take_search()`, and calls
+    `update_settings()` and `search()`. None of them waits on the network.
+  - A forecast is tied to the rounded coordinates it was fetched for, so it
+    is never shown for another place.
+
+## Tests
+
+`ctest --test-dir .build/host-dev -R weather`:
+- **The codec:** every fixture, each mutated field with its exact code, the
+  rounding edges (−0.4, 0.5, −40), and freshness at 3 h, at a new local date,
+  at UTC+14 and from the future.
+- **The store:** round trip, modes, corrupt and oversized files.
+- **The schedule:** 60 min, 6 h, a new date, and the backoff 1, 2, 4, 8, 16
+  and 30 min with jitter.
+- **The worker:** Automatic then a place, the newest search, failures and
+  backoff, a restart, Automatic unavailable, and a log free of coordinates,
+  the IP and names.
+- **The HTTPS client:** against a loopback TLS server, covering success,
+  timeout, 429, 500, 404, malformed JSON, an untrusted certificate and the
+  endpoint rules, with the same log check.
 
 ## Data contract
 
