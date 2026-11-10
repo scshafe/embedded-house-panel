@@ -472,6 +472,24 @@ def service_environment(name: str, runtime: dict) -> dict:
     return environment
 
 
+def needed_sockets(name: str, runtime: dict) -> list[Path]:
+    """Sockets a service connects to at start and exits without: the UI may only start after the broker and
+    the uploader, and the broker after the supervisor's window (music and the reporter it reconnects to)."""
+    if name == 'broker':
+        return [RUN/'media/window.sock']
+    if name == 'ui':
+        return ([RUN/'lifecycle/mode.sock', RUN/'touch/observations.sock', RUN/'broker/ui.sock']
+                + ([RUN/'uploader/ui.sock'] if runtime.get('voice_lab') else []))
+    return []
+
+
+def wait_for_sockets(paths: list[Path], seconds: float = 60) -> None:
+    """Waits for them; after `seconds` the service starts anyway, fails, and its unit retries with backoff."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline and not all(path.is_socket() for path in paths):
+        time.sleep(0.5)
+
+
 def tee_command(name: str, *notice: str) -> list[str]:
     return [*setpriv(SERVICE_UIDS[name], [INGEST_GID]), str(BOARD_INSTALL/'current/bin/bhp-log-tee'),
             '--socket', '/run/house-panel/ingest/ingest.sock', '--service', 'bhp-' + name, *notice]
@@ -484,6 +502,7 @@ def exec_service(name: str) -> int:
         raise BenchError('BENCH.UNKNOWN_SERVICE')
     runtime = json.loads((RUN/'runtime.json').read_text())
     command, environment = service_command(name, runtime), service_environment(name, runtime)
+    wait_for_sockets(needed_sockets(name, runtime))
     if not runtime.get('reporter') or name in ('reporter', 'presence'):
         os.execve(command[0] if command[0].startswith('/') else shutil.which(command[0]) or command[0],
                   command, environment)

@@ -10,10 +10,12 @@ import io
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -294,6 +296,24 @@ class ServiceTest(BoardCase):
         self.assertIn('--report-handoff-dir', broker)
         self.assertIn('--groups=29,1108,1109', broker)
         self.assertIn('--groups=1110', self.board.tee_command('ui'))
+
+    def test_the_ui_waits_for_the_sockets_it_cannot_start_without(self) -> None:
+        run = self.prefix/'run/house-panel'
+        self.assertEqual(self.board.needed_sockets('ui', {**self.RUNTIME, 'voice_lab': True}),
+                         [run/'lifecycle/mode.sock', run/'touch/observations.sock', run/'broker/ui.sock',
+                          run/'uploader/ui.sock'])
+        self.assertEqual(self.board.needed_sockets('broker', self.RUNTIME), [run/'media/window.sock'])
+        self.assertEqual(self.board.needed_sockets('music', self.RUNTIME), [], 'the UI reconnects to music')
+        (run/'media').mkdir(parents=True)
+        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.addCleanup(listener.close)
+        listener.bind(str(run/'media/window.sock'))
+        started = time.monotonic()
+        self.board.wait_for_sockets([run/'media/window.sock'], seconds=5)
+        self.assertLess(time.monotonic() - started, 1)
+        started = time.monotonic()
+        self.board.wait_for_sockets([run/'broker/ui.sock'], seconds=0.6)
+        self.assertGreaterEqual(time.monotonic() - started, 0.5, 'waits, then lets the unit retry')
 
     def test_an_unconfigured_service_is_refused(self) -> None:
         with self.assertRaisesRegex(self.board.BenchError, 'BENCH.SERVICE_NOT_CONFIGURED'):
