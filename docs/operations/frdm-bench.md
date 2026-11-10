@@ -101,8 +101,9 @@ EOF
 ```
 
 The file names the house's location, so it never enters Git. Until it
-exists, `prepare` refuses with `BENCH.CONFIG_MISSING`, and nothing else
-starts.
+exists and is valid, `install` refuses with `BENCH.CONFIG_MISSING` or
+`BENCH.CONFIG_INVALID.<FIELD>` before it changes anything, so weston is
+never turned off for a bench that cannot start.
 
 ### 3. The tailnet (approved; the key is yours)
 

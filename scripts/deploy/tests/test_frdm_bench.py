@@ -105,6 +105,21 @@ class BoardCase(unittest.TestCase):
 
 
 class InstallTest(BoardCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.write_config(**{'bench.json': CONFIG})
+
+    def test_install_without_a_valid_configuration_changes_nothing(self) -> None:
+        (self.prefix/'etc/house-panel/bench.json').unlink()
+        tarball, digest = self.bundle()
+        with self.assertRaisesRegex(self.board.BenchError, 'BENCH.CONFIG_MISSING'):
+            self.board.install(str(tarball), digest)
+        self.write_config(**{'music.json': {'client_id': 'short', 'output_name': 'Bose'}, 'bench.json': CONFIG})
+        with self.assertRaisesRegex(self.board.BenchError, 'BENCH.CONFIG_INVALID.MUSIC'):
+            self.board.install(str(tarball), digest)
+        self.assertFalse((self.prefix/'opt/house-panel').exists())
+        self.assertEqual(self.systemctl_calls(), [], 'weston is never touched')
+
     def test_install_verifies_swaps_and_starts_the_target(self) -> None:
         tarball, digest = self.bundle()
         self.board.install(str(tarball), digest)

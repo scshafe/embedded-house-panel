@@ -609,6 +609,9 @@ def install_units() -> None:
 def install(tarball: str, expected: str) -> dict:
     if not re.fullmatch(r'[0-9a-f]{64}', expected):
         raise BenchError('BENCH.USAGE')
+    # Without a valid configuration the bench cannot start, and weston would be off: refuse first.
+    bench_config()
+    reporter_settings(), music_settings(), voice_lab_settings()
     source = Path(tarball)
     if not source.is_file() or sha256_file(source) != expected:
         raise BenchError('BENCH.BUNDLE_HASH_MISMATCH')
