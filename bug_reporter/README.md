@@ -40,12 +40,20 @@ anywhere public, opens no audio device, and holds no credential.
     become counts.
   - **Manual reports:** 1 a minute and 20 a day.
   - **Receipt:** a received bundle is deleted, and its status is kept for the
-    list.
+    list. A bundle the inbox refuses for good (a 4xx about that bundle), or one
+    that cannot be read, is deleted too and listed as `refused`, so it never
+    holds back the reports behind it.
+  - **Counts:** repeats go as count updates of at most 10,000, each named by a
+    batch ID recorded before it is sent. An update is sent again, unchanged,
+    until the inbox acknowledges it; one the inbox refuses is dropped.
 - **`inbox_client.h`** (`@canonical bug_report_inbox_api`): the inbox's v1
   paths, which the PC receiver (step 4) implements.
   - Resumable chunked file upload, `complete` with the manifest, repeat
     counts, and statuses.
-  - Every call is idempotent.
+  - Every call is idempotent: a count update carries its batch ID, which the
+    inbox adds only once.
+  - 5xx, 429, 409, 401, 403 and 416 are retryable; any other 4xx is about
+    that one request.
   - There is no token: the inbox knows the panel by its tailnet node
     (ADR 0010).
 - **`reporter_protocol.h`** (`@canonical bug_reporter_protocol`,
@@ -56,7 +64,7 @@ anywhere public, opens no audio device, and holds no credential.
 - **`reporter_service.h`** (`@canonical bug_reporter_service`): ties these
   together.
   - **Snapshots** copy the log window at the tap and expire after 10 minutes.
-  - **Uploads** back off from 5 s to 1 h.
+  - **Uploads** back off from 5 s to 1 h on a retryable failure.
   - **Statuses** are polled every 15 minutes.
 - **`bhp-reporter`:** the process, under its own UID (reserved as
   `bhp-reporter`, 1106).

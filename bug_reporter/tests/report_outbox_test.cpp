@@ -1,6 +1,7 @@
 // The outbox: rate limits, eviction, receipt and status, and a restart in between.
 #include "fake_inbox.hpp"
 #include "bug_reporter/report_outbox.h"
+#include <fstream>
 #include <sys/stat.h>
 using namespace bug_reporter;
 using namespace bug_reporter_test;
@@ -42,7 +43,18 @@ void automatic_limits()
 	expect(admit(*outbox, "fault", fp, kNow + 50 * 3600) == Admission::Full, "the third in a week");
 	expect(admit(*outbox, "fault", fp, kNow + 75 * 3600) == Admission::CountOnly, "a fourth in a week is a count");
 	expect(outbox->pending_counts().size() == 1 && outbox->pending_counts()[0].second == 2, "two repeats wait");
-	expect(outbox->clear_count(fp, 2).has_value() && outbox->pending_counts().empty(), "sent counts clear");
+	int ids = 0;
+	const auto next_id = [&ids] { return std::optional<std::string>(std::string(31, 'a') + std::to_string(++ids)); };
+	auto batches = outbox->count_batches(next_id);
+	expect(batches.has_value() && batches.value().size() == 1 && batches.value()[0].count == 2, "one update of two");
+	const auto batch = batches.value()[0].batch;
+	expect(admit(*outbox, "fault", fp, kNow + 76 * 3600) == Admission::CountOnly, "a repeat while it is in flight");
+	auto again = outbox->count_batches(next_id);
+	expect(again.has_value() && again.value().size() == 1 && again.value()[0].batch == batch &&
+		       again.value()[0].count == 2,
+	       "until acknowledged, the same update goes again, unchanged");
+	expect(outbox->clear_count(fp, batch).has_value() && outbox->pending_counts()[0].second == 1,
+	       "the acknowledged update clears; the later repeat waits for the next");
 
 	auto busy = std::move(ReportOutbox::open(temporary_directory("bhp-outbox-busy")).value());
 	for (int i = 0; i < 3; ++i)
@@ -51,6 +63,40 @@ void automatic_limits()
 	for (int i = 4; i < 11; ++i)
 		(void)admit(*busy, "crash", sha256_hex("c" + std::to_string(i)), kNow + 3600 * (i - 2));
 	expect(admit(*busy, "crash", sha256_hex("c99"), kNow + 3600 * 10) == Admission::CountOnly, "ten a day");
+}
+
+void count_updates_stay_in_range()
+{
+	// An outbox holding 25,000 repeats (written before updates were split) sends them in range.
+	const auto directory = temporary_directory("bhp-outbox-counts");
+	const auto fp = sha256_hex("many");
+	std::ofstream(directory + "/outbox.json")
+		<< Json({{"schema_version", 1},
+			 {"reports", Json::array()},
+			 {"manual_times", Json::array()},
+			 {"automatic_times", Json::array()},
+			 {"fingerprints", {{fp, {{"last_full_at", kNow}, {"full_times", Json::array()}, {"pending_count", 25'000}}}}}})
+			   .dump();
+	::chmod((directory + "/outbox.json").c_str(), 0600);
+	auto opened = ReportOutbox::open(directory);
+	expect(opened.has_value(), "an outbox written before count batches opens");
+	if (!opened.has_value())
+		return;
+	auto outbox = std::move(opened.value());
+	int ids = 0;
+	const auto next_id = [&ids] { return std::optional<std::string>(std::string(31, 'b') + std::to_string(++ids)); };
+	std::vector<std::uint64_t> sent;
+	for (int round = 0; round < 4; ++round) {
+		auto batches = outbox->count_batches(next_id);
+		if (!batches.has_value() || batches.value().empty())
+			break;
+		sent.push_back(batches.value()[0].count);
+		(void)outbox->clear_count(fp, batches.value()[0].batch);
+	}
+	expect(sent == std::vector<std::uint64_t>({10'000, 10'000, 5'000}), "never more than 10,000 in one update");
+	outbox.reset();
+	auto reopened = ReportOutbox::open(directory);
+	expect(reopened.has_value() && reopened.value()->pending_counts().empty(), "and the outbox survives the new fields");
 }
 
 void manual_limits()
@@ -107,6 +153,7 @@ void eviction_and_status()
 int main()
 {
 	automatic_limits();
+	count_updates_stay_in_range();
 	manual_limits();
 	eviction_and_status();
 	if (failures == 0)

@@ -98,6 +98,84 @@ void a_fault_reaches_the_inbox()
 	expect(rig.service->reports().update_ready, "an update ready shows");
 }
 
+void wrong_types_never_end_the_reporter()
+{
+	Rig rig;
+	try {
+		for (const auto *line : {R"({"level":"error","reportable":true,"error_code":"MUSIC.INTERNAL"})",
+					 R"({"level":5,"reportable":"true","error_code":"MUSIC.INTERNAL"})",
+					 R"({"type":7,"service":"music"})",
+					 R"({"level":"error","reportable":"true","error_code":"MUSIC.INTERNAL","location":{"line":3}})"})
+			rig.service->ingest("music", line);
+	} catch (const std::exception &) {
+		expect(false, "a log line of the wrong types never throws");
+	}
+	const auto listed = rig.service->reports();
+	expect(listed.items.size() == 1 && listed.items[0].kind == "fault",
+	       "only the well-typed fault files, its odd location treated as absent");
+}
+
+void a_refused_bundle_does_not_block_the_rest()
+{
+	Rig rig;
+	rig.service->exited({"bhp-panel-ui", 0, 11, true});
+	rig.service->exited({"bhp-media-broker", 3, 0, true});
+	const auto first = rig.service->reports().items[1].report_id;
+	rig.inbox.refuse.insert(first);
+	(void)rig.service->tick();
+	(void)rig.service->tick();
+	const auto listed = rig.service->reports();
+	expect(rig.inbox.completed.size() == 1 && !rig.inbox.completed.count(first), "the one behind it still goes");
+	expect(listed.items[1].status == "refused" && rig.service->last_error() == "REPORT.INBOX_REFUSED",
+	       "the refused one is parked and shown as refused");
+	struct stat gone {};
+	expect(::stat((rig.root + "/outbox/" + first).c_str(), &gone) != 0, "its bundle leaves the panel");
+
+	// A 403 is about the panel, so the bundle waits instead.
+	rig.service->exited({"bhp-panel-ui", 0, 6, true});
+	rig.inbox.forbidden = 100;
+	rig.advance(std::chrono::minutes(2));
+	(void)rig.service->tick();
+	expect(rig.service->reports().items[0].status == "queued", "a forbidden panel keeps its report queued");
+}
+
+void counts_add_once_and_never_block()
+{
+	Rig rig;
+	const std::string other = R"({"level":"error","reportable":"true","error_code":"MUSIC.TIMEOUT","location":"x.cpp:1"})";
+	for (const auto &line : {kFault, other})
+		rig.service->ingest("music", line);
+	(void)rig.service->tick();
+	(void)rig.service->tick();
+	expect(rig.inbox.completed.size() == 2, "two full reports");
+	for (int i = 0; i < 2; ++i)
+		for (const auto &line : {kFault, other})
+			rig.service->ingest("music", line);
+	rig.inbox.lose_next_count_answer = true;
+	rig.advance(std::chrono::minutes(2));
+	(void)rig.service->tick();
+	rig.advance(std::chrono::minutes(2));
+	(void)rig.service->tick();
+	std::uint64_t total = 0;
+	for (const auto &[fingerprint, count] : rig.inbox.counts)
+		total += count;
+	expect(total == 4, "a count update whose answer was lost is added once, not twice");
+
+	// A refused update is dropped and never holds back another fingerprint's.
+	const auto refused = rig.inbox.counts.begin()->first;
+	rig.inbox.refuse.insert(refused);
+	for (const auto &line : {kFault, other})
+		rig.service->ingest("music", line);
+	rig.advance(std::chrono::minutes(2));
+	(void)rig.service->tick();
+	total = 0;
+	for (const auto &[fingerprint, count] : rig.inbox.counts)
+		total += count;
+	expect(total == 5, "the other fingerprint's count still arrives");
+	(void)rig.service->tick();
+	expect(rig.service->tick() > std::chrono::seconds(30), "nothing is left to retry");
+}
+
 void exits_and_backoff()
 {
 	Rig rig;
@@ -217,6 +295,9 @@ void voice_reports()
 
 int main()
 {
+	wrong_types_never_end_the_reporter();
+	a_refused_bundle_does_not_block_the_rest();
+	counts_add_once_and_never_block();
 	a_fault_reaches_the_inbox();
 	exits_and_backoff();
 	manual_reports();

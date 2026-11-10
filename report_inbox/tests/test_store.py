@@ -123,6 +123,36 @@ class StoreTest(unittest.TestCase):
         self.assertTrue((Path(self.temporary.name) / "reports" / REPORT_ID / "report.json").exists())
 
 
+    def test_a_retried_count_update_adds_once(self) -> None:
+        batch = "a" * 32
+        self.assertEqual(self.store.add_count(FINGERPRINT, 3, batch)["repeats"], 3)
+        self.assertEqual(self.store.add_count(FINGERPRINT, 3, batch)["repeats"], 3, "the same batch adds once")
+        self.assertEqual(self.store.add_count(FINGERPRINT, 2, "b" * 32)["repeats"], 5)
+        self.assertEqual(self.store.add_count(FINGERPRINT, 1)["repeats"], 6, "an update without a batch still adds")
+        self.assert_refused("REPORT_INBOX.BATCH_INVALID", lambda: self.store.add_count(FINGERPRINT, 1, "A" * 32))
+        self.assert_refused("REPORT_INBOX.COUNT_INVALID", lambda: self.store.add_count(FINGERPRINT, 10_001, "c" * 32))
+        for n in range(70):
+            self.store.add_count(FINGERPRINT, 1, f"{n:032x}")
+        self.assertEqual(len(self.store.fingerprint(FINGERPRINT)["batches"]), 64, "only recent batches are kept")
+
+    def test_a_malformed_closing_time_never_stops_retention(self) -> None:
+        root = Path(self.temporary.name)
+        later = "rpt-" + "d" * 32
+        for report_id in (REPORT_ID, later):
+            manifest, files = bundle(report_id=report_id)
+            self.upload(files, report_id)
+            self.store.complete(report_id, json.dumps(manifest).encode())
+            self.store.set_status(report_id, "installed", 81, None)
+        # The agent can write status/ directly; a hand-edited time must not break the others.
+        record = json.loads((root / "status" / f"{REPORT_ID}.json").read_text())
+        for bad in ("yesterday", "2026-13-45T99:99:99Z", 17):
+            record["updated_at"] = bad
+            (root / "status" / f"{REPORT_ID}.json").write_text(json.dumps(record))
+            self.assertIsNone(self.store.status(REPORT_ID)["updated_at"])
+            now = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=91)
+            self.assertEqual(self.store.apply_retention(now, 90), [later] if bad == "yesterday" else [])
+        self.assertTrue((root / "reports" / REPORT_ID).exists(), "the malformed one is kept, not deleted")
+
     def test_a_status_file_must_be_a_small_regular_file(self) -> None:
         manifest, files = bundle()
         self.upload(files)

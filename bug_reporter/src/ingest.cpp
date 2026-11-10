@@ -7,7 +7,15 @@ namespace bug_reporter
 namespace
 {
 using Json = nlohmann::json;
+
+// A field of any service's log line: a string, or empty when it is absent or of another type.
+// Lines come from every service's stderr, so a wrong type is ordinary input, never an error.
+std::string text(const Json &value, const char *key)
+{
+	const auto found = value.find(key);
+	return found != value.end() && found->is_string() ? found->get<std::string>() : std::string();
 }
+} // namespace
 
 bool valid_service(const std::string &service)
 {
@@ -20,7 +28,7 @@ IngestLine classify(const std::string &line)
 	const Json value = Json::parse(line, nullptr, false);
 	if (!value.is_object())
 		return LogRecord{line, std::nullopt, {}};
-	const auto type = value.value("type", std::string());
+	const auto type = text(value, "type");
 	if (type == "hello" && value.size() == 2 && value.contains("service") && value["service"].is_string() &&
 	    valid_service(value["service"].get<std::string>()))
 		return HelloLine{value["service"].get<std::string>()};
@@ -35,11 +43,11 @@ IngestLine classify(const std::string &line)
 					value["restarting"].get<bool>()};
 	}
 	static const std::regex code("[A-Z][A-Z0-9_]*(\\.[A-Z0-9_]+)+");
-	if (value.value("level", std::string()) == "error" && value.value("reportable", std::string()) == "true" &&
+	if (text(value, "level") == "error" && text(value, "reportable") == "true" &&
 	    value.contains("error_code") && value["error_code"].is_string()) {
 		const auto error_code = value["error_code"].get<std::string>();
 		if (error_code.size() <= 96 && std::regex_match(error_code, code)) {
-			auto location = value.value("location", std::string());
+			auto location = text(value, "location");
 			if (location.size() > 256)
 				location.resize(256);
 			return LogRecord{line, error_code, location};

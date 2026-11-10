@@ -66,7 +66,7 @@ bool valid(const ListedReport &item)
 {
 	return valid_report_id(item.report_id) && one_of(item.kind, {"voice", "text", "crash", "restart", "fault"}) &&
 	       one_of(item.status, {"queued", "received", "investigating", "fix_in_pr", "merged", "update_ready",
-				    "installed", "wont_fix"}) &&
+				    "installed", "wont_fix", "refused"}) &&
 	       date(item.created_on);
 }
 
