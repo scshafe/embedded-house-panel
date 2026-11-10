@@ -86,11 +86,19 @@ Result<bool> MusicService::refresh()
 std::chrono::milliseconds MusicService::tick()
 {
 	const auto now = ports_.steady_now();
+	// The owner's sign-in puts a new token file in place while this runs
+	// (spotify-owner-setup.md, Part 3): read it again, no restart needed. A
+	// half-copied file fails to load and is read again when it changes.
+	if (store_.changed_on_disk()) {
+		auto restored = session_.restore();
+		error_ = restored.has_value() ? std::string() : restored.error().code;
+		due_ = now;
+	}
 	if (!session_.signed_in()) {
 		output_.reset();
 		playback_.reset();
 		asked_ = false;
-		return std::chrono::seconds(60);
+		return kSignedOutCheck;
 	}
 	if (now < due_)
 		return std::chrono::duration_cast<std::chrono::milliseconds>(due_ - now);

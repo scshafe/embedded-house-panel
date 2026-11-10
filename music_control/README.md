@@ -43,6 +43,9 @@ microphone access ([design](../docs/architecture/music-to-external-speaker.md)).
     1.5 s after a command, because Spotify does not order player commands.
   - Retryable failures back off from 5 s to 5 minutes.
   - Track text is cut to 256 bytes on a UTF-8 boundary.
+  - A token file copied in while it runs is read on the next tick, within
+    5 s when signed out, with no restart. It compares the file's inode, size
+    and modification time with the last copy it read or wrote.
 - **`bhp-music-control`**: the service process, under its own UID (reserved
   as `bhp-music`, 1105, in `system_image/service-principals.json`).
   - Usage: `--ui-socket PATH --ui-uid UID --state-dir DIR --client-id ID

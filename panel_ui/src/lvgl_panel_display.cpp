@@ -19,10 +19,11 @@ namespace layout = vocabulary_panel::gui::lvgl::layout;
 using bhp::panel_mode_protocol::DisplayMode;
 using bhp::panel_mode_protocol::SolarState;
 using bhp::panel_mode_protocol::SystemState;
+// Labels cut to their box in the frame being drawn (reset by draw_scene; LVGL is single-threaded).
+int cut_labels = 0;
 void label(lv_obj_t *parent, const std::string &text, int x, int y, int w, int maximum_height,
            const lv_font_t *font, std::uint32_t color, lv_text_align_t alignment = LV_TEXT_ALIGN_LEFT) {
  auto *o = lv_label_create(parent);
- lv_label_set_text(o, text.c_str());
  lv_label_set_long_mode(o, LV_LABEL_LONG_MODE_WRAP);
  lv_obj_set_pos(o, x, y);
  lv_obj_set_width(o, w);
@@ -30,9 +31,21 @@ void label(lv_obj_t *parent, const std::string &text, int x, int y, int w, int m
  lv_obj_set_style_text_color(o, lv_color_hex(color), 0);
  lv_obj_set_style_text_align(o, alignment, 0);
  lv_obj_set_style_text_line_space(o, 0, 0);
- lv_obj_update_layout(o);
- if(lv_obj_get_height(o) > maximum_height)
-  throw std::runtime_error("PANEL_UI.TEXT_LAYOUT_OVERFLOW:x="+std::to_string(x)+",y="+std::to_string(y)+",width="+std::to_string(w)+",height="+std::to_string(lv_obj_get_height(o))+",limit="+std::to_string(maximum_height));
+ if(vocabulary_panel::gui::lvgl::set_label_text_within(o, text, maximum_height)) ++cut_labels;
+}
+// Every field that carries text from outside the panel: Lexinet, Spotify, the
+// reporter, voice-lab and the owner's typing. Each goes through the one fit rule.
+std::vector<std::pair<const char *, std::string *>> live_fields(PanelScene &s) {
+ std::vector<std::pair<const char *, std::string *>> fields{
+  {"card_word", &s.card_word}, {"card_definition", &s.card_definition}, {"card_example", &s.card_example},
+  {"music.speaker", &s.music.speaker}, {"music.title", &s.music.title}, {"music.artists", &s.music.artists},
+  {"music.notice", &s.music.notice}, {"report.text", &s.report.text}, {"report.notice", &s.report.notice},
+  {"voice_lab.prompt_text", &s.voice_lab.prompt_text}, {"voice_lab.verification_uri", &s.voice_lab.verification_uri},
+  {"voice_lab.user_code", &s.voice_lab.user_code}, {"voice_lab.approval_endpoint", &s.voice_lab.approval_endpoint},
+  {"voice_lab.approval_node", &s.voice_lab.approval_node}, {"voice_lab.approval_expires", &s.voice_lab.approval_expires},
+  {"voice_lab.approval_digest", &s.voice_lab.approval_digest}, {"voice_lab.notice", &s.voice_lab.notice}};
+ for(auto &line : s.report.lines) fields.emplace_back("report.lines", &line);
+ return fields;
 }
 lv_obj_t *box(lv_obj_t *parent,int x,int y,int w,int h,std::uint32_t color,int radius=0) {
  auto *o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
@@ -219,7 +232,18 @@ void LvglPanelDisplay::flush(lv_display_t *d,const lv_area_t *area,std::uint8_t 
   std::copy(source+y*width+area->x1,source+y*width+area->x2+1,self->pixels_.begin()+y*width+area->x1);
  if(self->driver_flush_) self->driver_flush_(d,area,map); else lv_display_flush_ready(d);
 }
-std::uint64_t LvglPanelDisplay::render(const PanelScene &s) {
+std::uint64_t LvglPanelDisplay::render(const PanelScene &scene) {
+ // Live text never ends the UI: it is fitted here, once, for every surface.
+ PanelScene s = scene;
+ text_fit_ = {};
+ for(auto &[name, text] : live_fields(s)) {
+  auto fitted = bhp::panel_fonts::fit_to_subset(*text, live_field_code_points);
+  if(fitted.replaced || fitted.truncated) {
+   *text = std::move(fitted.text);
+   if(std::find(text_fit_.fitted_fields.begin(), text_fit_.fitted_fields.end(), name) == text_fit_.fitted_fields.end())
+    text_fit_.fitted_fields.emplace_back(name);
+  }
+ }
  auto validated=text_renderer_->render({s.lifecycle.display_mode,ShellTransitionState::Stable,s.surface_id,scene_text(s)});
  if(!validated) throw std::runtime_error(std::string(validated.error().code_string()));
  for(const auto &text : validated.value().visible_text_runs)
@@ -229,7 +253,9 @@ std::uint64_t LvglPanelDisplay::render(const PanelScene &s) {
  if(clock_available(s) && (!clock_text_valid(s.clock_text) || s.clock_transition_milli > 1000 ||
     (s.clock_transition_milli < 1000 && !clock_text_valid(s.clock_previous_text))))
   throw std::runtime_error("PANEL_UI.CLOCK_FRAME_INVALID");
+ cut_labels = 0;
  draw_scene(s);lv_obj_invalidate(lv_display_get_screen_active(display_));lv_refr_now(display_);
+ text_fit_.cut_labels = cut_labels;
  return validated.value().render_generation;
 }
 void LvglPanelDisplay::service(){lv_timer_handler();}
@@ -343,7 +369,7 @@ void LvglPanelDisplay::draw_home(lv_obj_t *, lv_obj_t *content, const PanelScene
  }
 }
 void LvglPanelDisplay::draw_study(lv_obj_t *screen, lv_obj_t *content, const PanelScene &s) {
- vocabulary_panel::gui::lvgl::render_vocabulary_surface(content,
+ cut_labels += vocabulary_panel::gui::lvgl::render_vocabulary_surface(content,
   {s.study_state, s.card_word, s.card_definition, s.card_example, s.provisional, s.can_back, s.can_undo});
  const auto action_target = [this](int index, int target_width, const std::string &intent) {
   hit_targets_.push_back({layout::content_x + layout::action_x(index), layout::content_y + layout::actions_y,

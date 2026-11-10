@@ -1,4 +1,5 @@
 #include "music_control/spotify_auth.h"
+#include <sys/stat.h>
 #include <algorithm>
 #include <cctype>
 #include <nlohmann/json.hpp>
@@ -253,13 +254,40 @@ Result<TokenPair> exchange_code(const SpotifyAuthSettings &settings, const std::
 }
 
 SpotifyTokenStore::SpotifyTokenStore(std::string directory)
-	: file_(std::move(directory), {"spotify-token.lock", "spotify-token.json", "spotify-token.tmp", "MUSIC"}, 16384)
+	: path_(directory + "/spotify-token.json"),
+	  file_(std::move(directory), {"spotify-token.lock", "spotify-token.json", "spotify-token.tmp", "MUSIC"}, 16384)
 {
+}
+
+std::optional<SpotifyTokenStore::FileIdentity> SpotifyTokenStore::identity() const
+{
+	struct stat info {};
+	if (::stat(path_.c_str(), &info) != 0)
+		return std::nullopt;
+	return FileIdentity{static_cast<unsigned long long>(info.st_dev), static_cast<unsigned long long>(info.st_ino),
+			    static_cast<unsigned long long>(info.st_size),
+			    static_cast<long long>(info.st_mtim.tv_sec) * 1000000000LL + info.st_mtim.tv_nsec};
+}
+
+void SpotifyTokenStore::remember()
+{
+	auto now = identity();
+	std::lock_guard<std::mutex> lock(seen_mutex_);
+	seen_ = now;
+}
+
+bool SpotifyTokenStore::changed_on_disk() const
+{
+	auto now = identity();
+	std::lock_guard<std::mutex> lock(seen_mutex_);
+	return !(now == seen_);
 }
 
 Result<std::optional<std::string>> SpotifyTokenStore::load(const std::string &client_id)
 {
 	using Output = Result<std::optional<std::string>>;
+	// Before the read: a file replaced during it is then seen as changed again.
+	remember();
 	auto read = file_.read();
 	if (!read.has_value())
 		return Output::failure({read.error().code, read.error().message, read.error().context, false});
@@ -280,6 +308,7 @@ Result<bool> SpotifyTokenStore::save(const std::string &client_id, const std::st
 	const Json record = {{"schema_version", 1}, {"client_id", client_id}, {"refresh_token", refresh_token},
 			     {"signed_out", false}};
 	auto committed = file_.commit(record.dump() + "\n");
+	remember();
 	if (!committed.has_value())
 		return Result<bool>::failure({committed.error().code, committed.error().message, committed.error().context, false});
 	return Result<bool>::success(true);
@@ -288,6 +317,7 @@ Result<bool> SpotifyTokenStore::save(const std::string &client_id, const std::st
 Result<bool> SpotifyTokenStore::clear()
 {
 	auto committed = file_.commit(Json({{"schema_version", 1}, {"signed_out", true}}).dump() + "\n");
+	remember();
 	if (!committed.has_value())
 		return Result<bool>::failure({committed.error().code, committed.error().message, committed.error().context, false});
 	return Result<bool>::success(true);

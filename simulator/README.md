@@ -10,8 +10,9 @@ The memory renderer, native window and guest DRM mode use the same
 `panel_ui::LvglPanelDisplay` and subordinate vocabulary widgets. The pinned
 [project Montserrat fonts](../shared/panel_fonts/README.md) and explicit fixture
 clock state keep screenshots deterministic. A scenario can select a frozen
-animation frame; elapsed wall time never changes that capture. Unsupported
-glyphs fail explicitly after the shell's UTF-8 policy validates text.
+animation frame; elapsed wall time never changes that capture. Live text the
+fonts cannot draw, or that is too long for its box, is drawn marked (`?`, `…`)
+and logged, never an exit (panel_ui README, "Live text never ends the UI").
 
 ## Commands
 
@@ -171,8 +172,10 @@ motion. Runtime advancement and `clock-step` use the same renderer state.
 
 The generated fonts cover a declared Latin/punctuation subset and a separate
 digits/colon clock subset, not all Unicode.
-Missing glyphs and text that exceeds its reserved layout bounds fail explicitly
-instead of clipping, shrinking or substituting plausible content.
+Live text with missing glyphs shows `?` for each; text that exceeds its reserved
+layout bounds is cut with a visible `…`. Nothing is shrunk; fixed shell text
+that stops fitting shows in the pixel-exact goldens. `"fixture_card": "unfit"` seeds the
+fixture session with such a card (`study-unfit-card`).
 
 ## Home catalog configuration
 
