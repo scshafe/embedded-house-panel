@@ -1,6 +1,8 @@
 #include "voice_lab_recorder/pocket_id_sign_in.h"
+#include "voice_lab_recorder/json_fields.h"
 #include <cctype>
 #include <nlohmann/json.hpp>
+#include <regex>
 namespace voice_lab_recorder
 {
 namespace
@@ -92,11 +94,20 @@ std::string form_encode(const std::string &value)
 	return out;
 }
 
+bool test_ca_allowed(const std::string &origin)
+{
+	static const std::regex loopback("^https://127\\.0\\.0\\.1:[0-9]{1,5}$");
+	return std::regex_match(origin, loopback);
+}
+
 Result<Endpoints> discover(const SignInSettings &settings, const HttpTransport &transport)
 {
 	const auto origin = https_origin(settings.issuer);
 	if (origin.empty() || origin != settings.issuer)
 		return Result<Endpoints>::failure(error("VOICE_LAB.ISSUER_INVALID", "The issuer must be https://HOST"));
+	if (!settings.trusted_ca_pem_for_tests.empty() && !test_ca_allowed(settings.issuer))
+		return Result<Endpoints>::failure(
+			error("VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK", "A test CA is only for a loopback issuer"));
 	HttpRequest request;
 	request.method = HttpMethod::Get;
 	request.url = settings.issuer + "/.well-known/openid-configuration";
@@ -213,9 +224,9 @@ Result<std::optional<std::string>> RefreshTokenStore::load(const std::string &is
 	if (!read.value())
 		return Output::success(std::nullopt);
 	const auto json = Json::parse(*read.value(), nullptr, false);
-	if (json.is_discarded() || !json.is_object() || json.value("schema_version", 0) != 1)
+	if (json.is_discarded() || !json.is_object() || count_field(json, "schema_version") != 1)
 		return Output::failure(error("VOICE_LAB.STORAGE_INVALID", "Refresh token file is not a version 1 record"));
-	if (json.value("signed_out", false))
+	if (flag_field(json, "signed_out"))
 		return Output::success(std::nullopt);
 	if (text(json, "issuer") != issuer || text(json, "client_id") != client_id || text(json, "refresh_token").empty())
 		return Output::failure(error("VOICE_LAB.STORAGE_MISMATCH", "Saved token belongs to another issuer or client"));

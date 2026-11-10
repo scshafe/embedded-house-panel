@@ -4,6 +4,7 @@
 #include "golden_take.hpp"
 #include "voice_lab_recorder/canonical_json.h"
 #include "voice_lab_recorder/outbox.h"
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <regex>
@@ -51,6 +52,9 @@ public:
 	bool refuse_take{false};
 	bool drop_next_decision{false};
 	unsigned decisions_posted{0};
+	/** Answers with fields of the wrong type, as a broken or hostile server might. */
+	bool malformed_session{false};
+	bool malformed_history{false};
 
 	bhp::http_runtime::Result<HttpResponse> operator()(const HttpRequest &request)
 	{
@@ -93,9 +97,17 @@ public:
 			return R::success(answer(200, status(match[1])));
 		}
 		if (request.method == HttpMethod::Get && std::regex_match(path, match, session_path))
-			return R::success(answer(200, status(match[1])));
+			return R::success(answer(200, malformed_session && sessions[match[1]].state != "open"
+							      ? Json{{"state", 7}, {"receipt", "x"}, {"refusal", 3}}
+							      : status(match[1])));
 		if (std::regex_match(path, match, history_path)) {
 			Json list = Json::array();
+			if (malformed_history) {
+				list.push_back(1);
+				for (const auto &[take, decision] : takes)
+					list.push_back({{"take_id", take}, {"decision", 3}, {"decision_revision", "x"}});
+				return R::success(answer(200, {{"takes", list}}));
+			}
 			for (const auto &[take, decision] : takes)
 				list.push_back({{"take_id", take}, {"decision", decision.first}, {"decision_revision", decision.second}});
 			return R::success(answer(200, {{"takes", list}}));
@@ -166,6 +178,8 @@ struct World {
 	std::chrono::steady_clock::time_point now{std::chrono::steady_clock::now()};
 	unsigned ids{0};
 	std::unique_ptr<CorpusClient> client;
+	std::uint64_t maximum_bytes{0};
+	std::size_t finished_records{0};
 
 	World()
 	{
@@ -209,6 +223,10 @@ struct World {
 		settings.client = golden::example("take/manifest.json")["client"];
 		settings.capture_host = "house-panel";
 		settings.backoff = {std::chrono::milliseconds(1000), std::chrono::milliseconds(8000), 0.0};
+		if (maximum_bytes)
+			settings.maximum_bytes = maximum_bytes;
+		if (finished_records)
+			settings.finished_records = finished_records;
 		OutboxPorts ports;
 		ports.resolve = [this](const std::string &) { return Result<PeerIdentity>::success(peer); };
 		ports.utc_now = [] { return std::string("2026-10-19T12:00:06Z"); };
@@ -288,6 +306,11 @@ void a_take_goes_to_kept_with_its_ledger()
 	(void)outbox->keep(request);
 	auto again = outbox->keep(request);
 	expect(again.has_value() && outbox->status()["takes"].size() == 1, "keeping a take twice queues it once");
+	const auto package = world.root / "outbox" / request.take_id;
+	const Json manifest = Json::parse(golden::read_bytes(package / "manifest.json"));
+	expect(golden::read_bytes(package / "manifest.json") == golden::read_bytes(golden::examples_root() / "take/manifest.json"),
+	       "the device record and board settings give the golden manifest");
+	expect(manifest["take_id"] == request.take_id, "the package is the take");
 	const auto last = world.run(*outbox);
 	expect(last.kind == OutboxStep::Kind::Idle, "the queue drains");
 	expect(outbox->status()["takes"][0]["stage"] == "kept", "the take is kept");
@@ -298,11 +321,6 @@ void a_take_goes_to_kept_with_its_ledger()
 	const Json receipt = world.voice_lab.status(request.take_id)["receipt"];
 	expect(ledger.size() == 2 && ledger[1]["receipt_sha256"] == record_sha256(receipt).value(),
 	       "upload-completed names the receipt's digest");
-	const auto package = world.root / "outbox" / request.take_id;
-	const Json manifest = Json::parse(golden::read_bytes(package / "manifest.json"));
-	expect(golden::read_bytes(package / "manifest.json") == golden::read_bytes(golden::examples_root() / "take/manifest.json"),
-	       "the device record and board settings give the golden manifest");
-	expect(manifest["take_id"] == request.take_id, "the package is the take");
 }
 
 void a_restart_resumes_from_the_server()
@@ -369,6 +387,82 @@ void the_outbox_has_a_limit()
 	auto unread = outbox->keep({take.filename().string(), manifest["prompt"], manifest["catalog"], "2026-10-19T12:00:00Z"});
 	expect(!unread.has_value() && unread.error().code == "VOICE_LAB.DEVICE_UNREAD",
 	       "a take without its device record is refused, not filled in");
+	World small;
+	small.maximum_bytes = 1024;
+	auto box = small.open();
+	const auto request = small.hand_off(golden::golden_wav());
+	auto full = box->keep(request);
+	expect(!full.has_value() && full.error().code == "VOICE_LAB.OUTBOX_FULL" &&
+		       fs::exists(small.root / "handoff" / request.take_id),
+	       "a take that would pass the outbox's bytes is refused and stays handed off");
+}
+
+void a_finished_take_leaves_only_its_record()
+{
+	World world;
+	world.approve();
+	world.finished_records = 1;
+	auto outbox = world.open();
+	const auto kept = world.hand_off(golden::golden_wav());
+	(void)outbox->keep(kept);
+	world.run(*outbox);
+	expect(outbox->status()["takes"][0]["stage"] == "kept", "the take is kept");
+	expect(!fs::exists(world.root / "outbox" / kept.take_id), "a kept take's package and audio are removed");
+	world.voice_lab.refuse_take = true;
+	const auto refused = world.hand_off(golden::variant_wav(5));
+	(void)outbox->keep(refused);
+	world.run(*outbox);
+	const Json takes = outbox->status()["takes"];
+	expect(takes.size() == 1 && takes[0]["take_id"] == refused.take_id && takes[0]["stage"] == "refused",
+	       "only the newest finished records are kept");
+	expect(!fs::exists(world.root / "outbox" / refused.take_id), "a refused take's package is removed too");
+	outbox.reset();
+	auto reopened = world.open();
+	expect(reopened && reopened->status()["takes"].size() == 1, "the pruned record is durable");
+}
+
+void a_restart_clears_what_a_crash_left()
+{
+	World world;
+	world.approve();
+	const auto request = world.hand_off(golden::golden_wav());
+	{
+		auto outbox = world.open();
+		(void)outbox->keep(request);
+		world.run(*outbox);
+	}
+	// As if the process stopped after recording "kept" and before removing the package.
+	fs::create_directory(world.root / "outbox" / request.take_id);
+	std::ofstream(world.root / "outbox" / request.take_id / "original.wav") << "audio";
+	const auto incoming = world.root / "outbox" / (".incoming-take-" + std::string(64, 'd'));
+	const auto orphan = world.root / "outbox" / ("take-" + std::string(64, 'f'));
+	fs::create_directory(incoming);
+	fs::create_directory(orphan);
+	auto reopened = world.open();
+	expect(reopened && reopened->status()["takes"][0]["stage"] == "kept", "the record survives");
+	expect(!fs::exists(world.root / "outbox" / request.take_id) && !fs::exists(incoming) && !fs::exists(orphan),
+	       "opening removes a finished take's package, a half-written package and one with no record");
+}
+
+void malformed_answers_wait_instead_of_throwing()
+{
+	World world;
+	world.approve();
+	auto outbox = world.open();
+	(void)outbox->keep(world.hand_off(golden::golden_wav()));
+	world.voice_lab.malformed_session = true;
+	bool threw = false;
+	try {
+		world.run(*outbox, 6);
+		expect(outbox->status()["takes"][0]["stage"] == "uploaded", "a malformed session answer is waited out");
+		world.voice_lab.malformed_session = false;
+		world.voice_lab.malformed_history = true;
+		world.run(*outbox);
+	} catch (const std::exception &) {
+		threw = true;
+	}
+	expect(!threw, "answers with fields of the wrong type never throw");
+	expect(outbox->status()["takes"][0]["stage"] == "kept", "and the take still ends kept");
 }
 } // namespace
 
@@ -380,6 +474,9 @@ int main()
 	a_refused_take_ends();
 	a_lost_decision_is_sent_again_with_its_id();
 	the_outbox_has_a_limit();
+	a_finished_take_leaves_only_its_record();
+	a_restart_clears_what_a_crash_left();
+	malformed_answers_wait_instead_of_throwing();
 	if (failures)
 		std::cerr << failures << " failure(s)\n";
 	return failures ? 1 : 0;

@@ -1,9 +1,11 @@
 #include "voice_lab_recorder/outbox.h"
 #include "voice_lab_recorder/canonical_json.h"
+#include "voice_lab_recorder/json_fields.h"
 #include "voice_lab_recorder/take_package.h"
 #include <algorithm>
 #include <cstdio>
 #include <dirent.h>
+#include <filesystem>
 #include <unistd.h>
 
 namespace voice_lab_recorder
@@ -12,7 +14,7 @@ namespace
 {
 using Json = nlohmann::json;
 constexpr std::size_t kMaximumStateBytes = 4 << 20;
-constexpr int kSchemaVersion = 1;
+constexpr std::uint64_t kSchemaVersion = 1;
 
 template <typename Value> Result<Value> fail(const char *code, const char *message)
 {
@@ -28,8 +30,27 @@ void remove_handoff(const std::string &directory) noexcept
 
 bool unfinished(const Json &entry)
 {
-	const std::string stage = entry.value("stage", std::string());
+	const std::string stage = text_field(entry, "stage");
 	return stage != "kept" && stage != "refused";
+}
+
+/** Room a package needs beyond its audio: the four small records. */
+constexpr std::uint64_t kPackageOverheadBytes = 64 * 1024;
+
+/** Every byte under `directory`, without following links; unreadable entries count as zero. */
+std::uint64_t bytes_under(const std::string &directory)
+{
+	namespace fs = std::filesystem;
+	std::uint64_t total = 0;
+	std::error_code failed;
+	for (fs::recursive_directory_iterator at(directory, failed), end; !failed && at != end; at.increment(failed)) {
+		std::error_code unreadable;
+		if (at->is_regular_file(unreadable)) {
+			const auto size = at->file_size(unreadable);
+			total += unreadable ? 0 : size;
+		}
+	}
+	return total;
 }
 
 std::string refusal_of(const Error &error)
@@ -59,33 +80,79 @@ Result<std::unique_ptr<Outbox>> Outbox::open(OutboxSettings settings, CorpusClie
 		return Output::failure({read.error().code, read.error().message, read.error().context, false});
 	if (read.value()) {
 		outbox->state_ = Json::parse(*read.value(), nullptr, false);
-		if (!outbox->state_.is_object() || outbox->state_.value("schema_version", 0) != kSchemaVersion ||
-		    !outbox->state_.contains("takes") || !outbox->state_["takes"].is_array())
+		const Json takes = array_field(outbox->state_, "takes");
+		if (count_field(outbox->state_, "schema_version") != kSchemaVersion ||
+		    !json_field(outbox->state_, "takes").is_array() ||
+		    !std::all_of(takes.begin(), takes.end(), [](const Json &entry) { return entry.is_object(); }))
 			return fail<std::unique_ptr<Outbox>>("VOICE_LAB.OUTBOX_STATE_INVALID",
 							     "outbox.json is not a version 1 record");
 	} else {
 		outbox->state_ = {{"schema_version", kSchemaVersion}, {"takes", Json::array()}};
 	}
+	// Whatever a stop between a record and its clean-up left behind.
+	outbox->collect();
 	return Output::success(std::move(outbox));
 }
 
 Result<bool> Outbox::save()
 {
 	auto committed = file_.commit(state_.dump() + "\n");
+	durable_ = committed.has_value();
 	if (!committed.has_value())
 		return Result<bool>::failure({committed.error().code, committed.error().message, committed.error().context, false});
 	return Result<bool>::success(true);
 }
 
+void Outbox::collect()
+{
+	auto &takes = state_["takes"];
+	// The oldest finished records beyond the limit go first; their audio went when they finished.
+	auto finished = static_cast<std::size_t>(std::count_if(takes.begin(), takes.end(),
+								[](const Json &entry) { return !unfinished(entry); }));
+	bool pruned = false;
+	for (std::size_t at = 0; finished > settings_.finished_records && at < takes.size();) {
+		if (unfinished(takes[at])) {
+			++at;
+			continue;
+		}
+		takes.erase(at);
+		--finished;
+		pruned = true;
+	}
+	// Files go only once the record that no longer needs them is durable.
+	if ((pruned || !durable_) && !save().has_value())
+		return;
+	std::set<std::string> waiting;
+	for (const auto &entry : takes)
+		if (unfinished(entry))
+			waiting.insert(text_field(entry, "take_id"));
+	namespace fs = std::filesystem;
+	std::error_code failed;
+	for (fs::directory_iterator at(settings_.outbox_directory, failed), end; !failed && at != end;
+	     at.increment(failed)) {
+		const std::string name = at->path().filename().string();
+		std::error_code ignored;
+		// A finished take, a package with no record (the keep is redone from the hand-off), or a
+		// package the packager never finished.
+		if (at->is_directory(ignored) && !at->is_symlink(ignored) &&
+		    ((name.rfind("take-", 0) == 0 && !waiting.count(name)) || name.rfind(".incoming-", 0) == 0))
+			fs::remove_all(at->path(), ignored);
+	}
+}
+
 Result<Json> Outbox::keep(const KeepRequest &request)
 {
 	for (const auto &entry : state_["takes"])
-		if (entry.value("take_id", std::string()) == request.take_id)
+		if (text_field(entry, "take_id") == request.take_id)
 			return Result<Json>::success(entry);
 	const auto waiting = std::count_if(state_["takes"].begin(), state_["takes"].end(), unfinished);
 	if (static_cast<std::size_t>(waiting) >= settings_.maximum_takes)
 		return fail<Json>("VOICE_LAB.OUTBOX_FULL", "The outbox holds as many takes as it may");
 	const std::string handoff = settings_.handoff_directory + "/" + request.take_id;
+	std::error_code unreadable;
+	const auto audio = std::filesystem::file_size(handoff + "/original.wav", unreadable);
+	if (!unreadable && bytes_under(settings_.outbox_directory) + audio + kPackageOverheadBytes > settings_.maximum_bytes)
+		return fail<Json>("VOICE_LAB.OUTBOX_FULL", "The outbox holds as many bytes as it may");
 	auto capture = [&]() -> std::optional<Json> {
 		FILE *file = std::fopen((handoff + "/capture.json").c_str(), "rb");
 		if (!file)
@@ -101,7 +168,7 @@ Result<Json> Outbox::keep(const KeepRequest &request)
 	}();
 	if (!capture)
 		return fail<Json>("VOICE_LAB.HANDOFF_MISSING", "The broker has not handed this take over");
-	auto profile = xvf3800_capture_profile(capture->value("device", Json()), settings_.channels, settings_.room,
+	auto profile = xvf3800_capture_profile(json_field(*capture, "device"), settings_.channels, settings_.room,
 					       settings_.primary_channel);
 	if (!profile.has_value())
 		return Result<Json>::failure(profile.error());
@@ -122,7 +189,7 @@ Result<Json> Outbox::keep(const KeepRequest &request)
 	if (!session.has_value())
 		return Result<Json>::failure(session.error());
 	Json entry = {{"take_id", request.take_id},
-		      {"prompt_id", request.prompt.value("prompt_id", std::string())},
+		      {"prompt_id", text_field(request.prompt, "prompt_id")},
 		      {"manifest_sha256", session.value()["manifest_sha256"]},
 		      {"stage", "queued"},
 		      {"queued_at", ports_.utc_now()},
@@ -144,10 +211,10 @@ Result<BoundApproval> Outbox::standing_approval()
 	auto approval = home_host_.load(ports_.utc_now());
 	if (!approval.has_value())
 		return approval;
-	const Json classes = approval.value().approval.value("classes", Json::array());
+	const Json classes = array_field(approval.value().approval, "classes");
 	if (std::find(classes.begin(), classes.end(), "capture") == classes.end())
 		return fail<BoundApproval>("VOICE_LAB.APPROVAL_NOT_FOR_CAPTURE", "The approval does not cover takes");
-	auto peer = ports_.resolve(approval.value().approval.value("endpoint", std::string()));
+	auto peer = ports_.resolve(text_field(approval.value().approval, "endpoint"));
 	if (!peer.has_value())
 		return Result<BoundApproval>::failure(peer.error());
 	auto matches = check_peer(approval.value().approval, peer.value());
@@ -196,7 +263,7 @@ OutboxStep Outbox::decision_refused(Json &entry, const Error &error)
 
 OutboxStep Outbox::transfer(Json &entry)
 {
-	const std::string take_id = entry["take_id"];
+	const std::string take_id = text_field(entry, "take_id");
 	auto approval = standing_approval();
 	if (!approval.has_value())
 		return block(approval.error().code);
@@ -224,16 +291,16 @@ OutboxStep Outbox::transfer(Json &entry)
 
 OutboxStep Outbox::await_outcome(Json &entry)
 {
-	const std::string take_id = entry["take_id"];
+	const std::string take_id = text_field(entry, "take_id");
 	auto status = client_.session(take_id);
 	if (!status.has_value()) {
 		if (status.error().code == "VOICE_LAB.SIGN_IN_REQUIRED" || status.error().code == "VOICE_LAB.API_UNAUTHORIZED")
 			return block("VOICE_LAB.SIGN_IN_REQUIRED");
 		return status.error().retryable ? retry(entry, status.error()) : refuse(entry, status.error());
 	}
-	const std::string state = status.value().value("state", std::string());
+	const std::string state = text_field(status.value(), "state");
 	if (state == "refused") {
-		const auto refusal = status.value().value("refusal", Json());
+		const auto refusal = json_field(status.value(), "refusal");
 		Error refused{"VOICE_LAB.TAKE_REFUSED", "voice-lab refused the take", {}, false};
 		if (refusal.is_string())
 			refused.context["error"] = refusal.get<std::string>().substr(0, 1900);
@@ -249,9 +316,9 @@ OutboxStep Outbox::await_outcome(Json &entry)
 		not_before_ = ports_.steady_now() + delay;
 		return {OutboxStep::Kind::Waiting, delay, "VOICE_LAB.INTAKE_PENDING"};
 	}
-	const Json receipt = status.value().value("receipt", Json());
-	if (!receipt.is_object() || receipt.value("session_id", std::string()) != take_id ||
-	    receipt.value("manifest_sha256", std::string()) != entry["manifest_sha256"].get<std::string>())
+	const Json receipt = json_field(status.value(), "receipt");
+	if (!receipt.is_object() || text_field(receipt, "session_id") != take_id ||
+	    text_field(receipt, "manifest_sha256") != text_field(entry, "manifest_sha256"))
 		return refuse(entry, {"VOICE_LAB.RECEIPT_INVALID", "The receipt does not name this package", {}, false});
 	auto digest = record_sha256(receipt);
 	auto approval = home_host_.load(ports_.utc_now());
@@ -271,7 +338,7 @@ OutboxStep Outbox::await_outcome(Json &entry)
 
 OutboxStep Outbox::decide(Json &entry)
 {
-	const std::string take_id = entry["take_id"];
+	const std::string take_id = text_field(entry, "take_id");
 	if (entry["request_id"].is_string()) {
 		const std::string request_id = entry["request_id"];
 		auto status = client_.request_status(request_id);
@@ -280,8 +347,7 @@ OutboxStep Outbox::decide(Json &entry)
 			// Saved but never received (a crash before the send): send the same change.
 			if (found != status.error().context.end() && found->second == "404") {
 				auto resent = client_.decide(take_id, {request_id, "kept",
-								       entry.value("expected_revision", std::uint64_t{0}),
-								       std::nullopt});
+								       count_field(entry, "expected_revision"), std::nullopt});
 				if (!resent.has_value())
 					return resent.error().retryable ? retry(entry, resent.error())
 									: decision_refused(entry, resent.error());
@@ -290,7 +356,7 @@ OutboxStep Outbox::decide(Json &entry)
 			return status.error().retryable ? retry(entry, status.error())
 							: decision_refused(entry, status.error());
 		}
-		const std::string answer = status.value().value("status", std::string());
+		const std::string answer = text_field(status.value(), "status");
 		if (answer == "applied") {
 			entry["stage"] = "kept";
 			entry["error"] = nullptr;
@@ -299,30 +365,28 @@ OutboxStep Outbox::decide(Json &entry)
 			return {OutboxStep::Kind::Progressed, std::chrono::milliseconds(0), {}};
 		}
 		if (answer == "refused") {
-			const Json outcome = status.value().value("outcome", Json::object());
+			const Json outcome = object_field(status.value(), "outcome");
 			// Someone decided first (the desktop): read the history and decide again.
-			if (outcome.is_object() && outcome.value("code", std::string()) == "revision_conflict" &&
-			    entry.value("conflicts", 0) < 2) {
-				entry["conflicts"] = entry.value("conflicts", 0) + 1;
+			if (text_field(outcome, "code") == "revision_conflict" && count_field(entry, "conflicts") < 2) {
+				entry["conflicts"] = count_field(entry, "conflicts") + 1;
 				entry["request_id"] = nullptr;
 				(void)save();
 				return {OutboxStep::Kind::Progressed, std::chrono::milliseconds(0), {}};
 			}
 			Error refused{"VOICE_LAB.DECISION_REFUSED", "voice-lab refused the decision", {}, false};
-			if (outcome.is_object())
-				refused.context["error"] = outcome.value("code", std::string());
+			refused.context["error"] = text_field(outcome, "code");
 			return decision_refused(entry, refused);
 		}
 		const auto delay = backoff_->next_delay();
 		not_before_ = ports_.steady_now() + delay;
 		return {OutboxStep::Kind::Waiting, delay, "VOICE_LAB.DECISION_QUEUED"};
 	}
-	auto history = client_.history(entry.value("prompt_id", std::string()));
+	auto history = client_.history(text_field(entry, "prompt_id"));
 	if (!history.has_value())
 		return history.error().retryable ? retry(entry, history.error()) : decision_refused(entry, history.error());
 	std::optional<Json> take;
-	for (const auto &item : history.value().body.value("takes", Json::array()))
-		if (item.value("take_id", std::string()) == take_id)
+	for (const auto &item : array_field(history.value().body, "takes"))
+		if (text_field(item, "take_id") == take_id)
 			take = item;
 	if (!take) {
 		// Published moments after acceptance: ask again shortly (PROTOCOL.md section 6).
@@ -330,7 +394,7 @@ OutboxStep Outbox::decide(Json &entry)
 		not_before_ = ports_.steady_now() + delay;
 		return {OutboxStep::Kind::Waiting, delay, "VOICE_LAB.TAKE_NOT_PUBLISHED"};
 	}
-	if (take->value("decision", std::string()) == "kept") {
+	if (text_field(*take, "decision") == "kept") {
 		entry["stage"] = "kept";
 		(void)save();
 		return {OutboxStep::Kind::Progressed, std::chrono::milliseconds(0), {}};
@@ -340,7 +404,7 @@ OutboxStep Outbox::decide(Json &entry)
 		return block(id.error().code);
 	// The request id is durable before the first send, so a retry is the same change.
 	entry["request_id"] = id.value();
-	entry["expected_revision"] = take->value("decision_revision", std::uint64_t{0});
+	entry["expected_revision"] = count_field(*take, "decision_revision");
 	auto saved = save();
 	if (!saved.has_value())
 		return block(saved.error().code);
@@ -357,10 +421,11 @@ OutboxStep Outbox::step()
 		return {OutboxStep::Kind::Waiting,
 			std::chrono::duration_cast<std::chrono::milliseconds>(not_before_ - ports_.steady_now()), {}};
 	blocked_.clear();
+	collect();
 	for (auto &entry : state_["takes"]) {
 		if (!unfinished(entry))
 			continue;
-		const std::string stage = entry.value("stage", std::string());
+		const std::string stage = text_field(entry, "stage");
 		if (stage == "queued")
 			return transfer(entry);
 		if (stage == "uploaded")
@@ -379,7 +444,7 @@ Json Outbox::status() const
 		takes.push_back({{"take_id", entry["take_id"]},
 				 {"prompt_id", entry["prompt_id"]},
 				 {"stage", entry["stage"]},
-				 {"error", entry.value("error", Json())}});
+				 {"error", json_field(entry, "error")}});
 	return {{"blocked", blocked_.empty() ? Json(nullptr) : Json(blocked_)}, {"takes", takes}};
 }
 } // namespace voice_lab_recorder
