@@ -35,6 +35,12 @@ std::string status_reason(const int status_code)
 		return "OK";
 	case 302:
 		return "Found";
+	case 404:
+		return "Not Found";
+	case 429:
+		return "Too Many Requests";
+	case 500:
+		return "Internal Server Error";
 	default:
 		throw std::invalid_argument("TEST_FIXTURE.HTTP_STATUS_UNSUPPORTED");
 	}

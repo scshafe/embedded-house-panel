@@ -201,7 +201,9 @@ Step 6.
     - the probe record under `hardware_tests/results/weather/source-probe-<UTC>/`
       names the pinned service;
     - `rg -n "<the PC's public IP>" weather_panel` finds nothing.
-- [ ] **Step 3: Models, parsers, units and the store.**
+- [x] **Step 3: Models, parsers, units and the store.** Done 2026-11-10:
+  `weather_panel/` (codec, schedule, store), with the codec, store and schedule
+  tests.
   - Tests:
     - every parser accepts its fixture and rejects each mutated field with
       the exact `WEATHER.*` code;
@@ -213,7 +215,9 @@ Step 6.
       and rounds coordinates.
   - Verify:
     - `ctest --test-dir .build/host-dev -R weather` exit 0.
-- [ ] **Step 4: The live client and the worker.**
+- [x] **Step 4: The live client and the worker.** Done 2026-11-10: the
+  HTTPS client on `shared/http_runtime` and the worker thread, with the
+  loopback TLS and worker tests, including the log tests.
   - Add the libcurl client on `shared/http_runtime`, with the backoff and
     refresh schedule. Test it against a local TLS fixture server, as the
     vocabulary client's tests do. Cover:
