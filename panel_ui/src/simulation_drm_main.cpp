@@ -3,6 +3,7 @@
 #include "panel_ui/drm_page_flip_display.hpp"
 #include "panel_ui/lifecycle_presentation_barrier.hpp"
 #include "panel_ui/unix_socket_lifecycle_client.hpp"
+#include "simulator/fixture_control.hpp"
 #include "simulator/panel_simulation.hpp"
 #include "bhp/touch_observation_protocol/unix_touch_observation_socket.h"
 #include <atomic>
@@ -33,19 +34,6 @@ volatile std::sig_atomic_t stop=0;
 void stopped(int){stop=1;}
 void log(const bhp::simulator::Json &data){static std::mutex logging_mutex;std::lock_guard<std::mutex> guard(logging_mutex);std::cout<<bhp::simulator::Json{{"data",data},{"error",nullptr},{"meta",{{"simulation_not_hardware_evidence",true}}}}.dump()<<std::endl;}
 struct Pending {bhp::panel_mode_protocol::Snapshot snapshot;std::promise<LifecycleRenderCommit> completion;};
-class FixtureControl final {
-public:
- explicit FixtureControl(std::string path):path_(std::move(path)){
-  if(path_.empty()||path_.front()!='/'||path_.size()>=sizeof(sockaddr_un::sun_path))throw std::runtime_error("SIMULATOR.CONTROL_PATH_INVALID");
-  struct stat s{};if(lstat(path_.c_str(),&s)==0)throw std::runtime_error("SIMULATOR.CONTROL_PATH_EXISTS");
-  fd_=socket(AF_UNIX,SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK,0);if(fd_<0)throw std::runtime_error("SIMULATOR.CONTROL_SOCKET_FAILED");
-  sockaddr_un address{};address.sun_family=AF_UNIX;std::memcpy(address.sun_path,path_.c_str(),path_.size()+1);
-  if(bind(fd_,reinterpret_cast<sockaddr*>(&address),sizeof address)<0||chmod(path_.c_str(),0600)<0)throw std::runtime_error("SIMULATOR.CONTROL_BIND_FAILED");
- }
- ~FixtureControl(){if(fd_>=0)close(fd_);unlink(path_.c_str());}
- std::optional<bhp::simulator::Json> receive(){char bytes[65536];auto size=recv(fd_,bytes,sizeof bytes,MSG_DONTWAIT);if(size<0&&(errno==EAGAIN||errno==EWOULDBLOCK))return std::nullopt;if(size<=0||size==static_cast<ssize_t>(sizeof bytes))throw std::runtime_error("SIMULATOR.CONTROL_FRAME_INVALID");return bhp::simulator::Json::parse(bytes,bytes+size);}
-private:int fd_{-1};std::string path_;
-};
 }
 int run_simulation_drm(int argc,char **argv){try{
  std::map<std::string,std::string> options;
@@ -75,7 +63,7 @@ int run_simulation_drm(int argc,char **argv){try{
  if(options.count("--bug-reporter-socket"))app.attach_bug_reporter(options.at("--bug-reporter-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--bug-reporter-uid"))));
  if(options.count("--music-control-socket"))app.attach_music_control(options.at("--music-control-socket"),static_cast<std::uint32_t>(std::stoul(options.at("--music-control-uid"))));
  DrmPageFlipDisplay drm(options.at("--drm-device"),static_cast<std::uint32_t>(std::stoul(options.at("--drm-connector-id"))));
- FixtureControl control(options.at("--simulation-control-socket"));
+ bhp::simulator::FixtureControl control(options.at("--simulation-control-socket"));
  std::mutex mutex;
  std::unique_ptr<Pending> pending;
  LifecyclePresentationBarrier presentation;
@@ -141,18 +129,27 @@ int run_simulation_drm(int argc,char **argv){try{
      }}
     // Privileged fixture selection can recover a sent Failed presentation.
     // It is not touch input, but still cannot cross an in-flight raster hold.
-    if(presentation.exchange_completed_generation()!=0)if(auto event=control.receive()){
-     const auto type=event->at("type").get<std::string>();
-     if(type=="scenario"){
-      app.load(bhp::simulator::read_scenario(event->at("path")),false,true);
-      if(!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");
-     }else if(type=="clock_preview"||type=="clock_step"){
-      app.event(*event);
-      if(!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");
-     }else if(type=="screenshot")app.display.write_png(event->at("path"));
-     else if(type=="quit")app.quit=true;
-     else log({{"control_rejected","SIMULATOR.CONTROL_LIFECYCLE_OR_INPUT_FORBIDDEN"}});
-     log(app.status());
+    // A malformed or failing fixture request is refused and logged; it never
+    // ends the UI (review Q7). Only a failed display commit still does.
+    if(presentation.exchange_completed_generation()!=0){
+     auto frame=control.receive();
+     if(!frame.rejected.empty())log({{"control_rejected",frame.rejected}});
+     else if(frame.event){
+      const auto &event=*frame.event;
+      const auto type=event.at("type").get<std::string>();
+      bool redraw=false;
+      try{
+       if(type=="scenario"){redraw=true;app.load(bhp::simulator::read_scenario(event.at("path").get<std::string>()),false,true);}
+       else if(type=="clock_preview"||type=="clock_step"){redraw=true;app.event(event);}
+       else if(type=="screenshot")app.display.write_png(event.at("path").get<std::string>());
+       else if(type=="quit")app.quit=true;
+      }catch(const std::exception &error){
+       const std::string what=error.what();
+       log({{"control_rejected",what.rfind("SIMULATOR.",0)==0||what.rfind("PANEL_UI.",0)==0?what.substr(0,what.find(':')):"SIMULATOR.CONTROL_REQUEST_FAILED"}});
+      }
+      if(redraw&&!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");
+      log(app.status());
+     }
     }
     const auto before_service=app.render_generation;app.service();if(before_service!=app.render_generation){if(!commit_pixels())throw std::runtime_error("SIMULATOR.DRM_COMMIT_FAILED");log({{"async_commit",true},{"status",app.status()}});}
    }

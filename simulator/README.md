@@ -93,7 +93,12 @@ next exact lifecycle commitment; redraws cannot silently reuse generation IDs.
 The guest's mode-0600 Unix datagram fixture-control socket permits only scenario
 selection, preview-clock controls, screenshots and quit. It ignores a scenario's
 lifecycle field: real supervisor publications retain exclusive lifecycle
-authority. Mouse/touch input
+authority. A malformed datagram, an unknown type or a request that fails is
+logged as `control_rejected` with its code and the UI keeps running
+(`@canonical simulation_fixture_control`, review Q7). A socket file left by a
+killed UI is removed at start by `bhp::unix_socket_path::clear_stale_socket`
+(only this user's socket, with nothing bound to it), so a UI restarted by
+systemd starts; a live UI's socket, a link or any other file still refuses. Mouse/touch input
 reaches the guest only through its supervisor evdev observer.
 Scenario selection pauses HTTP and creates an isolated memory fixture session;
 the durable live session remains intact. The clock-untrusted scenario uses an
@@ -260,7 +265,11 @@ UI holds no token. Its intents are touch only. They reach
 
 **With the service attached** (`--music-control-socket` and
 `--music-control-uid`, or `attach_music_control_peer` in tests), its state
-drives the surface:
+drives the surface. The service being down is never fatal (review Q7): at
+start or after a loss the surface shows unavailable, the UI logs
+`music_control_lost`, and it connects again on a `ReconnectSchedule`
+(`@canonical ui_service_reconnect`: 1 s, doubling to 60 s, reset once the
+service answers), with no UI restart.
 - **The screen:** signed out, checking, missing (asleep, off or not
   listed), restricted, ready, playing or paused.
 - **Refusals:** shown in words.
@@ -313,7 +322,9 @@ Added 2026-11-08, step 2 of the accepted
 **With the reporter attached** (`--bug-reporter-socket` and
 `--bug-reporter-uid`, or `attach_bug_reporter_peer` in tests), the list and the
 dot are live, and report bodies never come back to the UI. Without it the
-screen says reporting is unavailable and that nothing was saved. Scenario
+screen says reporting is unavailable and that nothing was saved. A reporter
+that is down at start, or lost later, is reconnected on the same schedule as
+music (`bug_reporter_lost`, then `bug_reporter_connected`). Scenario
 files set only the starting screen (`report_state`: `compose`, `recording`,
 `sending`, `sent`, `list`, `unavailable`).
 
