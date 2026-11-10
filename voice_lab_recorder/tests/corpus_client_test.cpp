@@ -53,6 +53,8 @@ public:
 	std::map<std::string, std::string> held;
 	std::string state{"none"};
 	Json declared;
+	/** When set, the declare answer instead of the session's status. */
+	Json declare_answer;
 	unsigned puts{0};
 	std::vector<std::string> paths;
 
@@ -95,7 +97,7 @@ private:
 				declared = Json::parse(request.body);
 				state = "open";
 			}
-			return answer(fresh ? 201 : 200, status());
+			return answer(fresh ? 201 : 200, declare_answer.is_null() ? status() : declare_answer);
 		}
 		if (request.method == HttpMethod::Get && path.rfind("/api/v1/intake/sessions/", 0) == 0)
 			return answer(200, status());
@@ -270,6 +272,38 @@ void decisions()
 	auto other = new_request_id();
 	expect(other.has_value() && other.value() != id.value(), "request ids differ");
 }
+void a_test_ca_is_for_loopback_only()
+{
+	unsigned sent = 0;
+	auto transport = [&sent](const HttpRequest &) {
+		++sent;
+		return bhp::http_runtime::Result<HttpResponse>::success({200, "application/json", "", "{}"});
+	};
+	AccessTokens tokens{[] { return Result<std::string>::success("access"); }, [] {}};
+	CorpusClientSettings settings;
+	settings.api_url = "https://pc.example";
+	settings.trusted_ca_pem_for_tests = "-----BEGIN CERTIFICATE-----\n";
+	CorpusClient real(settings, transport, tokens);
+	auto refused = real.library();
+	expect(!refused.has_value() && refused.error().code == "VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK" && sent == 0,
+	       "a test CA never replaces the trust store for a real API");
+	settings.api_url = "https://127.0.0.1:8443";
+	CorpusClient loopback(settings, transport, tokens);
+	expect(loopback.library().has_value() && sent == 1, "a loopback API may use a test CA");
+}
+
+void malformed_answers_are_refused_not_thrown()
+{
+	Fixture fixture;
+	fixture.server.declare_answer = Json{{"session_id", 5}, {"state", Json::array()}, {"files", {7, {{"path", 1}}}}};
+	bool threw = false;
+	try {
+		(void)fixture.client->upload(fixture.package.string());
+	} catch (const std::exception &) {
+		threw = true;
+	}
+	expect(!threw, "a declare answer with fields of the wrong type is an error, not an exception");
+}
 } // namespace
 
 int main()
@@ -279,6 +313,8 @@ int main()
 	a_401_refreshes_once();
 	views_and_refusals();
 	decisions();
+	a_test_ca_is_for_loopback_only();
+	malformed_answers_are_refused_not_thrown();
 	if (failures)
 		std::cerr << failures << " failure(s)\n";
 	return failures ? 1 : 0;

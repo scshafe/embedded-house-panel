@@ -31,6 +31,9 @@ struct World {
 	bool resolvable{true};
 	unsigned refreshes{0};
 	unsigned catalog_reads{0};
+	bool malformed_views{false};
+	std::string test_ca;
+	std::string open_error;
 	std::unique_ptr<UploaderService> service;
 
 	World()
@@ -62,6 +65,10 @@ struct World {
 					  {"token_type", "Bearer"},
 					  {"expires_in", 900}});
 		}
+		if (malformed_views && request.url == "https://pc.example/api/v1/catalog")
+			return json(200, {{"reference", "x"}, {"suite", {{"prompts", {5, {{"prompt_id", 7}, {"text", {"x"}}}}}}}}, "\"c\"");
+		if (malformed_views && request.url == "https://pc.example/api/v1/corpus/library?profile=xvf3800-linear-4")
+			return json(200, {{"rows", {"x", {{"prompt_id", 1}, {"status", 2}}}}}, "\"l\"");
 		if (request.url == "https://pc.example/api/v1/catalog") {
 			++catalog_reads;
 			const Json manifest = golden::example("take/manifest.json");
@@ -82,6 +89,8 @@ struct World {
 		UploaderSettings settings;
 		settings.sign_in.issuer = kIssuer;
 		settings.corpus.api_url = "https://pc.example";
+		settings.sign_in.trusted_ca_pem_for_tests = test_ca;
+		settings.corpus.trusted_ca_pem_for_tests = test_ca;
 		settings.token_directory = (root / "token").string();
 		settings.outbox.handoff_directory = (root / "handoff").string();
 		settings.outbox.outbox_directory = (root / "outbox").string();
@@ -106,6 +115,7 @@ struct World {
 		ports.request_id = new_request_id;
 		auto opened = UploaderService::open(settings, ports);
 		service = opened.has_value() ? std::move(opened.value()) : nullptr;
+		open_error = opened.has_value() ? std::string() : opened.error().code;
 	}
 };
 
@@ -199,6 +209,37 @@ void sign_in_flow()
 	expect(refused_of(started) && refused_of(started)->request == "sign_in", "a refused device code is reported");
 	expect(world.service->state().sign_in.state == "signed_out", "and the uploader stays signed out");
 }
+void malformed_views_are_ignored_not_thrown()
+{
+	World world;
+	world.malformed_views = true;
+	RefreshTokenStore((world.root / "token").string()).save(kIssuer, "voice-lab-panel", "refresh-0");
+	world.open();
+	if (!world.service)
+		return expect(false, "service opens");
+	bool threw = false;
+	try {
+		world.service->tick();
+		const auto state = world.service->state();
+		expect(state.prompts.empty() && state.catalog_version == 0u, "malformed prompts and rows are skipped");
+		auto keep = world.service->handle(
+			wire::KeepRequest{"take-" + std::string(64, 'a'), "reference-neutral-01", "2026-10-19T12:00:00Z"});
+		expect(refused_of(keep) && refused_of(keep)->error_code == "VOICE_LAB.PROMPT_NOT_IN_CATALOG",
+		       "a malformed catalog has no prompt to keep");
+	} catch (const std::exception &) {
+		threw = true;
+	}
+	expect(!threw, "views with fields of the wrong type never throw");
+}
+
+void a_test_ca_needs_loopback_urls()
+{
+	World world;
+	world.test_ca = "-----BEGIN CERTIFICATE-----\n";
+	world.open();
+	expect(!world.service && world.open_error == "VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK",
+	       "the uploader refuses a test CA for a real issuer or API");
+}
 } // namespace
 
 int main()
@@ -207,6 +248,8 @@ int main()
 	restored_session_reads_views_and_approves();
 	sign_in_flow();
 	unmeasured_channel_map();
+	malformed_views_are_ignored_not_thrown();
+	a_test_ca_needs_loopback_urls();
 	if (failures)
 		std::cerr << failures << " failure(s)\n";
 	return failures ? 1 : 0;

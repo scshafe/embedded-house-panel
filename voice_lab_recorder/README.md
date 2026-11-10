@@ -105,6 +105,20 @@ binding and ledger examples byte for byte.
 - The `kept` request id is saved before it is sent.
 - Retryable answers back off. A refusal ends that take. Signed out, no
   approval, or another node blocks the queue, with the reason in `status()`.
+- **A finished take** (kept or refused) leaves only its small record in
+  `outbox.json`, the newest 200 of them (`finished_records`). Its package,
+  audio included, is removed once that record is durable. Opening the outbox
+  also removes what a stop left behind: a finished take's package, a
+  half-written `.incoming-` one, and a package with no record (its keep is
+  redone from the hand-off).
+- **The limits:** 64 waiting takes (`maximum_takes`), and 1 GiB for
+  everything under the outbox directory (`maximum_bytes`), checked before a
+  take is packaged. A 600 s take is about 115 MB. Past either,
+  `VOICE_LAB.OUTBOX_FULL`, and the take stays handed off.
+- **Answers are read field by field** (`json_fields.h`): a field missing or
+  of the wrong type reads as empty, so a malformed answer waits or is refused
+  and never ends the process with an exception. The broker's capture record
+  is read the same way.
 
 Test: `voice_lab_uploader_outbox_test` runs it against an in-memory
 voice-lab. `make verify-voice-lab-live` runs it against voice-lab's own
@@ -117,6 +131,11 @@ its own UID, and serves the UI's socket with the uploader protocol
 (`uploader_protocol.h`, Decision 4).
 - **The socket:** exact-UID peers in both directions, closed key sets, and
   frames up to 64 KiB.
+- **`--ca-file`** is for the live check only. A test CA replaces the trust
+  store, so the issuer and the API must both be `https://127.0.0.1:PORT`;
+  otherwise the uploader refuses to start with
+  `VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK`. The sign-in and the corpus client
+  refuse the same on their own.
 - **What the UI sends:** `status`, `sign_in`, `approve` (with the reviewed
   digest) and `keep` (a handed-off take, for a prompt).
 - **What the uploader answers:** `state` whenever something changed, or

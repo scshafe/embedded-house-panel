@@ -32,6 +32,11 @@
  * - `accepted`: it sends `kept` with a request id saved before the first send
  *   and the take's revision from its history, and polls it to `applied`.
  *
+ * A finished take (kept or refused) keeps only its small record in
+ * `outbox.json`, the newest `finished_records` of them; its package, audio
+ * included, is removed once that record is durable. The bytes on disk are
+ * bounded by `maximum_bytes`, the waiting takes by `maximum_takes`.
+ *
  * Retryable answers back off; a refusal ends that take (`refused`); a session
  * that cannot proceed (signed out, no approval, another node) blocks the
  * queue with a reason the UI shows. After a restart everything resumes from
@@ -59,6 +64,10 @@ struct OutboxSettings {
 	bhp::durable_store::BackoffPolicy backoff;
 	/** How many takes may wait in the outbox. */
 	std::size_t maximum_takes{64};
+	/** Every byte under `outbox_directory` (packages, half-written ones, records) after a keep; a 600 s take is ~115 MB. */
+	std::uint64_t maximum_bytes{1ULL << 30};
+	/** Finished (kept or refused) takes whose small record the status keeps; their audio is gone. */
+	std::size_t finished_records{200};
 };
 
 struct KeepRequest {
@@ -106,6 +115,12 @@ public:
 private:
 	Outbox(OutboxSettings settings, CorpusClient &client, OutboxPorts ports);
 	Result<bool> save();
+	/**
+	 * Drops the oldest finished records past `finished_records`, then, once the
+	 * record is durable, removes every package no unfinished take needs: a
+	 * finished take's, one with no record, and a half-written `.incoming-` one.
+	 */
+	void collect();
 	OutboxStep transfer(nlohmann::json &entry);
 	OutboxStep await_outcome(nlohmann::json &entry);
 	OutboxStep decide(nlohmann::json &entry);
@@ -125,6 +140,8 @@ private:
 	nlohmann::json state_;
 	std::set<std::string> started_this_run_;
 	std::string blocked_;
+	/** False after a failed save: the record on disk is older than `state_`, so nothing is removed. */
+	bool durable_{true};
 	std::chrono::steady_clock::time_point not_before_{};
 };
 } // namespace voice_lab_recorder

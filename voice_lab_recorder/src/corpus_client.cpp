@@ -1,6 +1,8 @@
 #include "voice_lab_recorder/corpus_client.h"
 #include "bhp/durable_store/durable_store.h"
 #include "voice_lab_recorder/canonical_json.h"
+#include "voice_lab_recorder/json_fields.h"
+#include "voice_lab_recorder/pocket_id_sign_in.h"
 #include <algorithm>
 #include <cerrno>
 #include <fcntl.h>
@@ -109,7 +111,7 @@ std::optional<Json> file_progress(const Json &status, const std::string &path)
 	if (!status.is_object() || !status.contains("files") || !status["files"].is_array())
 		return std::nullopt;
 	for (const auto &file : status["files"])
-		if (file.is_object() && file.value("path", std::string()) == path)
+		if (text_field(file, "path") == path)
 			return file;
 	return std::nullopt;
 }
@@ -165,6 +167,8 @@ CorpusClient::CorpusClient(CorpusClientSettings settings, ApiTransport transport
 Result<CorpusClient::Exchange> CorpusClient::exchange(HttpRequest request, const bool transfer)
 {
 	using Output = Result<Exchange>;
+	if (!settings_.trusted_ca_pem_for_tests.empty() && !test_ca_allowed(settings_.api_url))
+		return Output::failure({"VOICE_LAB.TEST_CA_REQUIRES_LOOPBACK", "A test CA is only for a loopback API", {}, false});
 	request.url = settings_.api_url + request.url;
 	request.budget = transfer ? settings_.transfer_budget : settings_.request_budget;
 	request.trusted_ca_pem_for_tests = settings_.trusted_ca_pem_for_tests;
@@ -364,12 +368,16 @@ Result<Json> CorpusClient::upload(const std::string &package_directory)
 	auto declared = declare(package_directory);
 	if (!declared.has_value())
 		return declared;
-	const std::string take_id = declared.value().value("session_id", std::string());
-	if (declared.value().value("state", std::string()) != "open")
+	const std::string take_id = text_field(declared.value(), "session_id");
+	const std::string state = text_field(declared.value(), "state");
+	if (take_id.empty() || state.empty())
+		return Result<Json>::failure(api_error("VOICE_LAB.API_ANSWER_INVALID",
+						       "voice-lab's session answer lacks its id or state", 200, {}, true));
+	if (state != "open")
 		return declared;
 	for (const char *name : kPackageFiles) {
 		const auto file = file_progress(declared.value(), name);
-		if (file && file->value("complete", false))
+		if (file && flag_field(*file, "complete"))
 			continue;
 		auto sent = send_file(package_directory, take_id, name);
 		if (!sent.has_value())

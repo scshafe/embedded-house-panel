@@ -164,4 +164,11 @@ private:
 
 /** application/x-www-form-urlencoded encoding of one value. */
 std::string form_encode(const std::string &value);
+
+/**
+ * A test CA (`trusted_ca_pem_for_tests`) replaces the trust store, so it is
+ * allowed only for a loopback origin, `https://127.0.0.1:PORT`: never for a
+ * real issuer or API, whatever the command line says.
+ */
+bool test_ca_allowed(const std::string &origin);
 } // namespace voice_lab_recorder
