@@ -92,15 +92,24 @@ backup that leaves the house.
   Renew it weekly from a timer, with the same command plus
   `--min-validity 504h` (a new certificate once fewer than 21 days remain),
   then restart the unit. A restart loses no transcription: on start, the
-  receiver queues again every open report whose audio has no transcript.
+  receiver queues again every open report whose audio has no transcript,
+  except audio it has given up on (below).
 - **Listening:** `<PC_IP>` port **8743**, TCP, on the tailnet address only,
   never `0.0.0.0`. `serve` refuses an `--address` that is empty, a wildcard
   or a host name.
-- **Connections:** the receiver checks the peer (below) before the TLS
-  handshake, and both run in the connection's own thread. A handshake, and
-  then each read or write, gets 30 s. At most 8 connections are served at
-  once; more are closed as soon as they are accepted. One idle connection
-  cannot stall the inbox.
+- **Connections:**
+  - **Before a slot is taken:** a peer that the whois cache already knows is
+    not the panel is closed at once.
+  - **Every other peer is checked** (below) before the TLS handshake. The
+    check and the handshake run in the connection's own thread.
+  - **Time limits:** a handshake, and then each read or write, gets 30 s,
+    and the whole connection gets 120 s.
+  - **At most 8 connections** are served at once, and the last slot is kept
+    for peers already known to be the panel. Anything more is closed as soon
+    as it is accepted.
+  - **Refusal log lines** are written at most once per 10 s for each kind,
+    with a count of the lines held back.
+  - **The result:** one idle or slow connection cannot stall the inbox.
 - **`tailscale whois`:** the receiver runs `tailscale whois --json` for each
   new peer address, cached for 60 s, and admits only nodes tagged
   `tag:house-panel`. Check that `bhp-report-inbox` can run it:
@@ -164,6 +173,10 @@ It deletes:
   16-bit PCM, mono, 16 kHz, 60 s at most, which is what the panel sends.
   Anything else is logged as `REPORT_INBOX.AUDIO_FORMAT_INVALID` and never
   reaches whisper.cpp.
+- **Giving up:** audio in the wrong format, or audio whisper.cpp failed on
+  three times, gets `transcripts/<id>.refused`, a small JSON file with the
+  reason and the number of attempts. The receiver does not try it again,
+  even after a restart. The audio stays for the owner.
 - **What it does:** the receiver runs it once per spoken description and
   writes `transcripts/<id>.txt`.
 - **Without it:** leave `--transcribe-command` out, and the audio stays for
