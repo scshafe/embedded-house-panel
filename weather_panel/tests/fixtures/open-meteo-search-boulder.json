@@ -1,0 +1,107 @@
+{
+  "results": [
+    {
+      "id": 5574991,
+      "name": "Boulder",
+      "latitude": 40.01499,
+      "longitude": -105.27055,
+      "elevation": 1624.0,
+      "feature_code": "PPLA2",
+      "country_code": "US",
+      "admin1_id": 5417618,
+      "admin2_id": 5574999,
+      "timezone": "America/Denver",
+      "population": 106803,
+      "postcodes": [
+        "80301",
+        "80302",
+        "80303",
+        "80304",
+        "80305",
+        "80306",
+        "80307",
+        "80308",
+        "80309",
+        "80310",
+        "80314"
+      ],
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "Colorado",
+      "admin2": "Boulder"
+    },
+    {
+      "id": 5641473,
+      "name": "Boulder",
+      "latitude": 46.23659,
+      "longitude": -112.12083,
+      "elevation": 1496.0,
+      "feature_code": "PPLA2",
+      "country_code": "US",
+      "admin1_id": 5667009,
+      "admin2_id": 5659534,
+      "timezone": "America/Denver",
+      "population": 1207,
+      "postcodes": [
+        "59632"
+      ],
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "Montana",
+      "admin2": "Jefferson"
+    },
+    {
+      "id": 5819347,
+      "name": "Boulder",
+      "latitude": 42.74828,
+      "longitude": -109.71765,
+      "elevation": 2139.0,
+      "feature_code": "PPL",
+      "country_code": "US",
+      "admin1_id": 5843591,
+      "admin2_id": 5840177,
+      "timezone": "America/Denver",
+      "population": 170,
+      "postcodes": [
+        "82923"
+      ],
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "Wyoming",
+      "admin2": "Sublette"
+    },
+    {
+      "id": 9180885,
+      "name": "Boulder",
+      "latitude": -46.95519,
+      "longitude": 37.7861,
+      "elevation": 467.0,
+      "feature_code": "MT",
+      "country_code": "ZA",
+      "admin1_id": 1085599,
+      "timezone": "Africa/Johannesburg",
+      "country_id": 953987,
+      "country": "South Africa",
+      "admin1": "Western Cape"
+    },
+    {
+      "id": 4234259,
+      "name": "Boulder",
+      "latitude": 38.69671,
+      "longitude": -89.22563,
+      "elevation": 142.0,
+      "feature_code": "PPL",
+      "country_code": "US",
+      "admin1_id": 4896861,
+      "admin2_id": 4236063,
+      "admin3_id": 4237531,
+      "timezone": "America/Chicago",
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "Illinois",
+      "admin2": "Clinton",
+      "admin3": "East Fork Township"
+    }
+  ],
+  "generationtime_ms": 0.20051003
+}

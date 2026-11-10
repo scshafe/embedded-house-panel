@@ -2,8 +2,12 @@
 
 <!-- @canonical daily-weather-plan -->
 
-**Status (2026-10-18):** Proposed; waits for the owner's answers under "Owner
-decisions".
+**Status (2026-11-10):** accepted. The owner accepted all five decisions as
+recommended (relayed by the oversight session, 2026-11-10), recorded in
+[ADR 0015](../../docs/decisions/0015-use-open-meteo-and-ip-geolocation-for-the-daily-forecast.md).
+Steps 1 and 2 are done; the rest is planned work after the bench runtime
+(ADR 0014). The bench, not only the `/tmp` demo, gets the live source in
+Step 6.
 
 **Goal:**
 - **Live forecast:** the Home bar shows today's high and low from a live
@@ -84,11 +88,12 @@ decisions".
   - It is city-level and can be wrong behind a VPN or a carrier.
     The menu labels it "Automatic (approximate)".
 
-## Owner decisions (recommended defaults; reply to change any)
+## Owner decisions (accepted 2026-11-10, as recommended)
 
 1. **Forecast and search provider:** Open-Meteo, with its attribution in the
    menu ("Weather data by Open-Meteo.com", CC BY 4.0).
-2. **Automatic location:** IP geolocation through the Step 2 service. It
+2. **Automatic location:** IP geolocation through the Step 2 service
+   (pinned: `free.freeipapi.com`). It
    sends the panel's public IP address to that service, and the lookup happens
    only while "Automatic" is selected: at start and every 6 h.
 3. **Day/night stays on the supervisor's configured location.** The weather
@@ -164,7 +169,9 @@ decisions".
 
 ## Steps
 
-- [ ] **Step 1: Record the decisions.**
+- [x] **Step 1: Record the decisions.** Done 2026-11-10: ADR 0015, the
+  registry row, `weather_panel/README.md` and the `panel_ui/README.md`
+  amendment.
   - Add ADR NNNN "Use Open-Meteo and an IP-geolocation service for the daily
     forecast" with decisions 1–5, the privacy rules and the CC BY attribution.
     Allocate the number when the ADR is created.
@@ -175,7 +182,11 @@ decisions".
     `panel_ui/README.md`.
   - Verify:
     - `make verify` exit 0.
-- [ ] **Step 2: Pin the automatic-location service and record fixtures.**
+- [x] **Step 2: Pin the automatic-location service and record fixtures.**
+  Done 2026-11-10: `free.freeipapi.com` is pinned (the probe record is
+  `hardware_tests/results/weather/source-probe-20261110/record.json`). The
+  fixtures are in `weather_panel/tests/fixtures/`, and the PC's public IP
+  appears nowhere in the tree.
   - From the PC, `curl` each candidate's HTTPS JSON endpoint without a key.
     Record:
     - status;

@@ -541,6 +541,12 @@ opening a file is not.
   break followed by a SysRq command key would act on it (for example `b`
   reboots); HELP means none did.
 
+**Bench tier (2026-11-10).** ADR 0014 accepts running the project's
+services from `/opt/house-panel` on this vendor image, started at boot with
+weston off. Its records are not gate evidence. The steps and the owner's
+part are in [frdm-bench.md](frdm-bench.md); the `/tmp` demo below stays for
+short trials.
+
 **Panel UI demo (2026-10-18).** This is not gate evidence; the plan is
 `.claude/plans/2026-10-18-frdm-panel-ui-demo.md`. Raw records are in
 `hardware_tests/results/frdm/panel-demo-20261018T171850Z/`. The cross-built UI,

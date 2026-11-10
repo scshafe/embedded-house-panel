@@ -5,6 +5,8 @@
 #include "music_control/music_protocol.h"
 #include "bug_reporter/reporter_protocol.h"
 #include <sys/socket.h>
+#include <sys/un.h>
+#include <cstring>
 #include <unistd.h>
 #include <algorithm>
 #include <fstream>
@@ -513,6 +515,94 @@ void test_durable_delivery_fixture_isolation(const std::filesystem::path &root){
  }
  std::filesystem::remove_all(directory);
 }
+// Review Q7: the schedule a lost service is tried again on.
+void test_reconnect_schedule(){
+ auto now=std::chrono::steady_clock::time_point{};
+ bhp::simulator::ReconnectSchedule schedule([&]{return now;});
+ require(schedule.due(),"a first try is allowed at once");
+ int waited=0;
+ for(const int seconds:{1,2,4,8,16,32,60,60}){
+  schedule.failed();
+  now+=std::chrono::seconds(seconds)-std::chrono::milliseconds(1);
+  require(!schedule.due(),"not before the delay");
+  now+=std::chrono::milliseconds(1);
+  require(schedule.due(),"due once the delay has passed");
+  waited+=seconds;
+ }
+ require(waited==183&&schedule.next_delay()==std::chrono::seconds(60),"1 s doubling, capped at 60 s");
+ schedule.succeeded();
+ schedule.failed();
+ now+=std::chrono::seconds(1);
+ require(schedule.due()&&schedule.next_delay()==std::chrono::seconds(2),"a working connection resets it to 1 s");
+}
+// A listening service socket at a path, which the test opens and closes.
+struct ServiceSocket{
+ std::string path;int listener{-1};
+ explicit ServiceSocket(std::string socket_path):path(std::move(socket_path)){}
+ void open(){
+  listener=::socket(AF_UNIX,SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC,0);sockaddr_un address{};address.sun_family=AF_UNIX;
+  std::memcpy(address.sun_path,path.c_str(),path.size()+1);
+  require(listener>=0&&::bind(listener,reinterpret_cast<sockaddr*>(&address),sizeof address)==0&&::listen(listener,4)==0,"service listens");
+ }
+ int accept_one(){
+  for(int i=0;i<200;++i){const int peer=::accept4(listener,nullptr,nullptr,SOCK_NONBLOCK|SOCK_CLOEXEC);if(peer>=0)return peer;std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+  throw std::runtime_error("the UI did not connect");
+ }
+ void close_it(){if(listener>=0){::close(listener);listener=-1;}::unlink(path.c_str());}
+ ~ServiceSocket(){close_it();}
+};
+// Review Q7: music and the reporter may be down at start, and may go and come back.
+void test_services_come_and_go(const std::filesystem::path &root){
+ namespace music=music_control::protocol;
+ const auto directory=std::filesystem::temp_directory_path()/("bhp-reconnect-"+std::to_string(::getpid()));
+ std::filesystem::create_directories(directory);
+ ServiceSocket music_socket((directory/"music.sock").string()),reporter_socket((directory/"reporter.sock").string());
+ PanelSimulation app(false);
+ auto now=std::chrono::steady_clock::time_point{}+std::chrono::hours(1);
+ app.set_reconnect_clock([&]{return now;});
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
+ app.attach_music_control(music_socket.path,::getuid());
+ app.attach_bug_reporter(reporter_socket.path,::getuid());
+ require(app.scene.music.state=="unavailable","a music service that is down at start is shown unavailable, not fatal");
+ app.semantic_intent("shell.open_report","touch");
+ require(app.scene.report.state=="unavailable","a reporter that is down at start: Report says unavailable");
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
+ require(app.scene.music.state=="unavailable","a scenario load keeps the live service's absence");
+
+ music_socket.open();reporter_socket.open();
+ app.service();
+ require(app.scene.music.state=="unavailable","nothing is tried before the first second has passed");
+ now+=std::chrono::seconds(1);
+ app.service();
+ require(app.scene.music.state=="checking","the service is up: connected at the next try");
+ int music_peer=music_socket.accept_one();
+ const int reporter_peer=reporter_socket.accept_one();
+ bhp::media_window_protocol::FrameChannel service(music_peer,music::kMaximumFrameBytes);
+ music::State state;state.sequence=1;state.sign_in="signed_in";state.output={"available","Living Room Bose",true,35u};
+ require(service.send(music::encode(music::MusicEvent{state}).value()).has_value(),"state sent");
+ for(int i=0;i<200&&app.scene.music.state!="ready";++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+ require(app.scene.music.state=="ready","its state is shown");
+
+ ::close(music_peer);music_socket.close_it();
+ for(int i=0;i<200&&app.scene.music.state!="unavailable";++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+ require(app.scene.music.state=="unavailable","a lost service is shown unavailable");
+ now+=std::chrono::seconds(1);app.service();
+ require(app.scene.music.state=="unavailable","after a working connection the next try is 1 s later, and fails");
+ now+=std::chrono::seconds(1);app.service();
+ require(app.scene.music.state=="unavailable","then 2 s: not yet");
+ music_socket.open();
+ now+=std::chrono::seconds(1);app.service();
+ require(app.scene.music.state=="checking","the service is back: reconnected without a restart");
+ music_peer=music_socket.accept_one();::close(music_peer);
+ // The reporter never sent an event, so its schedule kept growing: 1 s, then 2 s.
+ ::close(reporter_peer);
+ for(int i=0;i<20;++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+ now+=std::chrono::seconds(1);app.service();
+ require(::accept4(reporter_socket.listener,nullptr,nullptr,SOCK_CLOEXEC)<0,"the reporter is not tried before its delay");
+ now+=std::chrono::seconds(1);app.service();
+ ::close(reporter_socket.accept_one());
+ std::filesystem::remove_all(directory);
+}
 int main(){try{
  const auto root=std::filesystem::path(BHP_SIMULATOR_SOURCE_ROOT);
  test_durable_delivery_fixture_isolation(root);
@@ -524,6 +614,8 @@ int main(){try{
  test_music_follows_the_service(root);
  test_report_files_through_the_reporter(root);
  test_report_by_voice_with_a_spoken_description(root);
+ test_reconnect_schedule();
+ test_services_come_and_go(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

@@ -39,6 +39,7 @@ docs/decisions/0008-adopt-frdm-imx8mplus-and-waveshare-7-inch-dsi-development-pl
 docs/decisions/0010-use-node-capability-identity-and-pinned-official-tailscale-on-the-panel.md
 docs/decisions/0013-keep-a-spotify-refresh-token-on-the-panel.md
 docs/decisions/0014-run-a-bench-tier-on-the-vendor-image.md
+docs/decisions/0015-use-open-meteo-and-ip-geolocation-for-the-daily-forecast.md
 docs/decisions/0016-accept-the-nxp-firmware-licence-for-the-frdm-image.md
 docs/operations/development-environment.md
 docs/operations/build-and-deploy.md
@@ -46,10 +47,12 @@ docs/operations/board-bringup-provisioning.md
 docs/operations/debian-tailnet-bringup.md
 docs/operations/frdm-bringup.md
 docs/operations/spotify-owner-setup.md
+docs/operations/frdm-bench.md
 docs/architecture/bug-reports-and-self-repair.md
 music_control/README.md
 bug_reporter/README.md
 report_inbox/README.md
+weather_panel/README.md
 docs/operations/bug-report-inbox-setup.md
 .claude/plans/2026-09-25-frdm-hardware-baseline.md
 docs/research/gui-strategies.md
