@@ -45,8 +45,10 @@ production service enablement or any FRDM gate.
   only while the caller reports the study surface active (study surface, day
   mode, presence not absent). Without a session it creates; a
   `refill_required` session gets one successor with the predecessor's flush
-  receipt; a pending outbox syncs. A non-retryable error stops it until
-  `reset()`, and `cancel()` drops the in-flight completion. Every host that
+  receipt; a pending outbox syncs. Consecutive retryable failures back off:
+  the wait doubles from 1 s up to 5 min, shortened by up to a quarter at
+  random, and a success returns to the 1 s pace. A non-retryable error stops
+  it until `reset()`, and `cancel()` drops the in-flight completion. Every host that
   shows the study surface uses it; the simulator was the first.
 - `read_study_client_configuration` (`@canonical study_client_configuration`)
   reads the live client's settings from the `BHP_VOCABULARY_PANEL_*` lines of

@@ -71,7 +71,8 @@ struct Harness {
 	    : runtime(bhp::http_runtime::HttpRuntime::create().value()),
 	      client(std::make_shared<ScriptedClient>(std::move(cards))),
 	      synchronizer(std::make_unique<StudyWorker>(runtime, client), "fixture-default",
-			   {"fixture-systems", "fixture-words"}, "test", [this] { return now; })
+			   {"fixture-systems", "fixture-words"}, "test", [this] { return now; },
+			   std::chrono::seconds(1), std::chrono::minutes(5), [this] { return jitter; })
 	{
 	}
 	~Harness() { static_cast<void>(runtime->shutdown()); }
@@ -92,6 +93,7 @@ struct Harness {
 	std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime;
 	std::shared_ptr<ScriptedClient> client;
 	std::chrono::steady_clock::time_point now{std::chrono::seconds(1000)};
+	double jitter{1.0};
 	FlashCardSession session;
 	StudySynchronizer synchronizer;
 };
@@ -158,6 +160,66 @@ void test_retryable_failure_retries_after_pacing()
 	h.finish();
 	expect(h.session.pending_events().empty() && h.client->syncs == 2,
 	       "the retry delivers the rating");
+}
+
+void fail_next_request(Harness &h)
+{
+	std::lock_guard<std::mutex> lock(h.client->mutex);
+	h.client->fail_next = VocabularyPanelError{"LEXINET.HTTP_TRANSPORT_FAILED", "offline", {}, true};
+}
+
+void test_failures_back_off_to_five_minutes_then_success_resets()
+{
+	Harness h;
+	h.synchronizer.step(h.session, true, true);
+	h.finish();
+	rate(h.session);
+	h.advance();
+	using std::chrono::milliseconds;
+	using std::chrono::seconds;
+	const seconds waits[] = {seconds(1),  seconds(2),   seconds(4),   seconds(8),   seconds(16), seconds(32),
+				 seconds(64), seconds(128), seconds(256), seconds(300), seconds(300)};
+	for (const auto wait : waits) {
+		fail_next_request(h);
+		expect(h.synchronizer.step(h.session, true, true).sync_started, "a failed sync is retried after its wait");
+		h.finish();
+		h.now += wait - milliseconds(1);
+		expect(!h.synchronizer.step(h.session, true, true).request_started,
+		       "the wait doubles per failure, up to five minutes");
+		h.now += milliseconds(1);
+	}
+	expect(h.synchronizer.consecutive_failures() == 11 && h.client->syncs == 11,
+	       "one request per wait, not one a second");
+	expect(h.synchronizer.step(h.session, true, true).sync_started, "the retry after the longest wait starts");
+	h.finish();
+	expect(h.session.pending_events().empty() && h.synchronizer.consecutive_failures() == 0,
+	       "a success delivers the rating and clears the failures");
+	rate(h.session);
+	h.advance();
+	expect(h.synchronizer.step(h.session, true, true).sync_started, "after a success the pace is one second again");
+	h.finish();
+}
+
+void test_jitter_shortens_a_wait_by_at_most_a_quarter()
+{
+	Harness h;
+	h.jitter = 0.0;
+	h.synchronizer.step(h.session, true, true);
+	h.finish();
+	rate(h.session);
+	h.advance();
+	fail_next_request(h);
+	h.synchronizer.step(h.session, true, true);
+	h.finish();
+	fail_next_request(h);
+	h.now += std::chrono::milliseconds(750);
+	expect(h.synchronizer.step(h.session, true, true).sync_started, "first wait with jitter 0 is 0.75 s");
+	h.finish();
+	h.now += std::chrono::milliseconds(1499);
+	expect(!h.synchronizer.step(h.session, true, true).request_started, "second wait with jitter 0 is 1.5 s");
+	h.now += std::chrono::milliseconds(1);
+	expect(h.synchronizer.step(h.session, true, true).sync_started, "and no longer");
+	h.finish();
 }
 
 void test_terminal_failure_stops_until_reset()
@@ -229,6 +291,8 @@ int main()
 	test_inactive_surface_sends_nothing();
 	test_creates_then_paces_then_syncs_a_rating();
 	test_retryable_failure_retries_after_pacing();
+	test_failures_back_off_to_five_minutes_then_success_resets();
+	test_jitter_shortens_a_wait_by_at_most_a_quarter();
 	test_terminal_failure_stops_until_reset();
 	test_cancel_drops_the_in_flight_completion();
 	test_refill_requests_one_successor_after_the_flush();

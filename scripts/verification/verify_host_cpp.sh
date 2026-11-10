@@ -98,6 +98,7 @@ compile_supervisor()
 			-I"$PROJECT_ROOT/panel_supervisor/include" \
 			-I"$PROJECT_ROOT/shared/touch_observation_protocol/include" \
 			-I"$PROJECT_ROOT/shared/media_window_protocol/include" \
+			-I"$PROJECT_ROOT/shared/unix_socket_path/include" \
 			-I"$PROJECT_ROOT/panel_supervisor/src" \
 			-I"$PROJECT_ROOT/panel_supervisor/tests" \
 			"$PROJECT_ROOT/shared/structured_logging/src/structured_logger.cpp" \
@@ -122,6 +123,7 @@ compile_supervisor()
 			"$PROJECT_ROOT/shared/media_window_protocol/src/media_window_protocol.cpp" \
 			"$PROJECT_ROOT/shared/touch_observation_protocol/src/touch_observation_codec.cpp" \
 			"$PROJECT_ROOT/shared/touch_observation_protocol/src/unix_touch_observation_socket.cpp" \
+			"$PROJECT_ROOT/shared/unix_socket_path/src/stale_socket.cpp" \
 			"$evdev_source" \
 			"$PROJECT_ROOT/panel_supervisor/src/exact_file_writer.cpp" \
 			"$PROJECT_ROOT/panel_supervisor/src/offline_solar_calculator.cpp" \

@@ -1,4 +1,5 @@
 #include "bhp/touch_observation_protocol/unix_touch_observation_socket.h"
+#include "bhp/unix_socket_path/stale_socket.h"
 #include <array>
 #include <cerrno>
 #include <cstring>
@@ -65,7 +66,8 @@ Result<std::unique_ptr<UnixTouchObservationServer>> UnixTouchObservationServer::
 	int listener = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 	if (listener < 0) return Result<std::unique_ptr<UnixTouchObservationServer>>::failure(socket_error(ErrorCode::SocketUnavailable, "create.socket"));
 	auto addr = address(path);
-	// Existing paths are intentionally preserved; service runtime directories own cleanup.
+	// Only a stale socket of ours is replaced; any other existing path is preserved and the bind fails.
+	(void)bhp::unix_socket_path::clear_stale_socket(path);
 	if (::bind(listener, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
 		auto error = socket_error(ErrorCode::SocketUnavailable, "create.bind"); ::close(listener);
 		return Result<std::unique_ptr<UnixTouchObservationServer>>::failure(error);

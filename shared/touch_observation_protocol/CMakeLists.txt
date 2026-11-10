@@ -8,7 +8,7 @@ add_library(bhp::touch_observation_protocol ALIAS bhp_touch_observation_protocol
 
 target_include_directories(bhp_touch_observation_protocol PUBLIC include)
 target_compile_features(bhp_touch_observation_protocol PUBLIC cxx_std_17)
-target_link_libraries(bhp_touch_observation_protocol PUBLIC bhp::panel_mode_protocol)
+target_link_libraries(bhp_touch_observation_protocol PUBLIC bhp::panel_mode_protocol bhp::unix_socket_path)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(bhp_touch_observation_protocol PRIVATE

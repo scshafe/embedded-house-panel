@@ -5,6 +5,7 @@
 // voice_take leases into --take-root. --fake-source replaces the device with
 // the deterministic paced fake for hosts and the simulator.
 #include "media_broker/media_broker.h"
+#include "bhp/unix_socket_path/stale_socket.h"
 #include "media_broker/xvf3800_control.h"
 #if defined(BHP_MEDIA_HAS_ALSA)
 #include "media_broker/alsa_capture_source.h"
@@ -73,11 +74,12 @@ std::string random_id()
 	return text;
 }
 
-/** Binds the UI socket (0660) in an existing directory; a stale path is refused, not removed. */
+/** Binds the UI socket (0660) in an existing directory, replacing only a stale socket of ours (unix_socket_path). */
 int listen_ui(const std::string &path)
 {
 	if (path.empty() || path[0] != '/' || path.size() >= sizeof(sockaddr_un::sun_path))
 		return -1;
+	(void)bhp::unix_socket_path::clear_stale_socket(path);
 	const int listener = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 	sockaddr_un address{};
 	address.sun_family = AF_UNIX;
