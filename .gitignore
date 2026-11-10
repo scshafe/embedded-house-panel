@@ -16,6 +16,17 @@ compile_commands.json
 *.dtbo
 *.ko
 
+# NXP-licensed firmware and the boot images that hold it never enter Git (ADR 0016)
+/images/
+imx8-boot-sd.bin
+ddr*_fw*.bin
+lpddr4*.bin
+firmware-imx-*/
+firmware-imx-*.bin
+*.bin.se
+helper_uart_*.bin
+wifi_mod_para.conf
+
 # Credentials and per-device state
 .env
 *.secret

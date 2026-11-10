@@ -204,6 +204,37 @@ cmp -s "$PROJECT_ROOT/config/boards/frdm-imx8mp.env" \
 		"post-build.sh did not install the selected board profile verbatim" "$TRACE_ID"
 	exit 1
 }
+# ADR 0016, condition 4: NXP's notices go into the image, or the build stops.
+nxp_build_directory=$temporary_root/nxp-build
+mkdir -p "$nxp_build_directory/firmware-imx-8.27"
+printf '%s\n' 'fixture notice' >"$nxp_build_directory/firmware-imx-8.27/COPYING"
+printf '%s\n' 'fixture notice' >"$nxp_build_directory/firmware-imx-8.27/SCR-firmware-imx.txt"
+BUILD_DIR=$nxp_build_directory \
+BR2_EXTERNAL_BHP_PATH=$PROJECT_ROOT/system_image/buildroot_external \
+BR2_VERSION=2026.05.1 BR2_VERSION_FULL=2026.05.1 \
+BHP_BUILDROOT_SOURCE_ID=$BHP_PINNED_BUILDROOT_SOURCE_ID \
+BHP_BUILDROOT_ARCHIVE_SHA256=$BHP_PINNED_BUILDROOT_ARCHIVE_SHA256 \
+	"$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/post-build.sh" \
+	"$provenance_target" >/dev/null
+for nxp_notice in COPYING SCR-firmware-imx.txt; do
+	test -f "$provenance_target/usr/share/licenses/nxp/firmware-imx/$nxp_notice" || {
+		bhp_fail VERIFY_BUILD_DEPLOY.NXP_NOTICE_NOT_INSTALLED "$nxp_notice" "$TRACE_ID"
+		exit 1
+	}
+done
+mkdir -p "$nxp_build_directory/bhp-nxp-iw612-firmware-lf-6.12.49-2.2.0"
+if BUILD_DIR=$nxp_build_directory \
+	BR2_EXTERNAL_BHP_PATH=$PROJECT_ROOT/system_image/buildroot_external \
+	BR2_VERSION=2026.05.1 BR2_VERSION_FULL=2026.05.1 \
+	BHP_BUILDROOT_SOURCE_ID=$BHP_PINNED_BUILDROOT_SOURCE_ID \
+	BHP_BUILDROOT_ARCHIVE_SHA256=$BHP_PINNED_BUILDROOT_ARCHIVE_SHA256 \
+	"$PROJECT_ROOT/system_image/buildroot_external/board/beaglebone-house-panel/post-build.sh" \
+	"$provenance_target" >/dev/null 2>&1; then
+	bhp_fail VERIFY_BUILD_DEPLOY.NXP_NOTICE_MISSING_ACCEPTED \
+		"post-build.sh accepted an NXP package built without its licence notice" "$TRACE_ID"
+	exit 1
+fi
+rm -rf "$provenance_target/usr/share/licenses/nxp"
 rendered_environment_directory=$provenance_target/etc/beaglebone-house-panel
 for rendered_environment_contract in \
 	'panel-supervisor.env.example:BHP_PANEL_SUPERVISOR_BACKLIGHT_PATH=REPLACE_ME_UNMEASURED_FRDM-GATE-BACKLIGHT/brightness' \
@@ -601,9 +632,12 @@ mkdir -p "$pinned_source"
 {
 	printf '%s\n' \
 		'export BR2_VERSION := 2026.05.1' \
-		'.PHONY: print-version beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig frdm_imx8mp_house_panel_defconfig frdm_imx8mp_house_panel_bringup_defconfig' \
+		'.PHONY: print-version olddefconfig beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig frdm_imx8mp_house_panel_defconfig frdm_imx8mp_house_panel_bringup_defconfig' \
 		'print-version:'
 	printf '\t%s\n' '@printf "%s\\n" 2026.05.1'
+	# The NXP firmware fragment (ADR 0016) is appended, then re-resolved here unchanged.
+	printf '%s\n' 'olddefconfig:'
+	printf '\t%s\n' '@true'
 	printf '%s\n' \
 		'beaglebone_house_panel_defconfig beaglebone_house_panel_bringup_defconfig frdm_imx8mp_house_panel_defconfig frdm_imx8mp_house_panel_bringup_defconfig:'
 	printf '\t%s\n' '@mkdir -p "$(O)"'
@@ -655,6 +689,16 @@ valid_output=$temporary_root/valid-output
 BHP_BUILDROOT_DIR=$pinned_source BHP_BUILDROOT_OUTPUT_DIR=$valid_output \
 	"$PROJECT_ROOT/scripts/build/configure_buildroot.sh" >/dev/null
 grep -F -x production "$valid_output/.bhp-build-profile" >/dev/null
+# ADR 0016 accepts firmware-imx; the IW612 firmware at its pinned tag is not covered.
+grep -F -x 'BR2_PACKAGE_FIRMWARE_IMX=y' "$valid_output/.config" >/dev/null || {
+	bhp_fail VERIFY_BUILD_DEPLOY.NXP_FIRMWARE_NOT_SELECTED "ADR 0016 accepted firmware-imx" "$TRACE_ID"
+	exit 1
+}
+if grep -F -x 'BR2_PACKAGE_BHP_NXP_IW612_FIRMWARE=y' "$valid_output/.config" >/dev/null; then
+	bhp_fail VERIFY_BUILD_DEPLOY.IW612_FIRMWARE_UNACCEPTED_SELECTED \
+		"ADR 0016 does not cover the pinned IW612 firmware (licence v63)" "$TRACE_ID"
+	exit 1
+fi
 active_board_id=$("$PROJECT_ROOT/scripts/boards/show_board_profile.sh" --value BHP_BOARD_ID)
 grep -F -x "$active_board_id" "$valid_output/.bhp-board-id" >/dev/null || {
 	bhp_fail VERIFY_BUILD_DEPLOY.BOARD_STAMP_INVALID \

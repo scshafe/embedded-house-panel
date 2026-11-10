@@ -11,6 +11,10 @@
 #
 # firmware-imx supplies the LPDDR4 training firmware (ddr_fw.bin) without which
 # imx8-boot-sd.bin, and therefore sdcard.img, cannot be produced.
+#
+# ADR 0016 (accepted 2026-11-10) covers firmware-imx under v58. It does not
+# cover the IW612 firmware at bhp-nxp-iw612-firmware's pinned tag
+# (lf-6.12.49-2.2.0, licence v63), so BR2_PACKAGE_BHP_NXP_IW612_FIRMWARE stays
+# unselected until the owner accepts v63 or the package is re-pinned.
 BR2_PACKAGE_FIRMWARE_IMX=y
 BR2_PACKAGE_FIRMWARE_IMX_LPDDR4=y
-BR2_PACKAGE_BHP_NXP_IW612_FIRMWARE=y

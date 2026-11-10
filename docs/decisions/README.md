@@ -25,6 +25,7 @@ still occupy their filename and are never treated as a free number.
 | [0013](0013-keep-a-spotify-refresh-token-on-the-panel.md) | Accepted; waits for the owner's Spotify app and sign-in | Keep one Spotify refresh token for playback control, held only by `bhp-music-control` |
 | [0014](0014-run-a-bench-tier-on-the-vendor-image.md) | Accepted; not gate evidence | Run the project's services from `/opt/house-panel` on the vendor image, started at boot; install only the project's own files, a config directory and units |
 | [0015](0015-use-open-meteo-and-ip-geolocation-for-the-daily-forecast.md) | Accepted | Daily forecast and place search from Open-Meteo; automatic location by IP geolocation through `free.freeipapi.com`; the weather location never moves day/night |
+| [0016](0016-accept-the-nxp-firmware-licence-for-the-frdm-image.md) | Accepted | Accept NXP's licence for `firmware-imx` 8.27 (v58) and the IW612 firmware of `lf-6.6.52_2.2.0` (v57); the pinned IW612 tag (v63) is not covered; firmware and images never published |
 
 No later number is reserved by a plan.
 
@@ -97,3 +98,7 @@ are not gate evidence, and it may install only the project's own files in
 weather plan's five decisions: Open-Meteo, automatic location by IP
 geolocation, day and night left on the supervisor's location, a drawn
 keyboard, and the defaults.
+
+**Amended 2026-11-10:** registered ADR 0016, the owner's acceptance of the NXP
+firmware licence with its four conditions. ADR 0015 is the weather decision,
+open on its own branch at the time; numbers are not reused.
