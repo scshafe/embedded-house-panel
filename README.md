@@ -244,10 +244,10 @@ The current scaffold and every hardware-evidence gate remain unchanged.
 ## Decisions intentionally still open
 
 - Exact FRDM board variant, display cable, PIR part, and wiring.
-- Acceptance of the NXP Software License Agreement for `firmware-imx` (LPDDR4
-  training) and the IW612 Wi-Fi firmware (`BHP_BOARD_NXP_FIRMWARE_EULA` in
-  `config/boards/frdm-imx8mp.env`). This is a human decision recorded as an ADR;
-  the project image cannot boot or use Wi-Fi without it.
+- The NXP licence for the IW612 Wi-Fi firmware at its pinned tag
+  (`lf-6.12.49-2.2.0`, licence v63). The owner accepted `firmware-imx` (v58)
+  and the IW612 firmware of `lf-6.6.52_2.2.0` (v57) in ADR 0016, so until this
+  is settled the project image boots but has no Wi-Fi.
 - Every `UNMEASURED:FRDM-GATE-*` value in the board profile
   (`scripts/boards/show_board_profile.sh` lists them).
 - Final product compute platform; the FRDM i.MX 8M Plus board is the current
@@ -328,6 +328,18 @@ next-card documentation. Production services remain disabled.
 Arch development handoff. Receipt closes no measurement or enablement gate.
 
 ## License
+
+**Building the FRDM project image accepts NXP's licence terms.** The image
+needs NXP's LPDDR4 training firmware (`firmware-imx`), which Buildroot
+downloads and accepts on every build. Whoever runs the build accepts NXP's
+Software License Agreement for themselves
+([the terms](https://www.nxp.com/docs/en/disclaimer/LA_OPT_NXP_SW.html)). The
+owner's acceptance, with its conditions, is
+[ADR 0016](docs/decisions/0016-accept-the-nxp-firmware-licence-for-the-frdm-image.md):
+- the firmware and built images never enter Git and are never published;
+- NXP's notices stay in the image;
+- no reverse engineering of the firmware, and no published reports about it.
+
 
 MIT (`LICENSE`). Kernel code, device-tree overlays and the Montserrat fonts keep
 their own licences, and NXP firmware is never redistributed: see `NOTICE`.
