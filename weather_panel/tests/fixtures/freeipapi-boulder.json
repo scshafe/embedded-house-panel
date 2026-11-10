@@ -1,0 +1,32 @@
+{
+  "ipVersion": 4,
+  "ipAddress": "192.0.2.1",
+  "latitude": 40.015,
+  "longitude": -105.2705,
+  "countryName": "United States of America",
+  "countryCode": "US",
+  "capital": "Washington, D.C.",
+  "phoneCodes": [
+    1
+  ],
+  "timeZones": [
+    "America/Denver",
+    "America/Chicago",
+    "America/New_York"
+  ],
+  "zipCode": null,
+  "cityName": "Boulder",
+  "regionName": "Colorado",
+  "regionCode": "CO",
+  "continent": "Americas",
+  "continentCode": "AM",
+  "currencies": [
+    "USD"
+  ],
+  "languages": [
+    "en"
+  ],
+  "asn": "64496",
+  "asnOrganization": "Documentation network (RFC 5398)",
+  "isProxy": false
+}
