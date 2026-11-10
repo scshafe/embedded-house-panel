@@ -157,6 +157,8 @@ private:
  void pump_weather();
  /** The bar and the menu from the worker's snapshot and the UTC clock (freshness). */
  void project_weather(bool force);
+ /** The live weather client's lease on the process HTTP runtime; declared first, so released after the worker. */
+ std::shared_ptr<void> weather_http_lease_;
  std::shared_ptr<weather_panel::WeatherWorker> weather_;
  weather_panel::WeatherSettings weather_settings_;
  std::uint64_t weather_revision_{0};

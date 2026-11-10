@@ -37,13 +37,22 @@ void member(const Json &j,const char *key,const std::set<std::string> &values){i
 
 #ifdef BHP_SIMULATOR_HTTPS
 namespace {
-/** One process HTTP runtime (libcurl's global state), shared by the study and weather clients; the last one out shuts it down. */
-std::shared_ptr<bhp::http_runtime::HttpRuntime> process_http_runtime(){
- static std::mutex mutex;static std::weak_ptr<bhp::http_runtime::HttpRuntime> shared;
- std::lock_guard<std::mutex> lock(mutex);
- if(auto existing=shared.lock())return existing;
- auto made=bhp::http_runtime::HttpRuntime::create();if(!made.has_value())throw std::runtime_error(made.error().code);
- shared=made.value();return made.value();
+/**
+ * One process HTTP runtime (libcurl's global state allows one), leased by the study and weather
+ * clients. The last release shuts it down on the releasing (main) thread, which joins the runtime's
+ * workers while they still hold references: a worker must never drop the last one and join itself.
+ */
+struct ProcessHttp {std::mutex mutex;std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime;unsigned users{0};};
+ProcessHttp &process_http(){static ProcessHttp shared;return shared;}
+std::shared_ptr<bhp::http_runtime::HttpRuntime> acquire_http_runtime(){
+ auto &shared=process_http();std::lock_guard<std::mutex> lock(shared.mutex);
+ if(!shared.runtime){auto made=bhp::http_runtime::HttpRuntime::create();if(!made.has_value())throw std::runtime_error(made.error().code);shared.runtime=made.value();}
+ ++shared.users;return shared.runtime;
+}
+void release_http_runtime(){
+ std::shared_ptr<bhp::http_runtime::HttpRuntime> last;
+ {auto &shared=process_http();std::lock_guard<std::mutex> lock(shared.mutex);if(shared.users&&--shared.users==0)last=std::move(shared.runtime);}
+ if(last)static_cast<void>(last->shutdown());
 }
 }
 #endif
@@ -55,12 +64,12 @@ struct PanelSimulation::StudyNetwork {
  std::shared_ptr<bhp::http_runtime::HttpRuntime> runtime;
  std::shared_ptr<vocabulary_panel::HttpLexinetClient> client;
  std::unique_ptr<vocabulary_panel::StudySynchronizer> synchronizer;
- // The study worker ends with its synchronizer; the shared runtime shuts down when its last user lets go.
- ~StudyNetwork(){synchronizer.reset();client.reset();runtime.reset();}
+ // The study worker ends with its synchronizer; the last lease on the shared runtime shuts it down here.
+ ~StudyNetwork(){synchronizer.reset();client.reset();if(runtime){runtime.reset();release_http_runtime();}}
  StudyNetwork(const vocabulary_panel::StudyClientConfiguration &configuration,const std::string &test_ca_pem){
   fixture_data=false;
   auto config=configuration.http;config.trusted_ca_certificate_pem_for_tests=test_ca_pem;
-  runtime=process_http_runtime();client=std::make_shared<vocabulary_panel::HttpLexinetClient>(runtime,config,logger);
+  runtime=acquire_http_runtime();client=std::make_shared<vocabulary_panel::HttpLexinetClient>(runtime,config,logger);
   synchronizer=std::make_unique<vocabulary_panel::StudySynchronizer>(std::make_unique<vocabulary_panel::StudyWorker>(runtime,client),configuration.profile_ref,configuration.topic_refs,"panel");
  }
  explicit StudyNetwork(const std::string &path) {
@@ -69,7 +78,7 @@ struct PanelSimulation::StudyNetwork {
   vocabulary_panel::HttpLexinetConfig config;config.lexinet_base_url=j.at("base_url");config.credential_file_path=j.value("credential_file","");
   config.transport_budget={1000,3000,1048576};config.maximum_snapshot_age_seconds=604800;config.clock_trusted=false;config.allow_qemu_host_test_ca=j.value("allow_qemu_host_test_ca",false);
   if(j.contains("fixture_ca_file")){std::ifstream ca(j.at("fixture_ca_file").get<std::string>());if(!ca)throw std::runtime_error("SIMULATOR.CA_READ_FAILED");config.trusted_ca_certificate_pem_for_tests=std::string(std::istreambuf_iterator<char>(ca),{});}
-  runtime=process_http_runtime();client=std::make_shared<vocabulary_panel::HttpLexinetClient>(runtime,config,logger);
+  runtime=acquire_http_runtime();client=std::make_shared<vocabulary_panel::HttpLexinetClient>(runtime,config,logger);
   synchronizer=std::make_unique<vocabulary_panel::StudySynchronizer>(std::make_unique<vocabulary_panel::StudyWorker>(runtime,client),j.at("profile_ref").get<std::string>(),j.value("topic_refs",std::vector<std::string>{}),"simulation");
  }
 #else
@@ -819,7 +828,9 @@ void PanelSimulation::attach_weather_source(const std::string &source,const std:
   // The live source keeps its settings and last forecast; without a directory there is nowhere to keep them.
   if(state_directory.empty())throw std::runtime_error("SIMULATOR.WEATHER_STATE_DIRECTORY_REQUIRED");
 #ifdef BHP_SIMULATOR_HTTPS
-  client=std::make_shared<weather_panel::HttpWeatherClient>(process_http_runtime(),weather_panel::WeatherEndpoints{},weather_logger);
+  auto runtime=acquire_http_runtime();
+  weather_http_lease_=std::shared_ptr<void>(nullptr,[](void *){release_http_runtime();});
+  client=std::make_shared<weather_panel::HttpWeatherClient>(runtime,weather_panel::WeatherEndpoints{},weather_logger);
 #else
   throw std::runtime_error("SIMULATOR.HTTPS_NOT_BUILT");
 #endif
