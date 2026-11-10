@@ -3,6 +3,8 @@
 #include "panel_supervisor/touch_runtime_configuration.hpp"
 #include "panel_supervisor/unix_socket_ui_mode_notifier.hpp"
 #include "bhp/touch_observation_protocol/unix_touch_observation_socket.h"
+#include <chrono>
+#include <optional>
 
 namespace house_panel::supervisor {
 /** Lifecycle-subordinate touch observer. No capability claims are exposed over the
@@ -20,6 +22,10 @@ public:
 		std::chrono::steady_clock::time_point deadline) override;
 	/** Fixed bounded work. Caller logs failure and continues power policy unchanged. */
 	[[nodiscard]] Result<void> poll_observations();
+	/** When the newest raw contact started, in any lifecycle state; nothing until the first. */
+	[[nodiscard]] std::optional<std::chrono::steady_clock::time_point> last_contact_started() const noexcept {
+		return last_contact_started_;
+	}
 private:
 	TouchObservationRuntime(UnixSocketUiModeNotifier &lifecycle,
 		std::unique_ptr<EvdevTouchSource> source,
@@ -36,6 +42,7 @@ private:
 	std::unique_ptr<MediaWindowEndpoint> media_window_;
 	std::optional<TouchPresentationBinding> binding_;
 	std::optional<SupervisorError> pending_error_;
+	std::optional<std::chrono::steady_clock::time_point> last_contact_started_;
 	bool eligible_{false}, contact_active_{false}, source_failed_{false};
 	std::string forwarding_id_;
 	std::uint64_t sequence_{0};

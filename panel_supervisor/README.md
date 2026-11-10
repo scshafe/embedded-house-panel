@@ -196,6 +196,7 @@ Set every required variable:
 | `BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS` | Required for enabled suspend; 1,000 through 300,000 milliseconds |
 | `BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID` | Optional; the media broker's exact nonzero service UID, distinct from the UI UID. Enables the capture-closure termination path; unset, open capture refuses every suspend |
 | `BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET` | Optional; requires the broker UID and the touch observer. The socket where the broker reads the lifecycle window and claims touch observations (`MediaWindowEndpoint`) |
+| `BHP_PANEL_SUPERVISOR_TOUCH_PRESENCE_SECONDS` | Optional, 1–3600; requires the touch observer. A raw touch contact, in any state, keeps presence for this many seconds on top of the presence input (`TouchHeldPresenceSource`); a presence-input failure is still a failure. Set only by the bench tier (ADR 0014), which has no PIR; production leaves it unset |
 
 `SUSPEND_MODE=disabled` is the explicit non-suspending configuration and does
 not require `POWER_STATE_PATH`. `scripts/boards/render_service_environment.sh`

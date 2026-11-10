@@ -47,6 +47,8 @@ constexpr const char *kSuspendRetryBackoffMilliseconds =
 	"BHP_PANEL_SUPERVISOR_SUSPEND_RETRY_BACKOFF_MILLISECONDS";
 constexpr const char *kMediaBrokerUid = "BHP_PANEL_SUPERVISOR_MEDIA_BROKER_UID";
 constexpr const char *kMediaWindowSocket = "BHP_PANEL_SUPERVISOR_MEDIA_WINDOW_SOCKET";
+constexpr const char *kTouchPresenceSeconds = "BHP_PANEL_SUPERVISOR_TOUCH_PRESENCE_SECONDS";
+constexpr long long kMaximumTouchPresenceSeconds = 3'600;
 
 constexpr long long kMinimumPollIntervalMilliseconds = 50;
 constexpr long long kMaximumPollIntervalMilliseconds = 5'000;
@@ -56,7 +58,7 @@ constexpr long long kMaximumSuspendRetryBackoffMilliseconds = 300'000;
 constexpr long long kMinimumPresentationTimeoutMilliseconds = 1;
 constexpr long long kMaximumPresentationTimeoutMilliseconds = 60'000;
 
-constexpr std::array<const char *, 23> kKnownEnvironmentVariables{
+constexpr std::array<const char *, 24> kKnownEnvironmentVariables{
 	kLatitude,
 	kLongitude,
 	kPresenceGraceSeconds,
@@ -80,6 +82,7 @@ constexpr std::array<const char *, 23> kKnownEnvironmentVariables{
 	kSuspendRetryBackoffMilliseconds,
 	kMediaBrokerUid,
 	kMediaWindowSocket,
+	kTouchPresenceSeconds,
 };
 
 const std::string *find_field(const std::map<std::string, std::string> &fields,
@@ -371,6 +374,21 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 		}
 	}
 
+	const std::string *touch_presence_text = find_field(configuration_fields, kTouchPresenceSeconds);
+	std::optional<std::chrono::seconds> touch_presence_hold;
+	if (touch_presence_text != nullptr && !touch_presence_text->empty()) {
+		long long parsed_hold = 0;
+		if (!parse_decimal_integer(*touch_presence_text, parsed_hold) || parsed_hold < 1 ||
+		    parsed_hold > kMaximumTouchPresenceSeconds) {
+			invalid_fields[kTouchPresenceSeconds] =
+				"when_present_must_be_decimal_seconds_between_1_and_3600";
+		} else if (!touch_result || !touch_result.value()) {
+			invalid_fields[kTouchPresenceSeconds] = "requires_the_touch_observer";
+		} else {
+			touch_presence_hold = std::chrono::seconds(parsed_hold);
+		}
+	}
+
 	if (has_presence_path && !is_explicit_path(*presence_path)) {
 		invalid_fields[kPresenceInputPath] = "must_be_absolute_and_placeholder_free";
 	}
@@ -463,6 +481,7 @@ PanelSupervisordConfig::create(const std::map<std::string, std::string> &configu
 	configuration.touch_configuration_ = touch_result.value();
 	configuration.media_broker_uid_ = media_broker_uid;
 	configuration.media_window_socket_ = media_window_socket;
+	configuration.touch_presence_hold_ = touch_presence_hold;
 	return Result<PanelSupervisordConfig>::success(std::move(configuration));
 }
 

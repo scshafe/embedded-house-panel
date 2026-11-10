@@ -13,6 +13,7 @@
 #include "panel_supervisor/sysfs_suspend.hpp"
 #include "panel_supervisor/system_clock.hpp"
 #include "panel_supervisor/unix_socket_ui_mode_notifier.hpp"
+#include "panel_supervisor/touch_held_presence_source.hpp"
 #include "panel_supervisor/touch_observation_runtime.hpp"
 
 #include "bhp/application_identity.h"
@@ -294,12 +295,23 @@ int run_daemon(bhp::StructuredLogger &logger)
 			{{"error_code", std::string(to_string(touch_result.error().code()))},
 			 {"error_message", touch_result.error().message()}, {"degraded", "true"}});
 	}
+	// The bench tier (ADR 0014) has no PIR: a touch keeps presence for the configured hold.
+	std::optional<TouchHeldPresenceSource> touch_held_presence;
+	if (config.touch_presence_hold() && touch_runtime) {
+		touch_held_presence.emplace(presence_source,
+			[&touch_runtime] { return touch_runtime->last_contact_started(); }, *config.touch_presence_hold());
+	} else if (config.touch_presence_hold()) {
+		logger.log(bhp::StructuredLogLevel::warn, "touch_presence_disabled", "panel-supervisord-startup",
+			{{"reason", "touch_observer_unavailable"}, {"degraded", "true"}});
+	}
+	PresenceSource &effective_presence = touch_held_presence
+		? static_cast<PresenceSource &>(*touch_held_presence) : static_cast<PresenceSource &>(presence_source);
 	UiModeNotifier &notifier = touch_runtime ? static_cast<UiModeNotifier &>(*touch_runtime)
 		: static_cast<UiModeNotifier &>(*ui_mode_notifier);
 	SystemClock clock;
 	RateLimitedStopAwareSuspend stop_aware_suspend(
 		verified_suspend, *stop_controller, config.suspend_retry_backoff());
-	PanelSupervisor supervisor(config.supervisor_config(), PanelPolicy{}, presence_source,
+	PanelSupervisor supervisor(config.supervisor_config(), PanelPolicy{}, effective_presence,
 				   clock, solar_calculator, backlight, notifier,
 				   stop_aware_suspend, logger);
 
@@ -312,6 +324,8 @@ int run_daemon(bhp::StructuredLogger &logger)
 						? config.mem_sleep_state()
 						: std::string("not_applicable")},
 		    {"capture_closure_gate", capture_gate ? "enabled" : "not_applicable"},
+		    {"touch_presence_seconds", touch_held_presence
+			? std::to_string(config.touch_presence_hold()->count()) : std::string("disabled")},
 		    {"media_termination_path",
 		     !capture_gate      ? "not_applicable"
 		     : media_terminator ? "uid_scoped"
