@@ -24,9 +24,14 @@ change.
 
 ```sh
 export BHP_BUILDROOT_HOST_DIR="$BHP_BUILDROOT_OUTPUT_DIR/host"
-export BHP_BUILDROOT_CROSS_PREFIX=arm-buildroot-linux-gnueabihf
+export BHP_BUILDROOT_CROSS_PREFIX=aarch64-buildroot-linux-gnu
 scripts/build/cross_build_applications.sh
 ```
+
+The prefix is optional: the active board profile (`frdm-imx8mp`,
+`config/boards/frdm-imx8mp.env`) supplies `aarch64-buildroot-linux-gnu`, and
+the script refuses any other value with `CROSS_BUILD.PREFIX_BOARD_MISMATCH`.
+The output goes to `.build/buildroot-aarch64-release`.
 
 Buildroot package builds are the release path. Manual SDK cross-builds are for
 iteration. The toolchain file pins the compiler, archiver, sysroot, and

@@ -40,13 +40,22 @@ installs it ([bug-report-inbox-setup.md](../docs/operations/bug-report-inbox-set
     wildcard.
   - It admits a peer only if `tailscale whois` shows the panel's tag, before
     the TLS handshake. A malformed whois answer refuses.
-  - The accept loop never waits on a peer: the peer check and the handshake
-    run in the connection's thread with a 30 s timeout, and at most 8
-    connections run at once.
+  - **The accept loop never waits on a peer.**
+    - It closes a peer that the cached whois answer already refuses.
+    - The peer check and the handshake run in the connection's thread, with
+      30 s per step and 120 s for the whole connection.
+    - At most 8 connections run at once, and the last slot is kept for
+      known panel peers.
+    - Refusal lines are rate-limited.
+    - Concurrent whois lookups for one address run once.
   - It logs codes and report IDs, never content.
   - It runs the owner's speech-to-text command (whisper.cpp, decision 4) on
     each spoken description, after checking it is 16 kHz mono 16-bit PCM.
-    On start it queues again any open report's audio without a transcript.
+    - On start it queues again any open report's audio without a
+      transcript.
+    - Audio it gives up on gets `transcripts/<id>.refused`: the wrong
+      format, or three failed runs. Such audio is not tried again.
+    - A failure in any one report never stops the transcription thread.
 - **`python3 -m bhp_report_inbox`** gives `serve` and the agent's commands:
   - `list [--new]`;
   - `show ID`: paths and closed fields, never the description or logs;

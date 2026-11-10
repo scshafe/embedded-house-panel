@@ -92,16 +92,31 @@ def main() -> int:
         ingest = os.path.join(root, "ingest.sock")
         with open(os.path.join(root, "image-version"), "w", encoding="utf-8") as version:
             version.write("board_id=frdm-imx8mp\ncommit=abc123\n")
-        reporter = subprocess.Popen(
-            [REPORTER, "--ui-socket", os.path.join(root, "ui.sock"), "--ui-uid", "65534", "--ingest-socket", ingest,
-             "--ingest-uids", str(os.getuid()), "--outbox-dir", os.path.join(root, "outbox"),
-             "--fault-dir", os.path.join(root, "faults"), "--inbox-url", f"http://127.0.0.1:{server.server_address[1]}",
-             "--build-info", os.path.join(root, "image-version")],
-            stderr=subprocess.PIPE, text=True)
-        for _ in range(100):
-            if os.path.exists(ingest):
-                break
-            time.sleep(0.05)
+        def start() -> subprocess.Popen:
+            started = subprocess.Popen(
+                [REPORTER, "--ui-socket", os.path.join(root, "ui.sock"), "--ui-uid", "65534", "--ingest-socket", ingest,
+                 "--ingest-uids", str(os.getuid()), "--outbox-dir", os.path.join(root, "outbox"),
+                 "--fault-dir", os.path.join(root, "faults"),
+                 "--inbox-url", f"http://127.0.0.1:{server.server_address[1]}",
+                 "--build-info", os.path.join(root, "image-version")],
+                stderr=subprocess.PIPE, text=True)
+            for _ in range(100):
+                if os.path.exists(ingest) or started.poll() is not None:
+                    break
+                time.sleep(0.05)
+            return started
+
+        # A reporter killed outright leaves its sockets; the next one binds again instead of exiting.
+        killed = start()
+        killed.kill()
+        killed.communicate(timeout=10)
+        expect(os.path.exists(ingest), "a killed reporter leaves a stale ingest socket")
+        reporter = start()
+        time.sleep(0.5)
+        expect(reporter.poll() is None, "a reporter restarted after a kill replaces the stale sockets and runs")
+        second = start()
+        expect(second.wait(timeout=10) != 0, "a second reporter never takes a live reporter's sockets")
+        second.communicate(timeout=10)
         fault = json.dumps({"timestamp": "2026-11-08T12:00:00Z", "level": "error", "message": "queue order lost",
                             "service": "music", "trace_id": "t-9", "error_code": "MUSIC.INTERNAL",
                             "error_message": "x", "stack_trace": "", "reportable": "true",

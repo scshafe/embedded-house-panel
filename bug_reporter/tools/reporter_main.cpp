@@ -5,6 +5,7 @@
 // --fault-dir, bundles in --outbox-dir, and sends them to the PC's inbox at
 // --inbox-url over the tailnet. It opens no audio device and holds no token.
 #include "bhp/http_runtime/http_request.h"
+#include "bhp/unix_socket_path/stale_socket.h"
 #include "bhp/media_window_protocol/media_window_protocol.h"
 #include "bhp/structured_logger.h"
 #include "bug_reporter/reporter_service.h"
@@ -71,11 +72,12 @@ std::optional<std::uint32_t> uid_of(const std::string &text)
 	return static_cast<std::uint32_t>(value);
 }
 
-/** Binds a stream socket (mode given) in an existing directory; a stale path is refused, not removed. */
+/** Binds a stream socket (mode given) in an existing directory, replacing only a stale socket of ours. */
 int listen_on(const std::string &path, mode_t mode, int backlog)
 {
 	if (path.empty() || path[0] != '/' || path.size() >= sizeof(sockaddr_un::sun_path))
 		return -1;
+	(void)bhp::unix_socket_path::clear_stale_socket(path);
 	const int listener = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 	sockaddr_un address{};
 	address.sun_family = AF_UNIX;

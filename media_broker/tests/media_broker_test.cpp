@@ -386,6 +386,8 @@ void test_kept_take_is_handed_off()
 		}
 		h.send(lease::StartRequest{armed->lease_id});
 		(void)h.await<lease::Started>();
+		// A level means frames were captured; stopping before any would leave nothing to commit.
+		(void)h.await<lease::Level>();
 		h.send(lease::StopRequest{armed->lease_id});
 		auto ended = h.await<lease::Ended>();
 		if (!ended || ended->outcome != lease::Outcome::Committed) {

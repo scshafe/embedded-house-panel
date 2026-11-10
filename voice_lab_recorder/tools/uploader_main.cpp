@@ -5,6 +5,7 @@
 // the catalog and library, and the outbox of takes the broker hands off
 // (--handoff-dir). The PC's node is resolved through `tailscale status --json`.
 #include "bhp/http_runtime/http_request.h"
+#include "bhp/unix_socket_path/stale_socket.h"
 #include "bhp/media_window_protocol/media_window_protocol.h"
 #include "bhp/structured_logger.h"
 #include "voice_lab_recorder/corpus_client.h"
@@ -135,11 +136,12 @@ Result<PeerIdentity> tailscale_peer(const std::string &tailscale, const std::str
 	return unavailable();
 }
 
-/** Binds the UI socket (0660) in an existing directory; a stale path is refused, not removed. */
+/** Binds the UI socket (0660) in an existing directory, replacing only a stale socket of ours (unix_socket_path). */
 int listen_ui(const std::string &path)
 {
 	if (path.empty() || path[0] != '/' || path.size() >= sizeof(sockaddr_un::sun_path))
 		return -1;
+	(void)bhp::unix_socket_path::clear_stale_socket(path);
 	const int listener = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 	sockaddr_un address{};
 	address.sun_family = AF_UNIX;

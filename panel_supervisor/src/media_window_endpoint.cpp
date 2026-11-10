@@ -1,4 +1,5 @@
 #include "panel_supervisor/media_window_endpoint.hpp"
+#include "bhp/unix_socket_path/stale_socket.h"
 #include <cerrno>
 #include <cstring>
 #include <sys/socket.h>
@@ -48,6 +49,8 @@ Result<std::unique_ptr<MediaWindowEndpoint>> MediaWindowEndpoint::listen(
 	using Output = Result<std::unique_ptr<MediaWindowEndpoint>>;
 	if (broker_uid == 0 || ::geteuid() != 0 || !trusted_parent(path))
 		return Output::failure(window_error(ErrorCode::MediaWindowUnavailable, "listen.validate"));
+	// A supervisor killed before its destructor leaves the socket; only that stale socket is replaced.
+	(void)bhp::unix_socket_path::clear_stale_socket(path);
 	const int listener = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 	if (listener < 0) return Output::failure(window_error(ErrorCode::MediaWindowUnavailable, "listen.socket"));
 	sockaddr_un address{};
