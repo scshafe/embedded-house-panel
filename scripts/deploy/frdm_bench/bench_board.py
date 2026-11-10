@@ -328,6 +328,7 @@ def prepare() -> dict:
     make_directory(RUN/'ingest', REPORTER_UID, INGEST_GID, 0o2750)
     make_directory(STATE, 0, 0, 0o755)
     make_directory(STATE/'study', UI_UID, UI_UID, 0o700)
+    make_directory(STATE/'weather', UI_UID, UI_UID, 0o700)  # the live forecast (ADR 0015)
     make_directory(STATE/'media', BROKER_UID, BROKER_UID, 0o700)
     make_directory(STATE/'voice-lab-handoff', UPLOADER_UID, VOICE_HANDOFF_GID, 0o2770)
     make_directory(STATE/'report-handoff', REPORTER_UID, REPORT_HANDOFF_GID, 0o2770)
@@ -450,6 +451,7 @@ def service_command(name: str, runtime: dict) -> list[str]:
                 '--scenario', str(BOARD_INSTALL/'current/scenarios/home.json'),
                 '--launcher-config', str(BOARD_INSTALL/'current/config/applications.json'), '--clock-preview', 'on',
                 '--state-directory', state + '/study', '--display-rotation', runtime['rotation'],
+                '--weather-source', 'live', '--weather-state-directory', state + '/weather',
                 '--touch-min-x', str(touch['x_min']), '--touch-max-x', str(touch['x_max']),
                 '--touch-min-y', str(touch['y_min']), '--touch-max-y', str(touch['y_max']),
                 '--media-broker-socket', run + '/broker/ui.sock', '--media-broker-uid', str(BROKER_UID),

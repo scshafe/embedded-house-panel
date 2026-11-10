@@ -174,6 +174,8 @@ def configure(rotation: str, study_config: bool = False, voice_lab: bool = False
     make_directory(RUN/'broker', BROKER_UID, UI_UID, 0o2750)
     make_directory(STATE, 0, 0, 0o755)
     make_directory(STATE/'study', UI_UID, UI_UID, 0o700)
+    # The live forecast's settings and last answer (ADR 0015), the UI's own.
+    make_directory(STATE/'weather', UI_UID, UI_UID, 0o700)
     make_directory(STATE/'screenshots', UI_UID, UI_UID, 0o755)
     make_directory(STATE/'media', BROKER_UID, BROKER_UID, 0o700)
     # Kept takes leave the broker for the uploader here, voice-lab or not.
@@ -217,6 +219,7 @@ def ui_command(record: dict) -> list[str]:
             '--scenario', str(ROOT/'scenarios/home.json'),
             '--launcher-config', str(ROOT/'config/applications.json'), '--clock-preview', 'on',
             '--state-directory', str(STATE/'study'), '--display-rotation', record['rotation'],
+            '--weather-source', 'live', '--weather-state-directory', str(STATE/'weather'),
             '--touch-min-x', str(touch['x_min']), '--touch-max-x', str(touch['x_max']),
             '--touch-min-y', str(touch['y_min']), '--touch-max-y', str(touch['y_max']),
             '--media-broker-socket', str(RUN/'broker/ui.sock'), '--media-broker-uid', str(BROKER_UID),

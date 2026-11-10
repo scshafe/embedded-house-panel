@@ -12,8 +12,24 @@ settings.
 
 **Status (2026-11-10):** the decisions and the fixtures are recorded (plan
 Steps 1–2). The domain is built and tested (Steps 3–4). The bar and the menu
-are drawn and routed (Step 5). Wiring the live source into the panel's
-processes is Step 6.
+are drawn and routed (Step 5). The panel's UI takes the live source on the
+`/tmp` demo and the bench (Step 6). Step 7 is the owner's check on the panel.
+
+## Running it (Step 6)
+
+- **Flags:** `bhp-panel-ui --simulation-drm ... --weather-source live
+  --weather-state-directory DIR`.
+  - `fixture` serves the recorded answers in `weather_panel/tests/fixtures`;
+    `--weather-fixture-directory` names another copy.
+  - `live` needs the directory, which holds the settings and the last good
+    forecast (0700, the UI's own).
+  - A state directory without a source is refused.
+- **Who passes what:**
+  - the VM guest passes `fixture`;
+  - the `/tmp` demo passes `live` with `/tmp/bhp-demo/state/weather`;
+  - the bench passes `live` with `/opt/house-panel/state/weather`.
+- **Logs:** they go to stderr as `panel_ui.weather`, with codes and host
+  names only.
 
 ## On the panel (Step 5)
 

@@ -676,6 +676,24 @@ void test_weather_menu_and_the_worker(const std::filesystem::path &root){
   "the settings survive a restart");
  std::filesystem::remove_all(directory);
 }
+void test_weather_sources(const std::filesystem::path &root){
+ PanelSimulation app(false);
+ app.load(bhp::simulator::read_scenario((root/"simulator/scenarios/home.json").string()));
+ const auto refused=[&app](const std::string &source,const std::string &directory,const std::string &code){
+  try{app.attach_weather_source(source,directory);}catch(const std::exception &error){return std::string(error.what())==code;}
+  return false;
+ };
+ require(refused("weather-api","","SIMULATOR.WEATHER_SOURCE_INVALID"),"only fixture and live are sources");
+ require(refused("live","","SIMULATOR.WEATHER_STATE_DIRECTORY_REQUIRED"),"live weather keeps its settings in a directory");
+ app.attach_weather_source("fixture","");
+ app.semantic_intent("shell.open_weather","touch");
+ app.semantic_intent("weather.location.choose","touch");
+ for(const auto *key:{"weather.key.b","weather.key.o","weather.key.u","weather.key.l"})app.semantic_intent(key,"touch");
+ app.semantic_intent("weather.search.submit","touch");
+ for(int i=0;i<400&&app.scene.weather.state!="results";++i){app.service();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+ require(app.scene.weather.state=="results"&&app.scene.weather.results.size()==5,"the fixture source answers from the recorded files");
+ app.attach_weather(nullptr);
+}
 int main(){try{
  const auto root=std::filesystem::path(BHP_SIMULATOR_SOURCE_ROOT);
  test_durable_delivery_fixture_isolation(root);
@@ -690,6 +708,7 @@ int main(){try{
  test_reconnect_schedule();
  test_services_come_and_go(root);
  test_weather_menu_and_the_worker(root);
+ test_weather_sources(root);
  PanelSimulation app(false);
  const auto front=bhp::simulator::read_scenario((root/"simulator/scenarios/day-front.json").string());
  app.load(front);

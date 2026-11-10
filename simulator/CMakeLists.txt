@@ -8,7 +8,7 @@ target_link_libraries(bhp_panel_simulation PUBLIC panel_ui_lvgl vocabulary_panel
  voice_lab_recorder_uploader_protocol music_control_protocol bug_reporter_protocol bhp::unix_socket_path weather_panel_core)
 if(BHP_BUILD_HTTP_LEXINET_CLIENT)
  target_compile_definitions(bhp_panel_simulation PRIVATE BHP_SIMULATOR_HTTPS=1)
- target_link_libraries(bhp_panel_simulation PUBLIC vocabulary_panel_http_lexinet)
+ target_link_libraries(bhp_panel_simulation PUBLIC vocabulary_panel_http_lexinet weather_panel_http)
 endif()
 add_executable(bhp-panel-render src/panel_simulation_main.cpp)
 target_compile_definitions(bhp-panel-render PRIVATE BHP_NATIVE_WINDOW=0)
