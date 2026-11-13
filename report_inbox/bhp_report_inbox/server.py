@@ -62,7 +62,10 @@ class TailscaleWhoisAuthenticator:
     """Admits a peer address whose tailnet node carries `allowed_tag`, cached per address.
 
     One `tailscale whois` runs per address at a time; concurrent connections from the same address
-    wait for it. `cached` answers from the cache only, for the accept loop, which never waits.
+    wait for it. `cached` answers from the cache only, for the accept loop, which never waits. Only an
+    answer from tailscale is cached: a whois that fails (tailscaled restarting, a timeout, an unknown
+    address) refuses that one connection, and the next one asks again. Expired entries are dropped
+    whenever an answer is stored.
     """
 
     def __init__(self, tailscale: str, allowed_tag: str, cache_seconds: float = 60.0) -> None:
@@ -89,23 +92,30 @@ class TailscaleWhoisAuthenticator:
             waiting.wait(10)
         try:
             allowed = self._whois(address)
-            with self.lock:
-                self.cache[address] = (time.monotonic(), allowed)
-            return allowed
+            if allowed is not None:
+                with self.lock:
+                    now = time.monotonic()
+                    self.cache = {peer: entry for peer, entry in self.cache.items()
+                                  if now - entry[0] < self.cache_seconds}
+                    self.cache[address] = (now, allowed)
+            return bool(allowed)
         finally:
             with self.lock:
                 self.in_flight.pop(address).set()
 
-    def _whois(self, address: str) -> bool:
+    def _whois(self, address: str) -> bool | None:
+        """Whether tailscale names `address` as a node with the tag, or None when it gave no answer."""
         try:
             result = subprocess.run([self.tailscale, "whois", "--json", address], capture_output=True, text=True,
                                     timeout=5, check=False)
-            answer = json.loads(result.stdout) if result.returncode == 0 else None
-            node = answer.get("Node") if isinstance(answer, dict) else None
-            tags = node.get("Tags") if isinstance(node, dict) else None
-            return isinstance(tags, list) and self.allowed_tag in [tag for tag in tags if isinstance(tag, str)]
+            if result.returncode != 0:
+                return None
+            answer = json.loads(result.stdout)
         except (OSError, ValueError, subprocess.TimeoutExpired):
-            return False
+            return None
+        node = answer.get("Node") if isinstance(answer, dict) else None
+        tags = node.get("Tags") if isinstance(node, dict) else None
+        return isinstance(tags, list) and self.allowed_tag in [tag for tag in tags if isinstance(tag, str)]
 
 
 def tailscale_whois_authenticator(tailscale: str, allowed_tag: str, cache_seconds: float = 60.0
@@ -177,7 +187,10 @@ class Transcriber:
 
     def _given_up(self, report_id: str) -> bool:
         marker = self._refused(report_id)
-        return marker.get("reason") == "audio_format_invalid" or marker.get("attempts", 0) >= TRANSCRIPTION_ATTEMPTS
+        attempts = marker.get("attempts", 0)
+        if not isinstance(attempts, int) or isinstance(attempts, bool):
+            return True  # a marker nobody can count is not retried, and does not stop the others
+        return marker.get("reason") == "audio_format_invalid" or attempts >= TRANSCRIPTION_ATTEMPTS
 
     def _mark(self, report_id: str, reason: str) -> None:
         before = self._refused(report_id).get("attempts", 0)
@@ -386,8 +399,10 @@ class InboxServer(http.server.ThreadingHTTPServer):
 
     @staticmethod
     def _cut(request) -> None:  # noqa: ANN001
+        # The plain socket's shutdown: SSLSocket.shutdown also drops the TLS state under the thread that is
+        # still reading or writing it.
         try:
-            request.shutdown(socket.SHUT_RDWR)
+            socket.socket.shutdown(request, socket.SHUT_RDWR)
         except OSError:
             pass
 

@@ -39,7 +39,8 @@ installs it ([bug-report-inbox-setup.md](../docs/operations/bug-report-inbox-set
   - It serves TLS from `tailscale cert` on the PC's tailnet address, never a
     wildcard.
   - It admits a peer only if `tailscale whois` shows the panel's tag, before
-    the TLS handshake. A malformed whois answer refuses.
+    the TLS handshake. A malformed whois answer refuses. Only tailscale's
+    answers are cached; a whois that fails refuses that connection alone.
   - **The accept loop never waits on a peer.**
     - It closes a peer that the cached whois answer already refuses.
     - The peer check and the handshake run in the connection's thread, with

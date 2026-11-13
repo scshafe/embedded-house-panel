@@ -112,7 +112,9 @@ backup that leaves the house.
   - **The result:** one idle or slow connection cannot stall the inbox.
 - **`tailscale whois`:** the receiver runs `tailscale whois --json` for each
   new peer address, cached for 60 s, and admits only nodes tagged
-  `tag:house-panel`. Check that `bhp-report-inbox` can run it:
+  `tag:house-panel`. A whois that fails (tailscaled restarting, a timeout)
+  refuses that one connection and is not cached, so the panel's next try
+  asks again. Check that `bhp-report-inbox` can run it:
   `sudo -u bhp-report-inbox tailscale whois --json <PC_IP>`. If tailscaled's
   LocalAPI refuses that user, give it the narrowest access tailscaled offers
   for whois. Do not run the receiver as root.
@@ -176,7 +178,8 @@ It deletes:
 - **Giving up:** audio in the wrong format, or audio whisper.cpp failed on
   three times, gets `transcripts/<id>.refused`, a small JSON file with the
   reason and the number of attempts. The receiver does not try it again,
-  even after a restart. The audio stays for the owner.
+  even after a restart. A marker whose attempts it cannot read also counts
+  as given up, for that report alone. The audio stays for the owner.
 - **What it does:** the receiver runs it once per spoken description and
   writes `transcripts/<id>.txt`.
 - **Without it:** leave `--transcribe-command` out, and the audio stays for
