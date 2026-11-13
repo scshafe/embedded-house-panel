@@ -209,6 +209,21 @@ class DeadlineAndAudioTest(InboxCase):
         self.assertTrue(wait_for((self.root / "transcripts" / f"{fresh}.txt").exists))
         self.assertEqual(ran.read_text().count("description.wav"), 1, "only the fresh report is tried")
 
+    def test_a_marker_with_uncountable_attempts_gives_up_that_report_only(self) -> None:
+        store = Store(self.root)
+        broken, fresh = "rpt-" + "d" * 32, "rpt-" + "e" * 32
+        for report_id in (broken, fresh):
+            manifest, files = bundle("voice", report_id=report_id, audio=wav())
+            for name, data in files.items():
+                store.put_range(report_id, name, f"bytes 0-{len(data) - 1}/{len(data)}", data)
+            store.complete(report_id, json.dumps(manifest).encode())
+        (self.root / "transcripts" / f"{broken}.refused").write_text('{"reason": "transcription_failed", "attempts": "x"}')
+        command, ran = self.fake_whisper()
+        self.start(transcribe=command)
+        self.assertTrue(wait_for((self.root / "transcripts" / f"{fresh}.txt").exists))
+        self.assertEqual(ran.read_text().count("description.wav"), 1, "only the fresh report is tried")
+        self.assertIn('"transcription_requeued", "reports": 1', self.log.getvalue())
+
     def test_a_failing_whisper_counts_its_attempts(self) -> None:
         directory = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, directory)
@@ -299,6 +314,31 @@ class TlsTest(InboxCase):
         self.assertEqual(peers.calls, 0, "refused in the accept loop, without a whois or a thread")
         self.assertEqual(self.log.getvalue().count('"peer_refused"'), 1, "the refusal lines are rate-limited")
 
+    def test_a_slow_peer_is_cut_off_at_the_deadline_mid_tls(self) -> None:
+        self.start(context=self.tls(), connection_deadline=1.0, connection_seconds=30.0)
+        client = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        client.check_hostname, client.verify_mode = False, ssl.CERT_NONE
+        peer = client.wrap_socket(self.idle(), server_hostname="127.0.0.1")
+        started = time.monotonic()
+        closed = False
+        for byte in b"GET /v1/reports/status?ids= HTTP/1.1\r\n":
+            try:
+                peer.sendall(bytes([byte]))
+            except OSError:
+                closed = True
+                break
+            time.sleep(0.2)
+            if time.monotonic() - started > 6:
+                break
+        if not closed:
+            peer.settimeout(5)
+            try:
+                closed = peer.recv(1) == b""
+            except OSError:
+                closed = True
+        self.assertTrue(closed)
+        self.assertLess(time.monotonic() - started, 6, "cut off after its 1 s deadline, not after 30 s reads")
+
     def test_the_panel_flow_over_tls(self) -> None:
         base = self.start(context=self.tls())
         manifest, files = bundle()
@@ -328,6 +368,36 @@ class AuthenticatorTest(unittest.TestCase):
         check = server.tailscale_whois_authenticator(str(fake), "tag:house-panel")
         for address in answers:
             self.assertFalse(check(address), address)
+
+    def test_a_failed_whois_refuses_once_and_is_not_cached(self) -> None:
+        directory = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, directory)
+        down = directory / "down"
+        down.touch()
+        fake = directory / "tailscale"
+        fake.write_text(f"#!/bin/sh\n[ -e {down} ] && {{ rm {down}; exit 1; }}\n"
+                        "echo '{\"Node\":{\"Tags\":[\"tag:house-panel\"]}}'\n")
+        fake.chmod(0o755)
+        check = server.tailscale_whois_authenticator(str(fake), "tag:house-panel")
+        self.assertFalse(check("100.64.0.7"), "tailscaled did not answer")
+        self.assertIsNone(check.cached("100.64.0.7"), "no answer is not a refusal")
+        self.assertTrue(check("100.64.0.7"), "the next connection asks again")
+        timeout = server.tailscale_whois_authenticator("/nonexistent", "tag:house-panel")
+        self.assertFalse(timeout("100.64.0.7"))
+        self.assertIsNone(timeout.cached("100.64.0.7"))
+
+    def test_expired_whois_answers_are_dropped(self) -> None:
+        fake = Path(tempfile.mkdtemp()) / "tailscale"
+        self.addCleanup(shutil.rmtree, fake.parent)
+        fake.write_text("#!/bin/sh\necho '{\"Node\":{\"Tags\":[\"tag:other\"]}}'\n")
+        fake.chmod(0o755)
+        check = server.tailscale_whois_authenticator(str(fake), "tag:house-panel", cache_seconds=1.0)
+        for address in ("100.64.0.1", "100.64.0.2", "100.64.0.3"):
+            self.assertFalse(check(address))
+        self.assertEqual(len(check.cache), 3)
+        time.sleep(1.1)
+        self.assertFalse(check("100.64.0.4"))
+        self.assertEqual(list(check.cache), ["100.64.0.4"])
 
     def test_concurrent_lookups_of_one_address_run_whois_once(self) -> None:
         directory = Path(tempfile.mkdtemp())
