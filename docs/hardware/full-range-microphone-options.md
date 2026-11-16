@@ -16,6 +16,12 @@ board or voice-lab's contract is written as a question for the owner
 - **Two microphones.** Added a section on the two-microphone ideas the
   owner asked about.
 
+**Amended 2026-11-16:** the owner bought one Rode VideoMic GO II, which
+arrives this week. The test-purchase decision is answered, and a
+[bench plan](#bench-plan-for-the-go-ii) for it is added. The rest is still a
+proposal: no other purchase, no board change and no contract change follows
+from it.
+
 The question: the owner may make the panel the main place to record the
 voice corpus for voice-lab. voice-lab fine-tunes F5-TTS at 24 kHz, so useful
 content reaches about 12 kHz. The take is spoken from about 0.6 m (1.2 m
@@ -71,7 +77,8 @@ Values are labelled by where they come from:
   at 24-bit/48 kHz, supercardioid, 15 dBA, 33 g). The kernel the board runs
   today already has USB audio. It is bus-powered, so the existing privacy
   gate cuts its only power. Mount it on a removable shoe on top of the
-  enclosure, aimed at the talker.
+  enclosure, aimed at the talker. The owner bought one (2026-11-16); the
+  [bench plan](#bench-plan-for-the-go-ii) says how it is tested.
 - **The built-in route is more workable at 0.6 m,** because its MEMS now
   pass on noise. Its DRR gap to a supercardioid is the same at any
   distance. It uses two to four Infineon IM73D122 PDM microphones on the SoC's PDM input (J18), flush
@@ -83,9 +90,10 @@ Values are labelled by where they come from:
   - It needs a small board and a gate change.
 - **Both routes need voice-lab's agreement.** voice-lab's pinned contract
   accepts only takes from the XVF3800 at 16 kHz.
-- **Measure before buying.** The XVF3800 already on the board can measure
-  the room's reverberation time and noise below 8 kHz, which decides how
-  much the microphone choice matters ([What to measure first](#what-to-measure-first)).
+- **Measure the room as well as the microphone.** The XVF3800 already on
+  the board can measure the room's reverberation time and noise below
+  8 kHz, which decides how much the microphone choice matters
+  ([What to measure first](#what-to-measure-first)).
 
 ## 1. The physics
 
@@ -559,9 +567,9 @@ The owner asked whether a second microphone could help, for example as an
 
 **Recommendation:**
 1. Measure the room first with what is already on the board.
-2. If the owner approves, buy one GO II and record test takes at 15 cm,
-   0.6 m and 1.2 m, beside the XVF3800, with and without the session
-   treatment.
+2. Record test takes with the GO II the owner bought, at 0.6 m with 15 cm
+   and 1.2 m as references, with and without the session treatment
+   ([bench plan](#bench-plan-for-the-go-ii)).
 3. Decide on the built-in MEMS route only if a removable tube on the panel
    is unacceptable to look at, or if offline multichannel dereverberation
    turns out to be needed.
@@ -583,8 +591,9 @@ these are valid below 8 kHz:
   Compare the level drop with the 18 dB the inverse-square law predicts:
   any shortfall is the room. Also estimate C50 from the clap response.
 
-**Step 1: with a test microphone (after the owner's go-ahead to buy).**
-Record on any computer first, then on the bench. On the vendor image the
+**Step 1: with the test microphone (the GO II the owner bought).** Record
+on any computer first, then on the bench, as the
+[bench plan](#bench-plan-for-the-go-ii) sets out. On the vendor image the
 USB microphone needs nothing installed; the capture writes only to `/tmp`.
 - the same three distances, at 48 kHz, 24-bit;
 - the noise floor, including the 8–12 kHz band's SNR;
@@ -600,14 +609,86 @@ USB microphone needs nothing installed; the capture writes only to `/tmp`.
 - the 8–12 kHz band at least 20 dB above the floor;
 - a DRR or C50 estimate at 0.6 m near 0 dB with the session treatment.
 
+## Bench plan for the GO II
+
+The owner bought one GO II (2026-11-16). This plan runs the step 1 tests
+when it arrives: 0.6 m is the design distance, and 15 cm and 1.2 m are
+references. The takes are the owner's voice, which is private data. They
+stay in the ignored `hardware_tests/results/`, never in a commit, a PR or a
+request.
+
+**Setup, the same in both phases:**
+- The GO II at the panel's position and height, aimed at the talker's
+  mouth, with nothing in front of the tube. Tape marks at 15 cm, 0.6 m and
+  1.2 m from the capsule.
+- In RØDE Central (macOS or Windows): note the firmware version, and turn
+  off every processing option it offers. Note whether the settings are kept
+  in the microphone, because the board cannot see them.
+- Set the gain once, so the 15 cm take peaks near −12 dBFS, then leave it
+  for every take. The level drops are comparable only at one gain.
+- 48 kHz, 24-bit, mono WAV. Fan off and door closed unless a take says
+  otherwise.
+
+**Takes**, each a WAV named `<distance>-<treated|untreated>-<what>.wav`:
+1. Noise floor: 30 s of silence with the fan off, then 30 s with it on.
+2. At 15 cm, 0.6 m and 1.2 m: the same three sentences at normal effort,
+   then one hand clap from the talker's position.
+3. Step 2 again at 0.6 m and 1.2 m with the session treatment (door open,
+   towels on the glass, bath mat).
+
+That is about a dozen short files, about 15 minutes.
+
+**Phase A: on any computer.** The owner records with any recorder that
+writes 48 kHz/24-bit WAV (Audacity, or `arecord` on Linux), using a laptop in
+the bathroom. No board is involved. The owner copies the files into the
+agent's ignored `hardware_tests/results/mic/go2-phase-a/`.
+
+**Phase B: on the board, only with the owner present,** and only after
+phase A passes and the owner says go.
+- The board's only USB-A host port (J4) holds the gate board. The owner
+  either swaps the GO II onto J4 for the session (the XVF3800 is then off),
+  or puts a plain bench hub on J4 so both record side by side. That hub is
+  bench equipment, not the gated hub of decision 4.
+- Plugged straight into the board, the GO II bypasses the privacy gate
+  (R4). It is unplugged when the session ends.
+- The agent runs only:
+  - read-only checks: `arecord -l`, `/proc/asound/cards`, and the kernel
+    log for the enumeration;
+  - `arecord` into `/tmp`, in the format `arecord --dump-hw-params`
+    reports;
+  - copying the files to `hardware_tests/results/frdm/go2-phase-b-<date>/`,
+    then deleting them from `/tmp`.
+- Nothing is installed, nothing is written outside `/tmp`, no service is
+  changed, and nothing can reboot the board.
+- The takes are phase A's at the three distances, treated only if time is
+  short. With the hub, the XVF3800's raw channel is recorded at the same
+  time, for a comparison below 8 kHz.
+- Also check: one 5-minute take shows no overruns, dropouts or clock drift,
+  and its level and spectrum match phase A's.
+
+**What the agent reports from each phase:**
+- the level drop from 15 cm to 0.6 m and to 1.2 m, against the 12.0 and
+  18.1 dB the inverse-square law predicts;
+- the A-weighted noise floor, the speech-to-noise ratio at 0.6 m, and the
+  8–12 kHz band above the floor;
+- the spectrum at 0.6 m and 1.2 m against 15 cm above 4 kHz;
+- C50 from the clap at each distance, treated and untreated, against the
+  DRR estimates in section 1;
+- pass or fail against the step 1 targets.
+
+voice-lab's take QC and a short test fine-tune come after that. They need
+voice-lab's agreement (decision 5), because its contract refuses 48 kHz
+takes today.
+
 ## Decisions for the owner
 
 1. **Direction.** Choose one:
    - the removable USB microphone (recommended);
    - the built-in MEMS route;
    - both: USB now, MEMS in a later enclosure revision.
-2. **Test purchase.** One Rode VideoMic GO II, about $100. Nothing is bought
-   without this.
+2. **Test purchase: answered (2026-11-16).** The owner bought one Rode
+   VideoMic GO II, arriving this week. It is tested by the
+   [bench plan](#bench-plan-for-the-go-ii). Nothing else is bought.
 3. **Session treatment.** Door open, towels on the glass, fan off, for
    recording sessions only.
 4. **Privacy (R4).** A new microphone must be behind the gate. That means
