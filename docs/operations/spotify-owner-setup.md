@@ -129,9 +129,9 @@ the PC with your own ssh key. The second line names the speaker exactly as
 the Spotify app shows it:
 
 ```sh
-ssh root@192.168.50.19 'install -d -m 700 -o 1105 -g 1105 /opt/house-panel/state/music /opt/house-panel/state/music/token'
-scp -p "/run/user/$(id -u)/bhp-music/token/spotify-token.json" root@192.168.50.19:/opt/house-panel/state/music/token/
-ssh root@192.168.50.19 'chown 1105:1105 /opt/house-panel/state/music/token/spotify-token.json && chmod 600 /opt/house-panel/state/music/token/spotify-token.json && ls -ln /opt/house-panel/state/music/token'
+ssh root@192.168.50.15 'install -d -m 700 -o 1105 -g 1105 /opt/house-panel/state/music /opt/house-panel/state/music/token'
+scp -p "/run/user/$(id -u)/bhp-music/token/spotify-token.json" root@192.168.50.15:/opt/house-panel/state/music/token/
+ssh root@192.168.50.15 'chown 1105:1105 /opt/house-panel/state/music/token/spotify-token.json && chmod 600 /opt/house-panel/state/music/token/spotify-token.json && ls -ln /opt/house-panel/state/music/token'
 rm -r "/run/user/$(id -u)/bhp-music"
 ```
 
@@ -160,7 +160,7 @@ Any one of these stops the panel:
 - **Delete the app** in the developer dashboard. That ends every token it
   issued.
 - **Delete the file on the panel:**
-  `ssh root@192.168.50.19 'rm /opt/house-panel/state/music/token/spotify-token.json'`.
+  `ssh root@192.168.50.15 'rm /opt/house-panel/state/music/token/spotify-token.json'`.
 
 An access token already issued keeps working until it expires, about an hour.
 To sign in again later, repeat Parts 2 and 3. Part 1 stays done.

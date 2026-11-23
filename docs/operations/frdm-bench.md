@@ -84,7 +84,7 @@ Set a root password yourself, so that no agent ever sees it. On the serial
 console, or over ssh with your own key, run `passwd`:
 
 ```sh
-ssh -t root@192.168.50.19 passwd
+ssh -t root@192.168.50.15 passwd
 ```
 
 Keep the password with your other device credentials; it is the console's
@@ -104,7 +104,7 @@ itself.
 Either give the agent the five values, or run this from the PC with yours:
 
 ```sh
-ssh root@192.168.50.19 'install -d -m 755 /etc/house-panel && cat > /etc/house-panel/bench.json' <<'EOF'
+ssh root@192.168.50.15 'install -d -m 755 /etc/house-panel && cat > /etc/house-panel/bench.json' <<'EOF'
 {"latitude": 00.00, "longitude": 00.00, "timezone": "America/Chicago", "rotation": "180",
  "awake": {"from": "06:30", "to": "23:00"}, "touch_presence_seconds": 300}
 EOF
@@ -171,7 +171,7 @@ Only then does it swap `current`, keeping the release before it as
 
 ### After changing `/etc/house-panel`
 
-Run `ssh root@192.168.50.19 systemctl restart bhp-bench.target`. That runs
+Run `ssh root@192.168.50.15 systemctl restart bhp-bench.target`. That runs
 `prepare` again.
 
 ## Undoing it
