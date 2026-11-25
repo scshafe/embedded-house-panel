@@ -366,7 +366,13 @@ from the vendor image, not closed gates: no profile key changed and
   `2e5ef173…0b30`) is again `mismatch`: idle 0, 0 rising and 0 falling. With
   the pad a GPIO input this is no longer explained by the mux. Not yet known
   which holds: the PIR is not switching, its OUT does not reach pin 12, or
-  the line does not follow the pin. The `PIR_ACTIVE_LEVEL` candidate is still
+  the line does not follow the pin. The owner was probably still during this
+  window (the start signal did not reach him), so it proves little. A
+  10-minute monitor followed (00:51:22Z to 01:01:22Z, edges plus the level
+  once a second, `frdm-gate-pir/20261125T005122Z-live-monitor/`): no edges,
+  level 0 on all 600 samples. Whether the owner moved in front of the sensor
+  during it is not confirmed. Next is a meter check of the PIR's supply and
+  of OUT at the PIR and at J18-12. The `PIR_ACTIVE_LEVEL` candidate is still
   missing.
 - ARRIVAL-12 onward otherwise: not started. ARRIVAL-15 is the NXP firmware
   decision.
