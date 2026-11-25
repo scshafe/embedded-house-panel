@@ -318,12 +318,64 @@ from the vendor image, not closed gates: no profile key changed and
   vendor panel DTB with the panel attached (2026-10-11, below). With the I2C
   wires on J27 (2026-10-18, below) the panel lights, touch reports and the
   backlight dims and goes dark. The gate script itself has not rerun since.
-- ARRIVAL-08 onward otherwise: not started. ARRIVAL-08 and -10 need the owner at the
-  board with a meter and the PIR; ARRIVAL-15 is the NXP firmware decision.
-  Since 2026-11-08 the PIR's pins come from NXP's SCH-95022 rev B1 schematic:
-  +5V on J18-2, GND on J18-6, OUT (the wake) on J18-12 = GPIO1_IO01 in a 3.3 V
-  bank. ARRIVAL-08 is now a meter confirmation of that on the B3 board, not a
-  search.
+- ARRIVAL-08 done (2026-11-25 UTC, owner at the board with a UNI-T UT61E+ on DC
+  volts, black probe on J18-6, nothing connected to J18, board on PC USB-C
+  power): J18-12 driven high by pwm1 reads 3.30 V, so `<HEADER_MV>` = 3300 and
+  SCH-95022 rev B1's 3.3 V bank holds on this B3 board. Also read: J18-1
+  (VCC_EXT_3V3) 3.39 V and J18-2 (VDD_5V) 4.56 V. pwm1 had no consumer before;
+  the drive ran 00:13:40Z to 00:25:18Z through runtime sysfs and was undone
+  (`pwm0` unexported). Readings:
+  `frdm-gate-pir/20261125T002543Z-arrival-08-meter-readings.txt`.
+- The 4.56 V on VDD_5V is 9 % under nominal, unloaded, on PC USB-C power. It is
+  recorded, not acted on: no design changes for it here. Measure it again with
+  the PIR wired (ARRIVAL-10/11) and on the final power source.
+- ARRIVAL-09 done (2026-11-25, run from the board's `/tmp` at `b8e9e70` with
+  `--output-directory`, record
+  `frdm-gate-pir/20261125T002543Z-frdm_j18_gpio_inventory.json`, sha256
+  `eff848bc…7b41`): `complete`, 6 of 6 checks pass, among them
+  `candidate_format`, `pad_mux_owner` (`30660000.pwm`, `&pwm1`),
+  `gpio_line_consumer` (gpio1 line 1: none) and `header_io_voltage` (3300 mV).
+  Candidates: `PIR_HEADER_PIN` J18-12, `PIR_PAD_MUX`
+  `MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01`, `PIR_GPIO_CONTROLLER` gpio1,
+  `PIR_GPIO_LINE` 1, `PIR_PAD_OWNER_TO_DISABLE` pwm1, `HEADER_IO_VOLTAGE_MV`
+  3300. The profile keys stay `UNMEASURED` until ARRIVAL-14.
+- ARRIVAL-10 done by the owner (2026-11-25): PIR on J18-2 (+5V), J18-6 (GND)
+  and J18-12 (OUT), checked twice. The board was **not** powered off for the
+  wiring, and it reset during it: up 4 days before, booted again at about
+  00:32:37Z. The cause was not captured (no persistent journal, console not
+  open). It came back clean: no failed units, panel connected, no fault in
+  `dmesg` after boot. The wiring photo is still owed.
+- ARRIVAL-11 ran once (2026-11-25 00:36:15Z, 180 s window, owner still and
+  then walking past; record
+  `frdm-gate-pir/20261125T003615Z-frdm_pir_edge_capture.json`, sha256
+  `1bce40ac…6f06`): `mismatch`. `idle_level_read` 0, `edges_observed` fail
+  with 0 rising and 0 falling. This run says nothing about the PIR. On the
+  vendor DTB the pad is still muxed to pwm1: the mux register at `0x30330018`
+  read `0x1` (ALT1, PWM1_OUT, SION clear) straight after, so gpio1 line 1 does
+  not follow the pin, and the idle pwm1 output holds the pin low against the
+  PIR's OUT. The step as written above cannot pass until the pad is a GPIO
+  input (the script's header asks for that; ARRIVAL-09 accepts pwm1 as owner).
+- ARRIVAL-11 second run, after a runtime mux change the owner approved
+  (2026-11-25): at 00:46:20Z the pad mux register `0x30330018`
+  (IOMUXC GPIO1_IO01) was written through `/dev/mem` from `0x1` to `0x0`
+  (ALT0, GPIO) and read back `0x0`; the pad control `0x30330278` stayed
+  `0x116` and GPIO1's direction register `0x30200004` read `0x0` (input). By
+  the owner's choice it is not written back, so it holds until the next
+  reboot; nothing went to storage. The capture at 00:46:25Z (180 s, record
+  `frdm-gate-pir/20261125T004625Z-frdm_pir_edge_capture.json`, sha256
+  `2e5ef173…0b30`) is again `mismatch`: idle 0, 0 rising and 0 falling. With
+  the pad a GPIO input this is no longer explained by the mux. Not yet known
+  which holds: the PIR is not switching, its OUT does not reach pin 12, or
+  the line does not follow the pin. The owner was probably still during this
+  window (the start signal did not reach him), so it proves little. A
+  10-minute monitor followed (00:51:22Z to 01:01:22Z, edges plus the level
+  once a second, `frdm-gate-pir/20261125T005122Z-live-monitor/`): no edges,
+  level 0 on all 600 samples. Whether the owner moved in front of the sensor
+  during it is not confirmed. Next is a meter check of the PIR's supply and
+  of OUT at the PIR and at J18-12. The `PIR_ACTIVE_LEVEL` candidate is still
+  missing.
+- ARRIVAL-12 onward otherwise: not started. ARRIVAL-15 is the NXP firmware
+  decision.
 
 **Health check (2026-10-05, read-only).** `make verify-board`
 (`scripts/deploy/frdm_board_health.sh`, the hardware gate; captures
