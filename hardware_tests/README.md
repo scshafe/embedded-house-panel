@@ -37,6 +37,13 @@ printing its path on stdout.
 | `frdm_mic_capture.sh --duration-seconds N [--source headset\|array]` | AUDIO | records a WAV into results; `array` is the USB XVF3800 (16 kHz, 6 channels, per-channel statistics) | none (mixer never changed) |
 | `frdm_power_input_log.sh --software-state S ... [--meter-csv FILE --instrument TEXT]` | POWER | read-only | none |
 
+`frdm/frdm_pir_live_view.py` is a bench tool, not a gate script: it shows one
+GPIO line's level, rising-edge count and time since the last change, fullscreen
+on the panel through the vendor image's Weston and GTK 3 (bright `MOTION` when
+high, dark `idle` when low), or with `--text` in a terminal. It needs the vendor
+image's Python 3, holds the line as an input while it runs, and writes no
+record. Run it from the board's `/tmp`; stop it with `pkill -f frdm_pir_live_view`.
+
 Record semantics:
 
 - `checks[].status` is `pass`, `fail`, `unobserved`, or `not_applicable`;
