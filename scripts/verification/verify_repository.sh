@@ -23,7 +23,8 @@ python3 "$SCRIPT_DIRECTORY/verify_board_profiles.py"
   PYTHONDONTWRITEBYTECODE=1 \
     python3 -m unittest hardware_tests.tests.test_classify_wake_trial \
       hardware_tests.tests.test_frdm_evidence_scripts \
-      hardware_tests.tests.test_frdm_board_health
+      hardware_tests.tests.test_frdm_board_health \
+      hardware_tests.tests.test_frdm_pir_live_view
   # The FRDM evidence scripts run under BusyBox ash on the target.
   if command -v busybox >/dev/null 2>&1; then
     BHP_FRDM_TEST_SHELL="busybox sh" PYTHONDONTWRITEBYTECODE=1 \
