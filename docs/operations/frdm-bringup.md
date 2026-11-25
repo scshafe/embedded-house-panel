@@ -355,8 +355,19 @@ from the vendor image, not closed gates: no profile key changed and
   not follow the pin, and the idle pwm1 output holds the pin low against the
   PIR's OUT. The step as written above cannot pass until the pad is a GPIO
   input (the script's header asks for that; ARRIVAL-09 accepts pwm1 as owner).
-  How to get there on the vendor image is an open owner decision; the
-  `PIR_ACTIVE_LEVEL` candidate is still missing.
+- ARRIVAL-11 second run, after a runtime mux change the owner approved
+  (2026-11-25): at 00:46:20Z the pad mux register `0x30330018`
+  (IOMUXC GPIO1_IO01) was written through `/dev/mem` from `0x1` to `0x0`
+  (ALT0, GPIO) and read back `0x0`; the pad control `0x30330278` stayed
+  `0x116` and GPIO1's direction register `0x30200004` read `0x0` (input). By
+  the owner's choice it is not written back, so it holds until the next
+  reboot; nothing went to storage. The capture at 00:46:25Z (180 s, record
+  `frdm-gate-pir/20261125T004625Z-frdm_pir_edge_capture.json`, sha256
+  `2e5ef173…0b30`) is again `mismatch`: idle 0, 0 rising and 0 falling. With
+  the pad a GPIO input this is no longer explained by the mux. Not yet known
+  which holds: the PIR is not switching, its OUT does not reach pin 12, or
+  the line does not follow the pin. The `PIR_ACTIVE_LEVEL` candidate is still
+  missing.
 - ARRIVAL-12 onward otherwise: not started. ARRIVAL-15 is the NXP firmware
   decision.
 
