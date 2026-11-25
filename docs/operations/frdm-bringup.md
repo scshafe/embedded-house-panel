@@ -374,6 +374,23 @@ from the vendor image, not closed gates: no profile key changed and
   during it is not confirmed. Next is a meter check of the PIR's supply and
   of OUT at the PIR and at J18-12. The `PIR_ACTIVE_LEVEL` candidate is still
   missing.
+- ARRIVAL-11 stays open; the owner judges the PIR broken and is ordering a
+  replacement (2026-11-25). The owner watched the line on the panel with
+  `hardware_tests/frdm/frdm_pir_live_view.py` (running since 01:50:28Z) while
+  waving at the sensor: it showed only `idle`. A read-only check at 19:06:24Z
+  found no reboot since 00:32:37Z, the mux still `0x0`, the pad control
+  `0x116` and gpio1 line 1 an input at level 0. On the meter (UNI-T UT61E+,
+  black probe on J18-6) the PIR's +5V pin read 4.5 V and its OUT pin stayed
+  at 0 V while he waved
+  (`frdm-gate-pir/20261125T1906Z-pir-meter-readings.txt`). Whether the live
+  wiring broke it is not known.
+- Not proven: that J18-12's pad is healthy. No signal has been seen on it
+  since the live wiring, and the two readings that would have separated the
+  PIR from the pin were not taken (+5V against the PIR's own GND pin, and OUT
+  with its wire lifted off J18-12). When the new PIR arrives: wire it with the
+  board powered off (ARRIVAL-10 as written), and check its OUT on the meter
+  before it goes on J18-12. After a reboot the pad is muxed to pwm1 again
+  and needs the mux write above before ARRIVAL-11 can see the pin.
 - ARRIVAL-12 onward otherwise: not started. ARRIVAL-15 is the NXP firmware
   decision.
 
