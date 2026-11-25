@@ -339,9 +339,26 @@ from the vendor image, not closed gates: no profile key changed and
   `MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01`, `PIR_GPIO_CONTROLLER` gpio1,
   `PIR_GPIO_LINE` 1, `PIR_PAD_OWNER_TO_DISABLE` pwm1, `HEADER_IO_VOLTAGE_MV`
   3300. The profile keys stay `UNMEASURED` until ARRIVAL-14.
-- ARRIVAL-10 onward otherwise: not started. ARRIVAL-10 is next and is the
-  owner's: power off, then wire the PIR to J18-2 (+5V), J18-6 (GND) and J18-12
-  (OUT). ARRIVAL-15 is the NXP firmware decision.
+- ARRIVAL-10 done by the owner (2026-11-25): PIR on J18-2 (+5V), J18-6 (GND)
+  and J18-12 (OUT), checked twice. The board was **not** powered off for the
+  wiring, and it reset during it: up 4 days before, booted again at about
+  00:32:37Z. The cause was not captured (no persistent journal, console not
+  open). It came back clean: no failed units, panel connected, no fault in
+  `dmesg` after boot. The wiring photo is still owed.
+- ARRIVAL-11 ran once (2026-11-25 00:36:15Z, 180 s window, owner still and
+  then walking past; record
+  `frdm-gate-pir/20261125T003615Z-frdm_pir_edge_capture.json`, sha256
+  `1bce40ac…6f06`): `mismatch`. `idle_level_read` 0, `edges_observed` fail
+  with 0 rising and 0 falling. This run says nothing about the PIR. On the
+  vendor DTB the pad is still muxed to pwm1: the mux register at `0x30330018`
+  read `0x1` (ALT1, PWM1_OUT, SION clear) straight after, so gpio1 line 1 does
+  not follow the pin, and the idle pwm1 output holds the pin low against the
+  PIR's OUT. The step as written above cannot pass until the pad is a GPIO
+  input (the script's header asks for that; ARRIVAL-09 accepts pwm1 as owner).
+  How to get there on the vendor image is an open owner decision; the
+  `PIR_ACTIVE_LEVEL` candidate is still missing.
+- ARRIVAL-12 onward otherwise: not started. ARRIVAL-15 is the NXP firmware
+  decision.
 
 **Health check (2026-10-05, read-only).** `make verify-board`
 (`scripts/deploy/frdm_board_health.sh`, the hardware gate; captures
